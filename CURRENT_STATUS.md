@@ -1,10 +1,20 @@
 # CURRENT_STATUS.md - BMA-Plan Current Status
 
-Date: 2026-05-08 00:45 +07:00
+Date: 2026-05-08 16:07 +07:00
 
 ## One-Line Status
 
-BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, and restored direct header/Area/Land toolbar access.
+BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, restored direct header/Area/Land toolbar access, and an accepted docs-only Page/Layer Measurement Model architecture.
+
+## Latest Documentation State
+
+- Page/Layer Measurement Model documentation: PASS
+- Architecture file: `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md`
+- Accepted hierarchy: Page -> Layer -> Object Type -> Object Category -> Semantic Tag -> Measurement Profile -> Report Target
+- Core rule: do not calculate from layer name
+- Layer means workflow/visibility/lock/organization
+- Semantic Tag, Measurement Profile, and Report Target define measured meaning and report placement
+- Docs-only: no source code, tests, save/load, export, PDF, XLSX, `.bmaplan`, or manual artifact changes
 
 ## Latest Verified State
 
@@ -77,6 +87,7 @@ Latest result: PASS.
 ## Next Recommended Sprint
 
 Choose one:
+- Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
 - Continue UI fixes point-by-point only if a concrete toolbar/workflow defect is reported.
 - Smart export/report use of semantic metadata.
 - Sprint 3B Page Scales audit.

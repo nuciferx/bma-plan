@@ -1,11 +1,21 @@
 # BMA-Plan - Project Index
 
-> Updated: 2026-05-08 00:45 +07:00  
+> Updated: 2026-05-08 16:07 +07:00  
 > Current phase: **Phase 1 = Raster PDF Measurement Assistant / Mini-CAD for Area Measurement**
 
 ## Current Latest Status
 
-- Latest pipeline: **Rollback UI Pack 1 + Targeted Toolbar Fix**
+- Latest pipeline: **Page/Layer Measurement Model Documentation**
+- Result: PASS (docs-only)
+- Accepted architecture documented at `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md`
+- Model: Page -> Layer -> Object Type -> Object Category -> Semantic Tag -> Measurement Profile -> Report Target
+- Core rule: Layer is workflow/visibility; Semantic Tag + Measurement Profile + Report Target define meaning/reporting
+- No app source, tests, save/load, export, UI behavior, PDF, XLSX, `.bmaplan`, or manual artifacts changed
+- No legal pass/fail, OCR, AI, or Rule Engine added
+
+## Previous Verified Product Status
+
+- Previous implementation pipeline: **Rollback UI Pack 1 + Targeted Toolbar Fix**
 - Result: PASS
 - Direct Open PDF / Open Project / sample PDF restored in the header
 - UI Pack 1 Open dropdown neutralized
@@ -118,6 +128,7 @@ Targeted no-new-tool grep and forbidden scope grep found no matches.
 | `SPRINT_INDEX.md` | Sprint/pipeline history and next sprint options |
 | `FILE_STRUCTURE_PLAN.md` | Proposed organization plan; no files moved yet |
 | `HOUSEKEEPING_REPORT.md` | Latest housekeeping report |
+| `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md` | Accepted Page/Layer/Object/Profile/Report architecture contract |
 | `log.md` | Required chronological activity log |
 | `PHASE1_AUDIT.md` | Phase 1 audit and remaining gaps |
 | `TEST_RESULT.md` | Latest test result artifact |
@@ -150,19 +161,23 @@ Phase 1 remains usable measurement/output workflow first. Phase 2 legal/building
 - Sprint A: semantic metadata foundation (`semanticTag`, nullable `useCategory`)
 - UI Pack 1: header + toolbar visual/organizational cleanup
 - Rollback UI Pack 1 targeted fix: direct header actions restored; Area/Land toolbar access fixed
+- Page/Layer Measurement Model docs: accepted factual measurement architecture documented, no code changes
 
 ### Recommended Next Sprint Options
 
-1. **Point-by-point toolbar/workflow defect fixes only if reported**
+1. **Measurement profile metadata implementation**
+   - Add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
+
+2. **Point-by-point toolbar/workflow defect fixes only if reported**
    - Continue restoration style; avoid broad redesign.
 
-2. **Smart export/report use of semantic metadata**
+3. **Smart export/report use of semantic metadata**
    - Use the new metadata foundation in reporting without legal conclusions.
 
-3. **Sprint 3B Page Scales audit**
+4. **Sprint 3B Page Scales audit**
    - Polish scale record reporting toward `point1`, `point2`, `pixels_per_meter`, and `status`.
 
-4. **Manual opening parent reassignment**
+5. **Manual opening parent reassignment**
    - Add UX to resolve ambiguous/unlinked opening parent relationships.
 
 Do not start legal/OCR/AI/Rule Engine work before Phase 1 measurement stability is complete.

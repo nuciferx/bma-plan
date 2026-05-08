@@ -7,6 +7,35 @@
 
 ## 2026-05-08
 
+### [16:07 +07:00] Page/Layer Measurement Model documentation
+
+**What changed:**
+- Read `RUN_PAGE_LAYER_MEASUREMENT_MODEL.md` from the project root.
+- Created `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md`.
+- Documented the accepted hierarchy: Page -> Layer -> Object Type -> Object Category -> Semantic Tag -> Measurement Profile -> Report Target.
+- Documented page types, layer presets, object types, object categories, semantic tags, measurement profiles, report targets, object data contract, UI contract, export field targets, and legal boundary.
+- Updated `index.md`, `CURRENT_STATUS.md`, and `FINAL_REPORT_FOR_CHATGPT.md` to record the docs-only architecture condition.
+
+**Why:**
+- User requested documentation-only architecture work. The sprint locks the accepted model without implementing fields, UI, export behavior, tests, or legal logic.
+
+**Files touched:**
+- `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md`
+- `index.md`
+- `CURRENT_STATUS.md`
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `log.md`
+
+**Verification:**
+- No source code files edited.
+- No tests run because this was docs-only.
+- Forbidden implementation scope avoided: no legal pass/fail, OCR, AI, Rule Engine, `.bmaplan`, PDF, XLSX, or manual artifact changes.
+- Source hash baseline captured before editing docs for `proto/ui.html`, `proto/server.py`, and `proto/e2e_ui_test.py`.
+
+**Known issues:**
+- This sprint only documents the model. It does not add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, or `countingRule` to runtime objects yet.
+- Next recommended implementation sprint: add measurement profile metadata fields with backward-compatible normalization only.
+
 ### [11:20 +07:00] Git remote baseline setup stopped on nested proto repo
 
 **What changed:**
