@@ -1,10 +1,27 @@
 # CURRENT_STATUS.md - BMA-Plan Current Status
 
-Date: 2026-05-08 16:07 +07:00
+Date: 2026-05-08 16:55 +07:00
 
 ## One-Line Status
 
-BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, restored direct header/Area/Land toolbar access, and an accepted docs-only Page/Layer Measurement Model architecture.
+BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, and a cleaned project document structure.
+
+## Project Organization Status
+
+- Project Housekeeping V2: PASS
+- Root folder target: only current status files plus source/docs/sprints/reports/artifacts/sample_projects/archive folders.
+- Run prompts moved under `sprints/`.
+- Design/process/status docs moved under `docs/`.
+- Old reports and handoffs moved under `reports/archive/`.
+- Manual test artifacts moved under `artifacts/manual_test/`.
+- Real/private `.bmaplan` moved under `archive/user_projects/` and remains ignored by Git.
+- PDF references moved under `docs/references/` or `archive/references/` and remain ignored by Git.
+- Root exception: `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` remains in root because current full E2E tests expect that path. It is ignored and must not be committed.
+
+Current development policy:
+- no new feature until Git baseline and stabilization are confirmed
+- one sprint = one branch = one problem
+- source code changes require a dedicated implementation sprint
 
 ## Latest Documentation State
 
@@ -87,6 +104,7 @@ Latest result: PASS.
 ## Next Recommended Sprint
 
 Choose one:
+- Git baseline commit for the housekeeping restructure after review.
 - Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
 - Continue UI fixes point-by-point only if a concrete toolbar/workflow defect is reported.
 - Smart export/report use of semantic metadata.

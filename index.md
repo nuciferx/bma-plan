@@ -1,44 +1,34 @@
-# BMA-Plan - Project Index
+# BMA-Plan Index
 
-> Updated: 2026-05-08 16:07 +07:00  
-> Current phase: **Phase 1 = Raster PDF Measurement Assistant / Mini-CAD for Area Measurement**
+> Updated: 2026-05-08 16:55 +07:00  
+> Current phase: Phase 1 = Raster PDF Measurement Assistant / Mini-CAD for Area Measurement
 
-## Current Latest Status
+## Current Status
 
-- Latest pipeline: **Page/Layer Measurement Model Documentation**
-- Result: PASS (docs-only)
-- Accepted architecture documented at `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md`
-- Model: Page -> Layer -> Object Type -> Object Category -> Semantic Tag -> Measurement Profile -> Report Target
-- Core rule: Layer is workflow/visibility; Semantic Tag + Measurement Profile + Report Target define meaning/reporting
-- No app source, tests, save/load, export, UI behavior, PDF, XLSX, `.bmaplan`, or manual artifacts changed
-- No legal pass/fail, OCR, AI, or Rule Engine added
+- [CURRENT_STATUS.md](CURRENT_STATUS.md)
+- [FINAL_REPORT_FOR_CHATGPT.md](FINAL_REPORT_FOR_CHATGPT.md)
+- [TEST_RESULT.md](TEST_RESULT.md)
+- [PATCH_SUMMARY.md](PATCH_SUMMARY.md)
+- [UI_MANUAL_TEST.md](UI_MANUAL_TEST.md)
+- [log.md](log.md)
 
-## Previous Verified Product Status
-
-- Previous implementation pipeline: **Rollback UI Pack 1 + Targeted Toolbar Fix**
-- Result: PASS
-- Direct Open PDF / Open Project / sample PDF restored in the header
-- UI Pack 1 Open dropdown neutralized
-- Export remains visible and unchanged
-- Area toolbar click now activates normal room/sub_area drawing directly
-- Land toolbar click now activates land/base_area drawing directly
-- Opening remains direct and does not require a follow-up Area click
-- `MAIN_UI_OK` now guards restored direct header/Area/Land toolbar behavior
-- More menu remains for secondary tools
-- Measurement geometry, layer model, semantic metadata model, save/load, and export endpoints untouched
-- `py_compile` / `smoke` / `full`: PASS
-- Targeted no-new-tool grep and forbidden scope grep: PASS/no matches
+Latest condition:
+- Project Housekeeping V2: PASS
+- Root folder now keeps current status files, source pointer, and top-level organization folders.
+- Latest architecture docs: [PAGE_LAYER_MEASUREMENT_MODEL.md](docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md)
+- Previous implementation baseline: Rollback UI Pack 1 + Targeted Toolbar Fix, PASS
+- Latest implementation tests before housekeeping: `py_compile`, `smoke`, `full` PASS
 
 ## Phase 1 Scope Warning
 
-Phase 1 is **not**:
+Phase 1 is not:
 - legal checker
 - OCR
 - AI checker
 - Rule Engine
 - FAR / OSR / setback law validator
 - K.1 generator
-- new CAD drawing tool sprint
+- Project PDF Save/Load
 
 Phase 1 is only:
 - open PDF
@@ -50,134 +40,102 @@ Phase 1 is only:
 
 Real PDFs may be raster/scanned images, so the product must not depend on PDF vector geometry.
 
-## Project Purpose
+## Source
 
-BMA-Plan is a browser-based Mini-CAD measurement assistant for construction PDFs. It uses a local FastAPI backend and an HTML Canvas UI to render PDF pages, let users calibrate scale, draw measured geometry, manage overlap selection, and export measurement reports.
+- [proto/](proto/) - FastAPI backend, HTML canvas frontend, E2E tests, and requirements
 
-## Current Status
+Root repository note:
+- `proto/` is a nested Git repository/gitlink to `https://github.com/nuciferx/bma-plan-proto.git`.
+- Runtime source files stay in `proto/` and were not moved by housekeeping.
 
-The prototype is usable for Phase 1 measurement workflows:
-- per-case PDF upload/rendering with `case_id`
-- wheel zoom and pan
-- manual scale calibration and auto-unverified scale display
-- polygon area and opening/deduction measurement
-- reference lines, distance/path lines, parking markers
-- object tree and properties panel
-- semantic metadata fields on measurement objects
-- layer visibility/lock, including locked layers staying visible but unselectable
-- overlapping object picker
-- JSON/CSV/XLSX/PDF/PDF+annotations export
-- `.bmaplan` save/load
-- restored direct top header file actions
-- responsive main measurement toolbar with primary tools visible, secondary tools in More menu, and fixed Area/Land direct access
+## Design Docs
 
-## Latest Completed Sprint
+- [docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md](docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md)
+- [docs/design/BMA_PLAN_PHASE1_CONTEXT.md](docs/design/BMA_PLAN_PHASE1_CONTEXT.md)
+- [docs/design/BMA_PLAN_V2_SCOPE.md](docs/design/BMA_PLAN_V2_SCOPE.md)
+- [docs/design/DEVELOPMENT_PLAN.md](docs/design/DEVELOPMENT_PLAN.md)
+- [docs/design/idea-cards.md](docs/design/idea-cards.md)
 
-Latest pipeline: **Rollback UI Pack 1 + Targeted Toolbar Fix**
+## Process Docs
 
-Result:
-- direct Open PDF, Open Project, and sample actions are restored
-- UI Pack 1 Open dropdown is neutralized
-- Export remains prominent and unchanged
-- Area direct access resets stale opening/land state and selects room/sub_area mode
-- Land direct access resets stale opening state and selects land/base_area mode
-- toolbar primary row remains visible at 1440px
-- advanced land-edge/setback helpers remain hidden by default
-- no new drawing tools or measurement geometry changes
-- latest tests passed
+- [docs/process/SPRINT_INDEX.md](docs/process/SPRINT_INDEX.md)
+- [docs/process/FILE_STRUCTURE_PLAN.md](docs/process/FILE_STRUCTURE_PLAN.md)
+- [docs/process/HOUSEKEEPING_REPORT.md](docs/process/HOUSEKEEPING_REPORT.md)
+- [docs/process/DOCS_SUMMARY.md](docs/process/DOCS_SUMMARY.md)
+- [docs/process/TASK_PACKET.md](docs/process/TASK_PACKET.md)
+- [docs/process/REVIEW_RESULT.md](docs/process/REVIEW_RESULT.md)
 
-Immediately before that:
-- UI Pack 1 Header + Toolbar passed but was rolled back/neutralized for usability
-- Sprint A Semantic Tag Foundation passed
-- approved Measurement Main UI alignment passed
-- site sides/orientation UI passed
-- Sprint 3A duplicate helper verification passed
-- overlapping picker lifecycle and layer lock were verified
+## Status Docs
 
-## Latest Passing Tests
+- [docs/status/PHASE1_AUDIT.md](docs/status/PHASE1_AUDIT.md)
+- [reports/archive/PROGRESS.md](reports/archive/PROGRESS.md)
+- [reports/archive/HANDOFF.md](reports/archive/HANDOFF.md)
+- [reports/archive/SESSION_CONTINUATION.md](reports/archive/SESSION_CONTINUATION.md)
+- [reports/archive/UI_REGRESSION_REPORT.md](reports/archive/UI_REGRESSION_REPORT.md)
 
-Latest recorded passing commands:
+## Active Sprints
 
-```bash
-python -m py_compile proto/server.py proto/e2e_ui_test.py
-$env:PYTHONIOENCODING='utf-8'; python proto/e2e_ui_test.py smoke
-$env:PYTHONIOENCODING='utf-8'; python proto/e2e_ui_test.py full
-```
+- [sprints/active/](sprints/active/)
 
-Key confirmations:
-- `MAIN_UI_OK`
-- `SITE_UI_OK`
-- `XLSX_OK`
-- `PROJECT_OK`
-- `SELECT_OK`
-- `EXT_MEASURE_OK`
-- `ANNOT_OK`
-- `PERSIST_OK`
-- `REAL_OK`
+No active run prompt was kept in this housekeeping pass. Next sprint should create a new focused runbook under `sprints/active/`.
 
-Targeted no-new-tool grep and forbidden scope grep found no matches.
+## Completed Sprints
 
-## Important Files
+- [sprints/completed/2026-05-06-housekeeping-v1/](sprints/completed/2026-05-06-housekeeping-v1/)
+- [sprints/completed/2026-05-06-project-setup-ui/](sprints/completed/2026-05-06-project-setup-ui/)
+- [sprints/completed/2026-05-06-measurement-main-ui/](sprints/completed/2026-05-06-measurement-main-ui/)
+- [sprints/completed/2026-05-07-responsive-toolbar-ui/](sprints/completed/2026-05-07-responsive-toolbar-ui/)
+- [sprints/completed/2026-05-07-site-sides-orientation-ui/](sprints/completed/2026-05-07-site-sides-orientation-ui/)
+- [sprints/completed/2026-05-07-sprint-3a-duplicate-helpers/](sprints/completed/2026-05-07-sprint-3a-duplicate-helpers/)
+- [sprints/completed/2026-05-07-semantic-tag-foundation/](sprints/completed/2026-05-07-semantic-tag-foundation/)
+- [sprints/completed/2026-05-07-update-agents-gtm-loop/](sprints/completed/2026-05-07-update-agents-gtm-loop/)
+- [sprints/completed/2026-05-08-rollback-ui-pack1-targeted-fix/](sprints/completed/2026-05-08-rollback-ui-pack1-targeted-fix/)
+- [sprints/completed/2026-05-08-page-layer-measurement-model/](sprints/completed/2026-05-08-page-layer-measurement-model/)
 
-| File | Purpose |
-|---|---|
-| `AGENTS.md` | Agent rules and non-negotiable Phase 1 scope |
-| `BMA_PLAN_PHASE1_CONTEXT.md` | Full Phase 1 product/architecture context |
-| `index.md` | This project map and current status |
-| `CURRENT_STATUS.md` | Short current handoff state |
-| `SPRINT_INDEX.md` | Sprint/pipeline history and next sprint options |
-| `FILE_STRUCTURE_PLAN.md` | Proposed organization plan; no files moved yet |
-| `HOUSEKEEPING_REPORT.md` | Latest housekeeping report |
-| `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md` | Accepted Page/Layer/Object/Profile/Report architecture contract |
-| `log.md` | Required chronological activity log |
-| `PHASE1_AUDIT.md` | Phase 1 audit and remaining gaps |
-| `TEST_RESULT.md` | Latest test result artifact |
-| `UI_MANUAL_TEST.md` | Latest focused UI/manual notes |
-| `proto/server.py` | FastAPI backend/API/render/export/session logic |
-| `proto/ui.html` | Canvas frontend and measurement UI |
-| `proto/e2e_ui_test.py` | Smoke/full regression tests |
-| `proto/requirements.txt` | Runtime/test dependencies |
-| `proto/STATUS.md` | Proto-specific handoff/status |
+## Archived Sprints
 
-## File Organization Notes
+- [sprints/archive/2026-05-08-ui-pack1-header-toolbar-superseded/](sprints/archive/2026-05-08-ui-pack1-header-toolbar-superseded/)
+- [sprints/archive/legacy-one-day-sprint/](sprints/archive/legacy-one-day-sprint/)
 
-Root currently mixes core docs, sprint artifacts, prompt files, historical files, PDFs, and patch scripts. No files were moved or deleted in this sprint.
+## Reports
 
-## Agent Operating Protocol
+- [reports/latest/](reports/latest/) - reserved for future copied latest report sets
+- [reports/archive/](reports/archive/) - old reports, handoffs, patches, and status docs
 
-`AGENTS.md` requires the `BMA-Plan Agent Operating Loop - GTM Infinite Loop` for every future sprint:
-Understanding Condition -> Restoration -> Defect Factors Analysis -> Eliminating Factors of Defect -> Setting Condition -> Condition Kaizen -> Condition Management.
+Latest report files remain in root:
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `TEST_RESULT.md`
+- `PATCH_SUMMARY.md`
+- `UI_MANUAL_TEST.md`
 
-Phase 1 remains usable measurement/output workflow first. Phase 2 legal/building-control skill is manual review support only, not automatic pass/fail.
+## Artifacts
+
+- [artifacts/manual_test/](artifacts/manual_test/) - moved manual screenshots, downloaded XLSX, and `.bmaplan` roundtrip artifacts
+- [artifacts/screenshots/](artifacts/screenshots/) - moved loose screenshots
+- [artifacts/exports/](artifacts/exports/) - reserved for generated exports
+
+`artifacts/` is ignored by Git and should not be staged unless explicitly requested.
+
+## References And Archive
+
+- [docs/references/](docs/references/) - reference PDFs/docs that should remain ignored unless explicitly approved
+- [archive/references/](archive/references/) - large/private reference PDFs
+- [archive/user_projects/](archive/user_projects/) - real/private `.bmaplan` files, ignored by Git
+- [archive/old_docs/](archive/old_docs/) - old context notes, legacy source copies, patch scripts, assistant notes
+- [sample_projects/](sample_projects/) - safe sample project files only; currently empty
+
+Root exception:
+- `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` remains in root because existing full E2E tests expect that path. It is ignored by Git and must not be staged.
 
 ## Current Sprint Roadmap
 
-### Completed / Verified
+Recommended next sprint:
+1. Git baseline commit for housekeeping after review.
+2. Stabilization sprint only if a concrete core workflow defect is reported.
+3. Canvas Interaction UX as a narrow sprint if selection/pan/zoom issues are confirmed.
+4. Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
 
-- Sprint 1: layer lock, overlapping picker, object tree/properties foundation
-- Sprint 2: raster measurement UX, loupe, bigger handles, Shift/ortho, draw bar
-- Sprint 3: parent opening auto-link, structured QA warnings, XLSX audit foundation
-- Sprint 3A: duplicate helper verification, Page Scales coverage, picker regression preserved
-- Sprint A: semantic metadata foundation (`semanticTag`, nullable `useCategory`)
-- UI Pack 1: header + toolbar visual/organizational cleanup
-- Rollback UI Pack 1 targeted fix: direct header actions restored; Area/Land toolbar access fixed
-- Page/Layer Measurement Model docs: accepted factual measurement architecture documented, no code changes
-
-### Recommended Next Sprint Options
-
-1. **Measurement profile metadata implementation**
-   - Add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
-
-2. **Point-by-point toolbar/workflow defect fixes only if reported**
-   - Continue restoration style; avoid broad redesign.
-
-3. **Smart export/report use of semantic metadata**
-   - Use the new metadata foundation in reporting without legal conclusions.
-
-4. **Sprint 3B Page Scales audit**
-   - Polish scale record reporting toward `point1`, `point2`, `pixels_per_meter`, and `status`.
-
-5. **Manual opening parent reassignment**
-   - Add UX to resolve ambiguous/unlinked opening parent relationships.
-
-Do not start legal/OCR/AI/Rule Engine work before Phase 1 measurement stability is complete.
+Policy:
+- no new feature until Git baseline and stabilization are confirmed
+- one sprint = one branch = one problem
+- do not start legal/OCR/AI/Rule Engine work before Phase 1 measurement stability is complete

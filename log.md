@@ -7,6 +7,57 @@
 
 ## 2026-05-08
 
+### [16:55 +07:00] Project housekeeping V2
+
+**สิ่งที่ทำ:**
+- จัดระเบียบ root folder
+- แยก docs / sprints / reports / artifacts / archive
+- ย้าย completed run prompts ไป `sprints/completed/`
+- ย้าย superseded/legacy run prompts ไป `sprints/archive/`
+- ย้าย design/process/status docs ไป `docs/`
+- ย้าย old reports ไป `reports/archive/`
+- ย้าย manual test artifacts ไป `artifacts/manual_test/`
+- ย้าย screenshot loose folder ไป `artifacts/screenshots/`
+- ย้าย reference PDFs และ real/private `.bmaplan` ไป ignored reference/archive folders
+- เก็บ `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` ไว้ root เพราะ full E2E test ปัจจุบันอ้าง path นี้
+- update `README.md`, `index.md`, `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`
+- update `.gitignore` ให้ ignore `desktop.ini`
+
+**เหตุผล:**
+- root folder เริ่มบวมจากหลาย sprint
+- ลดความเสี่ยงหาไฟล์ผิด
+- เตรียม Git baseline และพัฒนาต่อแบบมีระบบ
+
+**ไฟล์ที่แตะ:**
+- `.gitignore`
+- `README.md`
+- `index.md`
+- `CURRENT_STATUS.md`
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `PATCH_SUMMARY.md`
+- `TEST_RESULT.md`
+- `log.md`
+- `docs/process/FILE_STRUCTURE_PLAN.md`
+- `docs/process/SPRINT_INDEX.md`
+- `docs/process/HOUSEKEEPING_REPORT.md`
+- moved documentation/runbook/report/artifact/reference files under `docs/`, `sprints/`, `reports/`, `artifacts/`, and `archive/`
+
+**ผลลัพธ์:**
+- PASS
+
+**ผลทดสอบ/ผลตรวจ:**
+- ไม่รัน app tests เพราะเป็น documentation/file-organization only
+- source hash ของ `proto/ui.html`, `proto/server.py`, `proto/e2e_ui_test.py` ไม่เปลี่ยน
+- `git status --short`: run
+- `git diff --stat`: run
+- staged unsafe-file check: PASS/no unsafe staged files
+
+**Known issues:**
+- `proto` ยังเป็น nested Git repo และมี dirty/untracked state เดิม
+- `desktop.ini` จำนวนมากมาจาก Windows/Google Drive environment และถูก ignore
+- `artifacts/`, PDFs, XLSX, `.bmaplan`, และ archive user projects ไม่ควรถูก commit
+- PDF จริง `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` ยังอยู่ root แบบ ignored เพื่อรักษา full E2E path เดิม
+
 ### [16:07 +07:00] Page/Layer Measurement Model documentation
 
 **What changed:**
