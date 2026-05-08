@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Generated / runtime artifacts
+manual_test_artifacts/
+artifacts/
+pic/
+*.log
+
+# User / generated files
+*.pdf
+*.xlsx
+*.bmaplan
+*.bmaplan.pdf
+
+# Optional patch/output
+PATCH.diff
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+credentials*
+token*
+secret*
