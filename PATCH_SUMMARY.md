@@ -6,6 +6,8 @@
 - Added `.gitmodules` for the existing nested `proto` repository.
 - Configured root `origin` as `https://github.com/nuciferx/bma-plan.git`.
 - Staged only explicit safe docs/runbooks/report files plus the `proto` gitlink.
+- Created baseline commit `51549e7`.
+- Pushed `main` to `origin/main`.
 
 ## What Did Not Change
 - No app behavior changed.

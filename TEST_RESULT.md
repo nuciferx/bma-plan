@@ -8,15 +8,15 @@
 - `git config user.email`: global unset; local set to `dev@bma-plan.local`
 - `gh auth status`: failed, not logged into any GitHub hosts
 - `git status --short`: safe staged docs/runbooks/reports plus `proto` gitlink
-- `git commit`: pending at report-edit time
+- `git commit`: PASS, baseline commit `51549e7`
 - `git remote -v`: origin configured to `https://github.com/nuciferx/bma-plan.git`
-- `git push / gh repo create`: pending at report-edit time
+- `git push / gh repo create`: PASS, `git push -u origin main`
 
 ## Result
 - local git: initialized on `main`
-- baseline commit: pending
+- baseline commit: PASS, `51549e7`
 - remote: origin configured
-- push: pending
+- push: PASS, `main -> origin/main`
 - safety check: PASS, no unsafe staged PDF/XLSX/`.bmaplan`/manual artifact/secret-like paths
 
 ## Notes

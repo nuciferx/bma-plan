@@ -4,16 +4,16 @@
 Initialize Git, create safe baseline commit, and connect/push to remote if authenticated account exists.
 
 ## Outcome
-PARTIAL
+PARTIAL / PUSHED
 
 Root repository baseline was prepared for `https://github.com/nuciferx/bma-plan.git`. Because `proto/` is already its own Git repository, it was recorded as a submodule-style gitlink pointing to `https://github.com/nuciferx/bma-plan-proto.git` instead of flattening or deleting nested Git metadata.
 
 ## Git Result
 - git initialized: yes
 - current branch: `main`
-- commit hash: recorded in final chat response after commit
+- commit hash: `51549e7` baseline push commit
 - remote origin: `https://github.com/nuciferx/bma-plan.git`
-- pushed to remote: recorded in final chat response after push
+- pushed to remote: yes, `main -> origin/main`
 - GitHub CLI auth: not authenticated
 - repo URL: `https://github.com/nuciferx/bma-plan`
 
@@ -56,6 +56,8 @@ Root repository baseline was prepared for `https://github.com/nuciferx/bma-plan.
 - `git ls-remote https://github.com/nuciferx/bma-plan.git`
 - `git add` with explicit allowlisted paths
 - staged unsafe-file grep
+- `git commit -m "chore: baseline after toolbar rollback and semantic tag foundation"`
+- `git push -u origin main`
 
 ## Known Remaining Gaps
 - `gh auth status` is still not authenticated; push relies on existing Git credential manager/browser auth if available.
