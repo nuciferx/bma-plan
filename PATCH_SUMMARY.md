@@ -1,4 +1,45 @@
-# PATCH_SUMMARY.md - Opening Parent Reassignment
+# PATCH_SUMMARY.md - Left Properties Migration
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## What Changed
+
+- `proto/ui.html` — added `data-mode` attributes and `onclick="setSidebarMode('...')"` to 3 `.sidebar-mode-tab` divs.
+- `proto/ui.html` — added `#lp-objects-content` and `#lp-properties-content` divs (hidden initially) in HTML after `#sidebar-content`.
+- `proto/ui.html` — added `let lSidebarMode="sheets"` global.
+- `proto/ui.html` — added `setSidebarMode(mode)`: toggles tab `.active` class; shows/hides `#search-input`, `#quick-tag-bar`, `#workflow-card`, `#sidebar-content`, `#sidebar-footer`, `#lp-objects-content`, `#lp-properties-content`; calls `buildLeftObjects()` or `buildLeftProperties()` as appropriate.
+- `proto/ui.html` — added `buildLeftObjects()`: renders flat list of all page objects into `#lp-objects-content`; clicking an item calls `selectObjectFromTree`.
+- `proto/ui.html` — added `buildLeftProperties()`: renders full property editor (Name, Type, Parent, Semantic Tag, Use Category, metadata, metrics) into `#lp-properties-content` for the selected object; shows placeholder when nothing selected.
+- `proto/ui.html` — `selectObjectFromTree`: added `setSidebarMode("properties")` call before `redraw()` so tree clicks auto-switch to Properties tab.
+- `proto/ui.html` — `_initDrag` (canvas mousedown): added `setSidebarMode("properties")` so canvas selection auto-switches to Properties tab.
+- `proto/ui.html` — `showObjPicker` row click: added `setSidebarMode("properties")` so object picker selection auto-switches to Properties tab.
+- `proto/e2e_ui_test.py` — added `leftPanelTabsOk` IIFE to MAIN_UI_OK JS block: cycles tabs (objects → properties → sheets) and verifies content visibility; asserts true.
+
+## What Did Not Change
+
+- No `proto/server.py` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- Right panel properties section (`#rp-properties-section`) and object tree remain present (`rightPanelCompatibilityVisible: True`).
+
+## Files Touched
+
+- `proto/ui.html`
+- `proto/e2e_ui_test.py`
+- `sprints/active/RUN_LEFT_PROPERTIES_MIGRATION.md`
+- `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`
+
+## Known Issues
+
+None.
+
+---
+
+# Previous: Opening Parent Reassignment
 
 Date: 2026-05-09
 

@@ -1,4 +1,35 @@
-# TEST_RESULT.md - Opening Parent Reassignment
+# TEST_RESULT.md - Left Properties Migration
+
+Date: 2026-05-09
+
+## Result
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## New Assertions Verified
+
+- MAIN_UI_OK — `leftPanelTabsOk: True` (Objects tab shows lp-objects-content, Properties tab shows lp-properties-content, Sheets tab restores sidebar-content).
+
+## Regression Coverage Maintained
+
+- MAIN_UI_OK `rightPanelCompatibilityVisible: True` — right panel properties section still present.
+- All previous MAIN_UI_OK assertions including leftPanelLabelsOk, workflowVisible, workflowOrderOk still PASS.
+- SELECT_OK (parentLinked, parentSelectVisible, parentReassigned, metaOk, metaPanelVisible, strippedMetaOk) still PASS.
+- CACHE_OK, XLSX_OK, VECTOR_OK, RECAL_OK, SNAP_OK, PROJECT_OK, ANNOT_OK, PERSIST_OK, REAL_OK all PASS.
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue.
+
+---
+
+# Previous: Opening Parent Reassignment
 
 Date: 2026-05-09
 

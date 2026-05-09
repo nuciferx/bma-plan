@@ -4,10 +4,11 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation across JSON/CSV/XLSX, a summary-by-reportTarget XLSX sheet, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, and a right panel that is explicitly Layers-first.
+BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation across JSON/CSV/XLSX, a summary-by-reportTarget XLSX sheet, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, a right panel that is explicitly Layers-first, and a left panel with working Sheets/Objects/Properties tab switching.
 
 ## Latest Implementation State
 
+- Left Properties Migration: PASS
 - Opening Parent Reassignment: PASS
 - Page Scales Audit: PASS
 - Report Target Summary XLSX: PASS
@@ -18,7 +19,11 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 - Primary workflow order is `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`.
 - `Set Scale` is visible before `Page Setup` and uses the existing calibration mode.
 - `Page Setup` is now the primary visible setup label; internal setup function names remain unchanged for compatibility.
-- Left panel labels are `Sheets`, `Objects`, and `Properties`.
+- Left panel labels are `Sheets`, `Objects`, and `Properties`; tabs now have working click handlers via `setSidebarMode(mode)`.
+- `Sheets` tab shows page thumbnails, search, quick-tag bar, and workflow card (existing behavior).
+- `Objects` tab shows a flat list of all objects on the current page (`buildLeftObjects()`); clicking an object selects it and auto-switches to Properties tab via `selectObjectFromTree`.
+- `Properties` tab shows the full property editor (`buildLeftProperties()`) for the selected object, or a "select object first" placeholder.
+- Selecting an object via canvas click, obj-picker, or Object Tree auto-switches left panel to Properties tab.
 - Right panel is explicitly Layers-first with layer counts and visibility/lock controls.
 - Existing right-panel Properties/Object Tree remain accessible below Layers as labeled `Legacy / Compatibility` sections.
 - Status bar includes `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, and `Page`.

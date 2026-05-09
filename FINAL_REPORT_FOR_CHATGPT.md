@@ -1,4 +1,40 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Opening Parent Reassignment
+# FINAL_REPORT_FOR_CHATGPT.md - Left Properties Migration
+
+## Outcome
+
+PASS
+
+## Changed
+
+- Added `data-mode` attributes and `onclick="setSidebarMode('...')"` to 3 left-panel tabs.
+- Added `#lp-objects-content` and `#lp-properties-content` hidden divs after `#sidebar-content`.
+- Added `lSidebarMode` global and `setSidebarMode(mode)` function.
+- Added `buildLeftObjects()`: flat object list; clicking auto-selects and switches to Properties.
+- Added `buildLeftProperties()`: full property editor mirroring right panel; placeholder when none selected.
+- Auto-switch to Properties tab on canvas click (`_initDrag`), picker row click, and `selectObjectFromTree`.
+- Extended MAIN_UI_OK E2E to assert `leftPanelTabsOk`.
+
+## Not Changed
+
+- No `proto/server.py` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- Right panel properties section (`#rp-properties-section`, `#rp-object-tree-section`) remains present.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Next Recommended Sprint
+
+- Left panel Properties refinement (scroll, focus behavior, keyboard navigation).
+- Or next Phase 1 feature sprint.
+
+---
+
+# Previous: Opening Parent Reassignment
 
 ## Outcome
 

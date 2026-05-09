@@ -7,6 +7,20 @@
 
 ## 2026-05-09
 
+### [session] Left Properties Migration
+
+**What changed:**
+- `proto/ui.html`: added `data-mode` + `onclick="setSidebarMode('...')"` to 3 left-panel tab divs.
+- `proto/ui.html`: added `#lp-objects-content` and `#lp-properties-content` hidden divs in HTML.
+- `proto/ui.html`: added `lSidebarMode` global, `setSidebarMode(mode)`, `buildLeftObjects()`, `buildLeftProperties()` functions.
+- `proto/ui.html`: `selectObjectFromTree`, `_initDrag`, `showObjPicker` row click — each now calls `setSidebarMode("properties")` to auto-switch on object selection.
+- `proto/e2e_ui_test.py`: added `leftPanelTabsOk` IIFE to MAIN_UI_OK; added Python assertion.
+- Sprint card moved to `sprints/completed/2026-05-09-left-properties-migration/`.
+
+**Tests:** py_compile PASS · smoke PASS · full PASS
+
+---
+
 ### [session] Opening Parent Reassignment
 
 **What changed:**
