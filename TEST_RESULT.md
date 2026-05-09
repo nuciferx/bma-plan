@@ -4,7 +4,7 @@
 
 ---
 
-# Latest: Max Token Reduction / File Split
+# Latest: Frontend UI HTML Split
 
 Date: 2026-05-09
 
@@ -20,11 +20,11 @@ python proto/e2e_ui_test.py full                            # PASS
 
 ## Regression Coverage Maintained
 
-- MAIN_UI_OK `rightPanelCompatibilityVisible: True` — compat sections still present
-- MAIN_UI_OK `rightPanelLayersFirst: True` — Layers section first in right panel
-- MAIN_UI_OK `leftPanelTabsOk: True` — left panel tabs switch correctly
-- XLSX_OK — export functions correctly (semantic metadata helpers now imported from export package)
-- All previous assertions: CACHE_OK, SETUP_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK — all PASS
+- MAIN_UI_OK `toolbarFitsWorkspace: True`, `toolbarBelowHeader: True`, `topbarNoOverflow: True` — CSS external load works
+- SELECT_OK `parentLinked: True`, `parentReassigned: True` — opening-parent functions intact in external JS
+- SELECT_OK `semanticEdited: True`, `metaOk: True` — semantic-meta functions intact in external JS
+- XLSX_OK — export still correct
+- All 17 assertions: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK — all PASS
 
 ## Notes
 

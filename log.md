@@ -8,6 +8,19 @@
 
 ## 2026-05-09
 
+### [session] Frontend UI HTML Split
+
+**What changed:**
+- Extracted `<style>` block (307 lines) → `proto/static/css/app.css`.
+- Extracted 6 semantic constants + 2 functions → `proto/static/js/semantic-meta.js`.
+- Extracted 5 opening-parent functions → `proto/static/js/opening-parent.js`.
+- Added StaticFiles mount to `proto/server.py` (guarded, 3 lines).
+- `proto/ui.html`: 1437 → 1111 lines (-326 lines, -23%).
+
+**Tests:** py_compile PASS · smoke PASS · full PASS (proto 9fa57a0)
+
+---
+
 ### [session] Max Token Reduction / File Split
 
 **What changed:**

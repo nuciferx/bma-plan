@@ -4,7 +4,7 @@
 
 ---
 
-# Latest: Max Token Reduction / File Split
+# Latest: Frontend UI HTML Split
 
 Date: 2026-05-09
 
@@ -12,20 +12,18 @@ Date: 2026-05-09
 
 ## What Changed
 
-- `proto/export/__init__.py` — new empty package init.
-- `proto/export/semantic_metadata.py` — SEMANTIC_*_MAPs, AREA_SEMANTIC_TAGS, _derive_measurement_meta, _get_meta (moved from server.py lines 722–790).
-- `proto/export/xlsx_helpers.py` — _hex_to_rgb, _poly_area_pt2, _line_points, _line_length_pt, _nearest_on_segment, _object_points_for_ref_report, _distance_to_ref, _m2_to_rwu (moved from server.py lines 523–585 and 1415–1422).
-- `proto/server.py` — removed ~160 lines of moved definitions; added 2 import blocks from export package. Behavior identical.
-- `docs/design/RUNTIME_FILE_SPLIT_AUDIT.md` — new audit doc (file sizes, risk levels, split sequence).
-- `docs/design/E2E_SPLIT_PLAN.md` — e2e test split plan (implementation deferred).
-- `docs/status/READ_ORDER.md` — new agent reading guide.
-- All status docs updated.
+- `proto/static/css/app.css` — new file; 307 lines extracted from ui.html `<style>` block.
+- `proto/static/js/semantic-meta.js` — new file; 6 constants + 2 functions (isAreaSemanticTag, deriveMeasurementMeta) extracted.
+- `proto/static/js/opening-parent.js` — new file; 5 functions (openingProbePoints, openingInsidePoly, openingParentCandidates, linkOpeningParent, linkOpeningsInStore) extracted.
+- `proto/server.py` — added StaticFiles mount (guarded by os.path.exists). 3 lines added.
+- `proto/ui.html` — 1437 → 1111 lines (-326 lines, -23%); `<style>` replaced with `<link>`, 2 `<script src>` added, 13 inline definitions removed.
+- Sprint card moved to sprints/completed/.
 
 ## What Did Not Change
 
-- No `proto/ui.html` changes.
+- No behavior changes — all extracted JS runs in same global scope.
 - No save/load format changes.
-- No export behavior changes — all moved functions re-imported at module level.
+- No export behavior changes.
 - No legal/OCR/AI/Rule Engine.
 
 ## Files Touched

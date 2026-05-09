@@ -8,15 +8,15 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: Raster PDF Measurement Assistant with 10 UI testability polishes (Sprint B),
-server.py export helpers split into proto/export/ package, working left-panel tabs,
-opening parent reassignment, 5-field semantic metadata, Report Target XLSX, and Layers-first panel.
+Phase 1 PASS: Raster PDF Measurement Assistant — frontend HTML split sprint complete:
+CSS + JS extracted to static files (ui.html 1437→1111 lines), server.py export helpers
+in proto/export/ package, left-panel tabs, opening parent reassignment, semantic metadata.
 
 ## Latest Sprint
 
+- Frontend UI HTML Split: PASS (2026-05-09)
 - Max Token Reduction / File Split: PASS (2026-05-09)
 - Fast UI Testability Polish (Sprint B, 10 micro): PASS (2026-05-09)
-- Left Properties Migration: PASS (2026-05-09)
 
 ## Test Baseline
 
@@ -29,8 +29,8 @@ Last run: 2026-05-09. Full test detail: [docs/status/TEST_BASELINE.md](docs/stat
 
 ## Latest Commits
 
-- root: `4bda145` feat: 10 UI testability micro sprints - Sprint B PASS
-- proto: `fb89ecd` refactor: split export metadata helpers
+- root: `599efca` refactor: frontend html split sprint - static CSS and JS extracted (pending)
+- proto: `9fa57a0` refactor: extract static CSS and JS modules from ui.html
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 
