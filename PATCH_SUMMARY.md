@@ -1,4 +1,43 @@
-# PATCH_SUMMARY.md - Export Metadata Columns XLSX
+# PATCH_SUMMARY.md - Report Target Summary XLSX
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## What Changed
+
+- Added `from collections import defaultdict` import to `proto/server.py`.
+- Added new XLSX sheet `สรุปตาม Report Target` to `proto/server.py` (Sheet 7, before `wb.close()`).
+  - Collects all objects from all pages grouped by (reportTarget, objectCategory, countingRule).
+  - Rows sorted by RT_ORDER: Building Area Summary → Use Category Summary → Open Space Summary → Deduction Summary → Parking Summary → Site Facts → Distance Facts → Height Facts → Audit Log → Unclassified.
+  - Columns: Report Target, Object Category, Counting Rule, Pages, Objects, Area (m²), Length (m), Parking.
+  - Grand total row at bottom.
+  - Unknown reportTarget → "Unclassified".
+- Updated E2E sheet name assertion in `proto/e2e_ui_test.py` to include `สรุปตาม Report Target`.
+
+## What Did Not Change
+
+- No `proto/ui.html` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- No existing XLSX columns removed or reordered.
+
+## Files Touched
+
+- `proto/server.py`
+- `proto/e2e_ui_test.py`
+- `sprints/active/RUN_REPORT_TARGET_SUMMARY_XLSX.md`
+- `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`
+
+## Known Issues
+
+None.
+
+---
+
+# Previous: Export Metadata Columns XLSX
 
 Date: 2026-05-09
 

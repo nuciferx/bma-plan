@@ -4,10 +4,11 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation across JSON/CSV/XLSX, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, and a right panel that is explicitly Layers-first.
+BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation across JSON/CSV/XLSX, a summary-by-reportTarget XLSX sheet, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, and a right panel that is explicitly Layers-first.
 
 ## Latest Implementation State
 
+- Report Target Summary XLSX: PASS
 - Export Metadata Columns XLSX: PASS
 - Measurement Profile Metadata Foundation: PASS
 - Right Panel Organization After Mockup V3: PASS
@@ -23,6 +24,7 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 - Properties panel shows these 5 fields as read-only labels below Semantic Tag / Use Category.
 - JSON/CSV export includes the 5 new fields per row.
 - XLSX export now includes the 5 new fields as columns in สรุปพื้นที่, ความยาวเส้น Polygon, ที่จอดรถ, and ระยะอ้างอิง sheets.
+- XLSX export includes a new sheet `สรุปตาม Report Target` grouping all objects by (reportTarget, objectCategory, countingRule) with area/length/parking totals and a grand total row.
 - server.py SEMANTIC_*_MAP constants and _derive_measurement_meta/_get_meta helpers mirror ui.html mapping tables.
 - No full mockup, draggable workspace, full autosave/recovery, full Scale Manager, copy-scale, legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail, or save/load model changes.
 

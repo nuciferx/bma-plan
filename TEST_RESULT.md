@@ -1,4 +1,34 @@
-# TEST_RESULT.md - Export Metadata Columns XLSX
+# TEST_RESULT.md - Report Target Summary XLSX
+
+Date: 2026-05-09
+
+## Result
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## New Assertions Verified
+
+- XLSX_OK — sheet name assertion now includes `สรุปตาม Report Target` — present in XLSX workbook XML.
+
+## Regression Coverage Maintained
+
+- All previous XLSX_OK assertions still pass (all sheet names, text content, project info, metadata column headers).
+- MAIN_UI_OK, VECTOR_OK, RECAL_OK, SNAP_OK, PROJECT_OK, ANNOT_OK, PERSIST_OK, REAL_OK all PASS.
+- SELECT_OK (metaOk, metaPanelVisible, strippedMetaOk) still PASS.
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue, does not affect tests.
+
+---
+
+# Previous: Export Metadata Columns XLSX
 
 Date: 2026-05-09
 

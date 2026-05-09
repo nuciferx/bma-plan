@@ -7,6 +7,42 @@
 
 ## 2026-05-09
 
+### [session] Report Target Summary XLSX
+
+**What changed:**
+- Added `from collections import defaultdict` import to `proto/server.py`.
+- Added new XLSX sheet `สรุปตาม Report Target` (Sheet 7) to `proto/server.py` before `wb.close()`.
+  - Loops all pages and all object types (polys, openings, lines, refs, parking).
+  - Groups by (reportTarget, objectCategory, countingRule).
+  - Sorted by RT_ORDER: Building Area Summary → Use Category Summary → Open Space Summary → Deduction Summary → Parking Summary → Site Facts → Distance Facts → Height Facts → Audit Log → Unclassified.
+  - Columns: Report Target, Object Category, Counting Rule, Pages, Objects, Area (m²), Length (m), Parking.
+  - Grand total row at bottom.
+- Extended XLSX_OK sheet name assertion in `proto/e2e_ui_test.py` to include `สรุปตาม Report Target`.
+- Sprint card moved to `sprints/completed/2026-05-09-report-target-summary-xlsx/`.
+
+**Why:** reportTarget metadata was already present on all objects — this sprint adds the first aggregate view, letting reviewers see area/length/count totals per report category without scrolling raw per-object rows.
+
+**Files touched:**
+- `proto/server.py`
+- `proto/e2e_ui_test.py`
+- `sprints/completed/2026-05-09-report-target-summary-xlsx/RUN_REPORT_TARGET_SUMMARY_XLSX.md`
+- `log.md`, `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`
+
+**No ui.html changes.** No save/load, legal, or UI changes.
+
+**Tests:**
+- py_compile: PASS
+- smoke: PASS (XLSX_OK confirmed new sheet in workbook XML)
+- full: PASS (all assertions pass)
+
+**Git:**
+- proto commit: `5835fc7` — feat: add สรุปตาม Report Target summary sheet to XLSX export
+- root commit: (pending)
+
+**Known issues:** None.
+
+---
+
 ### [session] Export Metadata Columns XLSX
 
 **What changed:**

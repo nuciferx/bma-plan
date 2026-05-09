@@ -1,4 +1,48 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Export Metadata Columns XLSX
+# FINAL_REPORT_FOR_CHATGPT.md - Report Target Summary XLSX
+
+## Outcome
+
+PASS
+
+## Changed
+
+- Added `from collections import defaultdict` import to `proto/server.py`.
+- Added new XLSX sheet `สรุปตาม Report Target` (Sheet 7) to `proto/server.py` before `wb.close()`.
+  - Loops all pages/objects from pageStore; groups by (reportTarget, objectCategory, countingRule).
+  - Handles polys (area), openings (area), lines (length), refs (length), parking (count).
+  - Unknown reportTarget → "Unclassified".
+  - Rows sorted by RT_ORDER canonical order.
+  - Grand total row at bottom.
+  - Columns: Report Target, Object Category, Counting Rule, Pages, Objects, Area (m²), Length (m), Parking.
+- Updated E2E sheet name assertion in `proto/e2e_ui_test.py` to include `สรุปตาม Report Target`.
+- Status docs updated.
+
+## Not Changed
+
+- No `proto/ui.html` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- No existing XLSX columns removed or reordered.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Known Issues
+
+None. XLSX now includes all per-object metadata columns and a reportTarget summary sheet.
+
+## Next Recommended Sprint
+
+- Dedicated left Properties panel migration sprint (move property editor from right to left panel).
+- Sprint 3B Page Scales audit.
+- Parking-specific summary rows in สรุปตาม Report Target (type breakdown).
+
+---
+
+# Previous: Export Metadata Columns XLSX
 
 ## Outcome
 
