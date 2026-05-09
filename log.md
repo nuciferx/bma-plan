@@ -8,6 +8,24 @@
 
 ## 2026-05-09
 
+### [session] Static Asset Healthcheck
+
+**What changed:**
+- `proto/server.py`: Added `from pathlib import Path`. Changed `_STATIC_DIR` from
+  `os.path.join(os.path.dirname(__file__), "static")` to
+  `Path(__file__).resolve().parent / "static"` — always absolute, CWD-independent.
+  Updated `os.path.exists` → `_STATIC_DIR.exists()`, mount → `directory=str(_STATIC_DIR)`.
+- `proto/e2e_ui_test.py`: Added 4 JS evaluate keys + 4 Python assertions:
+  `cssLinkPresent`, `cssVarLoaded`, `semanticMetaJsLoaded`, `openingParentJsLoaded`.
+
+**Root cause:** `os.path.dirname("")` = `""`, so `os.path.join("", "static")` = `"static"`
+(relative). Running `python server.py` from `proto/` with a bare `__file__` caused the
+static mount guard (`os.path.exists`) to pass for the wrong CWD.
+
+**Tests:** py_compile PASS · smoke PASS · full PASS (proto 797a4a2)
+
+---
+
 ### [session] Visible Test Widgets UI
 
 **What changed:**

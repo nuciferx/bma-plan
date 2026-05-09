@@ -4,7 +4,36 @@
 
 ---
 
-# Latest: Visible Test Widgets UI
+# Latest: Static Asset Healthcheck
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## Root Cause Fixed
+
+`os.path.dirname(__file__)` returns `""` when `__file__` has no directory component
+(e.g., `python server.py` from `proto/`). `os.path.join("", "static")` = `"static"` —
+a CWD-relative path that breaks if CWD ≠ `proto/`.
+
+## What Changed
+
+- `proto/server.py`: Added `from pathlib import Path`. Changed `_STATIC_DIR` from
+  `os.path.join(os.path.dirname(__file__), "static")` to
+  `Path(__file__).resolve().parent / "static"` (always absolute). Updated `os.path.exists`
+  to `_STATIC_DIR.exists()` and `directory=str(_STATIC_DIR)`.
+- `proto/e2e_ui_test.py`: Added 4 new JS evaluate keys + 4 Python assertions:
+  `cssLinkPresent`, `cssVarLoaded`, `semanticMetaJsLoaded`, `openingParentJsLoaded`.
+
+## What Did Not Change
+
+- No UI changes. No export/save-load changes. No legal/OCR/AI/Rule Engine.
+- `proto/ui.html` unchanged — static paths were already correct (`/static/css/app.css` etc.).
+- All existing 17 test assertions still PASS.
+
+---
+
+# Previous: Visible Test Widgets UI
 
 Date: 2026-05-09
 

@@ -4,7 +4,46 @@
 
 ---
 
-# Latest: Visible Test Widgets UI
+# Latest: Static Asset Healthcheck
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## Problem Fixed
+
+`_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")` in server.py was
+CWD-dependent: when `__file__` is a bare filename (e.g., `python server.py` from proto/),
+`os.path.dirname` returns `""` and `os.path.join("", "static")` = `"static"` — relative
+to CWD. If CWD ≠ proto/, the /static/ mount silently fails and all CSS/JS return 404.
+
+## What Changed
+
+- `proto/server.py`: added `from pathlib import Path`; changed `_STATIC_DIR` to
+  `Path(__file__).resolve().parent / "static"` — always an absolute path.
+  Updated guard to `_STATIC_DIR.exists()` and mount to `directory=str(_STATIC_DIR)`.
+- `proto/e2e_ui_test.py`: added 4 new MAIN_UI_OK assertions: `cssLinkPresent`,
+  `cssVarLoaded`, `semanticMetaJsLoaded`, `openingParentJsLoaded` — all True in smoke+full.
+
+## What Did Not Change
+
+- `proto/ui.html` unchanged — static paths were already correct absolute URLs.
+- No export, save-load, or UI design changes.
+- All existing 17 assertions still PASS.
+
+## Tests
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+Proto commit: 797a4a2.
+
+---
+
+# Previous: Visible Test Widgets UI
 
 Date: 2026-05-09
 

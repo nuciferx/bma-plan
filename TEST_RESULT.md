@@ -4,7 +4,36 @@
 
 ---
 
-# Latest: Visible Test Widgets UI
+# Latest: Static Asset Healthcheck
+
+Date: 2026-05-09
+
+## Result: PASS
+
+## Commands Run
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+## New Assertions Verified (all True)
+
+- MAIN_UI_OK `cssLinkPresent: True` (`<link href="/static/css/app.css">` in DOM)
+- MAIN_UI_OK `cssVarLoaded: True` (CSS custom property `--blue` non-empty)
+- MAIN_UI_OK `semanticMetaJsLoaded: True` (`AREA_SEMANTIC_TAGS` defined in global scope)
+- MAIN_UI_OK `openingParentJsLoaded: True` (`openingProbePoints` defined in global scope)
+
+## Regression Coverage Maintained
+
+- All previous assertions including widget visibility, leftPanelTabsOk,
+  forbiddenPhase1StringsAbsent, rightPanelCompatibilityVisible — all PASS.
+- Proto commit: 797a4a2.
+
+---
+
+# Previous: Visible Test Widgets UI
 
 Date: 2026-05-09
 

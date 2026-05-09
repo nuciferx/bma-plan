@@ -8,15 +8,15 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: Raster PDF Measurement Assistant — visible test widgets sprint complete:
-#widget-review-warnings + #widget-export-ready added to sidebar, updateWidgets() driven
-by existing state, all 5 widget visibility assertions pass in E2E.
+Phase 1 PASS: Raster PDF Measurement Assistant — static asset healthcheck sprint complete:
+server.py _STATIC_DIR now uses Path(__file__).resolve().parent (always absolute),
+4 new E2E assertions confirm CSS/JS load on every test run.
 
 ## Latest Sprint
 
+- Static Asset Healthcheck: PASS (2026-05-09) — server.py path fix + 4 E2E load assertions
 - Visible Test Widgets UI: PASS (2026-05-09) — 2 new sidebar widgets, 4 new E2E assertions
 - E2E Test Split Audit: AUDIT_ONLY_STOP (2026-05-09) — stateful pipeline prevents safe split
-- Frontend UI HTML Split: PASS (2026-05-09)
 
 ## Test Baseline
 
@@ -29,8 +29,8 @@ Last run: 2026-05-09. Full test detail: [docs/status/TEST_BASELINE.md](docs/stat
 
 ## Latest Commits
 
-- root: `a30648b` chore: organize project documents
-- proto: `a2a6e81` ui: add visible workflow test widgets
+- root: (this commit)
+- proto: `797a4a2` fix static asset loading after frontend split
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 
