@@ -4,15 +4,13 @@
 
 ---
 
-# Latest: E2E Test Split Audit
+# Latest: Visible Test Widgets UI
 
 Date: 2026-05-09
 
-## Result: NO TEST CHANGES (AUDIT_ONLY_STOP)
+## Result: PASS
 
-No source code changes. Tests not re-run (baseline from previous sprint still valid).
-
-## Baseline Still Valid (from Frontend UI HTML Split)
+## Commands Run
 
 ```bash
 python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
@@ -20,7 +18,34 @@ python proto/e2e_ui_test.py smoke                           # PASS
 python proto/e2e_ui_test.py full                            # PASS
 ```
 
-All 17 assertions PASS at proto 9fa57a0.
+## New Assertions Verified (all True)
+
+- MAIN_UI_OK `scaleStatusWidgetVisible: True` (#scale-badge visible in sidebar)
+- MAIN_UI_OK `pageInfoWidgetVisible: True` (#lp-page-info visible in sidebar)
+- MAIN_UI_OK `reviewWarningWidgetVisible: True` (#widget-review-warnings visible in sidebar)
+- MAIN_UI_OK `exportReadyWidgetVisible: True` (#widget-export-ready visible in sidebar)
+
+## Regression Coverage Maintained
+
+- All previous MAIN_UI_OK assertions including `leftPanelTabsOk`, `workflowVisible`,
+  `forbiddenPhase1StringsAbsent`, `rightPanelCompatibilityVisible` still PASS.
+- SELECT_OK, XLSX_OK, VECTOR_OK, RECAL_OK, SNAP_OK, PROJECT_OK, ANNOT_OK,
+  PERSIST_OK, REAL_OK, all others — all PASS.
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue, does not affect results.
+- Proto commit: a2a6e81.
+
+---
+
+# Previous: E2E Test Split Audit
+
+Date: 2026-05-09
+
+## Result: NO TEST CHANGES (AUDIT_ONLY_STOP)
+
+No source code changes. Baseline (proto 9fa57a0) remains valid. All 17 assertions PASS.
 
 ---
 

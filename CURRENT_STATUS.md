@@ -8,15 +8,15 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: Raster PDF Measurement Assistant — frontend HTML split sprint complete:
-CSS + JS extracted to static files (ui.html 1437→1111 lines), server.py export helpers
-in proto/export/ package, left-panel tabs, opening parent reassignment, semantic metadata.
+Phase 1 PASS: Raster PDF Measurement Assistant — visible test widgets sprint complete:
+#widget-review-warnings + #widget-export-ready added to sidebar, updateWidgets() driven
+by existing state, all 5 widget visibility assertions pass in E2E.
 
 ## Latest Sprint
 
+- Visible Test Widgets UI: PASS (2026-05-09) — 2 new sidebar widgets, 4 new E2E assertions
 - E2E Test Split Audit: AUDIT_ONLY_STOP (2026-05-09) — stateful pipeline prevents safe split
 - Frontend UI HTML Split: PASS (2026-05-09)
-- Max Token Reduction / File Split: PASS (2026-05-09)
 
 ## Test Baseline
 
@@ -29,8 +29,8 @@ Last run: 2026-05-09. Full test detail: [docs/status/TEST_BASELINE.md](docs/stat
 
 ## Latest Commits
 
-- root: `b2400ce` refactor: frontend html split sprint - static CSS and JS extracted
-- proto: `9fa57a0` refactor: extract static CSS and JS modules from ui.html
+- root: `a30648b` chore: organize project documents
+- proto: `a2a6e81` ui: add visible workflow test widgets
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 

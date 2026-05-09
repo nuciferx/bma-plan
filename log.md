@@ -8,6 +8,23 @@
 
 ## 2026-05-09
 
+### [session] Visible Test Widgets UI
+
+**What changed:**
+- `proto/ui.html` (1111→1120 lines): Added `#widget-review-warnings` and `#widget-export-ready`
+  divs in left sidebar after `#workflow-card`. Added `updateWidgets()` function (uses
+  `currentWarningCount()`, `currentObjectCount()`, `getScaleForPage()`, `scaleLabel()`).
+  Added `updateWidgets()` call at end of `updateBottomBar()`.
+- `proto/static/css/app.css` (307→315 lines): Added `.widget-card`, `.widget-title`,
+  `.widget-body`, `.widget-link`, `.widget-badge` classes with `.ok`, `.warn`, `.error` modifiers.
+- `proto/e2e_ui_test.py`: Added 4 JS evaluate keys + 4 Python assertions:
+  `scaleStatusWidgetVisible`, `pageInfoWidgetVisible`, `reviewWarningWidgetVisible`,
+  `exportReadyWidgetVisible` — all confirmed True.
+
+**Tests:** py_compile PASS · smoke PASS · full PASS (proto a2a6e81)
+
+---
+
 ### [session] E2E Test Split Audit
 
 **What changed:**

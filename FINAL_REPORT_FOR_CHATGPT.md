@@ -4,7 +4,43 @@
 
 ---
 
-# Latest: E2E Test Split Audit
+# Latest: Visible Test Widgets UI
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## What Changed
+
+- `proto/ui.html` — 1111 → 1120 lines. Added `#widget-review-warnings` and `#widget-export-ready`
+  divs in left sidebar (visible without any click). Added `updateWidgets()` function driven by
+  existing `currentWarningCount()`, `currentObjectCount()`, `getScaleForPage()`, `scaleLabel()`.
+  Added `updateWidgets()` call at end of `updateBottomBar()`.
+- `proto/static/css/app.css` — 307 → 315 lines. Added `.widget-card`, `.widget-title`,
+  `.widget-body`, `.widget-link`, `.widget-badge` (+ `.ok`, `.warn`, `.error` modifiers).
+- `proto/e2e_ui_test.py` — Added 4 new JS evaluate keys and 4 new Python assertions:
+  `scaleStatusWidgetVisible`, `pageInfoWidgetVisible`, `reviewWarningWidgetVisible`,
+  `exportReadyWidgetVisible` — all verified True in smoke + full run.
+
+## What Did Not Change
+
+- No `proto/server.py` changes. No save/load format changes. No export logic changes.
+- No legal/OCR/AI/Rule Engine strings. All existing 17 test assertions still PASS.
+- Existing workflows (Open PDF, Set Scale, Export) continue to work unchanged.
+
+## Tests
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+All 17 assertions PASS including all 4 new widget visibility assertions. Proto commit: a2a6e81.
+
+---
+
+# Previous: E2E Test Split Audit
 
 Date: 2026-05-09
 
@@ -12,35 +48,16 @@ Date: 2026-05-09
 
 ## What Was Audited
 
-proto/e2e_ui_test.py (1525 lines):
-- 9 infrastructure helpers (~114 lines): _xlsx_sheet_xml, _wait_port, _make_raster_pdf,
-  _start_server, _upload_and_start, _canvas_box, _wait_analyse_ready, _draw_area_points,
-  _draw_polygon
-- 17 test functions in a stateful pipeline: each test depends on browser state left by previous
-- main() entrypoint: single server, single browser page, sequential execution
-
-## Decision
-
-**AUDIT_ONLY_STOP** — the 17 test functions form an irreversible stateful pipeline.
-Splitting into independent modules would require duplicating state setup (test weakening)
-or passing fragile state across module boundaries. Only helpers (~7.5%, ~114 lines) are
-safe to extract, insufficient to justify the split.
+proto/e2e_ui_test.py (1525 lines) — 17 test functions in an irreversible stateful pipeline.
+Only helpers (~7.5%, ~114 lines) are safely extractable; insufficient to justify the split.
 
 ## What Changed
 
-- docs/design/E2E_TEST_SPLIT_AUDIT.md created.
-- Sprint card in sprints/completed/.
-- Status docs updated.
-
-## What Did Not Change
-
-- proto/e2e_ui_test.py: 1525 lines, unchanged.
-- CLI commands: `python proto/e2e_ui_test.py smoke` and `full` unchanged.
-- No runtime code changes.
+- docs/design/E2E_TEST_SPLIT_AUDIT.md created. Sprint card in sprints/completed/.
 
 ## Tests
 
-No code changes, so no new test run needed. Baseline (proto 9fa57a0) remains valid.
+No code changes. Baseline (proto 9fa57a0) remains valid.
 
 ---
 
