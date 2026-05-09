@@ -29,7 +29,7 @@ Last run: 2026-05-09. Full test detail: [docs/status/TEST_BASELINE.md](docs/stat
 
 ## Latest Commits
 
-- root: `599efca` refactor: frontend html split sprint - static CSS and JS extracted (pending)
+- root: `b2400ce` refactor: frontend html split sprint - static CSS and JS extracted
 - proto: `9fa57a0` refactor: extract static CSS and JS modules from ui.html
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)

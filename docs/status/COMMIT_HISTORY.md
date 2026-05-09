@@ -6,6 +6,8 @@ Date: 2026-05-09
 
 | Hash | Message |
 |------|---------|
+| b2400ce | refactor: frontend html split sprint - static CSS and JS extracted |
+| 599efca | refactor: reduce token load with split status and runtime files |
 | 4bda145 | feat: 10 UI testability micro sprints - Sprint B PASS |
 | b278456 | docs: split status logs for token-efficient agent context |
 | 7005903 | feat: left properties migration - left panel tab switching PASS |
@@ -19,6 +21,7 @@ Date: 2026-05-09
 
 | Hash | Message |
 |------|---------|
+| 9fa57a0 | refactor: extract static CSS and JS modules from ui.html |
 | fb89ecd | refactor: split export metadata helpers |
 | b2389b5 | feat: 10 UI testability micro sprints polish |
 | e32122e | feat: wire left panel tabs with content switching and auto-Properties on selection |
