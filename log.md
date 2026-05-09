@@ -25,6 +25,7 @@
 - Added E2E assertions: `metaOk`, `metaPanelVisible`, `strippedMetaOk` to SELECT_OK test.
 - Updated strip test to also delete and re-normalize the 5 new fields.
 - Created sprint card at `sprints/active/RUN_MEASUREMENT_PROFILE_METADATA_FOUNDATION.md`.
+- Moved sprint card to `sprints/completed/2026-05-09-measurement-profile-metadata/` after PASS.
 
 **Why:** Phase 1 architecture requires objects to carry measurement purpose metadata (not just semanticTag) so future export/report sprints can map to correct targets without calculating from layer names.
 
@@ -40,6 +41,10 @@
 - py_compile: PASS
 - smoke: PASS (metaOk: True, metaPanelVisible: True, strippedMetaOk: True)
 - full: PASS (all existing assertions still pass)
+
+**Git:**
+- proto commit: `e736491` — feat: add measurement profile metadata foundation
+- root commit: `f79df59` — feat: measurement profile metadata foundation
 
 **Known issues:**
 - server.py XLSX export does not yet include the 5 new columns — deferred for a dedicated export-columns sprint.
