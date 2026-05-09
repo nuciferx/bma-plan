@@ -4,7 +4,27 @@
 
 ---
 
-# Latest: Frontend UI HTML Split
+# Latest: E2E Test Split Audit
+
+Date: 2026-05-09
+
+## Result: NO TEST CHANGES (AUDIT_ONLY_STOP)
+
+No source code changes. Tests not re-run (baseline from previous sprint still valid).
+
+## Baseline Still Valid (from Frontend UI HTML Split)
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+All 17 assertions PASS at proto 9fa57a0.
+
+---
+
+# Previous: Frontend UI HTML Split
 
 Date: 2026-05-09
 

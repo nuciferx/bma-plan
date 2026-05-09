@@ -14,9 +14,9 @@ in proto/export/ package, left-panel tabs, opening parent reassignment, semantic
 
 ## Latest Sprint
 
+- E2E Test Split Audit: AUDIT_ONLY_STOP (2026-05-09) — stateful pipeline prevents safe split
 - Frontend UI HTML Split: PASS (2026-05-09)
 - Max Token Reduction / File Split: PASS (2026-05-09)
-- Fast UI Testability Polish (Sprint B, 10 micro): PASS (2026-05-09)
 
 ## Test Baseline
 

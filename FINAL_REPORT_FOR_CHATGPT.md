@@ -4,7 +4,47 @@
 
 ---
 
-# Latest: Frontend UI HTML Split
+# Latest: E2E Test Split Audit
+
+Date: 2026-05-09
+
+## Outcome: AUDIT_ONLY_STOP
+
+## What Was Audited
+
+proto/e2e_ui_test.py (1525 lines):
+- 9 infrastructure helpers (~114 lines): _xlsx_sheet_xml, _wait_port, _make_raster_pdf,
+  _start_server, _upload_and_start, _canvas_box, _wait_analyse_ready, _draw_area_points,
+  _draw_polygon
+- 17 test functions in a stateful pipeline: each test depends on browser state left by previous
+- main() entrypoint: single server, single browser page, sequential execution
+
+## Decision
+
+**AUDIT_ONLY_STOP** — the 17 test functions form an irreversible stateful pipeline.
+Splitting into independent modules would require duplicating state setup (test weakening)
+or passing fragile state across module boundaries. Only helpers (~7.5%, ~114 lines) are
+safe to extract, insufficient to justify the split.
+
+## What Changed
+
+- docs/design/E2E_TEST_SPLIT_AUDIT.md created.
+- Sprint card in sprints/completed/.
+- Status docs updated.
+
+## What Did Not Change
+
+- proto/e2e_ui_test.py: 1525 lines, unchanged.
+- CLI commands: `python proto/e2e_ui_test.py smoke` and `full` unchanged.
+- No runtime code changes.
+
+## Tests
+
+No code changes, so no new test run needed. Baseline (proto 9fa57a0) remains valid.
+
+---
+
+# Previous: Frontend UI HTML Split
 
 Date: 2026-05-09
 

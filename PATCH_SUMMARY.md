@@ -4,7 +4,39 @@
 
 ---
 
-# Latest: Frontend UI HTML Split
+# Latest: E2E Test Split Audit
+
+Date: 2026-05-09
+
+## Outcome: AUDIT_ONLY_STOP
+
+## What Was Audited
+
+- proto/e2e_ui_test.py (1525 lines) — full read and structure map.
+- 17 test functions identified, forming an irreversible stateful pipeline.
+- 9 infrastructure helper functions identified (~114 lines) as safe to extract.
+
+## Decision
+
+AUDIT_ONLY_STOP. The 17 test functions share a single browser page object and form
+a stateful pipeline — each test depends on state left by the previous. Splitting into
+independent modules would require duplicating state setup (test weakening risk) or
+passing fragile state across modules. Only helpers (~7.5%) are safely extractable,
+which is insufficient to justify the refactor.
+
+## What Changed
+
+- docs/design/E2E_TEST_SPLIT_AUDIT.md — new audit document.
+- Sprint card: sprints/completed/2026-05-09-e2e-test-split-audit-and-safe-split/
+
+## What Did Not Change
+
+- proto/e2e_ui_test.py: unchanged (1525 lines).
+- No runtime code changes.
+
+---
+
+# Previous: Frontend UI HTML Split
 
 Date: 2026-05-09
 
