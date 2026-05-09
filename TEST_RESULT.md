@@ -1,4 +1,33 @@
-# TEST_RESULT.md - Report Target Summary XLSX
+# TEST_RESULT.md - Page Scales Audit
+
+Date: 2026-05-09
+
+## Result
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## New Assertions Verified
+
+- CACHE_OK — `_test_cache` now reads `xl/sharedStrings.xml` from the Page Scales audit XLSX and asserts `scale_state`, `object_count`, `needs_attention` headers are present.
+
+## Regression Coverage Maintained
+
+- All previous CACHE_OK assertions still pass (row count ≥ 4, cache size, bad_scale rejection).
+- All XLSX_OK, SELECT_OK, MAIN_UI_OK, and other assertions still PASS.
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue.
+
+---
+
+# Previous: Report Target Summary XLSX
 
 Date: 2026-05-09
 

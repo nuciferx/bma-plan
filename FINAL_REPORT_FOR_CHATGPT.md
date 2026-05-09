@@ -1,4 +1,36 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Report Target Summary XLSX
+# FINAL_REPORT_FOR_CHATGPT.md - Page Scales Audit
+
+## Outcome
+
+PASS
+
+## Changed
+
+- Added `_scale_state_py(sc)` helper to `proto/server.py`.
+- Extended XLSX Page Scales sheet from 7 to 10 columns: `scale_state`, `object_count`, `needs_attention`.
+- Updated E2E CACHE_OK to assert new column headers in sharedStrings.xml.
+- Status docs updated.
+
+## Not Changed
+
+- No `proto/ui.html` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Next Recommended Sprint
+
+- RUN_OPENING_PARENT_REASSIGNMENT.md
+- RUN_LEFT_PROPERTIES_MIGRATION.md
+
+---
+
+# Previous: Report Target Summary XLSX
 
 ## Outcome
 

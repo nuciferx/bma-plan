@@ -7,6 +7,22 @@
 
 ## 2026-05-09
 
+### [session] Page Scales Audit
+
+**What changed:**
+- Added `_scale_state_py(sc)` helper to `proto/server.py` mirroring JS `scaleState()`.
+- Extended XLSX Page Scales sheet from 7 to 10 columns: `scale_state`, `object_count`, `needs_attention`.
+- Updated E2E `_test_cache` to assert 3 new column headers in sharedStrings.xml.
+- Sprint card moved to `sprints/completed/2026-05-09-page-scales-audit/`.
+
+**Tests:** py_compile PASS · smoke PASS · full PASS
+
+**Git:**
+- proto commit: (pending)
+- root commit: (pending)
+
+---
+
 ### [session] Report Target Summary XLSX
 
 **What changed:**

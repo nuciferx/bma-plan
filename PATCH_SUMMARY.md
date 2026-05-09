@@ -1,4 +1,40 @@
-# PATCH_SUMMARY.md - Report Target Summary XLSX
+# PATCH_SUMMARY.md - Page Scales Audit
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## What Changed
+
+- Added `_scale_state_py(sc)` helper to `proto/server.py` mirroring JS `scaleState()`: calibrated/source=="manual" → "manual", verified → "ok", has label → "warn", else → "missing".
+- Extended XLSX Page Scales sheet from 7 to 10 columns: added `scale_state`, `object_count`, `needs_attention`.
+  - `object_count`: polys(closed) + openings(closed) + lines + refs + parking from pageStore for that page.
+  - `needs_attention`: True if object_count > 0 AND scale_state not in ("ok", "manual").
+- Updated E2E `_test_cache` to also read `xl/sharedStrings.xml` from the Page Scales audit XLSX and assert all 3 new column headers are present.
+
+## What Did Not Change
+
+- No `proto/ui.html` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- No existing columns removed or reordered.
+
+## Files Touched
+
+- `proto/server.py`
+- `proto/e2e_ui_test.py`
+- `sprints/completed/2026-05-09-page-scales-audit/RUN_PAGE_SCALES_AUDIT.md`
+- `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`
+
+## Known Issues
+
+None.
+
+---
+
+# Previous: Report Target Summary XLSX
 
 Date: 2026-05-09
 
