@@ -36,6 +36,10 @@
 - smoke: PASS (XLSX_OK confirmed column headers in sharedStrings)
 - full: PASS (all assertions pass including ANNOT_OK, PERSIST_OK, REAL_OK)
 
+**Git:**
+- proto commit: `6197985` — feat: add measurement metadata columns to xlsx export
+- root commit: `dc64fdd` — feat: document xlsx metadata export columns
+
 **Known issues:** None.
 
 ---
