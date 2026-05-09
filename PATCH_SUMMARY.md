@@ -1,4 +1,46 @@
-# PATCH_SUMMARY.md - Measurement Profile Metadata Foundation
+# PATCH_SUMMARY.md - Export Metadata Columns XLSX
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## What Changed
+
+- Added 5 `SEMANTIC_*_MAP` constants to `proto/server.py`: `SEMANTIC_PROFILE_MAP`, `SEMANTIC_CATEGORY_MAP`, `SEMANTIC_REPORT_TARGET_MAP`, `SEMANTIC_LAW_BASIS_MAP`, `SEMANTIC_COUNTING_RULE_MAP` — exact mirrors of the JavaScript constants in `proto/ui.html`.
+- Added `_derive_measurement_meta(tag)` helper to `proto/server.py`: returns all 5 metadata fields from a semanticTag.
+- Added `_get_meta(obj, semantic_tag)` helper to `proto/server.py`: reads from object fields first, falls back to derived values.
+- Updated 4 XLSX sheets to include the 5 new metadata columns after `useCategory`:
+  - `สรุปพื้นที่` — cols 10-14: measurementProfile, objectCategory, reportTarget, lawBasis, countingRule
+  - `ความยาวเส้น Polygon` — cols 8-12
+  - `ที่จอดรถ` — cols 7-11
+  - `ระยะอ้างอิง` — cols 8-12
+- Updated title merge_range to span all columns in each updated sheet.
+- Added E2E assertion to `_test_opening_and_xlsx_export`: verifies all 5 column headers appear in XLSX shared strings XML.
+
+## What Did Not Change
+
+- No `proto/ui.html` changes (JSON/CSV export was already complete from previous sprint).
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- No new drawing tools, UI redesign, draggable workspace, or autosave engine.
+- No existing XLSX columns removed or reordered.
+
+## Files Touched
+
+- `proto/server.py`
+- `proto/e2e_ui_test.py`
+- `sprints/active/RUN_EXPORT_METADATA_COLUMNS_XLSX.md`
+- `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`
+
+## Known Issues
+
+None. JSON/CSV and XLSX exports are now consistent for the 5 metadata fields.
+
+---
+
+# Previous: Measurement Profile Metadata Foundation
 
 Date: 2026-05-09
 

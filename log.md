@@ -7,6 +7,39 @@
 
 ## 2026-05-09
 
+### [session] Export Metadata Columns XLSX
+
+**What changed:**
+- Added 5 `SEMANTIC_*_MAP` constants to `proto/server.py` mirroring the JS maps in `proto/ui.html`.
+- Added `_derive_measurement_meta(tag)` and `_get_meta(obj, semantic_tag)` helpers to `proto/server.py`.
+- Updated 4 XLSX sheets to include 5 new metadata columns after `useCategory`:
+  - `สรุปพื้นที่` (area summary): cols 10-14
+  - `ความยาวเส้น Polygon` (polygon perimeter): cols 8-12
+  - `ที่จอดรถ` (parking): cols 7-11
+  - `ระยะอ้างอิง` (reference distances): cols 8-12
+- Updated title merge_range and set_column widths for all affected sheets.
+- Extended `_test_opening_and_xlsx_export` in `proto/e2e_ui_test.py` to verify all 5 column headers appear in XLSX shared strings.
+- Created sprint card `sprints/active/RUN_EXPORT_METADATA_COLUMNS_XLSX.md`.
+
+**Why:** JSON/CSV export already included the 5 metadata fields from previous sprint. XLSX was the remaining gap — now closed so all export formats are consistent.
+
+**Files touched:**
+- `proto/server.py`
+- `proto/e2e_ui_test.py`
+- `sprints/active/RUN_EXPORT_METADATA_COLUMNS_XLSX.md`
+- `log.md`, `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`
+
+**No ui.html changes.** No save/load, legal, or UI changes.
+
+**Tests:**
+- py_compile: PASS
+- smoke: PASS (XLSX_OK confirmed column headers in sharedStrings)
+- full: PASS (all assertions pass including ANNOT_OK, PERSIST_OK, REAL_OK)
+
+**Known issues:** None.
+
+---
+
 ### [session] Measurement Profile Metadata Foundation
 
 **What changed:**

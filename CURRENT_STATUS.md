@@ -4,10 +4,11 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, and a right panel that is explicitly Layers-first.
+BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation across JSON/CSV/XLSX, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, and a right panel that is explicitly Layers-first.
 
 ## Latest Implementation State
 
+- Export Metadata Columns XLSX: PASS
 - Measurement Profile Metadata Foundation: PASS
 - Right Panel Organization After Mockup V3: PASS
 - Mockup V3 Scale + Page Workflow UI: PASS
@@ -18,11 +19,12 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 - Right panel is explicitly Layers-first with layer counts and visibility/lock controls.
 - Existing right-panel Properties/Object Tree remain accessible below Layers as labeled `Legacy / Compatibility` sections.
 - Status bar includes `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, and `Page`.
-- All runtime objects now carry 5 measurement metadata fields: `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, `countingRule` — all derived from `semanticTag` via mapping tables, normalized backward-compatibly.
+- All runtime objects carry 5 measurement metadata fields: `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, `countingRule` — derived from `semanticTag` via mapping tables, normalized backward-compatibly.
 - Properties panel shows these 5 fields as read-only labels below Semantic Tag / Use Category.
-- measurements JSON export includes the 5 new fields per row.
-- XLSX export columns for the 5 new fields are deferred to next sprint.
-- No full mockup, draggable workspace, full autosave/recovery, full Scale Manager, copy-scale, legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail, backend, save/load model, or export model changes.
+- JSON/CSV export includes the 5 new fields per row.
+- XLSX export now includes the 5 new fields as columns in สรุปพื้นที่, ความยาวเส้น Polygon, ที่จอดรถ, and ระยะอ้างอิง sheets.
+- server.py SEMANTIC_*_MAP constants and _derive_measurement_meta/_get_meta helpers mirror ui.html mapping tables.
+- No full mockup, draggable workspace, full autosave/recovery, full Scale Manager, copy-scale, legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail, or save/load model changes.
 
 ## Project Organization Status
 
@@ -57,6 +59,9 @@ Current development policy:
 
 ## Latest Verified State
 
+- Export Metadata Columns XLSX: PASS
+- XLSX สรุปพื้นที่ / ความยาวเส้น Polygon / ที่จอดรถ / ระยะอ้างอิง sheets have 5 new columns: PASS
+- XLSX column headers verified in E2E test shared strings: PASS
 - Right Panel Organization After Mockup V3: PASS
 - Mockup V3 Scale + Page Workflow UI: PASS
 - Direct Open PDF / Open Project / sample PDF remains visible in header: PASS
@@ -68,8 +73,7 @@ Current development policy:
 - Area/Opening/Land active state still reflects actual mode: PASS
 - More menu secondary tools still accessible: PASS
 - Advanced land-edge/setback helpers hidden by default: PASS
-- `py_compile`, `smoke`, `full`: PASS
-- Manual viewport check at 1440x900, 1512x982, and 1366x768: PASS
+- `py_compile`, `smoke`, `full`: PASS on 2026-05-09
 - Forbidden active UI wording check: no legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail/copy-scale/autosave/debug feature wording visible
 
 ## Current Product Scope
@@ -128,9 +132,11 @@ Latest result: PASS on 2026-05-09.
 ## Next Recommended Sprint
 
 Choose one:
-- Git baseline commit for the current UI workflow/right-panel condition after review.
+- Smart export/report: use `reportTarget` grouping to add a summary-by-report-target sheet to XLSX.
 - Dedicated left Properties migration sprint, if desired, to move the full object editor out of the right panel safely.
-- Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
+- Sprint 3B Page Scales audit.
+- Manual opening parent reassignment.
+- Git baseline commit if a review confirms the current state is stable.
 - Smart export/report use of semantic metadata.
 - Sprint 3B Page Scales audit.
 - Manual opening parent reassignment.

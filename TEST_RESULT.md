@@ -1,4 +1,35 @@
-# TEST_RESULT.md - Measurement Profile Metadata Foundation
+# TEST_RESULT.md - Export Metadata Columns XLSX
+
+Date: 2026-05-09
+
+## Result
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## New Assertions Verified
+
+- XLSX_OK — `_test_opening_and_xlsx_export` now checks that all 5 new column headers (`measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, `countingRule`) appear in the XLSX sharedStrings XML.
+- The column headers are present in sheets: สรุปพื้นที่, ความยาวเส้น Polygon, ที่จอดรถ, ระยะอ้างอิง.
+
+## Regression Coverage Maintained
+
+- All previous XLSX_OK assertions still pass (sheet names, text content, project info).
+- MAIN_UI_OK, VECTOR_OK, RECAL_OK, SNAP_OK, PROJECT_OK, ANNOT_OK, PERSIST_OK, REAL_OK all PASS.
+- SELECT_OK (metaOk, metaPanelVisible, strippedMetaOk) still PASS.
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue, does not affect tests.
+
+---
+
+# Previous: Measurement Profile Metadata Foundation
 
 Date: 2026-05-09
 

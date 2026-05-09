@@ -1,4 +1,43 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Measurement Profile Metadata Foundation
+# FINAL_REPORT_FOR_CHATGPT.md - Export Metadata Columns XLSX
+
+## Outcome
+
+PASS
+
+## Changed
+
+- Added `SEMANTIC_PROFILE_MAP`, `SEMANTIC_CATEGORY_MAP`, `SEMANTIC_REPORT_TARGET_MAP`, `SEMANTIC_LAW_BASIS_MAP`, `SEMANTIC_COUNTING_RULE_MAP` constants to `proto/server.py` — exact mirrors of ui.html JS maps.
+- Added `_derive_measurement_meta(tag)` and `_get_meta(obj, semantic_tag)` helpers to `proto/server.py`.
+- Added 5 metadata columns to 4 XLSX sheets: สรุปพื้นที่ (cols 10-14), ความยาวเส้น Polygon (cols 8-12), ที่จอดรถ (cols 7-11), ระยะอ้างอิง (cols 8-12).
+- Extended E2E XLSX_OK assertion to verify all 5 column headers in shared strings.
+- Status docs updated.
+
+## Not Changed
+
+- No `proto/ui.html` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- No existing XLSX columns removed or reordered.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Known Issues
+
+None. JSON/CSV and XLSX exports are now consistent for all 5 metadata fields.
+
+## Next Recommended Sprint
+
+- Smart export/report: use `reportTarget` grouping to add a summary-by-report-target sheet to XLSX.
+- Dedicated left Properties migration sprint.
+- Sprint 3B Page Scales audit.
+
+---
+
+# Previous: Measurement Profile Metadata Foundation
 
 ## Outcome
 
