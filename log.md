@@ -7,6 +7,63 @@
 
 ## 2026-05-09
 
+### [session] Post-Baseline Workspace Housekeeping
+
+**What changed:**
+- Updated `.gitignore`: added `.claude/`, `opencode.json`, `*.docx`, `*.doc` patterns to prevent accidental commit of Claude Code session files, AI editor configs, and binary Word docs.
+- Moved `bma-plan-mockup-v3.html` → `docs/design/bma-plan-mockup-v3.html` (UI design reference).
+- Moved `bma-plan-mockup.html` → `docs/design/bma-plan-mockup.html` (earlier UI design reference).
+- Moved `humancheck.md` → `docs/process/humancheck.md` (user manual review notes 2026-05-09).
+- `archive/old_docs/.claude/`, `archive/old_docs/BMA_PLAN_PHASE1_CONTEXT.md.docx`, `archive/old_docs/opencode.json` all correctly ignored — not committed.
+- Updated `index.md`, `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`.
+
+**Why:** Clean workspace after baseline commit d4dce83. Move design/process references to correct folders per FILE_STRUCTURE_PLAN.md.
+
+**Files touched:**
+- `.gitignore`
+- `docs/design/bma-plan-mockup-v3.html` (moved from root)
+- `docs/design/bma-plan-mockup.html` (moved from root)
+- `docs/process/humancheck.md` (moved from root)
+- `log.md`, `CURRENT_STATUS.md`, `index.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`
+
+**No source files touched.**
+
+**No tests re-run** (housekeeping only — no source changed).
+
+**Known issues:** None.
+
+---
+
+### [session] Git Baseline After Mockup V3 Right-Panel Workflow UI
+
+**What changed:**
+- Ran py_compile, smoke, full — all PASS.
+- Committed proto nested repo:
+  - Files: ui.html, e2e_ui_test.py, server.py, requirements.txt, STATUS.md, launch.py
+  - Commit: `c92f1d8` (proto repo — main branch)
+- Committed root repo:
+  - Files: CURRENT_STATUS.md, FINAL_REPORT_FOR_CHATGPT.md, PATCH_SUMMARY.md, TEST_RESULT.md, UI_MANUAL_TEST.md, index.md, log.md, RUN_*.md sprint cards, proto gitlink
+  - Commit: `d4dce83` (root repo — main branch)
+- Not committed: .claude/, archive/old_docs/.claude/, archive/old_docs/BMA_PLAN_PHASE1_CONTEXT.md.docx, archive/old_docs/opencode.json, bma-plan-mockup*.html, humancheck.md
+
+**Why:** Lock the PASS condition into Git before next implementation sprint.
+
+**Tests:**
+- py_compile: PASS
+- smoke: PASS
+- full: PASS (non-fatal WinError 10054 on shutdown is known, does not fail tests)
+
+**Known issues:**
+- bma-plan-mockup-v3.html, bma-plan-mockup.html, humancheck.md remain untracked — clarify whether to commit or ignore in next housekeeping.
+- .claude/ remains untracked — consider adding to .gitignore in next housekeeping sprint.
+
+**Next recommended sprint:**
+- Left Properties migration, or
+- Measurement profile metadata, or
+- Sprint 3B Page Scales audit
+
+---
+
 ### [13:15 +07:00] Mockup V3 Scale + Page Workflow UI
 
 **What changed:**

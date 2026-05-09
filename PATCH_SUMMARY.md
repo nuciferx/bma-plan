@@ -1,4 +1,41 @@
-# PATCH_SUMMARY.md - Right Panel Organization After Mockup V3
+# PATCH_SUMMARY.md - Post-Baseline Workspace Housekeeping
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## What Changed
+
+- Updated `.gitignore`: added `.claude/`, `opencode.json`, `*.docx`, `*.doc`.
+- Moved `bma-plan-mockup-v3.html` → `docs/design/`.
+- Moved `bma-plan-mockup.html` → `docs/design/`.
+- Moved `humancheck.md` → `docs/process/`.
+- Updated `index.md`, `CURRENT_STATUS.md`, `log.md`.
+
+## What Did Not Change
+
+- No source code changes (proto/ui.html, proto/server.py, proto/e2e_ui_test.py, proto/requirements.txt).
+- No test changes.
+- No data model, save/load, export, or backend changes.
+- No new features.
+
+## Files Touched
+
+- `.gitignore`
+- `docs/design/bma-plan-mockup-v3.html`
+- `docs/design/bma-plan-mockup.html`
+- `docs/process/humancheck.md`
+- `CURRENT_STATUS.md`, `index.md`, `log.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`
+
+## Known Issues
+
+None.
+
+---
+
+# Previous: Right Panel Organization After Mockup V3
 
 Date: 2026-05-09
 

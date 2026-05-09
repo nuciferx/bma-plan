@@ -22,6 +22,7 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 ## Project Organization Status
 
 - Project Housekeeping V2: PASS
+- Post-Baseline Workspace Housekeeping: PASS
 - Root folder target: only current status files plus source/docs/sprints/reports/artifacts/sample_projects/archive folders.
 - Run prompts moved under `sprints/`.
 - Design/process/status docs moved under `docs/`.
@@ -29,7 +30,9 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 - Manual test artifacts moved under `artifacts/manual_test/`.
 - Real/private `.bmaplan` moved under `archive/user_projects/` and remains ignored by Git.
 - PDF references moved under `docs/references/` or `archive/references/` and remain ignored by Git.
+- UI mockup HTML references moved under `docs/design/`.
 - Root exception: `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` remains in root because current full E2E tests expect that path. It is ignored and must not be committed.
+- `.gitignore` updated: `.claude/`, `opencode.json`, `*.docx`, `*.doc` patterns added.
 
 Current development policy:
 - no new feature until Git baseline and stabilization are confirmed

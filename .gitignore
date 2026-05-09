@@ -11,6 +11,10 @@ desktop.ini
 .vscode/
 .idea/
 
+# Claude Code / AI editor session files
+.claude/
+opencode.json
+
 # Generated / runtime artifacts
 manual_test_artifacts/
 artifacts/
@@ -22,6 +26,8 @@ pic/
 *.xlsx
 *.bmaplan
 *.bmaplan.pdf
+*.docx
+*.doc
 
 # Optional patch/output
 PATCH.diff

@@ -1,4 +1,27 @@
-# TEST_RESULT.md - Right Panel Organization After Mockup V3
+# TEST_RESULT.md - Post-Baseline Workspace Housekeeping
+
+Date: 2026-05-09
+
+## Result
+
+PASS (housekeeping only — no source changed, no tests re-run)
+
+## Last Known Test State
+
+Tests were run against baseline commit d4dce83 (root) / c92f1d8 (proto):
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Notes
+
+- No source files were changed in this housekeeping sprint.
+- Test results carry over from the previous baseline commit.
+
+---
+
+# Previous: Right Panel Organization After Mockup V3
 
 Date: 2026-05-09
 

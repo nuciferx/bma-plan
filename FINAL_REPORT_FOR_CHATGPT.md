@@ -1,4 +1,35 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Right Panel Organization After Mockup V3
+# FINAL_REPORT_FOR_CHATGPT.md - Post-Baseline Workspace Housekeeping
+
+## Outcome
+
+PASS
+
+## Changed
+
+- `.gitignore` updated: `.claude/`, `opencode.json`, `*.docx`, `*.doc` patterns added.
+- `bma-plan-mockup-v3.html` moved to `docs/design/`.
+- `bma-plan-mockup.html` moved to `docs/design/`.
+- `humancheck.md` moved to `docs/process/`.
+- Status docs updated: `index.md`, `CURRENT_STATUS.md`, `log.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`.
+
+## Not Changed
+
+- No runtime source: `proto/ui.html`, `proto/server.py`, `proto/e2e_ui_test.py`, `proto/requirements.txt`.
+- No data model, save/load, export, backend, or test changes.
+- No features added.
+
+## Git
+
+- Root commit: housekeeping commit to follow (see log.md for hash after commit)
+- Previous baseline: root `d4dce83` / proto `c92f1d8`
+
+## Last Known Test State
+
+- `py_compile` PASS, `smoke` PASS, `full` PASS (from baseline d4dce83)
+
+---
+
+# Previous: Right Panel Organization After Mockup V3
 
 ## Outcome
 

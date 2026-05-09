@@ -58,6 +58,8 @@ Root repository note:
 - [docs/design/BMA_PLAN_V2_SCOPE.md](docs/design/BMA_PLAN_V2_SCOPE.md)
 - [docs/design/DEVELOPMENT_PLAN.md](docs/design/DEVELOPMENT_PLAN.md)
 - [docs/design/idea-cards.md](docs/design/idea-cards.md)
+- [docs/design/bma-plan-mockup-v3.html](docs/design/bma-plan-mockup-v3.html) — UI mockup V3 reference
+- [docs/design/bma-plan-mockup.html](docs/design/bma-plan-mockup.html) — UI mockup V1 reference
 
 ## Process Docs
 
@@ -67,6 +69,7 @@ Root repository note:
 - [docs/process/DOCS_SUMMARY.md](docs/process/DOCS_SUMMARY.md)
 - [docs/process/TASK_PACKET.md](docs/process/TASK_PACKET.md)
 - [docs/process/REVIEW_RESULT.md](docs/process/REVIEW_RESULT.md)
+- [docs/process/humancheck.md](docs/process/humancheck.md) — user manual review notes 2026-05-09
 
 ## Status Docs
 
