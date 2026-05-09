@@ -37,7 +37,7 @@
 
 **Git:**
 - proto commit: `5835fc7` — feat: add สรุปตาม Report Target summary sheet to XLSX export
-- root commit: (pending)
+- root commit: `9762aa1` — feat: document report target summary xlsx sprint
 
 **Known issues:** None.
 
