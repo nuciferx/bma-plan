@@ -3,24 +3,33 @@
 > Updated: 2026-05-09  
 > Current phase: Phase 1 = Raster PDF Measurement Assistant / Mini-CAD for Area Measurement
 
-## Current Status
+## Quick Status (Read These First — Small Files)
 
-- [CURRENT_STATUS.md](CURRENT_STATUS.md)
-- [FINAL_REPORT_FOR_CHATGPT.md](FINAL_REPORT_FOR_CHATGPT.md)
-- [TEST_RESULT.md](TEST_RESULT.md)
-- [PATCH_SUMMARY.md](PATCH_SUMMARY.md)
+- [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md) — current feature state
+- [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md) — what to do next
+- [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md) — test assertions
+- [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md) — recent commits
+- [docs/status/KNOWN_ISSUES.md](docs/status/KNOWN_ISSUES.md) — known issues
+
+## Full Status Files
+
+- [CURRENT_STATUS.md](CURRENT_STATUS.md) — one-line status + pointers
+- [FINAL_REPORT_FOR_CHATGPT.md](FINAL_REPORT_FOR_CHATGPT.md) — latest sprint report
+- [TEST_RESULT.md](TEST_RESULT.md) — latest test result
+- [PATCH_SUMMARY.md](PATCH_SUMMARY.md) — latest patch summary
+- [log.md](log.md) — recent sessions (full history archived)
 - [UI_MANUAL_TEST.md](UI_MANUAL_TEST.md)
-- [log.md](log.md)
 
 Latest condition:
-- Right Panel Organization After Mockup V3: PASS
-- Mockup V3 Scale + Page Workflow UI: PASS
-- Primary workflow locked as `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`
-- Left panel labels: `Sheets / Objects / Properties`
-- Right panel: Layers-first with layer counts and controls, with existing Properties/Object Tree kept below as labeled compatibility sections
-- Status bar labels: `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, `Page`
-- Latest tests: `py_compile`, `smoke`, `full`, and manual viewport check PASS
-- Latest architecture docs: [PAGE_LAYER_MEASUREMENT_MODEL.md](docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md)
+- Left Properties Migration: PASS (Sheets/Objects/Properties tabs working)
+- Opening Parent Reassignment: PASS
+- Page Scales Audit: PASS
+- Primary workflow locked: `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`
+- Left panel: Sheets/Objects/Properties tabs with click handlers; Properties auto-switches on selection
+- Right panel: Layers-first with counts/controls; Legacy/Compatibility sections below
+- Status bar: Tool, Scale, Objects, Warnings, Layer, Save, Page
+- Latest tests: py_compile PASS · smoke PASS · full PASS (2026-05-09)
+- Architecture docs: [PAGE_LAYER_MEASUREMENT_MODEL.md](docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md)
 
 ## Phase 1 Scope Warning
 
@@ -74,6 +83,13 @@ Root repository note:
 ## Status Docs
 
 - [docs/status/PHASE1_AUDIT.md](docs/status/PHASE1_AUDIT.md)
+
+## Archive
+
+- [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) — full session log history
+- [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) — all patch summaries
+- [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) — all test results
+- [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) — all sprint reports
 - [reports/archive/PROGRESS.md](reports/archive/PROGRESS.md)
 - [reports/archive/HANDOFF.md](reports/archive/HANDOFF.md)
 - [reports/archive/SESSION_CONTINUATION.md](reports/archive/SESSION_CONTINUATION.md)
