@@ -10,14 +10,14 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 
 | Sprint | Result |
 |--------|--------|
-| Max Token Reduction / File Split | PASS |
+| Static 404 Fix (critical regression) | PASS — proto `a2099ec` |
+| CSS BOM Fix | PASS — proto `65f5a65` |
+| Mockup Layout Mapping (docs only) | PASS — proto `797a4a2` |
+| Static Asset Healthcheck | PASS — proto `797a4a2` |
+| Visible Test Widgets UI | PASS — proto `a2a6e81` |
+| Frontend UI HTML Split | PASS — proto `9fa57a0` |
 | Fast UI Testability Polish (Sprint B) | PASS |
 | Left Properties Migration | PASS |
-| Opening Parent Reassignment | PASS |
-| Page Scales Audit | PASS |
-| Report Target Summary XLSX | PASS |
-| Export Metadata Columns XLSX | PASS |
-| Measurement Profile Metadata Foundation | PASS |
 
 ## Active Feature State
 
@@ -44,5 +44,6 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ## Latest Commits
 
-- proto: `fb89ecd` refactor: split export metadata helpers
-- root: `4bda145` feat: 10 UI testability micro sprints - Sprint B PASS
+- proto: `a2099ec` fix: serve static assets unconditionally from absolute proto path
+- proto: `65f5a65` fix: remove BOM from app.css, harden UI_PATH, add aiofiles to requirements
+- root: (latest) docs: capture static asset 404 regression lesson

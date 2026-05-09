@@ -8,6 +8,23 @@
 
 ## 2026-05-09
 
+### [session] Knowledge Capture — Static 404 Regression Lesson
+
+**What changed (docs only — no source code):**
+- `docs/process/TROUBLESHOOTING.md` — created: full diagnosis steps for static 404,
+  WinError 10054, AUTO_MERGE.lock, correct server.py pattern with startup print.
+- `docs/process/ANTI_PATTERNS.md` — created: 6 confirmed anti-patterns with root cause
+  + correct alternative: guarded mount, CWD-relative paths, missing aiofiles, BOM in CSS,
+  assuming E2E pass = browser renders correctly, not killing old server.
+- `docs/status/KNOWN_ISSUES.md` — added Resolved Incidents table (3 incidents), pointer to TROUBLESHOOTING.md.
+- `AGENTS.md` — added Section 8: Static Asset Verification: required server.py pattern,
+  aiofiles dependency check, E2E assertion table, HTTP verification commands, BOM check.
+- `docs/status/LATEST_STATUS.md` — updated sprint results table and latest commits.
+
+**Tests:** No source changed. Baseline proto `a2099ec` remains valid.
+
+---
+
 ### [session] Static 404 Fix (Critical Regression)
 
 **Root causes:**

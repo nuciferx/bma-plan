@@ -8,6 +8,17 @@ Date: 2026-05-09
 |-------|----------|-------|
 | WinError 10054 (ConnectionResetError) on uvicorn shutdown | Low | Non-fatal, appears after test suite, does not affect results |
 | `? proto` in root git status --short | Low | Proto has internal untracked files (BMA-Plan.spec, build/, dist/, etc.) that are not staged; root submodule tracking works correctly |
+| AUTO_MERGE.lock warning on root commit | Low | Pre-existing stale lock; commits succeed regardless |
+
+## Resolved Incidents (for reference)
+
+| Incident | Fix | Proto Commit |
+|----------|-----|--------------|
+| Static assets 404 / UI renders unstyled after frontend split | Install `aiofiles`; mount `/static` unconditionally; use `Path(__file__).resolve().parent` | `a2099ec` |
+| UTF-8 BOM in app.css causing CSS parse failure | Strip BOM bytes (`\xef\xbb\xbf`) from `static/css/app.css` | `65f5a65` |
+| `_STATIC_DIR` CWD-relative path breaks when run from root | Replace `os.path.join(os.path.dirname(__file__), "static")` with `Path(__file__).resolve().parent / "static"` | `65f5a65` |
+
+See `docs/process/TROUBLESHOOTING.md` for full diagnosis steps.
 
 ## Design Limitations (By Intent)
 

@@ -369,7 +369,72 @@ python proto/e2e_ui_test.py full
 
 ---
 
-## 8. Stop Conditions (เงื่อนไขที่ต้องหยุด)
+## 8. Static Asset Verification (ตรวจสอบ Static Files)
+
+> ทุก sprint ที่แตะ `proto/server.py`, `proto/static/`, หรือ `proto/ui.html` ต้องผ่าน checklist นี้
+
+### Required server.py pattern
+
+```python
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+_BASE_DIR = Path(__file__).resolve().parent
+_STATIC_DIR = _BASE_DIR / "static"
+print(f"[static] serving from: {_STATIC_DIR}")
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+```
+
+**ห้าม** guard ด้วย `if _STATIC_DIR.exists():` — การ guard นี้ซ่อน RuntimeError จาก missing `aiofiles` ทำให้ mount ล้มเหลวแบบ silent → 404 ทุก static request
+
+### Required dependency
+
+`aiofiles` ต้องอยู่ใน `proto/requirements.txt` และต้องติดตั้งแล้ว:
+
+```bash
+python -c "import aiofiles"   # ต้องไม่ error
+```
+
+### E2E assertions (ต้อง True ทุกครั้ง)
+
+| Key | ตรวจอะไร |
+|-----|----------|
+| `cssLinkPresent` | `<link href="/static/css/app.css">` อยู่ใน DOM |
+| `cssVarLoaded` | CSS custom property `--blue` ถูก load |
+| `semanticMetaJsLoaded` | `AREA_SEMANTIC_TAGS` ถูก define ใน global scope |
+| `openingParentJsLoaded` | `openingProbePoints` ถูก define ใน global scope |
+
+### HTTP verification (ทำก่อน commit ทุกครั้งที่แตะ static)
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/static/css/app.css
+# ต้อง: 200
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/static/js/semantic-meta.js
+# ต้อง: 200
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/static/js/opening-parent.js
+# ต้อง: 200
+```
+
+### ตรวจ BOM ใน CSS
+
+ถ้าสร้างหรือเขียน `app.css` ใหม่ ต้องตรวจ BOM:
+
+```bash
+python -c "
+with open('static/css/app.css','rb') as f: b=f.read(3)
+print('BOM present:', b == b'\xef\xbb\xbf')  # ต้อง False
+"
+```
+
+ถ้า True → strip BOM ก่อน commit ดู `docs/process/ANTI_PATTERNS.md` #4
+
+### เมื่อ UI แสดงผลเป็น raw HTML
+
+ดู `docs/process/TROUBLESHOOTING.md` — Static Assets Return 404
+
+---
+
+## 9. Stop Conditions (เงื่อนไขที่ต้องหยุด)
 
 หยุดและรายงานทันทีถ้าเจอ:
 
