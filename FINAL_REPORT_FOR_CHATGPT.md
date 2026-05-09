@@ -4,7 +4,53 @@
 
 ---
 
-# Latest: Mockup Layout Mapping
+# Latest: Static 404 Fix (Critical Regression)
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## Root Cause
+
+Two compounding bugs caused all `/static/*` requests to return 404:
+1. `aiofiles` not installed — `StaticFiles` raises `RuntimeError` at init without it.
+2. `if _STATIC_DIR.exists(): app.mount(...)` guard — mount was attempted but the
+   `RuntimeError` from missing `aiofiles` caused it to fail silently, leaving the route
+   unregistered.
+
+Result: every `python server.py` run served the HTML page but 404'd all CSS/JS,
+rendering the page as unstyled default HTML.
+
+## What Changed
+
+- `proto/server.py`: Removed `if _STATIC_DIR.exists()` guard; mount now unconditional.
+  Added startup print `[static] serving from: ...` for confirmation.
+- `proto/requirements.txt`: Added `aiofiles`.
+- `proto/static/css/app.css`: Removed UTF-8 BOM (also present from extraction sprint).
+- `aiofiles==25.1.0` installed into active Python environment.
+
+## HTTP Verification
+
+```
+GET /static/css/app.css         → 200 OK
+GET /static/js/semantic-meta.js → 200 OK
+GET /static/js/opening-parent.js → 200 OK
+GET /                            → 200 OK
+```
+
+## Tests
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS (all 17 assertions)
+```
+
+Proto commits: `65f5a65` (BOM + requirements) · `a2099ec` (unconditional mount).
+
+---
+
+# Previous: Mockup Layout Mapping
 
 Date: 2026-05-09
 

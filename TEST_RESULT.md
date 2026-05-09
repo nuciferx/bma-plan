@@ -4,7 +4,65 @@
 
 ---
 
-# Latest: Mockup Layout Mapping (Docs Only)
+# Latest: Static 404 Fix
+
+Date: 2026-05-09
+
+## Result: PASS
+
+## Commands Run
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+## HTTP Verification (port 8001)
+
+```
+GET /static/css/app.css       → 200 OK
+GET /static/js/semantic-meta.js → 200 OK
+GET /static/js/opening-parent.js → 200 OK
+GET /                         → 200 OK
+```
+
+## Regression Coverage Maintained
+
+- All 17 assertions PASS: CACHE through REAL_OK.
+- `cssVarLoaded: True`, `cssLinkPresent: True` — CSS applies in browser.
+- All widget visibility assertions PASS.
+- Proto commit: a2099ec.
+
+---
+
+# Previous: CSS BOM Fix
+
+Date: 2026-05-09
+
+## Result: PASS
+
+## Commands Run
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+## Regression Coverage Maintained
+
+- All 17 assertions PASS: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK,
+  XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK,
+  ANNOT_OK, PERSIST_OK, REAL_OK.
+- `cssVarLoaded: True` — CSS custom properties active in browser.
+- All widget visibility assertions PASS (scaleStatusWidgetVisible, pageInfoWidgetVisible,
+  reviewWarningWidgetVisible, exportReadyWidgetVisible).
+- Proto commit: 65f5a65.
+
+---
+
+# Previous: Mockup Layout Mapping (Docs Only)
 
 Date: 2026-05-09
 

@@ -4,7 +4,66 @@
 
 ---
 
-# Latest: Mockup Layout Mapping (Docs Only)
+# Latest: Static 404 Fix (Critical Regression — Unconditional Mount)
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## Root Causes Fixed
+
+Two compounding bugs caused `/static/*` to return 404:
+
+1. **`aiofiles` not installed** — `StaticFiles` (starlette) requires `aiofiles` for async file
+   serving. Without it, `StaticFiles(directory=...)` raises `RuntimeError` at init time.
+2. **Guard hid the failure** — `if _STATIC_DIR.exists(): app.mount(...)` meant the mount was
+   attempted but the `RuntimeError` from missing `aiofiles` caused it to fail silently,
+   leaving `/static/*` unregistered. All static requests returned 404.
+
+## What Changed
+
+- `proto/server.py`: Removed `if _STATIC_DIR.exists():` guard. Mount now unconditional.
+  Added `print(f"[static] serving from: {_STATIC_DIR}")` for startup confirmation.
+  Renamed `_STATIC_DIR` → uses `_BASE_DIR / "static"` for clarity.
+- `proto/requirements.txt`: Added `aiofiles` (previous commit `65f5a65`).
+- `proto/static/css/app.css`: Removed UTF-8 BOM (previous commit `65f5a65`).
+- Installed `aiofiles==25.1.0` into the active Python environment.
+
+## What Did Not Change
+
+- No ui.html changes. No export/save-load changes. No legal/OCR/AI/Rule Engine.
+- All 17 E2E test assertions still PASS including cssVarLoaded, all widget visibility.
+
+---
+
+# Previous: CSS BOM Fix
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## Root Cause Fixed
+
+`proto/static/css/app.css` had a UTF-8 BOM (`\xef\xbb\xbf`) at byte position 0, written
+when the file was extracted from ui.html. Some browsers fail to apply a stylesheet with
+a BOM prefix — the CSS text starts with `*{` but the browser sees `\xef\xbb\xbf*{` and
+may reject the first rule, causing the page to render as unstyled HTML.
+
+## What Changed
+
+- `proto/static/css/app.css`: BOM stripped (bytes 0-2 removed). Content unchanged, 315 lines.
+- `proto/server.py` line 1298: `UI_PATH = os.path.join(os.path.dirname(__file__), "ui.html")`
+  → `UI_PATH = Path(__file__).resolve().parent / "ui.html"` (consistent with `_STATIC_DIR`).
+- `proto/requirements.txt`: Added `aiofiles` for explicit StaticFiles support.
+
+## What Did Not Change
+
+- No ui.html changes. No export/save-load changes. No legal/OCR/AI/Rule Engine.
+- All 17 E2E test assertions still PASS including all widget visibility and cssVarLoaded.
+
+---
+
+# Previous: Mockup Layout Mapping (Docs Only)
 
 Date: 2026-05-09
 

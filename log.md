@@ -8,6 +8,32 @@
 
 ## 2026-05-09
 
+### [session] Static 404 Fix (Critical Regression)
+
+**Root causes:**
+- `aiofiles` not installed — `StaticFiles` raises `RuntimeError` at init without it.
+- `if _STATIC_DIR.exists(): app.mount(...)` guard — mount was attempted but the RuntimeError
+  from missing `aiofiles` caused it to fail silently, leaving `/static/*` unregistered → 404.
+
+**What changed:**
+- `proto/server.py`: Removed `if _STATIC_DIR.exists()` guard. Mount now unconditional.
+  Added `print(f"[static] serving from: {_STATIC_DIR}")` for startup confirmation.
+- `proto/requirements.txt`: Added `aiofiles`.
+- `proto/static/css/app.css`: Removed UTF-8 BOM.
+- Installed `aiofiles==25.1.0` into active Python environment.
+
+**HTTP verified (port 8001):**
+```
+/static/css/app.css         → 200 OK
+/static/js/semantic-meta.js → 200 OK
+/static/js/opening-parent.js → 200 OK
+/                            → 200 OK
+```
+
+**Tests:** py_compile PASS · smoke PASS · full PASS (proto a2099ec)
+
+---
+
 ### [session] Mockup Layout Mapping
 
 **What changed (docs only — no source code):**
