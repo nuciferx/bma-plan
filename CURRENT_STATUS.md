@@ -8,11 +8,12 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: Left Inspection Status Panel added to left sidebar — collapsible panel
-showing current context, workflow steps, per-page stats, measurement summary, and warnings.
+Phase 1 PASS: left sidebar now has the Inspection Status Panel plus compact polished workflow,
+page info, review warning, and export-ready widgets.
 
 ## Latest Sprint
 
+- Widget Placement Polish: PASS (2026-05-09)
 - Left Inspection Status Panel: PASS (2026-05-09) — proto `24b41c5`, 6 new E2E assertions
 - Static 404 Fix: PASS (2026-05-09) — unconditional mount, aiofiles installed, BOM removed
 - Mockup Layout Mapping: PASS (2026-05-09, docs only) — gap table + 6-sprint plan

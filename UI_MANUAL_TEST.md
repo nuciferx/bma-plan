@@ -1,3 +1,19 @@
+# Latest: Widget Placement Polish
+
+Date: 2026-05-09
+
+## Result
+
+PASS by automated viewport-sensitive smoke/full coverage. Final manual viewport pass remains scheduled after Sprint 10.
+
+## Checked
+
+- Left widget visibility remained covered by E2E.
+- Compact layout at 1440x900 remained PASS in `MAIN_UI_OK`.
+- Final required manual viewport checks will be run after the visual consistency sprint.
+
+---
+
 # UI_MANUAL_TEST.md - Right Panel Organization After Mockup V3
 
 Date: 2026-05-09

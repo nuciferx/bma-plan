@@ -4,7 +4,28 @@
 
 ---
 
-# Latest: Static 404 Fix (Critical Regression)
+# Latest: Widget Placement Polish
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## Changed
+
+- Polished existing left-side workflow, page info, review warning, export-ready, and inspection widgets.
+- Kept live widget rendering side-effect free by avoiding export/report aggregation calls during refresh.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+---
+
+# Previous: Static 404 Fix (Critical Regression)
 
 Date: 2026-05-09
 

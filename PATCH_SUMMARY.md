@@ -4,7 +4,28 @@
 
 ---
 
-# Latest: Left Inspection Status Panel
+# Latest: Widget Placement Polish
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## What Changed
+
+- `proto/ui.html`: polished existing sidebar widget content only. Review and export widgets now render compact status rows from existing current-page state.
+- `proto/static/css/app.css`: tightened workflow/page-info/widget/inspection panel styling for a more consistent compact left panel.
+- Added and completed sprint card `RUN_WIDGET_PLACEMENT_POLISH.md`.
+
+## What Did Not Change
+
+- No backend changes.
+- No save/load/export model changes.
+- No new business logic; avoided `collectAreas()` in live widget rendering because it has page-state side effects.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail work.
+
+---
+
+# Previous: Left Inspection Status Panel
 
 Date: 2026-05-09
 

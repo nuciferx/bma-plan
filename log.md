@@ -217,3 +217,39 @@ static mount guard (`os.path.exists`) to pass for the wrong CWD.
 > Earlier sessions (Page Scales Audit, Report Target Summary, Export Metadata Columns,
 > Measurement Profile Metadata, Right Panel Organization, Mockup V3 UI, etc.)
 > are in [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md)
+
+---
+
+### [2026-05-09 23:12 +07:00] Widget Placement Polish
+
+**What changed:**
+- Created `sprints/active/RUN_WIDGET_PLACEMENT_POLISH.md` from the requested sprint scope.
+- Polished the existing left-side workflow, page info, review warning, export-ready, and inspection widgets.
+- Added compact status rows for current-page warnings/export readiness using existing state.
+- Updated CSS for compact left-panel card style and page-info strip.
+- Moved sprint card to completed after PASS.
+
+**Why:**
+- Sprint 2 required visual polish only, with no backend, export, save/load, or business logic changes.
+
+**Files touched:**
+- `proto/ui.html`
+- `proto/static/css/app.css`
+- `sprints/active/RUN_WIDGET_PLACEMENT_POLISH.md`
+- `PATCH_SUMMARY.md`
+- `TEST_RESULT.md`
+- `UI_MANUAL_TEST.md`
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `CURRENT_STATUS.md`
+- `docs/status/LATEST_STATUS.md`
+- `docs/status/NEXT_ACTIONS.md`
+- `log.md`
+
+**Verification:**
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+**Known issues:**
+- Full test initially caught a local regression from calling `collectAreas()` in live widget rendering; fixed before PASS by using current-page-only reads.
+- Existing non-fatal Windows `ConnectionResetError` appeared after successful full output.

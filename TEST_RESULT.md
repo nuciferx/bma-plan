@@ -4,7 +4,28 @@
 
 ---
 
-# Latest: Static 404 Fix
+# Latest: Widget Placement Polish
+
+Date: 2026-05-09
+
+## Result: PASS
+
+## Commands Run
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                          # PASS
+python proto/e2e_ui_test.py full                           # PASS
+```
+
+## Notes
+
+- Full test initially caught a local regression from calling `collectAreas()` in live widget rendering; fixed by using current-page-only state reads.
+- Existing non-fatal Windows `ConnectionResetError` appeared after successful full output.
+
+---
+
+# Previous: Static 404 Fix
 
 Date: 2026-05-09
 

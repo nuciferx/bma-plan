@@ -10,6 +10,7 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 
 | Sprint | Result |
 |--------|--------|
+| Widget Placement Polish | PASS |
 | Left Inspection Status Panel | PASS — proto `24b41c5` |
 | Static 404 Fix (critical regression) | PASS — proto `a2099ec` |
 | CSS BOM Fix | PASS — proto `65f5a65` |
@@ -25,6 +26,7 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 - **Left Inspection Status Panel**: collapsible panel above mode tabs — shows current context
   (file/page/scale/tool/layer), 6 workflow steps with status markers, per-page stats,
   measurement summary (gross/opening/land/parking), warnings, and next recommended action
+- **Left widgets**: workflow, page info, review warning, export ready, and inspection cards use compact status-row styling.
 - **Left panel tabs**: Sheets / Objects / Properties — all 3 clickable via `setSidebarMode(mode)`
   - Sheets: page thumbnails, search, quick-tag bar, workflow card
   - Objects: flat list of all page objects; click → selects and auto-switches to Properties
@@ -47,6 +49,6 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ## Latest Commits
 
+- proto: (latest) ui: polish left sidebar widgets
 - proto: `24b41c5` ui: add left inspection status panel
-- proto: `a2099ec` fix: serve static assets unconditionally from absolute proto path
-- root: (latest) docs: record left inspection status panel sprint
+- root: (latest) docs: record widget placement polish sprint
