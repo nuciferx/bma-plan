@@ -1,10 +1,23 @@
 # CURRENT_STATUS.md - BMA-Plan Current Status
 
-Date: 2026-05-08 16:55 +07:00
+Date: 2026-05-09
 
 ## One-Line Status
 
-BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, and a cleaned project document structure.
+BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibration, area/opening drawing, overlapping object selection, layer lock, properties editing, save/load, export foundations, semantic metadata foundation, restored direct header/Area/Land toolbar access, an accepted Page/Layer Measurement Model architecture, cleaned project document structure, a locked primary workflow UI, and a right panel that is explicitly Layers-first.
+
+## Latest Implementation State
+
+- Right Panel Organization After Mockup V3: PASS
+- Mockup V3 Scale + Page Workflow UI: PASS
+- Primary workflow order is `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`.
+- `Set Scale` is visible before `Page Setup` and uses the existing calibration mode.
+- `Page Setup` is now the primary visible setup label; internal setup function names remain unchanged for compatibility.
+- Left panel labels are `Sheets`, `Objects`, and `Properties`.
+- Right panel is explicitly Layers-first with layer counts and visibility/lock controls.
+- Existing right-panel Properties/Object Tree remain accessible below Layers as labeled `Legacy / Compatibility` sections.
+- Status bar includes `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, and `Page`.
+- No full mockup, draggable workspace, full autosave/recovery, full Scale Manager, copy-scale, legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail, backend, save/load model, or export model changes.
 
 ## Project Organization Status
 
@@ -35,18 +48,20 @@ Current development policy:
 
 ## Latest Verified State
 
-- Rollback UI Pack 1 + Targeted Toolbar Fix: PASS
-- Direct Open PDF / Open Project / sample PDF restored in header: PASS
-- UI Pack 1 Open dropdown neutralized: PASS
-- Export remains visible and unchanged: PASS
-- Area toolbar direct access fixed: PASS
-- Land toolbar direct access fixed: PASS
-- Area/Opening/Land active state reflects actual mode: PASS
+- Right Panel Organization After Mockup V3: PASS
+- Mockup V3 Scale + Page Workflow UI: PASS
+- Direct Open PDF / Open Project / sample PDF remains visible in header: PASS
+- Set Scale before Page Setup: PASS
+- Page Setup primary workflow label: PASS
+- Left panel `Sheets / Objects / Properties`: PASS
+- Right panel Layers-first with layer counts before Properties/Object Tree: PASS
+- Status bar labels for Scale, Objects, Warnings, Layer, Tool, Save/Page: PASS
+- Area/Opening/Land active state still reflects actual mode: PASS
 - More menu secondary tools still accessible: PASS
 - Advanced land-edge/setback helpers hidden by default: PASS
 - `py_compile`, `smoke`, `full`: PASS
-- Targeted no-new-tool grep: no matches
-- Forbidden scope grep: no law/OCR/AI/Rule Engine/Project PDF Save-Load strings
+- Manual viewport check at 1440x900, 1512x982, and 1366x768: PASS
+- Forbidden active UI wording check: no legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail/copy-scale/autosave/debug feature wording visible
 
 ## Current Product Scope
 
@@ -99,14 +114,14 @@ $env:PYTHONIOENCODING='utf-8'; python proto/e2e_ui_test.py smoke
 $env:PYTHONIOENCODING='utf-8'; python proto/e2e_ui_test.py full
 ```
 
-Latest result: PASS.
+Latest result: PASS on 2026-05-09.
 
 ## Next Recommended Sprint
 
 Choose one:
-- Git baseline commit for the housekeeping restructure after review.
+- Git baseline commit for the current UI workflow/right-panel condition after review.
+- Dedicated left Properties migration sprint, if desired, to move the full object editor out of the right panel safely.
 - Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
-- Continue UI fixes point-by-point only if a concrete toolbar/workflow defect is reported.
 - Smart export/report use of semantic metadata.
 - Sprint 3B Page Scales audit.
 - Manual opening parent reassignment.

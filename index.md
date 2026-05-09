@@ -1,6 +1,6 @@
 # BMA-Plan Index
 
-> Updated: 2026-05-08 16:55 +07:00  
+> Updated: 2026-05-09  
 > Current phase: Phase 1 = Raster PDF Measurement Assistant / Mini-CAD for Area Measurement
 
 ## Current Status
@@ -13,11 +13,14 @@
 - [log.md](log.md)
 
 Latest condition:
-- Project Housekeeping V2: PASS
-- Root folder now keeps current status files, source pointer, and top-level organization folders.
+- Right Panel Organization After Mockup V3: PASS
+- Mockup V3 Scale + Page Workflow UI: PASS
+- Primary workflow locked as `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`
+- Left panel labels: `Sheets / Objects / Properties`
+- Right panel: Layers-first with layer counts and controls, with existing Properties/Object Tree kept below as labeled compatibility sections
+- Status bar labels: `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, `Page`
+- Latest tests: `py_compile`, `smoke`, `full`, and manual viewport check PASS
 - Latest architecture docs: [PAGE_LAYER_MEASUREMENT_MODEL.md](docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md)
-- Previous implementation baseline: Rollback UI Pack 1 + Targeted Toolbar Fix, PASS
-- Latest implementation tests before housekeeping: `py_compile`, `smoke`, `full` PASS
 
 ## Phase 1 Scope Warning
 
@@ -130,10 +133,11 @@ Root exception:
 ## Current Sprint Roadmap
 
 Recommended next sprint:
-1. Git baseline commit for housekeeping after review.
-2. Stabilization sprint only if a concrete core workflow defect is reported.
-3. Canvas Interaction UX as a narrow sprint if selection/pan/zoom issues are confirmed.
-4. Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
+1. Git baseline commit for the current workflow UI/right-panel condition after review.
+2. Dedicated left Properties migration sprint, if desired, to move the full object editor out of the right panel safely.
+3. Stabilization sprint only if a concrete core workflow defect is reported.
+4. Canvas Interaction UX as a narrow sprint if selection/pan/zoom issues are confirmed.
+5. Measurement profile metadata implementation: add `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, and `countingRule` with backward-compatible normalization only.
 
 Policy:
 - no new feature until Git baseline and stabilization are confirmed

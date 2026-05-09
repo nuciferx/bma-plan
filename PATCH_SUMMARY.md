@@ -1,30 +1,46 @@
-# PATCH_SUMMARY.md — Project Housekeeping V2
+# PATCH_SUMMARY.md - Right Panel Organization After Mockup V3
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
 
 ## What Changed
-- Created the target project organization folders.
-- Moved run prompts into `sprints/completed/` and `sprints/archive/`.
-- Moved design/process/status docs into `docs/`.
-- Moved old reports into `reports/archive/`.
-- Moved generated/manual artifacts into `artifacts/`.
-- Moved reference PDFs and real/private project files into ignored reference/archive folders.
-- Kept `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` in root to preserve existing full E2E test path expectations.
-- Created `README.md`.
-- Updated `index.md`, `CURRENT_STATUS.md`, reports, and log.
-- Updated `.gitignore` to ignore `desktop.ini`.
+
+- Organized the existing right panel so `Layers` is the clear first section.
+- Replaced the right-panel pseudo-tabs with `Layers / Visibility / Lock` labels focused on layer operations.
+- Added visible object counts to each right-panel layer row.
+- Kept the existing Properties editor and Object Tree accessible below Layers.
+- Marked those lower sections as `Legacy / Compatibility` to avoid presenting them as peer primary right-panel tabs.
+- Updated E2E assertions for right-panel section order, layer counts, layer controls, workflow order, left labels, status labels, and forbidden Phase 1 feature wording.
 
 ## What Did Not Change
-- No source code behavior changed.
-- No `proto/ui.html`, `proto/server.py`, or `proto/e2e_ui_test.py` edits.
-- No measurement logic, save/load, export, UI behavior, legal/OCR/AI/Rule Engine work.
 
-## Risk
-- Paths to historical run prompts/reports changed; `index.md` and process docs now act as the navigation hub.
-- `proto` remains a nested Git repo with pre-existing dirty/untracked state.
-- Generated/reference/private files remain present but ignored and should not be committed.
-- One ignored PDF test fixture remains in root for current E2E compatibility.
+- No backend changes.
+- No save/load model changes.
+- No export model changes.
+- No data migration.
+- No full mockup implementation.
+- No draggable workspace.
+- No full autosave/recovery, full Scale Manager, or copy-scale features.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/setback pass-fail work.
+- No broad JS rewrite to move the full property editor into the left panel.
 
-## Verification
-- Source hashes checked for key proto files.
-- `git status --short` run.
-- `git diff --stat` run.
-- Staged unsafe-file check run with no unsafe staged files.
+## Files Touched
+
+- `proto/ui.html`
+- `proto/e2e_ui_test.py`
+- `PATCH_SUMMARY.md`
+- `TEST_RESULT.md`
+- `UI_MANUAL_TEST.md`
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `CURRENT_STATUS.md`
+- `index.md`
+- `log.md`
+
+## Known Issues
+
+- The right panel still contains existing Properties and Object Tree sections after Layers. This is intentional compatibility, now clearly labeled.
+- Moving full object properties into the left `Properties` panel still needs a dedicated sprint because doing it safely would require broader JS behavior work.
+- Save state is intentionally neutral/manual; no autosave or recovery engine was implemented.

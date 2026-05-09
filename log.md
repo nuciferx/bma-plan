@@ -5,6 +5,52 @@
 
 ---
 
+## 2026-05-09
+
+### [13:15 +07:00] Mockup V3 Scale + Page Workflow UI
+
+**What changed:**
+- Read `RUN_MOCKUP_V3_SCALE_PAGE_WORKFLOW_UI.md` and required condition/source files before editing.
+- Updated `proto/ui.html` only for safe Phase 1 workflow UI wording/order.
+- Locked visible workflow order as `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`.
+- Added visible `Set Scale` before `Page Setup` in the header, using existing calibration mode.
+- Replaced primary setup wording with `Page Setup` while keeping internal setup function names unchanged.
+- Added left panel labels `Sheets`, `Objects`, and `Properties`.
+- Made the right panel header `Layers` and kept Layers first.
+- Added status bar labels for `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, and `Page`.
+- Updated `proto/e2e_ui_test.py` assertions for the new workflow, labels, status bar, and forbidden active UI feature wording.
+- Configured E2E stdout/stderr as UTF-8 to let the required Windows `python proto/e2e_ui_test.py ...` commands print Thai results safely.
+- Updated `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `UI_MANUAL_TEST.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `CURRENT_STATUS.md`, and `index.md`.
+
+**Why:**
+- Sprint card required applying only safe mockup-v3 workflow structure without implementing the full mockup or changing measurement/export/save-load data contracts.
+
+**Files touched:**
+- `proto/ui.html`
+- `proto/e2e_ui_test.py`
+- `PATCH_SUMMARY.md`
+- `TEST_RESULT.md`
+- `UI_MANUAL_TEST.md`
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `CURRENT_STATUS.md`
+- `index.md`
+- `log.md`
+
+**Verification:**
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+- Manual Chromium viewport check:
+  - `1440 x 900` - PASS
+  - `1512 x 982` - PASS
+  - `1366 x 768` - PASS
+- Active UI forbidden wording check - PASS/no legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail/copy-scale/autosave/debug feature wording visible.
+
+**Known issues:**
+- Right panel still includes existing Properties and Object Tree below Layers. This was intentionally kept to avoid risky panel logic movement in this sprint.
+- Save state is manual/neutral only; no autosave or recovery engine was implemented.
+- Full E2E still prints the existing non-fatal Windows uvicorn shutdown `ConnectionResetError` after success output.
+
 ## 2026-05-08
 
 ### [16:55 +07:00] Project housekeeping V2
@@ -1310,3 +1356,45 @@ SETBACK_OK / EXT_MEASURE_OK / ANNOT_OK / REAL_OK
 **Known issues:**
 - Full E2E still prints existing non-failing Windows uvicorn shutdown `ConnectionResetError` after success output.
 - Future UI work should remain point-by-point restoration/fix work unless a separate redesign sprint is explicitly requested.
+
+### [2026-05-09 13:19 +07:00] Right Panel Organization After Mockup V3
+
+**What changed:**
+- Read `RUN_RIGHT_PANEL_ORGANIZATION_AFTER_MOCKUP_V3.md` and required current status/source/design files before patching.
+- Kept the Phase 1 workflow order unchanged: `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`.
+- Organized `proto/ui.html` right panel so the first functional section is `Layers`.
+- Replaced the previous right-panel peer labels with layer-focused labels: `Layers`, `Visibility`, and `Lock`.
+- Added object counts to right-panel layer rows.
+- Kept the existing selected-object Properties editor and Object Tree accessible below Layers.
+- Marked those lower sections as `Legacy / Compatibility` instead of moving them with a broad JS rewrite.
+- Updated `proto/e2e_ui_test.py` to assert Layers-first order, layer counts, layer controls, existing workflow order, left panel labels, status labels, and forbidden Phase 1 wording.
+- Updated condition artifacts: `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `UI_MANUAL_TEST.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `CURRENT_STATUS.md`, `index.md`, `log.md`.
+
+**Why:**
+- The sprint required making the right panel clearly Layers-first after Mockup V3 while preserving object properties and existing behavior.
+- Moving full Properties/Object Tree into the left panel would require broader selection/editor JS work, so the safe sprint strategy was compatibility labeling.
+
+**Files touched:**
+- `proto/ui.html`
+- `proto/e2e_ui_test.py`
+- `PATCH_SUMMARY.md`
+- `TEST_RESULT.md`
+- `UI_MANUAL_TEST.md`
+- `FINAL_REPORT_FOR_CHATGPT.md`
+- `CURRENT_STATUS.md`
+- `index.md`
+- `log.md`
+
+**Verification:**
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+- Manual viewport check - PASS:
+  - `1440 x 900`
+  - `1512 x 982`
+  - `1366 x 768`
+
+**Known issues:**
+- Right panel still includes Properties/Object Tree below Layers by design for compatibility.
+- A future left Properties migration should be a separate sprint because it touches broader UI/editor behavior.
+- No backend, data model, save/load model, export model, draggable workspace, legal/OCR/AI/Rule Engine, or autosave/recovery work was done.

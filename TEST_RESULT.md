@@ -1,19 +1,35 @@
-# TEST_RESULT.md — Project Housekeeping V2
+# TEST_RESULT.md - Right Panel Organization After Mockup V3
 
-## Commands
-- `git status --short`
-- `git diff --stat`
-- staged unsafe-file check for PDF/XLSX/`.bmaplan`/artifacts/secrets
-- source hash check for `proto/ui.html`, `proto/server.py`, `proto/e2e_ui_test.py`
+Date: 2026-05-09
 
 ## Result
-- file organization: PASS
-- source code changed: no
-- app tests: not run, docs/file-organization only
-- unsafe files staged: no
-- generated files staged: no
-- secrets staged: no
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Additional Verification
+
+- Manual viewport check with Chromium:
+  - `1440 x 900` - PASS
+  - `1512 x 982` - PASS
+  - `1366 x 768` - PASS
+
+## Coverage Added
+
+- Right panel `Layers` section is visible and appears before compatibility `Properties` and `Object Tree`.
+- Right panel layer rows expose layer counts and existing visibility/lock controls.
+- Existing Properties/Object Tree remain accessible below Layers.
+- Workflow order remains `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`.
+- `Set Scale` remains before `Page Setup`.
+- Left panel labels remain `Sheets`, `Objects`, `Properties`.
+- Status bar still includes `Scale`, `Objects`, `Warnings`, `Layer`, `Tool`, and `Save`.
+- Forbidden Phase 1 feature wording is not visible in active UI.
 
 ## Notes
-- `proto` remains a nested repo with pre-existing dirty/untracked state.
-- `artifacts/`, PDFs, XLSX, and `.bmaplan` files remain ignored and should not be staged.
+
+- No backend/export/save-load/data-model files were edited.
