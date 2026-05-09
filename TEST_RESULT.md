@@ -4,7 +4,7 @@
 
 ---
 
-# Latest: Fast UI Testability Polish
+# Latest: Max Token Reduction / File Split
 
 Date: 2026-05-09
 
@@ -20,15 +20,16 @@ python proto/e2e_ui_test.py full                            # PASS
 
 ## Regression Coverage Maintained
 
-- MAIN_UI_OK `rightPanelCompatibilityVisible: True` — compat sections still present with "Legacy / Compatibility" text
-- MAIN_UI_OK `rightPanelLayersFirst: True` — Layers section still first in right panel
+- MAIN_UI_OK `rightPanelCompatibilityVisible: True` — compat sections still present
+- MAIN_UI_OK `rightPanelLayersFirst: True` — Layers section first in right panel
 - MAIN_UI_OK `leftPanelTabsOk: True` — left panel tabs switch correctly
-- All previous assertions: CACHE_OK, SETUP_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK — all PASS
+- XLSX_OK — export functions correctly (semantic metadata helpers now imported from export package)
+- All previous assertions: CACHE_OK, SETUP_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK — all PASS
 
 ## Notes
 
 - Non-fatal WinError 10054 on uvicorn shutdown remains — known issue, does not affect results.
-- All 10 micro sprint changes are CSS/HTML/JS in ui.html only — no backend changes.
+- server.py reduced from 1451 to ~1290 lines; behavior unchanged via re-import.
 
 ---
 

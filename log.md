@@ -8,6 +8,41 @@
 
 ## 2026-05-09
 
+### [session] Max Token Reduction / File Split
+
+**What changed:**
+- Created `proto/export/__init__.py`, `proto/export/semantic_metadata.py`, `proto/export/xlsx_helpers.py`.
+- Moved SEMANTIC_*_MAPs, AREA_SEMANTIC_TAGS, _derive_measurement_meta, _get_meta → `export/semantic_metadata.py`.
+- Moved _hex_to_rgb, _poly_area_pt2, _line_points, _line_length_pt, _nearest_on_segment, _object_points_for_ref_report, _distance_to_ref, _m2_to_rwu → `export/xlsx_helpers.py`.
+- `proto/server.py` now imports all names back — behavior identical.
+- Created `docs/design/RUNTIME_FILE_SPLIT_AUDIT.md` (file size + risk analysis).
+- Created `docs/design/E2E_SPLIT_PLAN.md` (e2e test split plan, implementation deferred).
+- Created `docs/status/READ_ORDER.md` (agent reading guide).
+- Updated all status docs (CURRENT_STATUS.md, LATEST_STATUS.md, NEXT_ACTIONS.md, COMMIT_HISTORY.md, PATCH_SUMMARY.md, TEST_RESULT.md, FINAL_REPORT_FOR_CHATGPT.md).
+
+**Tests:** py_compile PASS · smoke PASS · full PASS (proto fb89ecd)
+
+---
+
+### [session] Fast UI Testability Polish (Sprint B)
+
+**What changed:**
+- Sprint 1: Empty state card with action buttons + numbered workflow steps 1→6.
+- Sprint 2: Topbar zone-a .sep separator between file group and workflow group.
+- Sprint 3: Set Scale .scale-cta orange highlight when PDF open but scale not set.
+- Sprint 4: `#lp-page-info` strip in sidebar showing page name · tag · scale state.
+- Sprint 5: `aria-label` on toolbar groups for testability.
+- Sprint 6: `buildLeftProperties()` grouped: Basic / Measurement / Metadata.
+- Sprint 7: Right panel Layers title styled; compat note improved.
+- Sprint 8: QA warnings grouped by severity: Error / Warning / Info.
+- Sprint 9: `#export-readiness` summary bar in export panel.
+- Sprint 10: `docs/process/QUICK_TEST_GUIDE.md` created.
+- Added rightPanelCompatibilityVisible, rightPanelLayersFirst, leftPanelTabsOk assertions to E2E.
+
+**Tests:** py_compile PASS · smoke PASS · full PASS
+
+---
+
 ### [session] Token Reduction / Status File Split
 
 **What changed:**

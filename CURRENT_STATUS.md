@@ -8,16 +8,15 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: Raster PDF Measurement Assistant with working left-panel tab switching
-(Sheets/Objects/Properties), opening parent reassignment, 5-field semantic metadata
-across all exports, Report Target XLSX summary, Page Scales audit columns, and
-Layers-first right panel.
+Phase 1 PASS: Raster PDF Measurement Assistant with 10 UI testability polishes (Sprint B),
+server.py export helpers split into proto/export/ package, working left-panel tabs,
+opening parent reassignment, 5-field semantic metadata, Report Target XLSX, and Layers-first panel.
 
 ## Latest Sprint
 
+- Max Token Reduction / File Split: PASS (2026-05-09)
+- Fast UI Testability Polish (Sprint B, 10 micro): PASS (2026-05-09)
 - Left Properties Migration: PASS (2026-05-09)
-- Opening Parent Reassignment: PASS (2026-05-09)
-- Page Scales Audit: PASS (2026-05-09)
 
 ## Test Baseline
 
@@ -30,8 +29,8 @@ Last run: 2026-05-09. Full test detail: [docs/status/TEST_BASELINE.md](docs/stat
 
 ## Latest Commits
 
-- root: `7005903` feat: left properties migration - left panel tab switching PASS
-- proto: `e32122e` feat: wire left panel tabs with content switching and auto-Properties on selection
+- root: `4bda145` feat: 10 UI testability micro sprints - Sprint B PASS
+- proto: `fb89ecd` refactor: split export metadata helpers
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 

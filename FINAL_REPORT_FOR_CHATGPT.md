@@ -4,7 +4,43 @@
 
 ---
 
-# Latest: Fast UI Testability Polish (10 Micro Sprints)
+# Latest: Max Token Reduction / File Split
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## What Changed
+
+- Created `proto/export/` package with 3 files:
+  - `__init__.py` (empty)
+  - `semantic_metadata.py` — SEMANTIC_*_MAPs, AREA_SEMANTIC_TAGS, _derive_measurement_meta, _get_meta
+  - `xlsx_helpers.py` — _hex_to_rgb, _poly_area_pt2, _line_points, _line_length_pt, _nearest_on_segment, _object_points_for_ref_report, _distance_to_ref, _m2_to_rwu
+- `proto/server.py` reduced from 1451 → ~1290 lines; imports all moved names back at module level.
+- Created `docs/design/RUNTIME_FILE_SPLIT_AUDIT.md` — file size audit, risk levels, split sequence.
+- Created `docs/design/E2E_SPLIT_PLAN.md` — proposed e2e test split structure (implementation deferred).
+- Created `docs/status/READ_ORDER.md` — agent reading guide.
+- All status docs updated to reflect Sprint B (Fast UI Testability Polish) and this sprint.
+
+## What Did Not Change
+
+- No `proto/ui.html` changes. No save/load changes. No export behavior changes.
+- All moved functions re-imported at module level — calling code in server.py unchanged.
+- No legal/OCR/AI/Rule Engine. No architecture rewrite.
+
+## Tests
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+All 17 assertions PASS. Proto commit: fb89ecd.
+
+---
+
+# Previous: Fast UI Testability Polish (10 Micro Sprints)
 
 Date: 2026-05-09
 

@@ -10,14 +10,14 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 
 | Sprint | Result |
 |--------|--------|
+| Max Token Reduction / File Split | PASS |
+| Fast UI Testability Polish (Sprint B) | PASS |
 | Left Properties Migration | PASS |
 | Opening Parent Reassignment | PASS |
 | Page Scales Audit | PASS |
 | Report Target Summary XLSX | PASS |
 | Export Metadata Columns XLSX | PASS |
 | Measurement Profile Metadata Foundation | PASS |
-| Right Panel Organization After Mockup V3 | PASS |
-| Mockup V3 Scale + Page Workflow UI | PASS |
 
 ## Active Feature State
 
@@ -44,5 +44,5 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ## Latest Commits
 
-- proto: `e32122e` feat: wire left panel tabs with content switching and auto-Properties on selection
-- root: `7005903` feat: left properties migration - left panel tab switching PASS
+- proto: `fb89ecd` refactor: split export metadata helpers
+- root: `4bda145` feat: 10 UI testability micro sprints - Sprint B PASS

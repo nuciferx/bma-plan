@@ -2,24 +2,18 @@
 
 Date: 2026-05-09
 
-## Immediate Next (Sprint B)
+## Immediate Next
 
-Execute 10 UI testability micro sprints in order:
-0. Confirm Commit / Clean State
-1. Test Mode Landing / Start Screen
-2. Top Action Bar Simplify
-3. Set Scale CTA / Scale Status
-4. Page Setup Mini Panel
-5. Measurement Toolbar Clean Mode
-6. Properties Panel Usability
-7. Right Panel Layers Visual Cleanup
-8. Review Warning Summary
-9. Export Ready Screen
-10. Quick Test Guide (docs/process/QUICK_TEST_GUIDE.md)
+Sprint B (10 UI testability micro sprints) — DONE (2026-05-09).
+Max Token Reduction / File Split — DONE (2026-05-09).
 
-Source files allowed: proto/ui.html, proto/e2e_ui_test.py only.
+Next candidate sprints:
+- Left panel Properties refinement (scroll, focus, keyboard navigation)
+- Parking-specific rows in สรุปตาม Report Target
+- E2E test split into proto/tests/ modules (see docs/design/E2E_SPLIT_PLAN.md)
+- Frontend JS module split (see docs/design/RUNTIME_FILE_SPLIT_AUDIT.md — deferred)
 
-## Backlog (After Sprint B)
+## Backlog (Longer Term)
 
 - Left panel Properties refinement (scroll, focus, keyboard navigation)
 - Parking-specific rows in สรุปตาม Report Target
