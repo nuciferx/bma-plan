@@ -1,4 +1,38 @@
-# PATCH_SUMMARY.md - Page Scales Audit
+# PATCH_SUMMARY.md - Opening Parent Reassignment
+
+Date: 2026-05-09
+
+## Outcome
+
+PASS
+
+## What Changed
+
+- `proto/ui.html` — `linkOpeningParent`: added early return when `op.parentManual && op.parentId` is set, so manual parent assignments survive auto-relinking.
+- `proto/ui.html` — `buildRightPanel()` opening case: shows `<select id="rp-opening-parent">` (listing all closed polys) when `parentStatus` is not "linked"; shows read-only name div when "linked".
+- `proto/ui.html` — added `rpSetOpeningParent(id)` function: sets `parentId`, `parentStatus="linked"`, `parentManual=true`, then saveCurrentPage/redraw/buildRightPanel.
+- `proto/e2e_ui_test.py` — extended SELECT_OK: selects the unlinked opening (idx 1), verifies `#rp-opening-parent` select appears, calls rpSetOpeningParent, asserts parentReassigned.
+
+## What Did Not Change
+
+- No `proto/server.py` changes.
+- No save/load format changes (parentManual is additive; old saves without it continue auto-linking normally).
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+
+## Files Touched
+
+- `proto/ui.html`
+- `proto/e2e_ui_test.py`
+- `sprints/completed/2026-05-09-opening-parent-reassignment/RUN_OPENING_PARENT_REASSIGNMENT.md`
+- `CURRENT_STATUS.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`
+
+## Known Issues
+
+None.
+
+---
+
+# Previous: Page Scales Audit
 
 Date: 2026-05-09
 

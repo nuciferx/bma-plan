@@ -1,4 +1,35 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Page Scales Audit
+# FINAL_REPORT_FOR_CHATGPT.md - Opening Parent Reassignment
+
+## Outcome
+
+PASS
+
+## Changed
+
+- `linkOpeningParent`: respects `parentManual` flag — manual assignments survive auto-relinking.
+- `buildRightPanel()`: opening parent shows a `<select id="rp-opening-parent">` when status is not "linked".
+- Added `rpSetOpeningParent(id)` function.
+- Extended SELECT_OK E2E to assert parentSelectVisible and parentReassigned.
+
+## Not Changed
+
+- No `proto/server.py` changes.
+- No save/load format changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Next Recommended Sprint
+
+- RUN_LEFT_PROPERTIES_MIGRATION.md
+
+---
+
+# Previous: Page Scales Audit
 
 ## Outcome
 

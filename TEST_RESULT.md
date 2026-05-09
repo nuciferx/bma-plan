@@ -1,4 +1,34 @@
-# TEST_RESULT.md - Page Scales Audit
+# TEST_RESULT.md - Opening Parent Reassignment
+
+Date: 2026-05-09
+
+## Result
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## New Assertions Verified
+
+- SELECT_OK — `parentSelectVisible: True` (select #rp-opening-parent appears for unlinked opening).
+- SELECT_OK — `parentReassigned: True` (rpSetOpeningParent sets parentId and parentStatus="linked").
+
+## Regression Coverage Maintained
+
+- All previous SELECT_OK assertions including parentLinked, semanticDefaults, metaOk, strippedMetaOk still PASS.
+- CACHE_OK, XLSX_OK, MAIN_UI_OK, and all other assertions still PASS.
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue.
+
+---
+
+# Previous: Page Scales Audit
 
 Date: 2026-05-09
 

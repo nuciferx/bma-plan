@@ -8,6 +8,7 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 
 ## Latest Implementation State
 
+- Opening Parent Reassignment: PASS
 - Page Scales Audit: PASS
 - Report Target Summary XLSX: PASS
 - Export Metadata Columns XLSX: PASS
@@ -27,6 +28,7 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 - XLSX export now includes the 5 new fields as columns in สรุปพื้นที่, ความยาวเส้น Polygon, ที่จอดรถ, and ระยะอ้างอิง sheets.
 - XLSX export includes a new sheet `สรุปตาม Report Target` grouping all objects by (reportTarget, objectCategory, countingRule) with area/length/parking totals and a grand total row.
 - XLSX Page Scales sheet now has 10 columns: added `scale_state` (derived, mirrors JS scaleState()), `object_count` (objects on page), `needs_attention` (True if objects present and scale unconfirmed).
+- Opening parent reassignment: when parentStatus is "ambiguous" or "unlinked", right panel shows a `<select id="rp-opening-parent">` to manually assign a poly parent; `rpSetOpeningParent(id)` sets parentId/parentStatus/parentManual and survives subsequent auto-linking.
 - server.py SEMANTIC_*_MAP constants and _derive_measurement_meta/_get_meta helpers mirror ui.html mapping tables.
 - No full mockup, draggable workspace, full autosave/recovery, full Scale Manager, copy-scale, legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail, or save/load model changes.
 

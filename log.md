@@ -7,6 +7,23 @@
 
 ## 2026-05-09
 
+### [session] Opening Parent Reassignment
+
+**What changed:**
+- `linkOpeningParent` in `proto/ui.html`: added `parentManual` guard so manual assignments survive `ensureStoreObjectIds` → `linkOpeningsInStore` cycles.
+- `buildRightPanel()` opening case: shows `<select id="rp-opening-parent">` when parentStatus ≠ "linked".
+- Added `rpSetOpeningParent(id)` to `proto/ui.html`.
+- Extended SELECT_OK in `proto/e2e_ui_test.py` to assert parentSelectVisible and parentReassigned.
+- Sprint card moved to `sprints/completed/2026-05-09-opening-parent-reassignment/`.
+
+**Tests:** py_compile PASS · smoke PASS · full PASS
+
+**Git:**
+- proto commit: (pending)
+- root commit: (pending)
+
+---
+
 ### [session] Page Scales Audit
 
 **What changed:**
