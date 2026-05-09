@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-09
+Date: 2026-05-10
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,15 +8,20 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: left sidebar now has the Inspection Status Panel plus compact polished workflow,
-page info, review warning, and export-ready widgets.
+Phase 1 PASS: 8-sprint UI/measurement usability batch complete — toolbar ribbon polish,
+layers active badge, page scale warning, scale manager modal, warning severity CSS,
+export checklist widget, and full visual consistency pass.
 
 ## Latest Sprint
 
-- Widget Placement Polish: PASS (2026-05-09)
-- Left Inspection Status Panel: PASS (2026-05-09) — proto `24b41c5`, 6 new E2E assertions
-- Static 404 Fix: PASS (2026-05-09) — unconditional mount, aiofiles installed, BOM removed
-- Mockup Layout Mapping: PASS (2026-05-09, docs only) — gap table + 6-sprint plan
+- UI Visual Consistency Pass: PASS (2026-05-10) — proto `4a09693`
+- Export Ready Panel Polish: PASS (2026-05-10) — proto `56f06c2`
+- Review Warning Panel Polish: PASS (2026-05-10) — proto `c0b909e`
+- Scale Manager Foundation: PASS (2026-05-10) — proto `adb412f`
+- Page Floor Setup Panel: PASS (2026-05-10) — proto `9b8c505`
+- Right Layers Final Polish: PASS (2026-05-10) — proto `c947a2a`
+- Ribbon Toolbar Polish: PASS (2026-05-10) — proto `7461278`
+- Canvas Top Info Bar: PASS (2026-05-09) — proto `50d5d68`
 
 ## Test Baseline
 
@@ -25,12 +30,12 @@ python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 python proto/e2e_ui_test.py smoke                          # PASS
 python proto/e2e_ui_test.py full                           # PASS
 ```
-Last run: 2026-05-09 (proto 24b41c5). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last run: 2026-05-10 (proto 4a09693). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 
 - root: (this commit)
-- proto: `24b41c5` ui: add left inspection status panel
+- proto: `4a09693` ui: visual consistency pass
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 

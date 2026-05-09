@@ -4,24 +4,34 @@
 
 ---
 
-# Latest: Widget Placement Polish
+# Latest: 8-Sprint UI/Measurement Usability Batch
 
-Date: 2026-05-09
+Date: 2026-05-10
 
 ## Outcome
 
-PASS
+PASS — all 8 sprints, full E2E green after every commit.
 
 ## Changed
 
-- Polished existing left-side workflow, page info, review warning, export-ready, and inspection widgets.
-- Kept live widget rendering side-effect free by avoiding export/report aggregation calls during refresh.
+1. **Canvas Top Info Bar** (`50d5d68`) — nonblocking overlay in workspace showing page/zoom/scale/tool/layer/coords.
+2. **Ribbon Toolbar Polish** (`7461278`) — `.ft-group` subtle bg + border-radius; `.ft-btn.active` outer glow + bottom border.
+3. **Right Layers Final Polish** (`c947a2a`) — ACTIVE badge on the currently selected layer row in the right panel.
+4. **Page Floor Setup Panel** (`9b8c505`) — ⚠ orange warning badge on page thumbnails that have objects but no Scale.
+5. **Scale Manager Foundation** (`adb412f`) — audit-only `#scale-mgr-overlay` modal listing per-page scale status; trigger link in Export widget.
+6. **Review Warning Panel Polish** (`c0b909e`) — `.cd-warn.error`, `.cd-warn.warning`, `.cd-severity-info` CSS classes replace inline styles.
+7. **Export Ready Panel Polish** (`56f06c2`) — export widget shows XLSX/Pages w/ Scale/Report Targets/Unlinked/Warnings checklist; dual Scale ›/Export › links.
+8. **UI Visual Consistency Pass** (`4a09693`) — `.wf-row.current` CSS (blue dot, white text); `setWorkflowState` supports "current"; layer row hover; widget left accent; workflow first-incomplete step highlighted.
+
+## Not Changed
+
+No Save/Save As, Annotated PDF, legal/OCR/AI/Rule Engine, FAR/OSR, drag handlers, autosave, backend, or server.py.
 
 ## Tests
 
-- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
-- `python proto/e2e_ui_test.py smoke` - PASS
-- `python proto/e2e_ui_test.py full` - PASS
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` — PASS
+- `python proto/e2e_ui_test.py smoke` — PASS
+- `python proto/e2e_ui_test.py full` — PASS (proto HEAD `4a09693`)
 
 ---
 

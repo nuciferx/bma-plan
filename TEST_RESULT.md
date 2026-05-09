@@ -4,7 +4,21 @@
 
 ---
 
-# Latest: Widget Placement Polish
+# Latest: 8-Sprint UI Batch
+
+Date: 2026-05-10
+
+## Result: PASS
+
+Proto HEAD: `4a09693`
+
+All sprints (Ribbon Toolbar, Layers Badge, Page Warn, Scale Manager, Warning CSS,
+Export Checklist, Visual Consistency) passed full E2E after each commit.
+No assertions added in this batch — all existing assertions remain green.
+
+---
+
+# Previous: Canvas Top Info Bar
 
 Date: 2026-05-09
 
@@ -18,14 +32,16 @@ python proto/e2e_ui_test.py smoke                          # PASS
 python proto/e2e_ui_test.py full                           # PASS
 ```
 
-## Notes
+## Added Coverage
 
-- Full test initially caught a local regression from calling `collectAreas()` in live widget rendering; fixed by using current-page-only state reads.
-- Existing non-fatal Windows `ConnectionResetError` appeared after successful full output.
+- Canvas top bar visible inside workspace.
+- Canvas top bar uses `pointer-events: none`.
+- Canvas top bar shows page, scale, tool, layer, zoom, and coordinates.
+- Existing drawing/export/save-load/full workflow still PASS.
 
 ---
 
-# Previous: Static 404 Fix
+# Previous: Widget Placement Polish
 
 Date: 2026-05-09
 

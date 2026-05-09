@@ -4,7 +4,57 @@
 
 ---
 
-# Latest: Widget Placement Polish
+# Latest: 8-Sprint UI/Measurement Usability Batch
+
+Date: 2026-05-10
+
+## Outcome: PASS (all 8 sprints)
+
+## Proto Commits (newest first)
+
+| Commit | Sprint | Change |
+|--------|--------|--------|
+| `4a09693` | Visual Consistency Pass | wf-row.current CSS, layer hover, widget accent |
+| `56f06c2` | Export Ready Panel Polish | XLSX/Scale/Targets/Unlinked checklist + links row |
+| `c0b909e` | Review Warning Panel Polish | .cd-warn.error/.warning/.cd-severity-info classes |
+| `adb412f` | Scale Manager Foundation | #scale-mgr-overlay modal + openScaleManager() |
+| `9b8c505` | Page Floor Setup Panel | .pg-warn thumbnail badge (object with no Scale) |
+| `c947a2a` | Right Layers Final Polish | .rp-active-lyr ACTIVE badge in layer rows |
+| `7461278` | Ribbon Toolbar Polish | .ft-group subtle bg, .ft-btn.active glow+border |
+| `50d5d68` | Canvas Top Info Bar | #canvas-top-bar overlay, updateCanvasTopBar() |
+
+## What Did Not Change
+
+- No Save/Save As/Overwrite changes.
+- No Annotated PDF export changes.
+- No legal/OCR/AI/Rule Engine/FAR/OSR work.
+- No drag handlers or autosave.
+- No backend or server.py changes.
+- All prior E2E assertions still PASS.
+
+---
+
+# Previous: Canvas Top Info Bar
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## What Changed
+
+- Added nonblocking `#canvas-top-bar` inside `#workspace`.
+- Shows page/total, page name/tag, zoom, scale, tool, active layer, and safe pointer coordinates.
+- Added E2E assertions for visibility, workspace placement, pointer-event safety, content, and workspace fit.
+
+## What Did Not Change
+
+- No drawing behavior changes.
+- No backend/export/save-load changes.
+- No draggable widget or drag handlers.
+
+---
+
+# Previous: Widget Placement Polish
 
 Date: 2026-05-09
 

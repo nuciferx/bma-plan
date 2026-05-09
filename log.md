@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-05-10
+
+### [session] 8-Sprint UI/Measurement Usability Batch — PASS
+
+**Sprints completed (all full E2E PASS):**
+- Canvas Top Info Bar: `50d5d68` — non-blocking overlay with page/zoom/scale/tool/layer/coords
+- Ribbon Toolbar Polish: `7461278` — .ft-group bg, .ft-btn.active glow + bottom border
+- Right Layers Final Polish: `c947a2a` — ACTIVE badge on current layer row
+- Page Floor Setup Panel: `9b8c505` — ⚠ warning badge on thumbnails with objects but no Scale
+- Scale Manager Foundation: `adb412f` — audit modal showing per-page scale, trigger in export widget
+- Review Warning Panel Polish: `c0b909e` — .cd-warn.error/.warning/.cd-severity-info CSS classes
+- Export Ready Panel Polish: `56f06c2` — XLSX/Scale/Targets/Unlinked/Warnings checklist + Export/Scale links
+- UI Visual Consistency Pass: `4a09693` — wf-row.current, layer hover, widget accent, workflow current state
+
+**No forbidden items touched.** All 8 sprints committed with PASS. Full E2E green after each.
+
+---
+
 ## 2026-05-09
 
 ### [session] Knowledge Capture — Static 404 Regression Lesson
