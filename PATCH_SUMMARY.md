@@ -4,7 +4,34 @@
 
 ---
 
-# Latest: Static 404 Fix (Critical Regression — Unconditional Mount)
+# Latest: Left Inspection Status Panel
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## What Changed
+
+- `proto/ui.html`: Added `#inspection-panel` div between `#lp-page-info` and `#sidebar-mode-tabs`.
+  Added `toggleInspectionPanel()` and `updateInspectionPanel()` functions. `updateBottomBar()`
+  now calls `updateInspectionPanel()` on each update. Global `inspPanelCollapsed=false`.
+- `proto/static/css/app.css`: Added 22 CSS classes — `.inspection-panel`, `.isp-hdr`,
+  `.isp-body`, `.isp-body.collapsed`, `.isp-wf-row` (+ `.done`, `.current`, `.warn` modifiers),
+  `.isp-section-title`, `.isp-kv`, `.isp-warn-badge`, `.isp-next-action`, `.isp-wf-dot`.
+- `proto/e2e_ui_test.py`: Added 6 new JS evaluate keys + 6 Python assertions:
+  `inspectionPanelVisible`, `inspectionPanelInSidebar`, `inspectionPanelNotInCanvas`,
+  `inspectionPanelWorkflowVisible`, `inspectionPanelContextVisible`, `inspectionPanelToggleWorks`.
+- Sprint card moved to `sprints/completed/2026-05-09-left-inspection-status-panel/`.
+
+## What Did Not Change
+
+- No `proto/server.py` changes. No export/save-load changes. No legal/OCR/AI/Rule Engine.
+- Tabs (Sheets/Objects/Properties) unaffected — panel IDs not in `setSidebarMode()` hide list.
+- All 17 + 6 prior assertions still PASS.
+
+---
+
+# Previous: Static 404 Fix (Critical Regression — Unconditional Mount)
 
 Date: 2026-05-09
 

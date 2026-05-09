@@ -10,6 +10,7 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 
 | Sprint | Result |
 |--------|--------|
+| Left Inspection Status Panel | PASS — proto `24b41c5` |
 | Static 404 Fix (critical regression) | PASS — proto `a2099ec` |
 | CSS BOM Fix | PASS — proto `65f5a65` |
 | Mockup Layout Mapping (docs only) | PASS — proto `797a4a2` |
@@ -17,11 +18,13 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 | Visible Test Widgets UI | PASS — proto `a2a6e81` |
 | Frontend UI HTML Split | PASS — proto `9fa57a0` |
 | Fast UI Testability Polish (Sprint B) | PASS |
-| Left Properties Migration | PASS |
 
 ## Active Feature State
 
 - **Workflow**: Open PDF → Set Scale → Page Setup → Measure → Review → Export (locked)
+- **Left Inspection Status Panel**: collapsible panel above mode tabs — shows current context
+  (file/page/scale/tool/layer), 6 workflow steps with status markers, per-page stats,
+  measurement summary (gross/opening/land/parking), warnings, and next recommended action
 - **Left panel tabs**: Sheets / Objects / Properties — all 3 clickable via `setSidebarMode(mode)`
   - Sheets: page thumbnails, search, quick-tag bar, workflow card
   - Objects: flat list of all page objects; click → selects and auto-switches to Properties
@@ -44,6 +47,6 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ## Latest Commits
 
+- proto: `24b41c5` ui: add left inspection status panel
 - proto: `a2099ec` fix: serve static assets unconditionally from absolute proto path
-- proto: `65f5a65` fix: remove BOM from app.css, harden UI_PATH, add aiofiles to requirements
-- root: (latest) docs: capture static asset 404 regression lesson
+- root: (latest) docs: record left inspection status panel sprint

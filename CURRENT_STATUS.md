@@ -8,14 +8,14 @@ Date: 2026-05-09
 
 ## One-Line Status
 
-Phase 1 PASS: Static serving regression fixed — /static/* now returns 200 OK.
-Root causes: missing aiofiles + guarded mount masked the failure. UI renders styled.
+Phase 1 PASS: Left Inspection Status Panel added to left sidebar — collapsible panel
+showing current context, workflow steps, per-page stats, measurement summary, and warnings.
 
 ## Latest Sprint
 
+- Left Inspection Status Panel: PASS (2026-05-09) — proto `24b41c5`, 6 new E2E assertions
 - Static 404 Fix: PASS (2026-05-09) — unconditional mount, aiofiles installed, BOM removed
 - Mockup Layout Mapping: PASS (2026-05-09, docs only) — gap table + 6-sprint plan
-- Static Asset Healthcheck: PASS (2026-05-09) — server.py path fix + 4 E2E assertions
 
 ## Test Baseline
 
@@ -24,12 +24,12 @@ python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 python proto/e2e_ui_test.py smoke                          # PASS
 python proto/e2e_ui_test.py full                           # PASS
 ```
-Last run: 2026-05-09 (proto a2099ec). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last run: 2026-05-09 (proto 24b41c5). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 
 - root: (this commit)
-- proto: `a2099ec` fix: serve static assets unconditionally from absolute proto path
+- proto: `24b41c5` ui: add left inspection status panel
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 

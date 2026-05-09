@@ -4,8 +4,8 @@ Date: 2026-05-09
 
 ## Immediate Next
 
-Mockup Layout Mapping — DONE (2026-05-09). See docs/design/MOCKUP_LAYOUT_MAPPING.md.
-Implementation plan ready: docs/design/MOCKUP_IMPLEMENTATION_PLAN.md
+Left Inspection Status Panel — DONE (2026-05-09). proto `24b41c5`.
+Implementation plan: docs/design/MOCKUP_IMPLEMENTATION_PLAN.md
 
 Next sprints (in order):
 1. RUN_WIDGET_PLACEMENT_POLISH.md — polish sidebar widgets to match mockup style (LOW risk)
