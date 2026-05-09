@@ -4,7 +4,44 @@
 
 ---
 
-# Latest: Token Reduction / Status File Split
+# Latest: Fast UI Testability Polish (10 Micro Sprints)
+
+Date: 2026-05-09
+
+## Outcome: PASS
+
+## What Changed (proto/ui.html only — no backend, no save/load)
+
+- Sprint 1: Empty state card improved — action buttons (เปิด PDF / ตัวอย่าง / Project) + numbered workflow steps 1→6
+- Sprint 2: Topbar zone-a visual separator (.sep) between file group and workflow group
+- Sprint 3: Set Scale button gets `.scale-cta` orange highlight when PDF is open but scale is not set (cleared on calibration)
+- Sprint 4: `#lp-page-info` strip added to sidebar — shows current page name · tag · scale state
+- Sprint 5: `aria-label` attributes on toolbar groups for testability (Measurement toolbar / Primary drawing tools / Active layer / Edit actions)
+- Sprint 6: `buildLeftProperties()` grouped into 3 sections: **Basic** (object/name/layer/type/parent), **Measurement** (color/opacity/label/metrics), **Metadata** (semantic tag/use category/profile/report)
+- Sprint 7: Right panel Layers section title styled more prominent; compat note improved visual divider
+- Sprint 8: QA warnings in check panel grouped by severity: 🚫 Error / ⚠ Warning / ℹ Info sub-sections; green checkmark when no warnings
+- Sprint 9: Export panel now shows `#export-readiness` summary bar (area count, land area, scale status, QA status) before export buttons
+- Sprint 10: `docs/process/QUICK_TEST_GUIDE.md` created — 10 manual test steps aligned with the 10 micro sprints
+
+## What Did Not Change
+
+- No `proto/server.py` changes. No save/load model changes. No export rewrite.
+- No legal/OCR/AI/Rule Engine. No architecture rewrite.
+- Right panel properties section still present — `rightPanelCompatibilityVisible` still PASS.
+
+## Tests
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                           # PASS
+python proto/e2e_ui_test.py full                            # PASS
+```
+
+All assertions PASS including `rightPanelCompatibilityVisible`, `leftPanelTabsOk`, `rightPanelLayersFirst`, etc.
+
+---
+
+# Previous: Token Reduction / Status File Split
 
 Date: 2026-05-09
 
