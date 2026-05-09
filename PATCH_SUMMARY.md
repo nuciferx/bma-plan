@@ -4,7 +4,40 @@
 
 ---
 
-# Latest: Static Asset Healthcheck
+# Latest: Mockup Layout Mapping (Docs Only)
+
+Date: 2026-05-09
+
+## Outcome: PASS (docs only, no source changes)
+
+## What Changed
+
+- `docs/design/MOCKUP_LAYOUT_MAPPING.md` — created. Full map of mockup v3 vs. current UI:
+  13 mockup zones mapped, 10 widgets mapped, gap classification table, forbidden items list.
+- `docs/design/MOCKUP_IMPLEMENTATION_PLAN.md` — created. 6 sequenced implementation sprints.
+- Status docs updated.
+- Sprint card: sprints/completed/2026-05-09-mockup-layout-mapping/
+
+## Key Findings
+
+| Classification | Count |
+|----------------|-------|
+| DONE (already implemented) | 10 |
+| SMALL POLISH | 9 |
+| MEDIUM IMPLEMENTATION | 4 |
+| LATER | 2 |
+| FORBIDDEN | 3 |
+
+Next sprint: Widget Placement Polish (Sprint 1 of 6, LOW risk).
+
+## What Did Not Change
+
+- No runtime source changes. proto/ui.html, proto/static/*, proto/server.py unchanged.
+- Baseline proto 797a4a2 still valid.
+
+---
+
+# Previous: Static Asset Healthcheck
 
 Date: 2026-05-09
 

@@ -4,14 +4,16 @@ Date: 2026-05-09
 
 ## Immediate Next
 
-Sprint B (10 UI testability micro sprints) — DONE (2026-05-09).
-Max Token Reduction / File Split — DONE (2026-05-09).
+Mockup Layout Mapping — DONE (2026-05-09). See docs/design/MOCKUP_LAYOUT_MAPPING.md.
+Implementation plan ready: docs/design/MOCKUP_IMPLEMENTATION_PLAN.md
 
-Next candidate sprints:
-- Left panel Properties refinement (scroll, focus, keyboard navigation)
-- Parking-specific rows in สรุปตาม Report Target
-- E2E test split into proto/tests/ modules (see docs/design/E2E_SPLIT_PLAN.md)
-- Frontend JS module split (see docs/design/RUNTIME_FILE_SPLIT_AUDIT.md — deferred)
+Next sprints (in order):
+1. RUN_WIDGET_PLACEMENT_POLISH.md — polish sidebar widgets to match mockup style (LOW risk)
+2. Canvas Top Info Bar — overlay above canvas with page/zoom/scale/coords (LOW-MEDIUM risk)
+3. Scale Manager Foundation — per-page scale overview overlay (MEDIUM risk)
+4. Page Setup Table — per-page warn icons in Sheets tab (LOW risk)
+5. Export Review Preview — richer export-ready widget (LOW risk)
+6. Mockup Visual Phase 1 — menu-bar + ribbon implementation (HIGH risk, do last)
 
 ## Backlog (Longer Term)
 
@@ -21,6 +23,7 @@ Next candidate sprints:
 - Manual opening parent reassignment further UX improvements
 - iPad touch UX (Sprint 6)
 - Full scale record with calibration endpoint storage
+- Summary widget (tabbed: Area/Floor/Site/Warnings) — requires per-page backend summary
 
 ## Hard Forbidden (All Sprints)
 

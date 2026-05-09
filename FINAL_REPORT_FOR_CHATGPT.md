@@ -4,7 +4,56 @@
 
 ---
 
-# Latest: Static Asset Healthcheck
+# Latest: Mockup Layout Mapping
+
+Date: 2026-05-09
+
+## Outcome: PASS (docs only — no source changes)
+
+## What Was Mapped
+
+Read `docs/design/bma-plan-mockup-v3.html` (1900+ lines) and `proto/ui.html` (1120 lines)
+in full. Produced complete structure map of both layouts.
+
+## Key Findings
+
+**Already implemented (10 areas):**
+Left panel 3 tabs, Sheets/Objects/Properties content, Canvas render, Layers widget,
+Properties widget, Workflow card, Review Warning widget, Export Ready widget,
+Scale Status widget, Page Info widget.
+
+**Missing/partial (most impactful):**
+- Menu bar (14-menu application bar) — MEDIUM IMPLEMENTATION
+- Ribbon-style toolbar (icon+label, anchored) — SMALL POLISH
+- Canvas top info bar (page nav/zoom/scale/coords) — SMALL POLISH
+- Scale Manager (multi-page scale overview) — MEDIUM IMPLEMENTATION
+- Full tabbed summary widget (Area/Floor/Site/Warnings) — MEDIUM IMPLEMENTATION
+
+**Permanently forbidden:**
+- Draggable summary widget (workspace drag — Phase 1 lock)
+- Custom workspace save (Phase 1 lock)
+- Autosave engine (Phase 1 lock)
+- Legal/OCR/AI/Rule Engine/FAR/OSR (Phase 1 lock)
+
+## Files Created
+
+- `docs/design/MOCKUP_LAYOUT_MAPPING.md` — full mapping table + widget map + gap classification
+- `docs/design/MOCKUP_IMPLEMENTATION_PLAN.md` — 6 sequenced implementation sprints
+
+## Next 3 Recommended Sprints
+
+1. **Widget Placement Polish** (LOW risk) — polish sidebar widgets to match mockup style
+2. **Canvas Top Info Bar** (LOW-MEDIUM risk) — overlay bar above canvas with page/zoom/scale
+3. **Scale Manager Foundation** (MEDIUM risk) — per-page scale overview overlay
+
+## Tests
+
+No source changes. Baseline (proto 797a4a2) remains valid.
+py_compile PASS · smoke PASS · full PASS (last confirmed 2026-05-09).
+
+---
+
+# Previous: Static Asset Healthcheck
 
 Date: 2026-05-09
 

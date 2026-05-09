@@ -4,7 +4,23 @@
 
 ---
 
-# Latest: Static Asset Healthcheck
+# Latest: Mockup Layout Mapping (Docs Only)
+
+Date: 2026-05-09
+
+## Result: NO TEST RUN REQUIRED (docs only)
+
+No source code changed. Baseline from Static Asset Healthcheck sprint (proto 797a4a2) remains valid.
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS (last run 2026-05-09)
+python proto/e2e_ui_test.py smoke                           # PASS (last run 2026-05-09)
+python proto/e2e_ui_test.py full                            # PASS (last run 2026-05-09)
+```
+
+---
+
+# Previous: Static Asset Healthcheck
 
 Date: 2026-05-09
 

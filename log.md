@@ -8,6 +8,30 @@
 
 ## 2026-05-09
 
+### [session] Mockup Layout Mapping
+
+**What changed (docs only — no source code):**
+- Read `docs/design/bma-plan-mockup-v3.html` in full (title-bar, menu-bar, ribbon, left-panel,
+  canvas-wrap, summary-widget, right-panel, status-bar).
+- Read `proto/ui.html` for current structure map.
+- Created `docs/design/MOCKUP_LAYOUT_MAPPING.md`:
+  - Section A: existing UI structure (topbar, sidebar, workspace, right-panel, bottombar, float-toolbar)
+  - Section B: mockup v3 intended structure
+  - Section C: full mapping table (13 mockup areas mapped)
+  - Section D: widget mapping (10 widgets: DONE / PARTIAL / MISSING)
+  - Section E: gap classification (10 DONE, 9 SMALL POLISH, 4 MEDIUM IMPLEMENTATION, 2 LATER, 3 FORBIDDEN)
+  - Section F: forbidden mockup areas (draggable widget, autosave, workspace save, legal/OCR/AI)
+  - Section G/H: what is implemented vs. missing
+- Created `docs/design/MOCKUP_IMPLEMENTATION_PLAN.md`:
+  - 6 sequenced sprints with goal, files, risk, tests, stop conditions
+  - Sprint 1 (Widget Polish, LOW), Sprint 2 (Canvas Top Bar, LOW-MEDIUM),
+    Sprint 3 (Scale Manager, MEDIUM), Sprint 4 (Page Setup Table, LOW),
+    Sprint 5 (Export Review, LOW), Sprint 6 (Visual Phase 1, HIGH)
+
+**Tests:** No source changes — baseline 797a4a2 remains valid.
+
+---
+
 ### [session] Static Asset Healthcheck
 
 **What changed:**
