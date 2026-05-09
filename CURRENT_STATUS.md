@@ -8,6 +8,7 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 
 ## Latest Implementation State
 
+- Measurement Profile Metadata Foundation: PASS
 - Right Panel Organization After Mockup V3: PASS
 - Mockup V3 Scale + Page Workflow UI: PASS
 - Primary workflow order is `Open PDF -> Set Scale -> Page Setup -> Measure -> Review -> Export`.
@@ -17,6 +18,10 @@ BMA-Plan Phase 1 is a Raster PDF Measurement Assistant with working scale calibr
 - Right panel is explicitly Layers-first with layer counts and visibility/lock controls.
 - Existing right-panel Properties/Object Tree remain accessible below Layers as labeled `Legacy / Compatibility` sections.
 - Status bar includes `Tool`, `Scale`, `Objects`, `Warnings`, `Layer`, `Save`, and `Page`.
+- All runtime objects now carry 5 measurement metadata fields: `measurementProfile`, `objectCategory`, `reportTarget`, `lawBasis`, `countingRule` — all derived from `semanticTag` via mapping tables, normalized backward-compatibly.
+- Properties panel shows these 5 fields as read-only labels below Semantic Tag / Use Category.
+- measurements JSON export includes the 5 new fields per row.
+- XLSX export columns for the 5 new fields are deferred to next sprint.
 - No full mockup, draggable workspace, full autosave/recovery, full Scale Manager, copy-scale, legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail, backend, save/load model, or export model changes.
 
 ## Project Organization Status
@@ -41,6 +46,7 @@ Current development policy:
 
 ## Latest Documentation State
 
+- Measurement Profile Metadata Foundation: PASS (implemented in code, not docs-only)
 - Page/Layer Measurement Model documentation: PASS
 - Architecture file: `docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md`
 - Accepted hierarchy: Page -> Layer -> Object Type -> Object Category -> Semantic Tag -> Measurement Profile -> Report Target

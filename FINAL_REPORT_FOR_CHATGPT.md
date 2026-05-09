@@ -1,4 +1,42 @@
-# FINAL_REPORT_FOR_CHATGPT.md - Post-Baseline Workspace Housekeeping
+# FINAL_REPORT_FOR_CHATGPT.md - Measurement Profile Metadata Foundation
+
+## Outcome
+
+PASS
+
+## Changed
+
+- Added 5 measurement metadata mapping constants to `proto/ui.html`: `SEMANTIC_PROFILE_MAP`, `SEMANTIC_CATEGORY_MAP`, `SEMANTIC_REPORT_TARGET_MAP`, `SEMANTIC_LAW_BASIS_MAP`, `SEMANTIC_COUNTING_RULE_MAP`.
+- Added `deriveMeasurementMeta(tag)` helper: returns all 5 metadata fields from a semanticTag.
+- Extended `normalizeSemanticFields(obj, type)` to backward-compatibly add all 5 fields to existing objects.
+- Updated `rpSetSemanticTag(v)` to also update all 5 derived fields when user changes semanticTag.
+- Added read-only display of 5 fields in Properties panel (`.rp-meta-value`, gray italic) below Use Category.
+- Added CSS class `.rp-meta-value`.
+- Added all 5 fields to measurements JSON/CSV export rows.
+- Added E2E assertions: `metaOk`, `metaPanelVisible`, `strippedMetaOk` to SELECT_OK test.
+- Status docs updated: `CURRENT_STATUS.md`, `log.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`.
+
+## Not Changed
+
+- No `proto/server.py` changes (XLSX column addition deferred).
+- No save/load format breaking changes (additive normalization only).
+- No legal/OCR/AI/Rule Engine/FAR/OSR/pass-fail logic.
+- No new drawing tools, major UI redesign, draggable workspace, or autosave engine.
+
+## Tests
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS (metaOk: True, metaPanelVisible: True, strippedMetaOk: True)
+- `python proto/e2e_ui_test.py full` - PASS
+
+## Known Issues
+
+- XLSX export does not yet include the 5 new columns — next sprint.
+- `lawBasis` is null for most object types (by design, only set for area/site objects with known legal basis labels).
+
+---
+
+# Previous: Post-Baseline Workspace Housekeeping
 
 ## Outcome
 

@@ -1,4 +1,35 @@
-# TEST_RESULT.md - Post-Baseline Workspace Housekeeping
+# TEST_RESULT.md - Measurement Profile Metadata Foundation
+
+Date: 2026-05-09
+
+## Result
+
+PASS
+
+## Commands Run
+
+- `python -m py_compile proto/server.py proto/e2e_ui_test.py` - PASS
+- `python proto/e2e_ui_test.py smoke` - PASS
+- `python proto/e2e_ui_test.py full` - PASS
+
+## New Assertions Verified
+
+- `metaOk: True` — `mPolys[0]` after `rpSetSemanticTag("gross_floor_area")` has `measurementProfile="legal_building_area"`, `objectCategory="area"`, `reportTarget="Building Area Summary"`, `countingRule="included"`, `lawBasis="พื้นที่อาคาร"`
+- `metaPanelVisible: True` — Properties panel shows `.rp-meta-value` read-only labels
+- `strippedMetaOk: True` — after stripping and re-normalizing, `measurementProfile="use_area"`, `objectCategory="area"`, `countingRule="classified"` are re-derived correctly
+
+## Regression Coverage Maintained
+
+- All existing SELECT_OK assertions still pass (semantic defaults, semantic editing, use category, label hidden, layer lock, ref hit, structured warnings)
+- MAIN_UI_OK, VECTOR_OK, RECAL_OK, SNAP_OK, PROJECT_OK, XLSX_OK, ANNOT_OK, PERSIST_OK, REAL_OK all PASS
+
+## Notes
+
+- Non-fatal WinError 10054 on uvicorn shutdown remains — known issue, does not affect tests.
+
+---
+
+# Previous: Post-Baseline Workspace Housekeeping
 
 Date: 2026-05-09
 

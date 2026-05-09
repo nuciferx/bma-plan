@@ -7,6 +7,46 @@
 
 ## 2026-05-09
 
+### [session] Measurement Profile Metadata Foundation
+
+**What changed:**
+- Added 5 measurement metadata mapping constants to `proto/ui.html`:
+  - `SEMANTIC_PROFILE_MAP` (semanticTag → measurementProfile)
+  - `SEMANTIC_CATEGORY_MAP` (semanticTag → objectCategory)
+  - `SEMANTIC_REPORT_TARGET_MAP` (semanticTag → reportTarget)
+  - `SEMANTIC_LAW_BASIS_MAP` (semanticTag → lawBasis, descriptive only)
+  - `SEMANTIC_COUNTING_RULE_MAP` (semanticTag → countingRule)
+- Added `deriveMeasurementMeta(tag)` helper — returns all 5 fields from a semanticTag.
+- Extended `normalizeSemanticFields(obj, type)` to add all 5 fields backward-compatibly (only if not already present); old .bmaplan files normalize on load/save.
+- Updated `rpSetSemanticTag(v)` to also update all 5 derived fields when user changes semanticTag.
+- Added read-only display of 5 fields in Properties panel (`.rp-meta-value` class, italic gray) below Use Category.
+- Added `.rp-meta-value` CSS class for the read-only display.
+- Added all 5 fields to every measurements JSON/CSV row (for lines, refs, parking, polys, openings, ref-distance rows).
+- Added E2E assertions: `metaOk`, `metaPanelVisible`, `strippedMetaOk` to SELECT_OK test.
+- Updated strip test to also delete and re-normalize the 5 new fields.
+- Created sprint card at `sprints/active/RUN_MEASUREMENT_PROFILE_METADATA_FOUNDATION.md`.
+
+**Why:** Phase 1 architecture requires objects to carry measurement purpose metadata (not just semanticTag) so future export/report sprints can map to correct targets without calculating from layer names.
+
+**Files touched:**
+- `proto/ui.html`
+- `proto/e2e_ui_test.py`
+- `sprints/active/RUN_MEASUREMENT_PROFILE_METADATA_FOUNDATION.md`
+- `log.md`, `CURRENT_STATUS.md`, `index.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`
+
+**No backend (server.py) changes.** XLSX export with new columns deferred to next sprint.
+
+**Tests:**
+- py_compile: PASS
+- smoke: PASS (metaOk: True, metaPanelVisible: True, strippedMetaOk: True)
+- full: PASS (all existing assertions still pass)
+
+**Known issues:**
+- server.py XLSX export does not yet include the 5 new columns — deferred for a dedicated export-columns sprint.
+- lawBasis is null for most object types (only meaningful for gross_floor_area, floor_area, legal_open_space, site_land_area) — by design.
+
+---
+
 ### [session] Post-Baseline Workspace Housekeeping
 
 **What changed:**
@@ -29,6 +69,8 @@
 **No source files touched.**
 
 **No tests re-run** (housekeeping only — no source changed).
+
+**Commit:** `8f13d15` (root repo — main branch)
 
 **Known issues:** None.
 
