@@ -4,7 +4,52 @@
 
 ---
 
-# Latest: 8-Sprint UI/Measurement Usability Batch
+# Latest: Page-Scoped Layer Implementation Batch (6 Sprints)
+
+Date: 2026-05-10
+
+## Outcome: PASS (all 6 sprints)
+
+## Proto Commits (newest first)
+
+| Commit | Sprint | Change |
+|--------|--------|--------|
+| `a6c67e7` | RUN_LAYER_TOOL_AWARENESS | `updateActiveLayerControl()` syncs slug to page model; `finishCurrentArea()`/`finishPathLike()` call `assignDefaultObjectLayer()` |
+| `94db3d9` | RUN_OBJECT_LAYER_VALIDATION | `validateObjectLayerScope()` assigns `pageIndex`/`layerSlug`/`layerId` to existing objects on restore |
+| `eefab31` | RUN_PAGE_TYPE_LAYER_PRESETS | `buildRightPanel()` layer rows driven by `getCurrentPageLayers()`; E2E assertion updated for site-preset |
+| `ed9944d` | RUN_PAGE_LAYER_INSTANCE_MODEL | `DEFAULT_LAYER_PRESETS`, `ensurePageLayers()`, `_syncPageLayersToGlobals()`, all helper functions added |
+
+Docs-only sprints (no proto commits): RUN_LAYER_SCOPE_AUDIT, RUN_AREA_SUMMARY_BY_TAG_AND_FLOOR.
+
+## Root Doc Commits
+
+| Sprint | Root commit |
+|--------|-------------|
+| RUN_AREA_SUMMARY_BY_TAG_AND_FLOOR | `186bee8` |
+| RUN_LAYER_SCOPE_AUDIT | `a3e1166` |
+| RUN_PAGE_SCOPED_LAYER_MODEL_LOCK | `82e1e4e` |
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `proto/ui.html` | Added `DEFAULT_LAYER_PRESETS`, `ensurePageLayers()`, `_syncPageLayersToGlobals()`, `validateObjectLayerScope()`, `assignDefaultObjectLayer()`, `updateLayerObjectCounts()`. Updated `toggleLayer()`, `toggleLayerLock()`, `restorePage()`, `buildRightPanel()`, `updateActiveLayerControl()`, `finishCurrentArea()`, `finishPathLike()`. |
+| `proto/e2e_ui_test.py` | Updated layer-row assertion for site-preset labels (len ≥ 4, presence of "เส้นอ้างอิง" and "ป้าย"). |
+| `docs/design/LAYER_SCOPE_RUNTIME_AUDIT.md` | Created — full audit of global layer state, render paths, E2E assertions, export paths, implementation plan. |
+| `docs/design/AREA_SUMMARY_BY_TAG_AND_FLOOR_AUDIT.md` | Created — confirms area summaries use `semanticTag`/`reportTarget`, not layer name. |
+
+## What Did Not Change
+
+- No Save/Load format migration.
+- No export rewrite.
+- No legal/OCR/AI/Rule Engine/FAR/OSR work.
+- Global `layerVis`/`layerLock` objects preserved — backward-compat bridge kept.
+- All prior E2E assertions still PASS.
+- `_syncPageLayersToGlobals()` guarantees: after `toggleLayerLock("deduction")` → `layerVis.deduction===true && layerLock.deduction===true`.
+
+---
+
+# Previous: 8-Sprint UI/Measurement Usability Batch
 
 Date: 2026-05-10
 

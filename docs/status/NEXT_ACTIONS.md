@@ -4,19 +4,7 @@ Date: 2026-05-10
 
 ## Immediate Next
 
-Page-Scoped Layer Model Lock — DONE (2026-05-10, docs-only).
-Design docs: docs/design/PAGE_SCOPED_LAYER_MODEL.md
-Audit: docs/design/LAYER_MODEL_ALIGNMENT_AUDIT.md
-
-Layer implementation sprints (in order — must complete before area summary work):
-1. RUN_LAYER_SCOPE_AUDIT.md — audit all global layer state usages; confirm blast radius
-2. RUN_PAGE_LAYER_INSTANCE_MODEL.md — add `pageStore[n].layers[]`; migrate layerVis/layerLock per-page
-3. RUN_PAGE_TYPE_LAYER_PRESETS.md — define preset templates by pageType; apply on page creation
-4. RUN_OBJECT_LAYER_VALIDATION.md — add `layerId` + `pageId` to objects; save/load guard
-5. RUN_LAYER_TOOL_AWARENESS.md — active layer control writes `layerId` onto new objects
-6. RUN_AREA_SUMMARY_BY_TAG_AND_FLOOR.md — group cross-page totals by semanticTag + floorCode
-
-UI polish sprints (can interleave with layer sprints that are docs-only):
+UI polish sprints (layer implementation batch complete — 2026-05-10):
 7. RUN_CANVAS_TOP_INFO_BAR.md — overlay above canvas with page/zoom/scale/coords (LOW-MEDIUM risk)
 8. RUN_RIBBON_TOOLBAR_POLISH.md — mockup-style ribbon polish without fake actions
 9. RUN_RIGHT_LAYERS_FINAL_POLISH.md — final Layers-first right panel polish

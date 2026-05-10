@@ -4,7 +4,49 @@
 
 ---
 
-# Latest: 8-Sprint UI Batch
+# Latest: Page-Scoped Layer Implementation Batch (6 Sprints)
+
+Date: 2026-05-10
+
+## Result: PASS
+
+Proto HEAD at batch end: `a6c67e7`
+
+## Commands Run (after each source sprint)
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+## Sprint Results
+
+| Sprint | Type | Result | Proto HEAD |
+|--------|------|--------|------------|
+| RUN_LAYER_SCOPE_AUDIT | docs-only | PASS (no test run) | — |
+| RUN_PAGE_LAYER_INSTANCE_MODEL | source | PASS | `ed9944d` |
+| RUN_PAGE_TYPE_LAYER_PRESETS | source + e2e fix | PASS | `eefab31` |
+| RUN_OBJECT_LAYER_VALIDATION | source | PASS | `94db3d9` |
+| RUN_LAYER_TOOL_AWARENESS | source | PASS | `a6c67e7` |
+| RUN_AREA_SUMMARY_BY_TAG_AND_FLOOR | docs-only | PASS (no test run) | — |
+
+## E2E Fix in Sprint 3
+
+Old assertion checked for Thai plan-preset labels ("พื้นที่หลัก" etc.) which are absent on
+the site-preset page used by the test PDF. New assertion: `len(layerRows) >= 4` and
+presence of "เส้นอ้างอิง" and "ป้าย" (common to both plan and site presets).
+
+## Regression Coverage Maintained
+
+All prior assertions PASS. Key layer-specific invariants:
+- `layerVis.deduction === true && layerLock.deduction === true` after `toggleLayerLock("deduction")` — PASS
+- `layerVis.reference_geometry === true && layerLock.reference_geometry === true` after toggle — PASS
+- Layer rows show ≥ 4 entries, include "เส้นอ้างอิง" and "ป้าย" — PASS
+
+---
+
+# Previous: 8-Sprint UI Batch
 
 Date: 2026-05-10
 

@@ -8,6 +8,22 @@
 
 ## 2026-05-10
 
+### [session] Page-Scoped Layer Implementation Batch — PASS (6 sprints)
+
+**Sprints completed (all full E2E PASS):**
+- RUN_LAYER_SCOPE_AUDIT (docs-only): audited all `layerVis`/`layerLock`/`activeLayer` usage; confirmed export is layer-name-free.
+- RUN_PAGE_LAYER_INSTANCE_MODEL `ed9944d`: added `DEFAULT_LAYER_PRESETS`, `ensurePageLayers()`, `_syncPageLayersToGlobals()`, and all helper functions. Global `layerVis`/`layerLock` kept as backward-compat bridge.
+- RUN_PAGE_TYPE_LAYER_PRESETS `eefab31`: `buildRightPanel()` layer rows now driven by `getCurrentPageLayers()`. E2E assertion updated for site-preset labels.
+- RUN_OBJECT_LAYER_VALIDATION `94db3d9`: `validateObjectLayerScope()` assigns `pageIndex`/`layerSlug`/`layerId` to all existing objects on `restorePage()`.
+- RUN_LAYER_TOOL_AWARENESS `a6c67e7`: `updateActiveLayerControl()` syncs active slug to `setActiveLayerForPage()`; `finishCurrentArea()` and `finishPathLike()` call `assignDefaultObjectLayer()` on new objects.
+- RUN_AREA_SUMMARY_BY_TAG_AND_FLOOR (docs-only): confirmed export groups by `semanticTag`/`reportTarget` — no layer name in any calculation or export key.
+
+**Root proto commit at batch end:** `a6c67e7`
+
+**No forbidden items touched.** All 6 sprints committed. Full E2E green after each source sprint.
+
+---
+
 ### [session] Page-Scoped Layer Model Lock — PASS (docs-only)
 
 **Sprint:** RUN_PAGE_SCOPED_LAYER_MODEL_LOCK
