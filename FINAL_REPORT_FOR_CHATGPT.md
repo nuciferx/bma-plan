@@ -4,6 +4,105 @@
 
 ---
 
+# RUN_MAIN_PAGE_RENDER_PRIORITY_FIX — PASS
+
+> Date: 2026-05-11
+> Sprint: RUN_MAIN_PAGE_RENDER_PRIORITY_FIX
+> Result: PASS — py_compile + smoke + full
+
+---
+
+## Problem
+
+Real tester reports PDF page display is slow. Browser `BMA_PRE_FIRST_PAGE_LOAD` showed delay is almost entirely in `img request+onload` for `/page/{n}`. UI post-first-visible work is only ~20ms.
+
+Investigation found `startCheck()` called `buildSidebar()` **before** `loadPage()`, which meant all sidebar thumbnail `/thumb/{n}` requests started at the same time as (or before) the main `/page/{n}` request. For a 45-page PDF, this created massive server/render contention.
+
+---
+
+## Root Cause
+
+```javascript
+// startCheck() — old flow:
+buildSidebar();   // <-- ALL thumbnails start loading NOW (45 requests!)
+loadPage(target); // <-- Main page starts loading AFTER thumbnails
+```
+
+`buildSidebar()` creates `<img src="/thumb/n">` for every page. The server (single FastAPI process) then tries to render 45 thumbnails + 1 main page concurrently via PyMuPDF, causing memory pressure, CPU contention, and main page blocked behind thumbnail queue.
+
+---
+
+## Fix Applied
+
+### 1. Frontend: Reorder startCheck() flow
+
+- **Removed `buildSidebar()` from `startCheck()`** before `loadPage()`
+- `loadPage()` now calls `buildSidebar()` **after** `img.onload` (main page already visible)
+
+**Before:**
+```
+startCheck() → buildSidebar() [45 thumb requests] → loadPage(1) [main page]
+```
+
+**After:**
+```
+startCheck() → loadPage(1) [main page] → img.onload → buildSidebar() [thumbnails]
+```
+
+### 2. Server: Add thumbnail performance logging
+
+- Added `[BMA_THUMB_RENDER_PERF]` log lines to `/thumb/{n}` and `/thumb-md/{n}`
+- Same format as existing `[BMA_PAGE_RENDER_PERF]`
+
+### 3. Server: Improve cache key completeness
+
+- `/thumb/{n}` key: `("thumb", n, rot, "jpeg", 70)`
+- `/thumb-md/{n}` key: `("thumb-md", n, rot, "jpeg", 82)`
+- Prevents silent cache collisions if future code changes format/quality
+
+---
+
+## Test Results
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+All 17 E2E sections green: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL.
+
+---
+
+## Instrumentation Evidence
+
+From full test on real 45-page permit PDF:
+- Main page renders first: `page=1 scale=1.5 total=526ms`
+- Then thumbnails load after: `thumb=1 total=18ms`, `thumb=13 total=2021ms`
+- Some thumbnails still take 1000–2200ms on complex pages, but the critical fix is that **main page is no longer blocked behind the thumbnail queue**
+- Memory pressure observed: `malloc (27MB) failed` during concurrent thumbnail rendering — confirms original diagnosis
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `proto/ui.html` | Removed `buildSidebar()` from `startCheck()` before `loadPage()` |
+| `proto/server.py` | Added `BMA_THUMB_RENDER_PERF` logging; improved cache keys |
+| `proto/e2e_ui_test.py` | Updated cache key assertions |
+
+---
+
+## Contracts Preserved
+
+- RS=1.5 unchanged
+- Coordinate math untouched
+- Measurement, calibration, drawing, save/load, export unchanged
+- No OCR/AI/legal checker added
+
+---
+
 # RUN_RENDER_SCALE_REDUCE_AND_CACHE — PARTIAL
 
 > Date: 2026-05-11

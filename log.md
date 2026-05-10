@@ -36,6 +36,29 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ---
 
+### [session] RUN_MAIN_PAGE_RENDER_PRIORITY_FIX — PASS
+
+**Scope:** PDF โหลดช้า — แก้ปัญหา thumbnail sidebar แย่ง server/render resource กับหน้าหลัก
+
+**Root cause:** `startCheck()` เรียก `buildSidebar()` ก่อน `loadPage()` → ทำให้ thumbnail ทุกหน้า (45 หน้า) เริ่ม load พร้อมกันก่อนหน้าหลัก
+
+**Fix:**
+- `proto/ui.html` `startCheck()`: เอา `buildSidebar()` ออกจากก่อน `loadPage()` → ให้ `loadPage()` เรียกเองหลัง `img.onload`
+- `proto/server.py`: เพิ่ม `BMA_THUMB_RENDER_PERF` log ให้ `/thumb/{n}` และ `/thumb-md/{n}`
+- `proto/server.py`: cache key รวม format+quality สำหรับ thumb/thumb-md
+- `proto/e2e_ui_test.py`: อัปเดต cache key assertion
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/MAIN_PAGE_RENDER_PRIORITY_FIX.md`
+
+---
+
 ### [session] PyMuPDF Render Regression Compare — NO REGRESSION FOUND
 
 **Scope:** Browser timing after Sprint 1 fix showed `img request+onload: ~15 188ms`. Goal: confirm whether the `/page/{n}` server-side render path regressed vs old code.

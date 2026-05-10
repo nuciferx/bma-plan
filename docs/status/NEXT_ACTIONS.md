@@ -16,6 +16,8 @@ Check server terminal for: `session=Xms cache=Xms get_pixmap=Xms encode=Xms byte
 
 **`RUN_RENDER_SCALE_REDUCE` BLOCKED** — attempted 2026-05-11. Changing render scale from 1.5→1.2 causes coordinate math regression (setback distances shift by factor 1.5/1.2 = 1.25). `RS` is deeply embedded in `pdfToC()`, `cToPdf()`, and E2E `raw()` helper. Cannot reduce render scale without refactoring all coordinate-dependent code — out of current sprint scope.
 
+**`RUN_MAIN_PAGE_RENDER_PRIORITY_FIX` DONE** — 2026-05-11. Removed `buildSidebar()` from `startCheck()` before `loadPage()`; thumbnails now load only after main page is visible. Added `BMA_THUMB_RENDER_PERF` logging. Cache keys improved for thumb/thumb-md. All tests PASS.
+
 **Alternative performance wins (safe, no coordinate impact):**
 - Reduce `jpg_quality` (88 → 70) in `get_page` — cuts bytes without changing pixel dimensions
 - Tune `MAX_IMAGE_CACHE_ENTRIES` / `MAX_IMAGE_CACHE_BYTES` for more cache hits
