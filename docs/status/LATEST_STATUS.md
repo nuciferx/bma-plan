@@ -22,9 +22,20 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 | Left Inspection Status Panel | PASS — proto `24b41c5` |
 | Static 404 Fix (critical regression) | PASS — proto `a2099ec` |
 | UI Layout Options (mockup v3 modes) | PASS — proto `087c769` |
+| Panel Scroll + Page-Scoped Layer UI | PASS — proto `fb39f28` |
+| Mockup V3 App Shell Theme | PASS — proto `b271577` |
+| Save System Audit (docs) | PASS — root `9a46ff4` |
+| Save / Save As / Overwrite | PASS — proto `266d365` |
+| Open / Recent Project Workflow | PASS — proto `5ad2cc0` |
+| Annotated PDF Export Audit (docs) | PASS — root `9a46ff4` |
+| Export Current-Page Annotated PDF | PASS — proto `55dccdf` |
+| Export All-Pages Annotated PDF | PASS — proto `55dccdf` |
 
 ## Active Feature State (2026-05-10)
 
+- **Save System**: `saveProject()` async — overwrites via FSAPI if handle exists, else `saveProjectAs()`. `saveProjectAs()` uses `showSaveFilePicker` with fallback to `dlBlob()` download. `isDirty` flag set by `pushUndo()`, cleared by save/load. Ctrl+S shortcut. "Save As" button in export panel.
+- **Recent Projects**: `localStorage['bmaPlan.recentProjects.v1']` stores up to 10 recent `.bmaplan` filenames. `#top-open-project` shows dropdown with Browse + recent files. Both load paths (`proj-input`, `proj-input2`) call `addRecentProject()` after successful load.
+- **Annotated PDF Export**: "Export หน้าปัจจุบัน + Annotations" and "Export ทุกหน้า + Annotations" buttons in export panel PDF section. Reuse `/export-pdf` endpoint with full `pageStore` annotations.
 - **UI Layout Options**: `#btn-ui-layout` (⚙ Layout) button in topbar. `#ui-layout-panel` with Presets (Current Stable / Mockup V3 / Inspection Focus / Layer Focus / Compact) and per-section switches (Top / Left / Right / Widgets). Persisted in `localStorage['bmaPlan.uiLayoutOptions.v1']`. v3 modes = CSS-class overrides on `<body>`. Default = Current Stable.
 
 ## Active Feature State (prior)
@@ -59,13 +70,13 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ## Latest Commits (proto submodule)
 
-- `a6c67e7` ui: add layer tool awareness
-- `94db3d9` ui: validate object layer scope
-- `eefab31` ui: add page type layer presets
-- `ed9944d` ui: add page-scoped layer instances
+- `55dccdf` export: add current-page and all-pages annotated PDF export buttons
+- `5ad2cc0` save: improve open and recent project workflow
+- `266d365` save: support save as and overwrite current project
+- `b271577` ui: add mockup v3 app shell theme
+- `fb39f28` ui: make panels scrollable and show page-scoped layers
 
 ## Latest Commits (root)
 
-- `186bee8` docs: confirm area summaries use tags and floors
-- `a3e1166` docs: audit runtime layer scope
-- `82e1e4e` docs: lock page-scoped layer model
+- `9a46ff4` docs: audit annotated pdf export feasibility
+- (proto submodule pointer updated)
