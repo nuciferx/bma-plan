@@ -4,6 +4,66 @@
 
 ---
 
+# RUN_UI_LAYOUT_OPTIONS_MOCKUP_V3 — PASS
+
+> Date: 2026-05-10
+> Sprint type: Source
+> Result: PASS — py_compile + smoke + full
+> Proto commit: `087c769`
+
+---
+
+## What This Sprint Did
+
+Added a UI Layout Options system that lets users switch between the current stable UI and mockup-v3-inspired visual modes for each major area independently. The current UI is preserved as the default and is never removed. All switches are CSS-class-based — no DOM restructuring, no element hiding.
+
+---
+
+## Feature Details
+
+### Options Button
+`#btn-ui-layout` (⚙ Layout) added to topbar zone-a after Page Setup. Toggles `#ui-layout-panel` open/closed.
+
+### Options Panel (`#ui-layout-panel`)
+Fixed-position floating panel (340px). Sections:
+- **Presets**: Current Stable / Mockup V3 / Inspection Focus / Layer Focus / Compact
+- **A. Top Area**: Current Compact Topbar | Mockup V3 Menu Style
+- **B. Left Panel**: Current Inspection Sidebar | Mockup V3 Sheets Style
+- **C. Right Panel**: Current Layers Panel | Mockup V3 Layer Manager
+- **D. Widgets**: Current Status Widgets | Mockup V3 Summary Style
+- **Footer**: Reset to Current Stable | Reset to Mockup V3
+
+### Persistence
+`localStorage['bmaPlan.uiLayoutOptions.v1']` = JSON `{top,left,right,widgets}`. Never written to `.bmaplan`. Default = `current` stable everywhere (no surprise on first load).
+
+### v3 CSS Modes (class-based, additive)
+
+| Mode class | What changes |
+|-----------|-------------|
+| `body.ui-top-v3` | `#topbar` bg → #141618, border → #0d0e10, no glow shadow |
+| `body.ui-right-v3` | Right panel bg → #22262c; layer rows → flat style (no card box, left-border accent) |
+| `body.ui-left-v3` | Sidebar bg → #22262c; header → #1e2226; tab font smaller |
+| `body.ui-widgets-v3` | Widget cards → rounded 10px, backdrop-filter, compact badge border-radius |
+
+---
+
+## E2E Assertions Added (11 new, all PASS)
+
+`optionsBtnVisible`, `optionsPanelExists`, `currentStablePresetExists`, `mockupV3PresetExists`, `optionsPanelOpens`, `topModeSwitchNoCrash`, `leftModeSwitchNoCrash`, `rightModeSwitchNoCrash`, `widgetsModeSwitchNoCrash`, `localStorageKeyWritten`, `resetRestoresCurrentStable`
+
+---
+
+## Hard Rules Confirmed
+
+- Current UI preserved — not removed, not hidden
+- No save/load format changes
+- No export rewrite
+- No legal/OCR/AI/Rule Engine
+- No draggable widgets, no autosave
+- All prior E2E assertions still PASS
+
+---
+
 # Page-Scoped Layer Implementation Batch — PASS (6 sprints)
 
 > Date: 2026-05-10

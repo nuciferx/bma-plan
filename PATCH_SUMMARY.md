@@ -4,7 +4,49 @@
 
 ---
 
-# Latest: Page-Scoped Layer Implementation Batch (6 Sprints)
+# Latest: UI Layout Options — Mockup V3 Mode Support
+
+Date: 2026-05-10
+
+## Outcome: PASS
+
+## Proto Commit
+
+| Commit | Change |
+|--------|--------|
+| `087c769` | Added `#btn-ui-layout`, `#ui-layout-panel`, layout JS, v3 CSS mode classes |
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `proto/ui.html` | +~105 lines: layout button, panel HTML, JS functions (loadUiLayout, saveUiLayout, applyUiLayout, setUiLayoutOption, applyUiLayoutPreset, toggleUiLayoutPanel, closeUiLayoutPanel, outside-click handler, loadUiLayout() call) |
+| `proto/static/css/app.css` | +~50 lines: layout panel styles, v3 mode CSS classes for top/left/right/widgets |
+| `proto/e2e_ui_test.py` | +~55 lines: 11 JS evaluate keys + 11 Python assertions |
+
+## What Did Not Change
+
+- No save/load format changes. UI layout stored in localStorage only (`bmaPlan.uiLayoutOptions.v1`).
+- No export rewrite. No legal/OCR/AI/Rule Engine.
+- No draggable widgets. No drag/drop workspace. No autosave.
+- All existing elements and IDs preserved. v3 modes are CSS-only visual overrides.
+- All prior E2E assertions still PASS.
+
+## Feature Summary
+
+- **Options button**: `#btn-ui-layout` in topbar zone-a (after Page Setup).
+- **Options panel**: Floating, 340px wide. Sections: Presets, A.Top, B.Left, C.Right, D.Widgets, Footer Reset.
+- **Presets**: Current Stable, Mockup V3, Inspection Focus, Layer Focus, Compact.
+- **Persistence**: localStorage `bmaPlan.uiLayoutOptions.v1`. Not written to .bmaplan.
+- **Default**: Current Stable (no v3 classes) — no surprise on first load.
+- **v3 Top**: `body.ui-top-v3 #topbar` — darker bg (#141618), different border.
+- **v3 Right**: `body.ui-right-v3 #right-panel` — layer rows in mockup v3 style (flat, left-border, no card background).
+- **v3 Left**: `body.ui-left-v3 #sidebar` — sidebar bg, header, tab font matches v3 palette.
+- **v3 Widgets**: `body.ui-widgets-v3 .widget-card` — rounded, backdrop-filter, compact badge.
+
+---
+
+# Previous: Page-Scoped Layer Implementation Batch (6 Sprints)
 
 Date: 2026-05-10
 

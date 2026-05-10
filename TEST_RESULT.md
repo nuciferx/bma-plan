@@ -4,7 +4,45 @@
 
 ---
 
-# Latest: Page-Scoped Layer Implementation Batch (6 Sprints)
+# Latest: UI Layout Options — Mockup V3 Mode Support
+
+Date: 2026-05-10
+
+## Result: PASS
+
+Proto HEAD: `087c769`
+
+## Commands Run
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+## New Assertions (all True)
+
+| Key | Check |
+|-----|-------|
+| `optionsBtnVisible` | `#btn-ui-layout` visible in topbar |
+| `optionsPanelExists` | `#ui-layout-panel` in DOM |
+| `currentStablePresetExists` | `#ulp-preset-current` in DOM |
+| `mockupV3PresetExists` | `#ulp-preset-v3` in DOM |
+| `optionsPanelOpens` | toggle opens to `flex`, close sets `none` |
+| `topModeSwitchNoCrash` | `setUiLayoutOption('top','v3')` + reset — no throw |
+| `leftModeSwitchNoCrash` | same for left |
+| `rightModeSwitchNoCrash` | same for right |
+| `widgetsModeSwitchNoCrash` | same for widgets |
+| `localStorageKeyWritten` | `localStorage.getItem('bmaPlan.uiLayoutOptions.v1')` truthy after switch |
+| `resetRestoresCurrentStable` | after mockup_v3 preset + current reset, no v3 body classes |
+
+## Regression Coverage Maintained
+
+All prior assertions PASS. Export green check, topbar height, toolbar position, layer rows, left tabs, widget visibility — all unaffected.
+
+---
+
+# Previous: Page-Scoped Layer Implementation Batch (6 Sprints)
 
 Date: 2026-05-10
 

@@ -8,6 +8,21 @@
 
 ## 2026-05-10
 
+### [session] UI Layout Options — PASS
+
+**Sprint:** RUN_UI_LAYOUT_OPTIONS_MOCKUP_V3
+
+**What changed:**
+- `proto/ui.html`: Added `#btn-ui-layout` button in topbar zone-a (after Page Setup). Added `#ui-layout-panel` floating panel with sections A–D (Top/Left/Right/Widgets), 5 presets (Current Stable / Mockup V3 / Inspection Focus / Layer Focus / Compact), Reset row. Added JS: `loadUiLayout()`, `saveUiLayout()`, `applyUiLayout()`, `setUiLayoutOption()`, `applyUiLayoutPreset()`, `toggleUiLayoutPanel()`, `closeUiLayoutPanel()`. localStorage key: `bmaPlan.uiLayoutOptions.v1`. Outside-click auto-close.
+- `proto/static/css/app.css`: Added panel styles, v3 mode CSS classes (`body.ui-top-v3`, `body.ui-left-v3`, `body.ui-right-v3`, `body.ui-widgets-v3`). v3 modes are CSS-only visual overrides — no elements hidden, no DOM restructuring.
+- `proto/e2e_ui_test.py`: 11 new JS assertions (optionsBtnVisible, optionsPanelExists, currentStablePresetExists, mockupV3PresetExists, optionsPanelOpens, topModeSwitchNoCrash, leftModeSwitchNoCrash, rightModeSwitchNoCrash, widgetsModeSwitchNoCrash, localStorageKeyWritten, resetRestoresCurrentStable) + 11 Python assertions.
+
+**Proto commit:** `087c769`
+
+**Tests:** py_compile PASS · smoke PASS · full PASS. All 11 new assertions True.
+
+---
+
 ### [session] Page-Scoped Layer Implementation Batch — PASS (6 sprints)
 
 **Sprints completed (all full E2E PASS):**

@@ -1,3 +1,41 @@
+# Latest: UI Layout Options — Mockup V3 Mode Support
+
+Date: 2026-05-10
+
+## Result
+
+Automated PASS (py_compile + smoke + full). Manual viewport check below.
+
+## Manual Checklist — Layout Options Panel
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| "⚙ Layout" button visible in topbar (after Page Setup) | Visible, compact | — |
+| Click "⚙ Layout" — panel opens | 340px panel with Presets + A/B/C/D sections | — |
+| Click outside panel — panel closes | Panel disappears | — |
+| Click "Current Stable" preset — all sections show "Current" active | Blue highlight on Current buttons | — |
+| Click "Mockup V3" preset — all sections show "V3" active | Blue highlight on V3 buttons | — |
+| v3 Top: topbar becomes darker (#141618) | Subtle but visible color shift | — |
+| v3 Right: right panel layer rows become flat (no card borders) | Layer rows without box borders | — |
+| v3 Left: sidebar bg changes to #22262c | Slightly lighter sidebar | — |
+| v3 Widgets: widget cards get rounded corners + backdrop-filter | Slightly rounder cards | — |
+| "↺ Reset to Current Stable" → all sections back to current | No v3 classes, current look | — |
+| Reload page after setting Mockup V3 — layout persists | v3 mode restored from localStorage | — |
+| Drawing (area, opening, ref) works in all modes | No crash, no broken tools | — |
+| Export XLSX works in all modes | Export succeeds | — |
+| Layer rows still visible in v3 Right mode | Counts + eye + lock visible | — |
+| Left panel tabs (Sheets/Objects/Properties) still switch in v3 Left mode | Tab switching works | — |
+
+## Viewport Check
+
+| Viewport | Result | Notes |
+|----------|--------|-------|
+| 1366 x 768 | — | Options button visible; panel does not overflow viewport |
+| 1440 x 900 | — | Panel positioned correctly below button |
+| 1512 x 982 | — | All modes render cleanly |
+
+---
+
 # Latest: Page-Scoped Layer Implementation Batch
 
 Date: 2026-05-10

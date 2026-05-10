@@ -21,8 +21,13 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 | Widget Placement Polish | PASS |
 | Left Inspection Status Panel | PASS — proto `24b41c5` |
 | Static 404 Fix (critical regression) | PASS — proto `a2099ec` |
+| UI Layout Options (mockup v3 modes) | PASS — proto `087c769` |
 
-## Active Feature State
+## Active Feature State (2026-05-10)
+
+- **UI Layout Options**: `#btn-ui-layout` (⚙ Layout) button in topbar. `#ui-layout-panel` with Presets (Current Stable / Mockup V3 / Inspection Focus / Layer Focus / Compact) and per-section switches (Top / Left / Right / Widgets). Persisted in `localStorage['bmaPlan.uiLayoutOptions.v1']`. v3 modes = CSS-class overrides on `<body>`. Default = Current Stable.
+
+## Active Feature State (prior)
 
 - **Workflow**: Open PDF → Set Scale → Page Setup → Measure → Review → Export (locked)
 - **Page-Scoped Layer Model**: layers are now per-page instances — each page has its own

@@ -4,7 +4,7 @@ Date: 2026-05-10
 
 ## Immediate Next
 
-UI polish sprints (layer implementation batch complete — 2026-05-10):
+UI Layout Options added (2026-05-10, proto `087c769`). Remaining UI polish sprints:
 7. RUN_CANVAS_TOP_INFO_BAR.md — overlay above canvas with page/zoom/scale/coords (LOW-MEDIUM risk)
 8. RUN_RIBBON_TOOLBAR_POLISH.md — mockup-style ribbon polish without fake actions
 9. RUN_RIGHT_LAYERS_FINAL_POLISH.md — final Layers-first right panel polish

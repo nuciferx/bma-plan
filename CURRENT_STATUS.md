@@ -8,16 +8,11 @@ Date: 2026-05-10
 
 ## One-Line Status
 
-Phase 1 PASS: 8-sprint UI/measurement usability batch complete — toolbar ribbon polish,
-layers active badge, page scale warning, scale manager modal, warning severity CSS,
-export checklist widget, and full visual consistency pass.
+Phase 1 PASS: UI Layout Options added — users can switch between Current Stable and Mockup V3 visual modes for Top/Left/Right/Widgets independently, with presets and localStorage persistence.
 
 ## Latest Sprint
 
-- UI Visual Consistency Pass: PASS (2026-05-10) — proto `4a09693`
-- Export Ready Panel Polish: PASS (2026-05-10) — proto `56f06c2`
-- Review Warning Panel Polish: PASS (2026-05-10) — proto `c0b909e`
-- Scale Manager Foundation: PASS (2026-05-10) — proto `adb412f`
+- UI Layout Options (Mockup V3 modes): PASS (2026-05-10) — proto `087c769`
 - Page Floor Setup Panel: PASS (2026-05-10) — proto `9b8c505`
 - Right Layers Final Polish: PASS (2026-05-10) — proto `c947a2a`
 - Ribbon Toolbar Polish: PASS (2026-05-10) — proto `7461278`
