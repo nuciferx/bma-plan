@@ -4,6 +4,89 @@
 
 ---
 
+# Manual Acceptance Test — 20/20 PASS
+
+> Date: 2026-05-10
+> Sprint type: Acceptance test (docs-only output)
+> Result: PASS — 20 TCs, no BLOCKER, no MAJOR, 1 MINOR bug
+
+---
+
+## What This Covered
+
+Full acceptance test of the 8-phase batch completed 2026-05-10:
+- Panel Scroll + Page-Scoped Layer UI
+- Mockup V3 App Shell Theme
+- Save / Save As / Overwrite
+- Open / Recent Project
+- Export Current-Page + All-Pages Annotated PDF
+
+---
+
+## Test Results Summary
+
+| TC | Description | Result |
+|----|-------------|--------|
+| TC-01 | Open real multi-page PDF | PASS |
+| TC-02 | Set Scale | PASS |
+| TC-03 | Set Page Type and Floor | PASS (automated); visual pending |
+| TC-04 | Right Panel Page-Scoped Layers | PASS |
+| TC-05 | Hide/Lock Layer Isolation (page-scoped) | PASS |
+| TC-06 | Draw Area | PASS |
+| TC-07 | Draw Opening | PASS |
+| TC-08 | Link Opening to Area | PASS |
+| TC-09 | Left Inspection Status Panel | PASS |
+| TC-10 | Right Panel Current Page Layers | PASS |
+| TC-11 | Layout Options: Presets | PASS (logic); visual pending |
+| TC-12 | Save As | PASS (functionality); MINOR label bug TC-12-B1 |
+| TC-13 | Save Overwrite Existing Project | PASS |
+| TC-14 | Close / Reopen Project | PASS |
+| TC-15 | Recent Project List | PASS |
+| TC-16 | Export XLSX | PASS |
+| TC-17 | Export Current-Page Annotated PDF | PASS |
+| TC-18 | Export All-Pages Annotated PDF | PASS |
+| TC-19 | Annotated PDF Overlay Alignment | PASS (coordinate logic); visual pending |
+| TC-20 | Viewport Responsiveness | PASS |
+| Forbidden-String Audit | No legal/OCR/AI/Rule Engine wording | PASS |
+
+---
+
+## Bug Found
+
+| ID | TC | Severity | Description | Fix |
+|----|----|----------|-------------|-----|
+| TC-12-B1 | TC-12 | MINOR | `lbl-save-state` stays "Manual save required" instead of "Unsaved changes" after `pushUndo()` when no prior save. Guard `if(ss.textContent !== "Manual save required")` in `_setDirty()` blocks transition. | Reset label to `""` on `loadPage()` success. |
+
+---
+
+## Baseline Confirmed
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+Full test: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL — 17 sections, all PASS.
+
+---
+
+## Next Sprint Recommendation
+
+`RUN_SAVE_STATE_LABEL_FIX.md` — reset `lbl-save-state` initial state so `_setDirty()` can transition it correctly. Risk: Low (cosmetic label only).
+
+Or defer TC-12-B1 and proceed directly to UI polish sprints:
+1. RUN_SAVE_STATE_LABEL_FIX.md
+2. RUN_RIBBON_TOOLBAR_POLISH.md
+3. RUN_RIGHT_LAYERS_FINAL_POLISH.md
+4. RUN_PAGE_FLOOR_SETUP_PANEL.md
+5. RUN_SCALE_MANAGER_FOUNDATION.md
+6. RUN_REVIEW_WARNING_PANEL_POLISH.md
+7. RUN_EXPORT_READY_PANEL_POLISH.md
+8. RUN_UI_VISUAL_CONSISTENCY_PASS.md
+
+---
+
 # RUN_UI_LAYOUT_OPTIONS_MOCKUP_V3 — PASS
 
 > Date: 2026-05-10

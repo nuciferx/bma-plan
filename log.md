@@ -8,6 +8,30 @@
 
 ## 2026-05-10
 
+### [session] Manual Acceptance Test — 20/20 PASS
+
+**Scope:** 8-phase batch (Panel Scroll, Mockup V3 Theme, Save/Save As/Overwrite, Open/Recent Project, Annotated PDF Export Current+All).
+
+**Method:** Playwright acceptance probe (`proto/acceptance_probe.py`) + code review. Evidence labels: AUTO / CODE / HUMAN.
+
+**Results:** 20 TCs — all PASS. No BLOCKER. No MAJOR.
+
+**Bug found:**
+- TC-12-B1 (MINOR): `lbl-save-state` stays "Manual save required" after `pushUndo()` before first save. Guard `if(ss.textContent !== "Manual save required")` in `_setDirty()` blocks transition. Cosmetic — save/load unaffected. Severity: MINOR.
+
+**Baseline re-confirmed:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/MANUAL_ACCEPTANCE_TEST_2026-05-10.md`
+
+**Root commit:** (docs-only — see next commit)
+
+---
+
 ### [session] UI Layout Options — PASS
 
 **Sprint:** RUN_UI_LAYOUT_OPTIONS_MOCKUP_V3

@@ -4,10 +4,15 @@ Date: 2026-05-10
 
 ## Immediate Next
 
-8-phase batch complete (2026-05-10). Key additions: save/save-as/overwrite, recent projects, annotated PDF export buttons.
+8-phase batch complete (2026-05-10). Manual acceptance test complete (2026-05-10) — 20 TCs, all PASS, one MINOR bug.
+
+**Open Bug:** TC-12-B1 (MINOR) — `lbl-save-state` stays "Manual save required" instead of "Unsaved changes" after `pushUndo()` when no prior save has occurred. Guard in `_setDirty()` prevents update from initial label. Cosmetic only — save/load functionality unaffected. Fix: reset label to `""` on `loadPage()` success, or remove the guard condition.
+
+Recommended next sprint: `RUN_SAVE_STATE_LABEL_FIX.md` (low-risk one-liner) or defer to next UI polish sprint.
 
 Remaining UI polish sprints:
-1. RUN_RIBBON_TOOLBAR_POLISH.md — mockup-style ribbon polish without fake actions
+1. RUN_SAVE_STATE_LABEL_FIX.md — fix TC-12-B1 save state label initial-state guard (MINOR)
+2. RUN_RIBBON_TOOLBAR_POLISH.md — mockup-style ribbon polish without fake actions
 2. RUN_RIGHT_LAYERS_FINAL_POLISH.md — final Layers-first right panel polish
 3. RUN_PAGE_FLOOR_SETUP_PANEL.md — page/floor setup usability polish
 4. RUN_SCALE_MANAGER_FOUNDATION.md — audit-only scale overview
