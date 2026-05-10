@@ -4,6 +4,50 @@
 
 ---
 
+# Pre-First-Page Load Regression Audit — PASS
+
+> Date: 2026-05-10
+> Sprint: RUN_PRE_FIRST_PAGE_LOAD_REGRESSION_AUDIT
+> Result: PASS — py_compile + smoke + full
+
+## Problem
+
+Real tester: PDF opening is slow before first page appears. Earlier versions faster.
+Mockup V3 disabled — issue remained. Pre-first-page JS regression, not visual theme.
+
+## Root Cause
+
+`loadPage()` called `updateWorkspaceState()` synchronously **before** `img.src = /page/n`,
+which chains into `updateInspectionPanel()` — an O(totalPages × totalObjects) loop that
+iterates all pages, calls `polyMetrics()` on every polygon, and does a full `innerHTML`
+rebuild of the inspection panel. On large PDFs this silently blocked the image request
+from starting for 50–400 ms.
+
+## Fix
+
+Removed `updateWorkspaceState()` from before the image request. Replaced with:
+- `document.getElementById("empty-state")?.classList.toggle("hidden", ...)` — essential
+- `setStatus("กำลังโหลดหน้า N…")` — loading feedback instead of silent freeze
+
+Full `updateWorkspaceState()` already runs after `redraw()` (first page visible) — unchanged.
+
+## Instrumentation Added (permanent)
+
+- `window._bmaCC` — call counters for 9 suspect functions, reset per `loadPage()`
+- `window.BMA_PRE_FIRST_PAGE_LOAD` — phase-by-phase `console.table()` every page load
+
+To use: open DevTools → Console → load a page → `copy(window.BMA_PRE_FIRST_PAGE_LOAD)`
+
+## Test Results
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+---
+
 # Manual Acceptance Test — 20/20 PASS
 
 > Date: 2026-05-10

@@ -4,7 +4,11 @@ Date: 2026-05-10
 
 ## Immediate Next
 
-8-phase batch complete (2026-05-10). Manual acceptance test complete (2026-05-10) — 20 TCs, all PASS, one MINOR bug.
+Pre-first-page load regression fixed (2026-05-10) — `RUN_PRE_FIRST_PAGE_LOAD_REGRESSION_AUDIT` PASS.
+
+**Root cause identified and fixed:** `updateWorkspaceState()` (→ `updateInspectionPanel()`, O(pages×objects)) was called synchronously BEFORE the `/page/n` image request in `loadPage()`. Removed from critical path; replaced with minimal pre-load UI. Full update now runs only AFTER first page visible.
+
+**Instrumentation added:** `window.BMA_PRE_FIRST_PAGE_LOAD` console table + `window._bmaCC` call counters available in browser DevTools every page load.
 
 **Open Bug:** TC-12-B1 (MINOR) — `lbl-save-state` stays "Manual save required" instead of "Unsaved changes" after `pushUndo()` when no prior save has occurred. Guard in `_setDirty()` prevents update from initial label. Cosmetic only — save/load functionality unaffected. Fix: reset label to `""` on `loadPage()` success, or remove the guard condition.
 

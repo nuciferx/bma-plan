@@ -8,6 +8,32 @@
 
 ## 2026-05-10
 
+### [session] Pre-First-Page Load Regression Audit — PASS
+
+**Scope:** Performance regression: PDF opening slow before first page appears.
+
+**Root cause:** `loadPage()` called `updateWorkspaceState()` → `updateInspectionPanel()` (O(pages×objects) loop) synchronously BEFORE setting `img.src` for the page image. This ran the full inspection panel rebuild before the image request even started.
+
+**Fix:**
+- Removed `updateWorkspaceState()` from before the image request
+- Added minimal pre-load: just hide empty-state + show "กำลังโหลดหน้า N…" status
+- Full `updateWorkspaceState()` runs only AFTER `redraw()` (first page visible) — as before
+
+**Instrumentation added:**
+- `window._bmaCC` — call counters for 9 suspect functions, reset each `loadPage()`
+- `window.BMA_PRE_FIRST_PAGE_LOAD` — `console.table()` with phase-by-phase timing
+
+**Results:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/PRE_FIRST_PAGE_LOAD_REGRESSION_AUDIT.md`
+
+---
+
 ### [session] Manual Acceptance Test — 20/20 PASS
 
 **Scope:** 8-phase batch (Panel Scroll, Mockup V3 Theme, Save/Save As/Overwrite, Open/Recent Project, Annotated PDF Export Current+All).
