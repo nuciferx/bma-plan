@@ -4,6 +4,91 @@
 
 ---
 
+# RUN_RENDER_SCALE_REDUCE_AND_CACHE — PARTIAL
+
+> Date: 2026-05-11
+> Sprint: RUN_RENDER_SCALE_REDUCE_AND_CACHE
+> Result: PARTIAL — Task 1 FAILED (coordinate math regression), Task 3 DONE
+> Tests: py_compile PASS · smoke PASS (after revert) · full PASS (after revert)
+
+---
+
+## Goal
+
+1. Reduce default `/page/{n}` render scale from 1.5 to 1.2 to cut JPEG encode time
+2. Improve bounded in-memory page image cache key to include format+quality
+
+---
+
+## Task 1: Reduce Render Scale — FAILED ❌
+
+**Attempted changes:**
+- `proto/ui.html`: `const RS=1.5;` → `const RS=1.2;`
+- `proto/server.py`: `get_page` default `scale=1.5` → `scale=1.2`
+- `proto/server.py`: `/analyse` `"render_scale":1.5` → `1.2`
+
+**Immediate regression in smoke test:**
+```
+AssertionError: setback distances should be 2.0m:
+{'distances': [2.5, 2.5, 2.5, ...]}
+```
+
+**Root cause:** `RS` (Render Scale) is not just a render parameter. It is the conversion factor between PDF points (`pt`) and canvas pixels in `pdfToC()` and `cToPdf()`. The E2E test helper `raw(v) = v / RS` builds polygons in PDF coordinates. When RS drops from 1.5 to 1.2, the same canvas click produces a larger PDF coordinate (divisor is smaller), so all drawn geometry scales up by 1.5/1.2 = 1.25. Measured setback distances increased from 2.0 m to 2.5 m — confirming the factor exactly.
+
+**Stop condition triggered:** "If changing render scale breaks measurement coordinate mapping, stop and report instead of guessing."
+
+**Reverts applied:**
+- `proto/ui.html`: `RS=1.2` → `RS=1.5`
+- `proto/server.py`: default scale `1.2` → `1.5`
+- `proto/server.py`: `/analyse` `render_scale` `1.2` → `1.5`
+- `proto/STATUS.md`: doc table reverted to 1.5
+
+**Conclusion:** Render scale cannot be reduced without a coordinated refactor of all coordinate-conversion code. This is out of scope for a narrow performance sprint.
+
+---
+
+## Task 3: Improve Cache Key — DONE ✅
+
+**Change:**
+- `proto/server.py` `get_page()` cache key:
+  - Before: `("page", n, render_scale, rot)`
+  - After: `("page", n, render_scale, rot, "jpeg", _jpg_quality)`
+
+**Why safe:** Does not touch response bytes, coordinate math, measurement, export, or save/load. Only changes how cache entries are keyed.
+
+**Why needed:** Prevents silent cache collisions if future code changes JPEG quality or switches format.
+
+---
+
+## Test Results (After Revert)
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+All 17 E2E sections green: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL.
+
+---
+
+## Lessons Learned
+
+1. **RS is a coordinate-system constant, not a render tuning knob.** Any change to RS requires updating `pdfToC()`, `cToPdf()`, `raw()`, and every test helper that assumes a fixed pt-to-pixel ratio.
+2. **To reduce render time without touching RS:** target JPEG quality reduction or cache bounds tuning, not scale reduction.
+3. **Cache key completeness is a cheap safety win.** Adding format+quality to the key prevents future subtle bugs.
+
+---
+
+## Output
+
+- `docs/status/RENDER_SCALE_REDUCE_AND_CACHE.md` — full sprint result
+- `sprints/active/RUN_RENDER_SCALE_REDUCE_AND_CACHE.md` — sprint card updated
+- `docs/status/NEXT_ACTIONS.md` — performance queue updated; RUN_RENDER_SCALE_REDUCE marked BLOCKED
+- `log.md` — entry added
+
+---
+
 # PyMuPDF Render Regression Compare — NO REGRESSION FOUND
 
 > Date: 2026-05-11

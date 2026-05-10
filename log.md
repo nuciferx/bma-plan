@@ -8,6 +8,34 @@
 
 ## 2026-05-11
 
+### [session] RUN_RENDER_SCALE_REDUCE_AND_CACHE — PARTIAL (Task 1 FAIL, Task 3 DONE)
+
+**Scope:** Reduce default `/page/{n}` render scale 1.5→1.2 to cut JPEG encode time. Improve cache key to include format+quality.
+
+**Task 1 (render scale reduce):**
+- Changed `proto/ui.html` `RS=1.5` → `RS=1.2`
+- Changed `proto/server.py` `get_page` default `scale=1.5` → `scale=1.2`
+- Changed `proto/server.py` `/analyse` `"render_scale":1.5` → `1.2`
+- **Smoke test FAIL:** `_test_setback_helpers` distances changed 2.0m → 2.5m (factor 1.25 = 1.5/1.2 exactly)
+- **Root cause:** `RS` is not just a render parameter; it is embedded in `pdfToC()`, `cToPdf()`, and E2E `raw()` helper. Changing RS changes all coordinate math.
+- **Action:** Reverted RS and all server defaults back to 1.5 per stop condition.
+
+**Task 3 (cache key improvement):**
+- Changed `proto/server.py` `get_page` cache key from `("page", n, render_scale, rot)` → `("page", n, render_scale, rot, "jpeg", _jpg_quality)`
+- **Safe:** does not touch coordinate math, measurement, or export
+- **Kept:** this change remains in server.py
+
+**Tests after revert:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/RENDER_SCALE_REDUCE_AND_CACHE.md`
+
+---
+
 ### [session] PyMuPDF Render Regression Compare — NO REGRESSION FOUND
 
 **Scope:** Browser timing after Sprint 1 fix showed `img request+onload: ~15 188ms`. Goal: confirm whether the `/page/{n}` server-side render path regressed vs old code.

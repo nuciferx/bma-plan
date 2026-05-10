@@ -14,9 +14,12 @@ Measured bottleneck: **JPEG encode (`tobytes`) takes 93% of render time** at sca
 **Instrumentation added:** `[BMA_PAGE_RENDER_PERF]` server log line on every `/page/{n}` request.
 Check server terminal for: `session=Xms cache=Xms get_pixmap=Xms encode=Xms bytes=N total=Xms MISS/HIT`
 
-**Next recommended sprint: `RUN_RENDER_SCALE_REDUCE.md`** — reduce default render scale
-from 1.5 to 1.2. Cuts pixel count by 36% → encode ~36% faster. No architecture change,
-no schema change, no quality issue for architectural review use.
+**`RUN_RENDER_SCALE_REDUCE` BLOCKED** — attempted 2026-05-11. Changing render scale from 1.5→1.2 causes coordinate math regression (setback distances shift by factor 1.5/1.2 = 1.25). `RS` is deeply embedded in `pdfToC()`, `cToPdf()`, and E2E `raw()` helper. Cannot reduce render scale without refactoring all coordinate-dependent code — out of current sprint scope.
+
+**Alternative performance wins (safe, no coordinate impact):**
+- Reduce `jpg_quality` (88 → 70) in `get_page` — cuts bytes without changing pixel dimensions
+- Tune `MAX_IMAGE_CACHE_ENTRIES` / `MAX_IMAGE_CACHE_BYTES` for more cache hits
+- Cache key improvement already done: format+quality now included in key
 
 Pre-first-page JS fixed (2026-05-10) — `RUN_PRE_FIRST_PAGE_LOAD_REGRESSION_AUDIT` PASS.
 
