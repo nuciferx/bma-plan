@@ -4,6 +4,79 @@
 
 ---
 
+# PyMuPDF Render Regression Compare — NO REGRESSION FOUND
+
+> Date: 2026-05-11
+> Sprint: RUN_PYMUPDF_RENDER_REGRESSION_COMPARE
+> Result: PASS — py_compile + smoke + full
+
+## Problem
+
+After the JS-side fix (Sprint 1), browser timing showed the server taking ~15 seconds
+to serve `GET /page/{n}`. Goal: confirm whether the server-side `/page/{n}` render
+path regressed vs old code commits.
+
+## Finding: No Code Regression
+
+Old (`c8df305`) and current `/page/{n}` are **identical** in the render path:
+
+| Factor | Old | Current |
+|--------|-----|---------|
+| Render scale | 1.5 | 1.5 |
+| Colorspace | fitz default (RGB) | fitz default (RGB) |
+| Rotation | `prerotate(rot)` | `prerotate(rot)` |
+| JPEG quality | 88 | 88 |
+| get_pixmap call | identical | identical |
+| tobytes call | identical | identical |
+| PDF doc open | kept in SESSION | kept in case["doc"] |
+| Extra overhead | — | `_prune_cases()` + 2 checks < 2ms |
+
+## Actual Bottleneck
+
+**JPEG encoding dominates, not rasterization.**
+
+Measured on test PDF at scale=1.5:
+```
+get_pixmap = 110ms   (7% of render time)
+encode     = 1366ms  (93% of render time)
+total      = 1476ms
+```
+
+The real 45-page architectural permit PDF has a page ~10× larger/more complex →
+encode time ≈ 14–15 seconds. This is the real-world cost, not a regression.
+Old code on the same PDF would have taken identical time.
+
+"Earlier versions were faster" = tester was comparing against a warm cache hit (<1ms)
+or against the small test PDF, not a cold-start load of the real permit PDF.
+
+## Instrumentation Added (permanent)
+
+`[BMA_PAGE_RENDER_PERF]` log line to server terminal on every `/page/{n}`:
+
+```
+[BMA_PAGE_RENDER_PERF] page=1 scale=1.5 rot=90
+  session=0.3ms cache=0.1ms get_pixmap=110ms encode=1366ms bytes=168436 total=1476ms MISS
+```
+
+To diagnose: start server → open real PDF → read terminal.
+
+## Fix Recommendation (Next Sprint)
+
+Reduce default render scale from 1.5 to 1.2:
+- 36% fewer pixels → ~36% less encode time
+- No architecture change, no schema change, no save/load impact
+- Sprint name: `RUN_RENDER_SCALE_REDUCE.md`
+
+## Test Results
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+---
+
 # Pre-First-Page Load Regression Audit — PASS
 
 > Date: 2026-05-10

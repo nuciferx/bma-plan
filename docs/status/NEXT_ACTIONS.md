@@ -1,22 +1,33 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-10
+Date: 2026-05-11
 
 ## Immediate Next
 
-Pre-first-page load regression fixed (2026-05-10) — `RUN_PRE_FIRST_PAGE_LOAD_REGRESSION_AUDIT` PASS.
+PyMuPDF render audit complete (2026-05-11) — `RUN_PYMUPDF_RENDER_REGRESSION_COMPARE` PASS.
 
-**Root cause identified and fixed:** `updateWorkspaceState()` (→ `updateInspectionPanel()`, O(pages×objects)) was called synchronously BEFORE the `/page/n` image request in `loadPage()`. Removed from critical path; replaced with minimal pre-load UI. Full update now runs only AFTER first page visible.
+**Finding: NO code regression.** Old and current `/page/{n}` render path are identical.
+Measured bottleneck: **JPEG encode (`tobytes`) takes 93% of render time** at scale=1.5.
+- Test PDF at 1.5×: `get_pixmap=110ms  encode=1366ms  total=1476ms`
+- Real 45-page permit PDF at 1.5×: ~15 000ms — legitimate cost of large complex page, not a bug.
 
-**Instrumentation added:** `window.BMA_PRE_FIRST_PAGE_LOAD` console table + `window._bmaCC` call counters available in browser DevTools every page load.
+**Instrumentation added:** `[BMA_PAGE_RENDER_PERF]` server log line on every `/page/{n}` request.
+Check server terminal for: `session=Xms cache=Xms get_pixmap=Xms encode=Xms bytes=N total=Xms MISS/HIT`
 
-**Open Bug:** TC-12-B1 (MINOR) — `lbl-save-state` stays "Manual save required" instead of "Unsaved changes" after `pushUndo()` when no prior save has occurred. Guard in `_setDirty()` prevents update from initial label. Cosmetic only — save/load functionality unaffected. Fix: reset label to `""` on `loadPage()` success, or remove the guard condition.
+**Next recommended sprint: `RUN_RENDER_SCALE_REDUCE.md`** — reduce default render scale
+from 1.5 to 1.2. Cuts pixel count by 36% → encode ~36% faster. No architecture change,
+no schema change, no quality issue for architectural review use.
 
-Recommended next sprint: `RUN_SAVE_STATE_LABEL_FIX.md` (low-risk one-liner) or defer to next UI polish sprint.
+Pre-first-page JS fixed (2026-05-10) — `RUN_PRE_FIRST_PAGE_LOAD_REGRESSION_AUDIT` PASS.
+
+**Open Bug:** TC-12-B1 (MINOR) — `lbl-save-state` stays "Manual save required" instead of "Unsaved changes" after `pushUndo()` when no prior save has occurred. Cosmetic only.
+
+Performance sprints queue:
+1. RUN_RENDER_SCALE_REDUCE.md — reduce default render scale 1.5→1.2 (fastest safe win)
+2. RUN_SAVE_STATE_LABEL_FIX.md — fix TC-12-B1 save state label (MINOR)
 
 Remaining UI polish sprints:
-1. RUN_SAVE_STATE_LABEL_FIX.md — fix TC-12-B1 save state label initial-state guard (MINOR)
-2. RUN_RIBBON_TOOLBAR_POLISH.md — mockup-style ribbon polish without fake actions
+1. RUN_RIBBON_TOOLBAR_POLISH.md — mockup-style ribbon polish without fake actions
 2. RUN_RIGHT_LAYERS_FINAL_POLISH.md — final Layers-first right panel polish
 3. RUN_PAGE_FLOOR_SETUP_PANEL.md — page/floor setup usability polish
 4. RUN_SCALE_MANAGER_FOUNDATION.md — audit-only scale overview

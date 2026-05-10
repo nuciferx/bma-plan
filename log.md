@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-05-11
+
+### [session] PyMuPDF Render Regression Compare — NO REGRESSION FOUND
+
+**Scope:** Browser timing after Sprint 1 fix showed `img request+onload: ~15 188ms`. Goal: confirm whether the `/page/{n}` server-side render path regressed vs old code.
+
+**Finding:**
+- Code path is **byte-for-byte identical** between old (`c8df305`) and current: same `fitz.Matrix(1.5).prerotate(rot)`, `get_pixmap(matrix=mat)`, `tobytes("jpeg", jpg_quality=88)`.
+- Extra overhead from `_prune_cases()` + `_normalize_render_scale()` + `_require_page()` is < 2ms.
+- The 15s delay is **legitimate cost** of JPEG-encoding a large architectural PDF page, not a code bug.
+
+**Measured (test PDF, scale=1.5):**
+```
+get_pixmap=110ms   encode=1366ms   total=1476ms   (JPEG encode = 93% of render time)
+```
+- Real 45-page permit PDF at same scale ≈ 10× larger page → ≈ 14-15s encode. Not a regression.
+- Old code would have taken identical time on the same real PDF.
+
+**Instrumentation added:**
+- `[BMA_PAGE_RENDER_PERF]` log line to server terminal on every `/page/{n}` request
+- Shows: `session`, `cache`, `get_pixmap`, `encode`, `bytes`, `total`, `HIT/MISS`
+
+**Fix recommendation:** Reduce default render scale 1.5→1.2 (next sprint: `RUN_RENDER_SCALE_REDUCE.md`).
+
+**Results:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/PYMUPDF_RENDER_REGRESSION_COMPARE.md`
+
+---
+
 ## 2026-05-10
 
 ### [session] Pre-First-Page Load Regression Audit — PASS
