@@ -8,6 +8,30 @@
 
 ## 2026-05-10
 
+### [session] Page-Scoped Layer Model Lock — PASS (docs-only)
+
+**Sprint:** RUN_PAGE_SCOPED_LAYER_MODEL_LOCK
+
+**What changed (docs only — no source code touched):**
+- `docs/design/PAGE_SCOPED_LAYER_MODEL.md` — created: canonical page-scoped layer spec
+  (Project→Page→Layer→Object model, invariants, preset behaviour, calculation rules, forbidden patterns)
+- `docs/design/LAYER_MODEL.md` — created: reference index, current status table, target model summary
+- `docs/design/LAYER_MODEL_ALIGNMENT_AUDIT.md` — created: full audit of current implementation vs. target
+  (page model, layer model, object fields, area summary, gap list G1–G8, risk table, implementation sequence)
+- `docs/status/NEXT_ACTIONS.md` — updated: prepended 6 layer implementation sprints before UI polish sprints
+
+**Audit findings:**
+- Layers are currently **global** (`layerVis`, `layerLock` in JS) — not per-page
+- Objects have no `layerId` or `pageId` field — layer derived from `areaType` at render time
+- `pageStore[n]` has no `layers[]` array
+- **Positive:** no calculation or export uses layer name — `semanticTag`/`reportTarget` correctly drive area summaries
+
+**Tests:** Docs-only sprint — no source changed. Existing baseline remains valid.
+- `proto/server.py` — not touched
+- `proto/ui.html` — not touched
+
+---
+
 ### [session] 8-Sprint UI/Measurement Usability Batch — PASS
 
 **Sprints completed (all full E2E PASS):**
