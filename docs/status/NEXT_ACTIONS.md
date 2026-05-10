@@ -18,6 +18,8 @@ Check server terminal for: `session=Xms cache=Xms get_pixmap=Xms encode=Xms byte
 
 **`RUN_MAIN_PAGE_RENDER_PRIORITY_FIX` DONE** — 2026-05-11. Removed `buildSidebar()` from `startCheck()` before `loadPage()`; thumbnails now load only after main page is visible. Added `BMA_THUMB_RENDER_PERF` logging. Cache keys improved for thumb/thumb-md. All tests PASS.
 
+**`RUN_PROGRESSIVE_PREVIEW_AND_BACKGROUND_FULL_RENDER` BLOCKED** — 2026-05-11. Attempted preview (quality 50) → full (quality 75) progressive rendering. Smoke test failed with `malloc (27MB) failed` due to concurrent renders (preview + full + thumbnails). Progressive rendering doubles server load, not suitable for single-process FastAPI + PyMuPDF with limited memory. Reverted.
+
 **Alternative performance wins (safe, no coordinate impact):**
 - Reduce `jpg_quality` (88 → 70) in `get_page` — cuts bytes without changing pixel dimensions
 - Tune `MAX_IMAGE_CACHE_ENTRIES` / `MAX_IMAGE_CACHE_BYTES` for more cache hits

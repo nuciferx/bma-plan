@@ -59,6 +59,34 @@ python proto/e2e_ui_test.py full                           → PASS
 
 ---
 
+### [session] RUN_PROGRESSIVE_PREVIEW_AND_BACKGROUND_FULL_RENDER — BLOCKED (Reverted)
+
+**Scope:** ลดเวลาเปิดหน้า PDF โดยใช้ progressive rendering (preview quality 50 → full quality 75)
+
+**Attempted:**
+- `proto/server.py`: เพิ่ม `preview=1` parameter ให้ `/page/{n}` (quality 50) + full mode (quality 75)
+- `proto/ui.html`: `loadPage()` โหลด preview ก่อน → แสดง → โหลด full → swap
+
+**Failure:**
+- Smoke test fail ทันที: `pymupdf.mupdf.FzErrorSystem: malloc (27098928 bytes) failed`
+- Root cause: server ต้อง render preview + full + thumbnails พร้อมกัน → memory ไม่พอ
+- Progressive rendering ทำให้ server ทำงานหนักขึ้น (render 2 ครั้ง) ไม่ใช่เบาลง
+
+**Reverts:**
+- `proto/server.py`: เอา preview parameter ออก, กลับไป quality 88
+- `proto/ui.html`: `loadPage()` กลับไป single-step
+
+**Tests after revert:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/PROGRESSIVE_PREVIEW_AND_BACKGROUND_FULL_RENDER.md`
+
+---
+
 ### [session] PyMuPDF Render Regression Compare — NO REGRESSION FOUND
 
 **Scope:** Browser timing after Sprint 1 fix showed `img request+onload: ~15 188ms`. Goal: confirm whether the `/page/{n}` server-side render path regressed vs old code.

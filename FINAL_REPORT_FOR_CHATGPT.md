@@ -4,6 +4,65 @@
 
 ---
 
+# RUN_PROGRESSIVE_PREVIEW_AND_BACKGROUND_FULL_RENDER — BLOCKED (Reverted)
+
+> Date: 2026-05-11
+> Sprint: RUN_PROGRESSIVE_PREVIEW_AND_BACKGROUND_FULL_RENDER
+> Result: BLOCKED — Smoke test memory exhaustion, reverted
+
+---
+
+## Goal
+
+Implement progressive PDF page rendering: preview (JPEG quality 50) → show → full (quality 75) swap.
+
+---
+
+## Changes Attempted
+
+- `proto/server.py`: Added `preview: bool = False` to `/page/{n}`; preview=JPEG 50, full=JPEG 75; separate cache keys
+- `proto/ui.html`: `loadPage()` loads preview first → displays → loads full in background → swaps when ready
+
+---
+
+## Failure
+
+**Smoke test failed immediately:**
+```
+pymupdf.mupdf.FzErrorSystem: code=2: malloc (27098928 bytes) failed
+```
+
+**Root cause:** Progressive rendering causes the server to render the same page twice (preview + full) concurrently, plus all thumbnails from `buildSidebar()`. For a 45-page PDF, this means 2× main page renders + 45 thumbnail renders simultaneously. The single-process FastAPI + PyMuPDF server exhausts memory.
+
+**Key insight:** Preview quality=50 reduced encode time from ~672ms to ~545ms, but the total server load doubled because both preview and full had to be rendered. The bottleneck is concurrent render contention, not encode quality.
+
+---
+
+## Reverts Applied
+
+- `proto/server.py`: Removed `preview` parameter; restored quality 88; restored original cache key
+- `proto/ui.html`: Restored single-step image load in `loadPage()`
+
+---
+
+## Test Results (After Revert)
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+---
+
+## Lessons Learned
+
+1. Progressive rendering requires server-side resource management (render queues, memory limits).
+2. Rendering the same page twice is worse than rendering once, even at lower quality.
+3. The real bottleneck is concurrent PyMuPDF render contention, not JPEG encode quality.
+
+---
+
 # RUN_MAIN_PAGE_RENDER_PRIORITY_FIX — PASS
 
 > Date: 2026-05-11
