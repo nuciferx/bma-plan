@@ -4,7 +4,58 @@
 
 ---
 
-# Latest: Mockup V3 Alignment — Phase A (Subtractive Removal)
+# Latest: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final tests/docs)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Outcome: PASS — Mockup V3 Alignment COMPLETE (all phases A–F)
+
+## Plan
+`MOCKUP_V3_ALIGNMENT_PLAN.md` — Phase E (CSS palette sync + dead-style cleanup) and Phase F (final tests + docs).
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `proto/static/css/app.css` | 590 → 381 lines (-209). Removed dead rules: `.ulp-*`, `.isp-*`, `.ft-*`, `.wp-*`, `.widget-card/title/body/link/row/badge/links-row`, `.widget-hidden`, `.widget-size-*`, `.workflow-card`, `.workflow-title`, `.wf-row`, `.wf-dot`, `.qt-btn`, `#quick-tag-bar`, `#tool-row`, `#float-toolbar`, `#ui-layout-panel`, `#btn-ui-layout`, `.topbar-zone-a/b/c`, `body.ui-top-v3 *`, `body.ui-left-v3 *`, `body.ui-right-v3 *`, `body.ui-widgets-v3 *`, `.toolbar-more-wrap`, `#toolbar-more-btn`, `#toolbar-more-menu`, `.more-section`, `.more-wide`. Stripped dead `.ft-btn`/`.ft-label` selectors from two `@media` queries while preserving `#active-layer-select`/`.topbar-save`/`#status` rules. |
+| Root docs (`PATCH_SUMMARY.md`, `TEST_RESULT.md`, `UI_MANUAL_TEST.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `CURRENT_STATUS.md`, `MOCKUP_V3_ALIGNMENT_PLAN.md`, `log.md`) | Updated to record Phase E + F PASS. |
+
+## Palette Verification
+
+Diff between `docs/design/bma-plan-mockup-v3.html :root` and `proto/static/css/app.css :root` — **all shared variables match**: `--bg #1a1d21`, `--surface #22262c`, `--surface2 #2a2f37`, `--surface3 #32383f`, `--border #3a404a`, `--border2 #454c58`, `--accent #0a84ff`, `--green #30d158`, `--red #ff453a`, `--yellow #ffd60a`, `--text #e8eaed`, `--text2 #9aa0aa`, `--text3 #5f6572`, `--menu-h 28px`, `--ribbon-h 44px`. App-side vars `--sidebar-w/--rightbar-w` are name-mapped equivalents of mockup's `--left-w/--right-w` (same 220px/200px).
+
+## What Did Not Change
+
+- `proto/server.py` — untouched
+- `proto/ui.html` — untouched (CSS-only commit)
+- `proto/e2e_ui_test.py` — untouched
+- `.bmaplan` schema — unchanged
+- Save/load, export, measurement, scale, coordinate, snap, PDF render — unchanged
+- Measurement results: VECTOR 305.56, XLSX สุทธิ 0.82, PERSIST page1 66646.05 + page2 11883.33 — identical to Phase D baseline
+
+## Tests
+
+```
+python3 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3 proto/e2e_ui_test.py smoke                          → PASS (exit 0, 14 _OK markers)
+python3 proto/e2e_ui_test.py full                           → PASS (exit 0, 17 _OK markers)
+```
+
+All markers OK: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL.
+
+## Stop Conditions
+
+None triggered.
+
+## Merge Recommendation
+
+**READY TO MERGE** — Mockup V3 Alignment is feature-complete across all 6 phases. UI follows mockup v3 (title-bar 22px + menu-bar 28px + ribbon 44px + 3-pane main + status bar + Summary Widget 4 tabs/drag), CSS is clean, all measurement workflows verified.
+
+---
+
+# Previous: Mockup V3 Alignment — Phase A (Subtractive Removal)
 
 Branch: feature/mockup-v3-alignment
 

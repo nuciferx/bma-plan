@@ -4,7 +4,48 @@
 
 ---
 
-# Latest: Mockup V3 Alignment — Phase A (Subtractive Removal)
+# Latest: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final tests)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result: PASS — Mockup V3 Alignment COMPLETE
+
+Proto HEAD: `f6a1288` (last commit was Phase D + e2e tweak; Phase E touches proto submodule with CSS removal only)
+
+## Commands Run
+
+```
+python3 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3 proto/e2e_ui_test.py smoke                          → PASS (exit 0)
+python3 proto/e2e_ui_test.py full                           → PASS (exit 0)
+```
+
+Python 3.11 required (`server.py` uses `dict | None` syntax). macOS default `/usr/bin/python3` (3.9.6) fails import.
+
+## Test Markers (all OK)
+
+CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK
+
+## Measurement Verification (no regression)
+
+| Marker | Value | vs Baseline |
+|---|---|---|
+| VECTOR | อาคาร/ห้อง 305.56 ตร.ม. | ✅ unchanged |
+| XLSX | สุทธิ 0.82 ตร.ม. | ✅ unchanged |
+| PERSIST page 1 | 66646.05 ตร.ม. | ✅ unchanged |
+| PERSIST page 2 | 11883.33 ตร.ม. | ✅ unchanged |
+| REAL | 45 pages, rotation 90° | ✅ unchanged |
+| RECAL | ★ 1:5 สอบเทียบ, 0.75 ตร.ม. | ✅ unchanged |
+
+## Stop Conditions Triggered
+
+None.
+
+---
+
+# Previous: Mockup V3 Alignment — Phase A (Subtractive Removal)
 
 Branch: feature/mockup-v3-alignment
 

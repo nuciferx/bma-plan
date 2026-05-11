@@ -8,6 +8,50 @@
 
 ## 2026-05-11
 
+### [session] RUN_MOCKUP_V3_ALIGNMENT_PHASE_E_F — PASS (branch: feature/mockup-v3-alignment)
+
+**Scope:** Phase E (CSS palette sync + dead-style cleanup) + Phase F (final tests + docs). Closes Mockup V3 Alignment sprint across all 6 phases.
+
+**Files edited:**
+- `proto/static/css/app.css` — 590 → 381 lines (-209, -35%). Removed dead selectors:
+  - Layout Options: `#ui-layout-panel`, `#btn-ui-layout`, `.ulp-*` (presets, sections, opts, footer, reset, search, filter, list)
+  - Inspection panel: `.inspection-panel`, `.isp-*` (hdr, title, warn-badge, toggle, body, row, label, val, stat-grid, stat, stat-n, stat-lbl, wf-row, wf-dot, next-action)
+  - Float toolbar: `#tool-row`, `#float-toolbar`, `.ft-group`, `.ft-btn`, `.ft-icon`, `.ft-label`, `.ft-sep`, `.ft-btn.lv-off`, `.ft-btn.ll-on`
+  - Widget/Menu Placement: `.wp-zone`, `#wp-left-zone`, `#wp-right-zone`, `.widget-hidden`, `.widget-size-*`, `.wp-row/info/name/desc/toggle/region/size/order/lock`, `.ulp-wp-*`
+  - Generic widget: `.widget-card`, `.widget-title`, `.widget-body`, `.widget-link`, `.widget-links-row`, `.widget-badge`, `.widget-row`
+  - Workflow card: `.workflow-card`, `.workflow-title`, `.wf-row`, `.wf-dot`, `.wf-row.done/warn/current`
+  - Quick tag: `#quick-tag-bar`, `.qt-btn` (all variants)
+  - UI mode classes: `body.ui-top-v3 *`, `body.ui-left-v3 *`, `body.ui-right-v3 *`, `body.ui-widgets-v3 *`
+  - Topbar zones: `.topbar-zone-a/b/c`
+  - Overflow menu: `.toolbar-more-wrap`, `#toolbar-more-btn`, `#toolbar-more-menu`, `.more-section`, `.more-section-title`, `.more-wide`
+  - Trimmed dead `.ft-btn`/`.ft-label` refs from `@media(max-width:1440px)` and `@media(max-width:1280px)`, preserving `#active-layer-select`/`.topbar-save`/`#status` rules
+- `MOCKUP_V3_ALIGNMENT_PLAN.md` — mark phases E + F as DONE
+- `PATCH_SUMMARY.md` — new Phase E + F entry
+- `TEST_RESULT.md` — new Phase E + F result entry
+- `UI_MANUAL_TEST.md` — new mockup-v3 structure + workflow checklist
+- `FINAL_REPORT_FOR_CHATGPT.md` — new complete-sprint summary
+- `CURRENT_STATUS.md` — one-line status updated to COMPLETE
+
+**Palette verification:**
+Diff between `docs/design/bma-plan-mockup-v3.html` `:root` and `proto/static/css/app.css` `:root` showed all shared variables already match (verified during Phase B). No palette change needed in Phase E.
+
+**Tests (Python 3.11 required):**
+- `python3 -m py_compile proto/server.py proto/e2e_ui_test.py` → PASS
+- `python3 proto/e2e_ui_test.py smoke` → PASS (exit 0, 14 OK markers)
+- `python3 proto/e2e_ui_test.py full` → PASS (exit 0, 17 OK markers)
+
+All markers OK: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL.
+
+**Measurement verification (no regression):**
+- VECTOR 305.56 ตร.ม. = unchanged
+- XLSX สุทธิ 0.82 ตร.ม. = unchanged
+- PERSIST page1 66646.05, page2 11883.33 ตร.ม. = unchanged
+- REAL 45 pages, rotation 90° = unchanged
+
+**Outcome:** Mockup V3 Alignment is COMPLETE across all 6 phases. Branch ready to merge.
+
+---
+
 ### [session] RUN_MOCKUP_V3_ALIGNMENT_PHASE_A — PASS (branch: feature/mockup-v3-alignment)
 
 **Scope:** Align current UI toward `docs/design/bma-plan-mockup-v3.html` by removing over-engineered systems that exceed the mockup. Phase A is subtractive only — no structural rebuild yet (Phase B-F deferred to next sessions).

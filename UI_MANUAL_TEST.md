@@ -1,4 +1,45 @@
-# Latest: Mockup V3 Alignment — Phase A (Subtractive Removal)
+# Latest: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result
+
+Automated PASS (py_compile + smoke + full, 17 OK markers, no measurement regression). CSS reduced 590 → 381 lines.
+
+## Manual Checklist — UI structure tracks mockup v3
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Title bar (22px) with 3 win-btn dots + filename label | Visible | — |
+| Menu bar (28px) with `BMA` logo + 13 menu items + phase badge | Visible | — |
+| Ribbon (44px) with 6 groups (Quick / Scale / Page / Measure / Edit / Review-Export) | Visible | — |
+| Left panel — 3 tabs (Sheets / Objects / Properties) | Tabs toggle | — |
+| Canvas top bar | Visible inside workspace | — |
+| Right panel — Layers + Selected Object | Visible | — |
+| Status bar — Tool / Scale / Objects / Warnings / Layer / Save / Page | Visible | — |
+| Summary Widget — 4 tabs (พื้นที่ / รายชั้น / ที่ดิน / แจ้งเตือน) | Tabs switch, drag works | — |
+| Palette matches mockup (#1a1d21 bg, #22262c surface, #0a84ff accent) | Looks consistent | — |
+| No dead Layout Options popup, no Workflow card, no Quick Tag bar | Gone | — |
+
+## Manual Checklist — Workflow Regression
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Open PDF | Page renders | — |
+| Set Scale | Calib mode → polygon → area shown | — |
+| Page Setup | Overlay opens | — |
+| Draw Area (`btn-area`) | Polygon drawn, name panel opens | — |
+| Draw Opening (`btn-opening`) | Linked to parent | — |
+| Right panel layers list | Layers visible per page type | — |
+| Save .bmaplan + reload | Round-trip restores | — |
+| Export XLSX | File generates | — |
+| Real 45-page PDF | Loads, rotation works | — |
+
+---
+
+# Previous: Mockup V3 Alignment — Phase A (Subtractive Removal)
 
 Branch: feature/mockup-v3-alignment
 

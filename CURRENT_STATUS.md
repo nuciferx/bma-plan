@@ -8,11 +8,14 @@ Date: 2026-05-11
 
 ## One-Line Status
 
-Phase 1 PASS: Mockup V3 Alignment — Phase A (subtractive) on branch `feature/mockup-v3-alignment`. Removed UI Layout Options + Panel Layout Options + Widget/Menu Placement + Inspection Panel + Workflow Card + Review/Export widgets. Core workflow intact. Phase B–F deferred.
+Phase 1 PASS: Mockup V3 Alignment COMPLETE (Phases A–F) on branch `feature/mockup-v3-alignment`. Title-bar + menu-bar + ribbon + 3-pane main + Summary Widget 4 tabs. CSS dead styles removed (app.css 590 → 381 lines). smoke + full PASS, no measurement regression. Ready to merge.
 
 ## Latest Sprint
 
-- Mockup V3 Alignment — Phase A: PASS (2026-05-11) — branch: feature/mockup-v3-alignment — proto `72d621c`
+- Mockup V3 Alignment — Phase E + F: PASS (2026-05-11) — CSS cleanup + final tests/docs. branch: feature/mockup-v3-alignment
+- Mockup V3 Alignment — Phase D: PASS (2026-05-11) — Summary Widget 4 tabs + drag — proto `203ae90`
+- Mockup V3 Alignment — Phase B + C: PASS (2026-05-11) — title-bar/menu-bar/ribbon/panel restructure — proto `0ec4cd4`
+- Mockup V3 Alignment — Phase A: PASS (2026-05-11) — subtractive removal — proto `72d621c`
 - Widget / Menu Placement System: PASS (2026-05-11)
 - Docked Toolbar + Panel Layout Options: PASS (2026-05-11)
 - UI Layout Options (Mockup V3 modes): PASS (2026-05-10) — proto `087c769`
@@ -32,7 +35,13 @@ Last run: 2026-05-11 (current working tree). Full test detail: [docs/status/TEST
 
 ## Latest Commits
 
+- root: `d5ec6a8` chore: update proto submodule — e2e smoke tests pass for ribbon UI
+- root: `2af21a5` ui: Phase D — Summary Widget 4 tabs + drag (mockup v3 alignment)
+- root: `614714e` ui: Phase B+C — title-bar + menu-bar + ribbon + panel restructure
 - root: `76977ff` ui: Phase A subtractive removal (mockup v3 alignment)
+- proto: `f6a1288` test: fix e2e smoke tests for mockup v3 ribbon (Phase B/C/D)
+- proto: `203ae90` ui: Phase D — Summary Widget 4 tabs + drag
+- proto: `0ec4cd4` ui: Phase B+C — title-bar + menu-bar + ribbon + panel restructure
 - proto: `72d621c` ui: Phase A subtractive removal of excess UI systems
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
