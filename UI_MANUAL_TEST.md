@@ -1,12 +1,12 @@
-# Latest: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final)
+# Latest: Phase G — Menu Wiring + Measure/Layer Power-up
 
-Branch: feature/mockup-v3-alignment
+Branch: feature/menu-power-up
 
 Date: 2026-05-11
 
 ## Result
 
-Automated PASS (py_compile + smoke + full, 17 OK markers, no measurement regression). CSS reduced 590 → 381 lines.
+Automated PASS (smoke, 15 OK markers including MENU_OK). Per-page layer memory bug fixed. 6 functional dropdown menus wired.
 
 ## Manual Checklist — UI structure tracks mockup v3
 

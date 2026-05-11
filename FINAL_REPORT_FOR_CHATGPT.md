@@ -4,7 +4,23 @@
 
 ---
 
-# Mockup V3 Alignment — COMPLETE (Phases A–F) — PASS
+# Phase G — Menu Wiring + Measure/Layer Power-up — PASS
+
+> Date: 2026-05-11
+> Branch: feature/menu-power-up
+> Sprint: Phase G (plan: `plans/project-scale-page-measure-curried-seal.md`)
+> Proto: `52167d8`
+> Result: PASS — smoke (15 OK markers, all MENU_OK checks True)
+
+## Outcome: PASS
+
+6 functional dropdown menus (Project/Scale/Page/Measure/Object/Layer) with 56 items total.
+14 helper functions. 11 keyboard shortcuts. Per-page layer memory bug fixed.
+E2E smoke fully passes including new MENU_OK assertions.
+
+---
+
+# Previous: Mockup V3 Alignment — COMPLETE (Phases A–F) — PASS
 
 > Date: 2026-05-11
 > Branch: feature/mockup-v3-alignment
