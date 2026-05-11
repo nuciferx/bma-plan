@@ -4,6 +4,8 @@ Date: 2026-05-11
 
 ## Immediate Next
 
+**`RUN_WIDGET_MENU_PLACEMENT_SYSTEM` DONE (2026-05-11)** — `docs/status/WIDGET_MENU_PLACEMENT_SYSTEM.md`. Added `WIDGET_MENU_REGISTRY`, localStorage key `bmaPlan.widgetPlacement.v1`, Widget/Menu UI in Layout Options panel (search, category filter, visibility toggle, region/order/size controls, reset), `.widget-size-*` CSS, and E2E coverage. Movable widgets: `workflow`, `reviewWarnings`, `exportReady`. Other widgets locked-by-region to keep current page layers / sheets / objects / properties workflow intact. No backend, save/load, schema, or coordinate math changes. py_compile + smoke + full PASS.
+
 PyMuPDF render audit complete (2026-05-11) — `RUN_PYMUPDF_RENDER_REGRESSION_COMPARE` PASS.
 
 **Finding: NO code regression.** Old and current `/page/{n}` render path are identical.

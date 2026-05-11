@@ -8,6 +8,37 @@
 
 ## 2026-05-11
 
+### [session] RUN_WIDGET_MENU_PLACEMENT_SYSTEM — PASS
+
+**Scope:** Add Widget/Menu Placement System for left/right panels (registry + localStorage state + Options UI + size CSS + E2E). No backend, save/load, schema, or coordinate math touched.
+
+**Changes:**
+- `proto/ui.html`:
+  - Added `#wp-left-zone` inside `.sidebar-scroll-body` and `#wp-right-zone` inside `#right-panel`.
+  - Added "G. Widget / Menu Placement" section into `#ui-layout-panel` (search, category filter, list, reset, apply).
+  - Added JS: `WIDGET_MENU_REGISTRY`, `getDefaultWidgetPlacement`, `loadWidgetPlacement`, `saveWidgetPlacement`, `normalizeWidgetPlacement`, `resetWidgetPlacement`, `setWidgetPlacementOption`, `applyWidgetPlacement`, `renderWidgetPlacementOptions`, `filterWidgetPlacementList`, plus `_captureWidgetOriginalParents` for safe re-parenting.
+  - Added `loadWidgetPlacement()` startup call.
+- `proto/static/css/app.css`:
+  - Added `.wp-zone`, `#wp-left-zone`, `#wp-right-zone`, `.widget-hidden`, `.widget-size-collapsed/small/medium/large/full`, `.ulp-wp-search/filter/list`, `.wp-row/.wp-info/.wp-name/.wp-desc/.wp-toggle/.wp-region/.wp-size/.wp-order/.wp-lock`.
+- `proto/e2e_ui_test.py`:
+  - Added 15 JS assertions and 15 Python guard checks: `widgetPlacementRegistryExists`, `widgetPlacementHelpersExist`, `widgetPlacementSearchBox`, `widgetPlacementListRendered`, `widgetPlacementKeyWritten`, `widgetVisibilityToggleWorks`, `widgetOrderInputWorks`, `widgetRegionMoveWorks`, `widgetSizeClassApplies`, `widgetPlacementResetWorks`, `widgetPlacementMalformedJsonSafe`, `widgetLockedRespected`, `widgetLeftPanelScrollOk`, `widgetRightPanelScrollOk`, `widgetCurrentPageLayersVisible`.
+
+**Movable widgets:** `workflow`, `reviewWarnings`, `exportReady` (left/right/hidden).
+**Locked widgets:** `pageInfo`, `inspectionStatus`, `scaleStatus`, `sheets`, `objects`, `properties`, `layerContext`, `currentPageLayers` (visibility/size only, region fixed).
+
+**Storage:** `localStorage` key `bmaPlan.widgetPlacement.v1`. No `.bmaplan` schema change.
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `docs/status/WIDGET_MENU_PLACEMENT_SYSTEM.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `UI_MANUAL_TEST.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`, `CURRENT_STATUS.md`, `docs/status/NEXT_ACTIONS.md` updated.
+
+---
+
 ### [session] RUN_RENDER_SCALE_REDUCE_AND_CACHE — PARTIAL (Task 1 FAIL, Task 3 DONE)
 
 **Scope:** Reduce default `/page/{n}` render scale 1.5→1.2 to cut JPEG encode time. Improve cache key to include format+quality.
@@ -33,6 +64,28 @@ python proto/e2e_ui_test.py full                           → PASS
 ```
 
 **Output:** `docs/status/RENDER_SCALE_REDUCE_AND_CACHE.md`
+
+---
+
+### [session] Docked Toolbar + Panel Layout Options — PASS
+
+**Scope:**
+1. Move floating measurement toolbar out of PDF canvas into a docked row under the topbar.
+2. Add Layout Options panel controls for left/right panel width and mode with localStorage persistence.
+
+**Changes:**
+- `proto/ui.html`: Moved `#float-toolbar` inside new `#tool-row` between `#topbar` and `#main`. Added panel layout sections E (Left Panel) and F (Right Panel) to `#ui-layout-panel`. Added JS: `loadPanelLayout()`, `savePanelLayout()`, `applyPanelLayout()`, `setPanelLayoutOption()`, `resetPanelLayout()`, `_updatePanelLayoutPanelState()`.
+- `proto/static/css/app.css`: Added `--tool-row-h:44px`, `#tool-row` styles, changed `#float-toolbar` to `position:static` with transparent background (blends into tool row). Added `#right-panel.collapsed` styles.
+- `proto/e2e_ui_test.py`: Replaced `toolbarFitsWorkspace` with `toolbarInToolRow` + `toolRowAboveWorkspace`. Added 4 new assertions (`panelLayoutControlsExist`, `panelLayoutKeyWritten`, `panelResetRestoresDefaults`, `panelCollapseWorks`).
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+**Output:** `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `UI_MANUAL_TEST.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `log.md`, `CURRENT_STATUS.md` updated.
 
 ---
 

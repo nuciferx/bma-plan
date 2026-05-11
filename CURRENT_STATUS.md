@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-10
+Date: 2026-05-11
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,12 @@ Date: 2026-05-10
 
 ## One-Line Status
 
-Phase 1 PASS: UI Layout Options added — users can switch between Current Stable and Mockup V3 visual modes for Top/Left/Right/Widgets independently, with presets and localStorage persistence.
+Phase 1 PASS: Widget / Menu Placement System — per-widget control over left/right panel widgets (visibility, region, order, size) via `WIDGET_MENU_REGISTRY` + `bmaPlan.widgetPlacement.v1` localStorage. No backend or schema changes.
 
 ## Latest Sprint
 
+- Widget / Menu Placement System: PASS (2026-05-11)
+- Docked Toolbar + Panel Layout Options: PASS (2026-05-11)
 - UI Layout Options (Mockup V3 modes): PASS (2026-05-10) — proto `087c769`
 - Page Floor Setup Panel: PASS (2026-05-10) — proto `9b8c505`
 - Right Layers Final Polish: PASS (2026-05-10) — proto `c947a2a`
@@ -25,7 +27,7 @@ python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 python proto/e2e_ui_test.py smoke                          # PASS
 python proto/e2e_ui_test.py full                           # PASS
 ```
-Last run: 2026-05-10 (proto 4a09693). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last run: 2026-05-11 (current working tree). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 
