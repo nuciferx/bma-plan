@@ -4,29 +4,48 @@
 
 ---
 
-# Latest: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final tests)
+# Latest: Phase G — Menu Wiring + Measure/Layer Power-up
 
 Branch: feature/mockup-v3-alignment
 
 Date: 2026-05-11
 
-## Result: PASS — Mockup V3 Alignment COMPLETE
+## Result: PASS — Phase G COMPLETE
 
-Proto HEAD: `f6a1288` (last commit was Phase D + e2e tweak; Phase E touches proto submodule with CSS removal only)
+Proto HEAD: `52167d8`
 
 ## Commands Run
 
 ```
-python3 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3 proto/e2e_ui_test.py smoke                          → PASS (exit 0)
-python3 proto/e2e_ui_test.py full                           → PASS (exit 0)
+/opt/homebrew/bin/python3.11 proto/e2e_ui_test.py smoke  → PASS (exit 0)
 ```
 
 Python 3.11 required (`server.py` uses `dict | None` syntax). macOS default `/usr/bin/python3` (3.9.6) fails import.
+Use: `/opt/homebrew/bin/python3.11 proto/e2e_ui_test.py smoke`
 
-## Test Markers (all OK)
+## Test Markers (all OK) — smoke mode (15 markers)
 
-CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK
+CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, **MENU_OK**
+
+## MENU_OK Details
+
+```
+menuCounts: {project:4, scale:7, page:8, measure:19, object:7, layer:11}
+menuStructureOk: True
+noDisabledItems: True
+menuClickOpens: True
+clickOutsideCloses: True
+keyboardB: True           (B → mode=area, curAType=building)
+keyboardShiftO: True      (Shift+O toggles orthoMode)
+snapToggleE: True         (E toggles snapModes.ep)
+keyboardF2: True          (F2 with no selection → status "เลือก object ก่อน")
+keyboardPgUp: True        (PgUp on single page → "ไม่มีหน้าก่อนหน้า")
+soloLayerWorks: True
+lockOthersWorks: True
+selectAllInLayerWorks: True
+validatePolygonsWarns: True
+perPageLayerMemoryFixed: True
+```
 
 ## Measurement Verification (no regression)
 

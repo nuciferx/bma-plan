@@ -8,10 +8,11 @@ Date: 2026-05-11
 
 ## One-Line Status
 
-Phase 1 PASS: Mockup V3 Alignment COMPLETE (Phases A–F) on branch `feature/mockup-v3-alignment`. Title-bar + menu-bar + ribbon + 3-pane main + Summary Widget 4 tabs. CSS dead styles removed (app.css 590 → 381 lines). smoke + full PASS, no measurement regression. Ready to merge.
+Phase G PASS: Menu Wiring + Measure/Layer Power-up COMPLETE on branch `feature/mockup-v3-alignment`. 6 functional dropdown menus (56 items), 11 keyboard shortcuts, 14 helper functions, per-page layer memory bug fixed. smoke PASS (15 markers including MENU_OK).
 
 ## Latest Sprint
 
+- Phase G: Menu Wiring + Measure/Layer Power-up: PASS (2026-05-11) — 6 menus, 56 items, 11 shortcuts, layer bug fix — proto `52167d8`
 - Mockup V3 Alignment — Phase E + F: PASS (2026-05-11) — CSS cleanup + final tests/docs. branch: feature/mockup-v3-alignment
 - Mockup V3 Alignment — Phase D: PASS (2026-05-11) — Summary Widget 4 tabs + drag — proto `203ae90`
 - Mockup V3 Alignment — Phase B + C: PASS (2026-05-11) — title-bar/menu-bar/ribbon/panel restructure — proto `0ec4cd4`

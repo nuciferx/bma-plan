@@ -4,7 +4,39 @@
 
 ---
 
-# Latest: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final tests/docs)
+# Latest: Phase G — Menu Wiring + Measure/Layer Power-up
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Outcome: PASS — Phase G COMPLETE
+
+Proto HEAD: `52167d8`
+
+## Summary
+
+Added 6 functional dropdown menus (Project/Scale/Page/Measure/Object/Layer) with 56 items total, 2 submenus (Snap Modes, Set Active Layer), 14 helper functions, 11 keyboard shortcuts, and fixed the per-page layer memory bug.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `proto/ui.html` | Added dropdown HTML for 6 menus (56 items + 2 submenus). Added `closeAllMenus`/`toggleMenu` JS. Added 14 helper functions. Replaced keydown handler with expanded version (11 new shortcuts + modal guard + Escape closes menus). Fixed `_syncPageLayersToGlobals` with `_userModified` guard. Updated `toggleLayer`/`toggleLayerLock` + all layer helpers to set `_userModified=true`. |
+| `proto/static/css/app.css` | Added `.dropdown`, `.menu-item.active .dropdown`, `.dd-item`, `.dd-sep`, `.dd-item .shortcut`, `.dd-submenu-trigger`, `.dd-submenu` rules (~16 lines). Added `position:relative;user-select:none` to `.menu-item`. |
+| `proto/e2e_ui_test.py` | Added `_test_menu_power_up()` with 14 assertions (menu structure, keyboard shortcuts, layer helpers, per-page layer memory fix). Added `MENU_OK` to smoke test output. |
+
+## Key Behaviors
+
+- Dropdown menus open on click, close on outside click, support nested submenus on hover
+- B → area/building, H → pan, Shift+D → path, P → parking, F2 → rename
+- PgUp/PgDn → prev/next page, Shift+O → ortho, Shift+L → loupe, E/M/C → snap toggles
+- Ctrl+O → open project, Cmd+P → perpendicular snap
+- Layer bug fix: hiding/locking a layer marks it `_userModified=true`; page switch no longer overwrites explicit user state
+
+---
+
+# Previous: Mockup V3 Alignment — Phase E + F (CSS cleanup + Final tests/docs)
 
 Branch: feature/mockup-v3-alignment
 

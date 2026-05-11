@@ -8,6 +8,21 @@
 
 ## 2026-05-11
 
+### [session] PHASE_G_MENU_POWER_UP — PASS (branch: feature/mockup-v3-alignment)
+
+**Scope:** Phase G — Menu Wiring + Measure/Layer Power-up (plan: `plans/project-scale-page-measure-curried-seal.md`).
+
+**Files edited:**
+- `proto/ui.html` — 6 functional dropdown menus (Project/Scale/Page/Measure/Object/Layer), 56 items, 2 nested submenus. Added `closeAllMenus`/`toggleMenu`, click-outside handler. Added 14 helper functions (menuLoadPrevPage/Next, verifyScale, resetPageScale, toggleScaleLine, triggerSetupAutoTag, focusPropertiesTab, scrollToRpField, renameSelectedObject, unlinkSelectedOpening, validateAllPolygons, plus 10 layer helpers). Replaced keydown handler with expanded version: 11 new shortcuts (H/B/Shift+D/P/F2/PgUp/PgDn/Shift+O/Shift+L/E/M/C/Ctrl+O/Cmd+P), modal guard, Escape calls closeAllMenus. Fixed `_syncPageLayersToGlobals` per-page layer memory bug with `_userModified` guard.
+- `proto/static/css/app.css` — Added dropdown/submenu CSS (~16 lines). Added `position:relative;user-select:none` to `.menu-item`.
+- `proto/e2e_ui_test.py` — Added `_test_menu_power_up()` (14 assertions) + MENU_OK marker.
+
+**Commit:** proto `52167d8`
+
+**Test result:** smoke PASS (15 markers: ...EXT_MEASURE_OK, MENU_OK — all True including menuStructureOk, keyboardB, perPageLayerMemoryFixed)
+
+---
+
 ### [session] RUN_MOCKUP_V3_ALIGNMENT_PHASE_E_F — PASS (branch: feature/mockup-v3-alignment)
 
 **Scope:** Phase E (CSS palette sync + dead-style cleanup) + Phase F (final tests + docs). Closes Mockup V3 Alignment sprint across all 6 phases.
