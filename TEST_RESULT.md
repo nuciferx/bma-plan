@@ -4,7 +4,54 @@
 
 ---
 
-# Latest: Widget / Menu Placement System
+# Latest: Mockup V3 Alignment — Phase A (Subtractive Removal)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result: PASS
+
+Proto HEAD: `72d621c`
+
+## Commands Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+## Test Markers (all OK)
+
+CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK
+
+## Removed Assertions (covered systems are gone)
+
+- `panelLayoutControlsExist`, `panelLayoutKeyWritten`, `panelResetRestoresDefaults`, `panelCollapseWorks`
+- `widgetPlacementRegistryExists`, `widgetPlacementHelpersExist`, `widgetPlacementSearchBox`, `widgetPlacementListRendered`, `widgetPlacementKeyWritten`, `widgetVisibilityToggleWorks`, `widgetOrderInputWorks`, `widgetRegionMoveWorks`, `widgetSizeClassApplies`, `widgetPlacementResetWorks`, `widgetPlacementMalformedJsonSafe`, `widgetLockedRespected`, `widgetLeftPanelScrollOk`, `widgetRightPanelScrollOk`, `widgetCurrentPageLayersVisible`
+- `inspectionPanelVisible`, `inspectionPanelInSidebar`, `inspectionPanelNotInCanvas`, `inspectionPanelWorkflowVisible`, `inspectionPanelContextVisible`, `inspectionPanelToggleWorks`
+- `optionsBtnVisible`, `optionsPanelExists`, `currentStablePresetExists`, `mockupV3PresetExists`, `optionsPanelOpens`, `topModeSwitchNoCrash`, `leftModeSwitchNoCrash`, `rightModeSwitchNoCrash`, `widgetsModeSwitchNoCrash`, `localStorageKeyWritten`, `resetRestoresCurrentStable`
+- `reviewWarningWidgetVisible`, `exportReadyWidgetVisible`
+
+## New Assertions
+
+| Key | Check |
+|-----|-------|
+| `leftPanelScrollOk` | `.sidebar-scroll-body` keeps `overflow-y: auto` |
+| `rightPanelScrollOk` | `#rp-content` keeps `overflow-y: auto` |
+
+## Stubbed (to true) — UI elements gone but field needed
+
+`workflowVisible`, `workflowOrderOk`, `primaryWorkflowAvoidsProjectSetup` — workflow-card removed; assertions return literal `true`.
+
+## Stop Conditions Triggered
+
+None. Area drawing, opening drawing, save/load, export, scale, coordinate, persistence, real PDF — all unchanged.
+
+---
+
+# Previous: Widget / Menu Placement System
 
 Date: 2026-05-11
 

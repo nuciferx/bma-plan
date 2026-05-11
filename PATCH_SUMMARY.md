@@ -4,7 +4,64 @@
 
 ---
 
-# Latest: Widget / Menu Placement System
+# Latest: Mockup V3 Alignment — Phase A (Subtractive Removal)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Outcome: PASS
+
+## Plan
+`C:\Users\nucif\.claude\plans\ui-wise-finch.md` — approved 2026-05-11. Phase A is the first of 6 phases (A subtractive → B header rebuild → C panels → D summary widget → E CSS sync → F tests+docs).
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `proto/ui.html` | Removed `#ui-layout-panel` modal (97 lines), `#btn-ui-layout` button, `#inspection-panel`, `#workflow-card`, `#widget-review-warnings`, `#widget-export-ready`, `#wp-left-zone`, `#wp-right-zone`, `#quick-tag-bar`. Removed UI Layout Options, Panel Layout Options, Widget/Menu Placement JS systems. Stubbed `updateInspectionPanel`, `toggleInspectionPanel`, `updateWidgets`. Removed `loadUiLayout/loadPanelLayout/loadWidgetPlacement` init calls. 1675 → 1252 lines (-423). |
+| `proto/e2e_ui_test.py` | Removed ~35 assertions referencing removed systems. Added `leftPanelScrollOk` / `rightPanelScrollOk`. Stubbed workflow assertions to `true`. |
+
+## Files NOT Changed (Deferred to Phase E)
+
+- `proto/static/css/app.css` — dead styles `.ulp-*`, `.isp-*`, `.wp-*`, `.widget-card`, `.workflow-*`, `.wf-row`, `.qt-btn` still present (harmless, will clean in Phase E).
+
+## What Did Not Change
+
+- `proto/server.py` — untouched
+- `.bmaplan` schema — unchanged
+- Save/load, export, measurement, scale, coordinate, snap, PDF render — unchanged
+- `polyMetrics()`, `polyAreaM2()`, `pdfToC`, `cToPdf` — unchanged
+- Core workflow (PDF upload → set scale → draw area/opening → picker → layer lock/visibility → save/load → XLSX export) — intact
+
+## Tests
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+All test markers OK: CACHE / SETUP / MAIN_UI / VECTOR / RECAL / SITE_UI / XLSX / PROJECT / RASTER / WHEEL / SNAP / SELECT / SETBACK / EXT_MEASURE / ANNOT / PERSIST / REAL.
+
+## Commits
+
+- proto: `72d621c`
+- root: `76977ff`
+
+## Known Risks
+
+- Topbar + tool-row still present (Phase B will replace them with title-bar + menu-bar + ribbon)
+- Visual look unchanged from current UI (just less cluttered sidebar — no inspection panel, no workflow card, no widgets)
+- localStorage keys for removed systems (`bmaPlan.uiLayoutOptions.v1`, `bmaPlan.panelLayoutOptions.v1`, `bmaPlan.widgetPlacement.v1`) are no longer read but old user data will harmlessly persist
+
+## Merge Recommendation
+
+DO NOT MERGE — Phase A alone is not feature-complete. Continue Phase B–F on this branch first.
+
+---
+
+# Previous: Widget / Menu Placement System
 
 Date: 2026-05-11
 

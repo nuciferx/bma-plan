@@ -8,10 +8,11 @@ Date: 2026-05-11
 
 ## One-Line Status
 
-Phase 1 PASS: Widget / Menu Placement System — per-widget control over left/right panel widgets (visibility, region, order, size) via `WIDGET_MENU_REGISTRY` + `bmaPlan.widgetPlacement.v1` localStorage. No backend or schema changes.
+Phase 1 PASS: Mockup V3 Alignment — Phase A (subtractive) on branch `feature/mockup-v3-alignment`. Removed UI Layout Options + Panel Layout Options + Widget/Menu Placement + Inspection Panel + Workflow Card + Review/Export widgets. Core workflow intact. Phase B–F deferred.
 
 ## Latest Sprint
 
+- Mockup V3 Alignment — Phase A: PASS (2026-05-11) — branch: feature/mockup-v3-alignment — proto `72d621c`
 - Widget / Menu Placement System: PASS (2026-05-11)
 - Docked Toolbar + Panel Layout Options: PASS (2026-05-11)
 - UI Layout Options (Mockup V3 modes): PASS (2026-05-10) — proto `087c769`
@@ -31,8 +32,8 @@ Last run: 2026-05-11 (current working tree). Full test detail: [docs/status/TEST
 
 ## Latest Commits
 
-- root: (this commit)
-- proto: `4a09693` ui: visual consistency pass
+- root: `76977ff` ui: Phase A subtractive removal (mockup v3 alignment)
+- proto: `72d621c` ui: Phase A subtractive removal of excess UI systems
 
 Full commit history: [docs/status/COMMIT_HISTORY.md](docs/status/COMMIT_HISTORY.md)
 

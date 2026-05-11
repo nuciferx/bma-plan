@@ -1,4 +1,42 @@
-# Latest: Widget / Menu Placement System
+# Latest: Mockup V3 Alignment — Phase A (Subtractive Removal)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result
+
+Automated PASS (py_compile + smoke + full). Visual UI looks similar to before — just less clutter in sidebar.
+
+## Manual Checklist — Removed Elements (must be GONE)
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| `⚙ Layout` button in topbar | Gone | — |
+| Layout Options modal popup | Gone | — |
+| Inspection panel in left sidebar | Gone (no "สถานะการตรวจ" card) | — |
+| Workflow card in left sidebar | Gone (no "Workflow" with 6 steps) | — |
+| Review Warnings widget | Gone | — |
+| Export Ready widget | Gone | — |
+| Quick Tag bar (🏗 / 📐 / 📏 / 🔍 / 🚫) | Gone | — |
+
+## Manual Checklist — No Regressions
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Open PDF | Works, page renders | — |
+| Set Scale (Set Scale button in topbar) | Calib mode activates, polygon drawn, area shown | — |
+| Page Setup (Page Setup button) | Overlay opens, tag grid renders | — |
+| Area drawing (tool-row Area button) | Polygon drawn, name panel opens, area in measure-result | — |
+| Opening drawing | Opening drawn, linked to parent | — |
+| Right panel layers | Layers list visible per page type | — |
+| Save .bmaplan | File saves, reload restores all data | — |
+| Export XLSX | File generates, summary matches UI | — |
+| Real PDF (45 pages) | Loads, can navigate, rotation works | — |
+
+---
+
+# Previous: Widget / Menu Placement System
 
 Date: 2026-05-11
 

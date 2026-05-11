@@ -4,6 +4,82 @@
 
 ---
 
+# Mockup V3 Alignment — Phase A — PASS
+
+> Date: 2026-05-11
+> Branch: feature/mockup-v3-alignment
+> Sprint: Mockup V3 Alignment — Phase A (Subtractive Removal)
+> Plan: `C:\Users\nucif\.claude\plans\ui-wise-finch.md`
+> Result: PASS — py_compile + smoke + full
+> Proto HEAD: `72d621c`
+
+## Outcome: PASS (Phase A only — 1 of 6 phases)
+
+## Goal
+
+Align UI toward `docs/design/bma-plan-mockup-v3.html` by removing over-engineered systems that exceed the mockup. The full plan has 6 phases; this commit covers Phase A (subtractive removal) only.
+
+## Changed
+
+- `proto/ui.html` (1675 → 1252 lines)
+- `proto/e2e_ui_test.py` (~35 assertions removed, 2 added)
+
+## Removed
+
+DOM:
+- `#ui-layout-panel` modal (Layout Options popup)
+- `#btn-ui-layout` button
+- `#inspection-panel` (left sidebar)
+- `#workflow-card` (left sidebar)
+- `#widget-review-warnings`, `#widget-export-ready`
+- `#wp-left-zone`, `#wp-right-zone`
+- `#quick-tag-bar`
+
+JS:
+- UI Layout Options system (`loadUiLayout`/`saveUiLayout`/`applyUiLayout`/`setUiLayoutOption`/`applyUiLayoutPreset`/`toggleUiLayoutPanel`/`closeUiLayoutPanel`)
+- Panel Layout Options system (`loadPanelLayout`/`savePanelLayout`/`applyPanelLayout`/`setPanelLayoutOption`/`resetPanelLayout`/`_updatePanelLayoutPanelState`)
+- Widget/Menu Placement System (`WIDGET_MENU_REGISTRY`, `loadWidgetPlacement`/`saveWidgetPlacement`/`normalizeWidgetPlacement`/`resetWidgetPlacement`/`setWidgetPlacementOption`/`applyWidgetPlacement`/`renderWidgetPlacementOptions`/`filterWidgetPlacementList`, etc.)
+- Init calls: `loadUiLayout()`, `loadPanelLayout()`, `loadWidgetPlacement()`
+
+Stubbed to no-op:
+- `updateInspectionPanel()`, `toggleInspectionPanel()`, `updateWidgets()`
+
+## Not Changed
+
+- `proto/server.py` — untouched
+- `proto/static/css/app.css` — dead styles kept (cleanup deferred to Phase E)
+- `.bmaplan` schema — unchanged
+- Save/load, export, measurement, scale, coordinate, snap, PDF render — unchanged
+- Core workflow (PDF upload → set scale → draw → picker → layer lock → save/load → XLSX) — intact
+
+## Tests
+
+- py_compile: PASS
+- smoke: PASS (all 14 OK markers)
+- full: PASS (all 17 OK markers, including REAL_OK with 45-page real PDF)
+
+## Risk
+
+- Topbar + tool-row still present (will be replaced in Phase B)
+- Visual UI looks similar to before — just less clutter in sidebar
+- Dead CSS rules exist but cause no functional issue
+
+## Remaining Phases (deferred)
+
+| Phase | Scope |
+|---|---|
+| B | Build `.title-bar` + `.menu-bar` + `.ribbon` (replace `#topbar` + `#tool-row`) |
+| C | Restructure left panel (3 tabs: Sheets/Objects/Properties) + right panel + status bar |
+| D | Summary Widget 4 tabs (พื้นที่/รายชั้น/ที่ดิน/แจ้งเตือน) + drag |
+| E | CSS palette sync + dead-style cleanup |
+| F | Final tests + full docs |
+
+## Merge Recommendation
+
+DO NOT MERGE — Phase A alone leaves the topbar/tool-row unchanged from current. Continue Phase B–F on this branch first.
+
+---
+
 # Widget / Menu Placement System — PASS
 
 > Date: 2026-05-11
