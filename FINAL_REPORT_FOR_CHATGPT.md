@@ -4,6 +4,157 @@
 
 ---
 
+# Phase G — Menu Wiring + Measure/Layer Power-up — PASS
+
+> Date: 2026-05-11
+> Branch: feature/menu-power-up
+> Sprint: Phase G (plan: `plans/project-scale-page-measure-curried-seal.md`)
+> Proto: `52167d8`
+> Result: PASS — smoke (15 OK markers, all MENU_OK checks True)
+
+## Outcome: PASS
+
+6 functional dropdown menus (Project/Scale/Page/Measure/Object/Layer) with 56 items total.
+14 helper functions. 11 keyboard shortcuts. Per-page layer memory bug fixed.
+E2E smoke fully passes including new MENU_OK assertions.
+
+---
+
+# Previous: Mockup V3 Alignment — COMPLETE (Phases A–F) — PASS
+
+> Date: 2026-05-11
+> Branch: feature/mockup-v3-alignment
+> Sprint: Mockup V3 Alignment (Phases A–F)
+> Plan: `MOCKUP_V3_ALIGNMENT_PLAN.md`
+> Result: PASS — py_compile + smoke + full (17 OK markers)
+
+## Outcome: PASS (all 6 phases complete)
+
+## Phase Summary
+
+| Phase | Status | Commit | Notes |
+|---|---|---|---|
+| A — Subtractive removal | ✅ | proto `72d621c`, root `76977ff` | UI Layout Options, Panel Layout, Widget/Menu Placement, Inspection panel, Workflow card, Review/Export widgets removed |
+| B + C — Header + Panels | ✅ | proto `0ec4cd4`, root `614714e` | Title-bar (22px) + menu-bar (28px) + ribbon (44px), 3-tab left panel, layered right panel, status bar |
+| D — Summary Widget 4 tabs + drag | ✅ | proto `203ae90`, root `2af21a5` | พื้นที่/รายชั้น/ที่ดิน/แจ้งเตือน, drag handle, page badge, Review+Export footer |
+| E — CSS palette sync + dead-style cleanup | ✅ | proto pending | `app.css` 590 → 381 lines (-209). Palette already matched mockup; removed dead `.ulp-*` / `.isp-*` / `.ft-*` / `.wp-*` / `.widget-*` / `.workflow-*` / `.wf-row` / `.qt-btn` / `body.ui-*-v3` / etc. |
+| F — Final tests + docs | ✅ | root pending | smoke + full PASS, no measurement regression |
+
+## What Did Not Change
+
+- `proto/server.py` — untouched across all phases
+- `.bmaplan` schema — unchanged
+- Save/load, export, measurement, scale, coordinate, snap, PDF render — unchanged
+- Measurement results identical to pre-Phase-A baseline:
+  - VECTOR 305.56 ตร.ม.
+  - XLSX สุทธิ 0.82 ตร.ม.
+  - PERSIST page 1: 66646.05, page 2: 11883.33 ตร.ม.
+  - REAL 45 pages, rotation 90°
+
+## Tests
+
+```
+python3 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3 proto/e2e_ui_test.py smoke                          → PASS (exit 0)
+python3 proto/e2e_ui_test.py full                           → PASS (exit 0, 17 OK markers)
+```
+
+Markers: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL.
+
+## Files Changed Summary (across all phases)
+
+| File | Net Change |
+|---|---|
+| `proto/ui.html` | 1675 → 1442 lines (-233). Removed dead DOM and JS systems, added title-bar/menu-bar/ribbon/Summary-Widget-v3. |
+| `proto/static/css/app.css` | ~620 → 381 lines (-~239). Removed `.ulp-*`, `.isp-*`, `.ft-*`, `.wp-*`, `.widget-*`, `body.ui-*-v3 *`, `#tool-row`, `#float-toolbar`, `#ui-layout-panel`, `.workflow-card`, `.qt-btn`, `.toolbar-more-*`. Added `.title-bar`, `.menu-bar`, `.ribbon`, `.main`, `.panel-tabs`, `.canvas-wrap`, `.status-bar`, `.sw-*` (Summary Widget). |
+| `proto/e2e_ui_test.py` | ~35 stale assertions removed, ribbon/panel assertions added/adapted. |
+
+## Stop Conditions Triggered
+
+None across all phases.
+
+## Merge Recommendation
+
+**READY TO MERGE** — Branch `feature/mockup-v3-alignment` is feature-complete. All 6 phases delivered with smoke + full PASS at every checkpoint and zero measurement regression.
+
+---
+
+# Mockup V3 Alignment — Phase A — PASS
+
+> Date: 2026-05-11
+> Branch: feature/mockup-v3-alignment
+> Sprint: Mockup V3 Alignment — Phase A (Subtractive Removal)
+> Plan: `C:\Users\nucif\.claude\plans\ui-wise-finch.md`
+> Result: PASS — py_compile + smoke + full
+> Proto HEAD: `72d621c`
+
+## Outcome: PASS (Phase A only — 1 of 6 phases)
+
+## Goal
+
+Align UI toward `docs/design/bma-plan-mockup-v3.html` by removing over-engineered systems that exceed the mockup. The full plan has 6 phases; this commit covers Phase A (subtractive removal) only.
+
+## Changed
+
+- `proto/ui.html` (1675 → 1252 lines)
+- `proto/e2e_ui_test.py` (~35 assertions removed, 2 added)
+
+## Removed
+
+DOM:
+- `#ui-layout-panel` modal (Layout Options popup)
+- `#btn-ui-layout` button
+- `#inspection-panel` (left sidebar)
+- `#workflow-card` (left sidebar)
+- `#widget-review-warnings`, `#widget-export-ready`
+- `#wp-left-zone`, `#wp-right-zone`
+- `#quick-tag-bar`
+
+JS:
+- UI Layout Options system (`loadUiLayout`/`saveUiLayout`/`applyUiLayout`/`setUiLayoutOption`/`applyUiLayoutPreset`/`toggleUiLayoutPanel`/`closeUiLayoutPanel`)
+- Panel Layout Options system (`loadPanelLayout`/`savePanelLayout`/`applyPanelLayout`/`setPanelLayoutOption`/`resetPanelLayout`/`_updatePanelLayoutPanelState`)
+- Widget/Menu Placement System (`WIDGET_MENU_REGISTRY`, `loadWidgetPlacement`/`saveWidgetPlacement`/`normalizeWidgetPlacement`/`resetWidgetPlacement`/`setWidgetPlacementOption`/`applyWidgetPlacement`/`renderWidgetPlacementOptions`/`filterWidgetPlacementList`, etc.)
+- Init calls: `loadUiLayout()`, `loadPanelLayout()`, `loadWidgetPlacement()`
+
+Stubbed to no-op:
+- `updateInspectionPanel()`, `toggleInspectionPanel()`, `updateWidgets()`
+
+## Not Changed
+
+- `proto/server.py` — untouched
+- `proto/static/css/app.css` — dead styles kept (cleanup deferred to Phase E)
+- `.bmaplan` schema — unchanged
+- Save/load, export, measurement, scale, coordinate, snap, PDF render — unchanged
+- Core workflow (PDF upload → set scale → draw → picker → layer lock → save/load → XLSX) — intact
+
+## Tests
+
+- py_compile: PASS
+- smoke: PASS (all 14 OK markers)
+- full: PASS (all 17 OK markers, including REAL_OK with 45-page real PDF)
+
+## Risk
+
+- Topbar + tool-row still present (will be replaced in Phase B)
+- Visual UI looks similar to before — just less clutter in sidebar
+- Dead CSS rules exist but cause no functional issue
+
+## Remaining Phases (deferred)
+
+| Phase | Scope |
+|---|---|
+| B | Build `.title-bar` + `.menu-bar` + `.ribbon` (replace `#topbar` + `#tool-row`) |
+| C | Restructure left panel (3 tabs: Sheets/Objects/Properties) + right panel + status bar |
+| D | Summary Widget 4 tabs (พื้นที่/รายชั้น/ที่ดิน/แจ้งเตือน) + drag |
+| E | CSS palette sync + dead-style cleanup |
+| F | Final tests + full docs |
+
+## Merge Recommendation
+
+DO NOT MERGE — Phase A alone leaves the topbar/tool-row unchanged from current. Continue Phase B–F on this branch first.
+
+---
+
 # Widget / Menu Placement System — PASS
 
 > Date: 2026-05-11

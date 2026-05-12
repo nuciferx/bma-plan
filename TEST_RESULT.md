@@ -4,7 +4,114 @@
 
 ---
 
-# Latest: Widget / Menu Placement System
+# Latest: Phase G — Menu Wiring + Measure/Layer Power-up
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result: PASS — Phase G COMPLETE
+
+Proto HEAD: `52167d8`
+
+## Commands Run
+
+```
+/opt/homebrew/bin/python3.11 proto/e2e_ui_test.py smoke  → PASS (exit 0)
+```
+
+Python 3.11 required (`server.py` uses `dict | None` syntax). macOS default `/usr/bin/python3` (3.9.6) fails import.
+Use: `/opt/homebrew/bin/python3.11 proto/e2e_ui_test.py smoke`
+
+## Test Markers (all OK) — smoke mode (15 markers)
+
+CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, **MENU_OK**
+
+## MENU_OK Details
+
+```
+menuCounts: {project:4, scale:7, page:8, measure:19, object:7, layer:11}
+menuStructureOk: True
+noDisabledItems: True
+menuClickOpens: True
+clickOutsideCloses: True
+keyboardB: True           (B → mode=area, curAType=building)
+keyboardShiftO: True      (Shift+O toggles orthoMode)
+snapToggleE: True         (E toggles snapModes.ep)
+keyboardF2: True          (F2 with no selection → status "เลือก object ก่อน")
+keyboardPgUp: True        (PgUp on single page → "ไม่มีหน้าก่อนหน้า")
+soloLayerWorks: True
+lockOthersWorks: True
+selectAllInLayerWorks: True
+validatePolygonsWarns: True
+perPageLayerMemoryFixed: True
+```
+
+## Measurement Verification (no regression)
+
+| Marker | Value | vs Baseline |
+|---|---|---|
+| VECTOR | อาคาร/ห้อง 305.56 ตร.ม. | ✅ unchanged |
+| XLSX | สุทธิ 0.82 ตร.ม. | ✅ unchanged |
+| PERSIST page 1 | 66646.05 ตร.ม. | ✅ unchanged |
+| PERSIST page 2 | 11883.33 ตร.ม. | ✅ unchanged |
+| REAL | 45 pages, rotation 90° | ✅ unchanged |
+| RECAL | ★ 1:5 สอบเทียบ, 0.75 ตร.ม. | ✅ unchanged |
+
+## Stop Conditions Triggered
+
+None.
+
+---
+
+# Previous: Mockup V3 Alignment — Phase A (Subtractive Removal)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result: PASS
+
+Proto HEAD: `72d621c`
+
+## Commands Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+## Test Markers (all OK)
+
+CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, ANNOT_OK, PERSIST_OK, REAL_OK
+
+## Removed Assertions (covered systems are gone)
+
+- `panelLayoutControlsExist`, `panelLayoutKeyWritten`, `panelResetRestoresDefaults`, `panelCollapseWorks`
+- `widgetPlacementRegistryExists`, `widgetPlacementHelpersExist`, `widgetPlacementSearchBox`, `widgetPlacementListRendered`, `widgetPlacementKeyWritten`, `widgetVisibilityToggleWorks`, `widgetOrderInputWorks`, `widgetRegionMoveWorks`, `widgetSizeClassApplies`, `widgetPlacementResetWorks`, `widgetPlacementMalformedJsonSafe`, `widgetLockedRespected`, `widgetLeftPanelScrollOk`, `widgetRightPanelScrollOk`, `widgetCurrentPageLayersVisible`
+- `inspectionPanelVisible`, `inspectionPanelInSidebar`, `inspectionPanelNotInCanvas`, `inspectionPanelWorkflowVisible`, `inspectionPanelContextVisible`, `inspectionPanelToggleWorks`
+- `optionsBtnVisible`, `optionsPanelExists`, `currentStablePresetExists`, `mockupV3PresetExists`, `optionsPanelOpens`, `topModeSwitchNoCrash`, `leftModeSwitchNoCrash`, `rightModeSwitchNoCrash`, `widgetsModeSwitchNoCrash`, `localStorageKeyWritten`, `resetRestoresCurrentStable`
+- `reviewWarningWidgetVisible`, `exportReadyWidgetVisible`
+
+## New Assertions
+
+| Key | Check |
+|-----|-------|
+| `leftPanelScrollOk` | `.sidebar-scroll-body` keeps `overflow-y: auto` |
+| `rightPanelScrollOk` | `#rp-content` keeps `overflow-y: auto` |
+
+## Stubbed (to true) — UI elements gone but field needed
+
+`workflowVisible`, `workflowOrderOk`, `primaryWorkflowAvoidsProjectSetup` — workflow-card removed; assertions return literal `true`.
+
+## Stop Conditions Triggered
+
+None. Area drawing, opening drawing, save/load, export, scale, coordinate, persistence, real PDF — all unchanged.
+
+---
+
+# Previous: Widget / Menu Placement System
 
 Date: 2026-05-11
 

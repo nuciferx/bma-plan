@@ -1,4 +1,83 @@
-# Latest: Widget / Menu Placement System
+# Latest: Phase G — Menu Wiring + Measure/Layer Power-up
+
+Branch: feature/menu-power-up
+
+Date: 2026-05-11
+
+## Result
+
+Automated PASS (smoke, 15 OK markers including MENU_OK). Per-page layer memory bug fixed. 6 functional dropdown menus wired.
+
+## Manual Checklist — UI structure tracks mockup v3
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Title bar (22px) with 3 win-btn dots + filename label | Visible | — |
+| Menu bar (28px) with `BMA` logo + 13 menu items + phase badge | Visible | — |
+| Ribbon (44px) with 6 groups (Quick / Scale / Page / Measure / Edit / Review-Export) | Visible | — |
+| Left panel — 3 tabs (Sheets / Objects / Properties) | Tabs toggle | — |
+| Canvas top bar | Visible inside workspace | — |
+| Right panel — Layers + Selected Object | Visible | — |
+| Status bar — Tool / Scale / Objects / Warnings / Layer / Save / Page | Visible | — |
+| Summary Widget — 4 tabs (พื้นที่ / รายชั้น / ที่ดิน / แจ้งเตือน) | Tabs switch, drag works | — |
+| Palette matches mockup (#1a1d21 bg, #22262c surface, #0a84ff accent) | Looks consistent | — |
+| No dead Layout Options popup, no Workflow card, no Quick Tag bar | Gone | — |
+
+## Manual Checklist — Workflow Regression
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Open PDF | Page renders | — |
+| Set Scale | Calib mode → polygon → area shown | — |
+| Page Setup | Overlay opens | — |
+| Draw Area (`btn-area`) | Polygon drawn, name panel opens | — |
+| Draw Opening (`btn-opening`) | Linked to parent | — |
+| Right panel layers list | Layers visible per page type | — |
+| Save .bmaplan + reload | Round-trip restores | — |
+| Export XLSX | File generates | — |
+| Real 45-page PDF | Loads, rotation works | — |
+
+---
+
+# Previous: Mockup V3 Alignment — Phase A (Subtractive Removal)
+
+Branch: feature/mockup-v3-alignment
+
+Date: 2026-05-11
+
+## Result
+
+Automated PASS (py_compile + smoke + full). Visual UI looks similar to before — just less clutter in sidebar.
+
+## Manual Checklist — Removed Elements (must be GONE)
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| `⚙ Layout` button in topbar | Gone | — |
+| Layout Options modal popup | Gone | — |
+| Inspection panel in left sidebar | Gone (no "สถานะการตรวจ" card) | — |
+| Workflow card in left sidebar | Gone (no "Workflow" with 6 steps) | — |
+| Review Warnings widget | Gone | — |
+| Export Ready widget | Gone | — |
+| Quick Tag bar (🏗 / 📐 / 📏 / 🔍 / 🚫) | Gone | — |
+
+## Manual Checklist — No Regressions
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Open PDF | Works, page renders | — |
+| Set Scale (Set Scale button in topbar) | Calib mode activates, polygon drawn, area shown | — |
+| Page Setup (Page Setup button) | Overlay opens, tag grid renders | — |
+| Area drawing (tool-row Area button) | Polygon drawn, name panel opens, area in measure-result | — |
+| Opening drawing | Opening drawn, linked to parent | — |
+| Right panel layers | Layers list visible per page type | — |
+| Save .bmaplan | File saves, reload restores all data | — |
+| Export XLSX | File generates, summary matches UI | — |
+| Real PDF (45 pages) | Loads, can navigate, rotation works | — |
+
+---
+
+# Previous: Widget / Menu Placement System
 
 Date: 2026-05-11
 

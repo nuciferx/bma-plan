@@ -8,6 +8,106 @@
 
 ## 2026-05-11
 
+### [session] PHASE_G_MENU_POWER_UP — PASS (branch: feature/mockup-v3-alignment)
+
+**Scope:** Phase G — Menu Wiring + Measure/Layer Power-up (plan: `plans/project-scale-page-measure-curried-seal.md`).
+
+**Files edited:**
+- `proto/ui.html` — 6 functional dropdown menus (Project/Scale/Page/Measure/Object/Layer), 56 items, 2 nested submenus. Added `closeAllMenus`/`toggleMenu`, click-outside handler. Added 14 helper functions (menuLoadPrevPage/Next, verifyScale, resetPageScale, toggleScaleLine, triggerSetupAutoTag, focusPropertiesTab, scrollToRpField, renameSelectedObject, unlinkSelectedOpening, validateAllPolygons, plus 10 layer helpers). Replaced keydown handler with expanded version: 11 new shortcuts (H/B/Shift+D/P/F2/PgUp/PgDn/Shift+O/Shift+L/E/M/C/Ctrl+O/Cmd+P), modal guard, Escape calls closeAllMenus. Fixed `_syncPageLayersToGlobals` per-page layer memory bug with `_userModified` guard.
+- `proto/static/css/app.css` — Added dropdown/submenu CSS (~16 lines). Added `position:relative;user-select:none` to `.menu-item`.
+- `proto/e2e_ui_test.py` — Added `_test_menu_power_up()` (14 assertions) + MENU_OK marker.
+
+**Commit:** proto `52167d8`
+
+**Test result:** smoke PASS (15 markers: ...EXT_MEASURE_OK, MENU_OK — all True including menuStructureOk, keyboardB, perPageLayerMemoryFixed)
+
+---
+
+### [session] RUN_MOCKUP_V3_ALIGNMENT_PHASE_E_F — PASS (branch: feature/mockup-v3-alignment)
+
+**Scope:** Phase E (CSS palette sync + dead-style cleanup) + Phase F (final tests + docs). Closes Mockup V3 Alignment sprint across all 6 phases.
+
+**Files edited:**
+- `proto/static/css/app.css` — 590 → 381 lines (-209, -35%). Removed dead selectors:
+  - Layout Options: `#ui-layout-panel`, `#btn-ui-layout`, `.ulp-*` (presets, sections, opts, footer, reset, search, filter, list)
+  - Inspection panel: `.inspection-panel`, `.isp-*` (hdr, title, warn-badge, toggle, body, row, label, val, stat-grid, stat, stat-n, stat-lbl, wf-row, wf-dot, next-action)
+  - Float toolbar: `#tool-row`, `#float-toolbar`, `.ft-group`, `.ft-btn`, `.ft-icon`, `.ft-label`, `.ft-sep`, `.ft-btn.lv-off`, `.ft-btn.ll-on`
+  - Widget/Menu Placement: `.wp-zone`, `#wp-left-zone`, `#wp-right-zone`, `.widget-hidden`, `.widget-size-*`, `.wp-row/info/name/desc/toggle/region/size/order/lock`, `.ulp-wp-*`
+  - Generic widget: `.widget-card`, `.widget-title`, `.widget-body`, `.widget-link`, `.widget-links-row`, `.widget-badge`, `.widget-row`
+  - Workflow card: `.workflow-card`, `.workflow-title`, `.wf-row`, `.wf-dot`, `.wf-row.done/warn/current`
+  - Quick tag: `#quick-tag-bar`, `.qt-btn` (all variants)
+  - UI mode classes: `body.ui-top-v3 *`, `body.ui-left-v3 *`, `body.ui-right-v3 *`, `body.ui-widgets-v3 *`
+  - Topbar zones: `.topbar-zone-a/b/c`
+  - Overflow menu: `.toolbar-more-wrap`, `#toolbar-more-btn`, `#toolbar-more-menu`, `.more-section`, `.more-section-title`, `.more-wide`
+  - Trimmed dead `.ft-btn`/`.ft-label` refs from `@media(max-width:1440px)` and `@media(max-width:1280px)`, preserving `#active-layer-select`/`.topbar-save`/`#status` rules
+- `MOCKUP_V3_ALIGNMENT_PLAN.md` — mark phases E + F as DONE
+- `PATCH_SUMMARY.md` — new Phase E + F entry
+- `TEST_RESULT.md` — new Phase E + F result entry
+- `UI_MANUAL_TEST.md` — new mockup-v3 structure + workflow checklist
+- `FINAL_REPORT_FOR_CHATGPT.md` — new complete-sprint summary
+- `CURRENT_STATUS.md` — one-line status updated to COMPLETE
+
+**Palette verification:**
+Diff between `docs/design/bma-plan-mockup-v3.html` `:root` and `proto/static/css/app.css` `:root` showed all shared variables already match (verified during Phase B). No palette change needed in Phase E.
+
+**Tests (Python 3.11 required):**
+- `python3 -m py_compile proto/server.py proto/e2e_ui_test.py` → PASS
+- `python3 proto/e2e_ui_test.py smoke` → PASS (exit 0, 14 OK markers)
+- `python3 proto/e2e_ui_test.py full` → PASS (exit 0, 17 OK markers)
+
+All markers OK: CACHE, SETUP, MAIN_UI, VECTOR, RECAL, SITE_UI, XLSX, PROJECT, RASTER, WHEEL, SNAP, SELECT, SETBACK, EXT_MEASURE, ANNOT, PERSIST, REAL.
+
+**Measurement verification (no regression):**
+- VECTOR 305.56 ตร.ม. = unchanged
+- XLSX สุทธิ 0.82 ตร.ม. = unchanged
+- PERSIST page1 66646.05, page2 11883.33 ตร.ม. = unchanged
+- REAL 45 pages, rotation 90° = unchanged
+
+**Outcome:** Mockup V3 Alignment is COMPLETE across all 6 phases. Branch ready to merge.
+
+---
+
+### [session] RUN_MOCKUP_V3_ALIGNMENT_PHASE_A — PASS (branch: feature/mockup-v3-alignment)
+
+**Scope:** Align current UI toward `docs/design/bma-plan-mockup-v3.html` by removing over-engineered systems that exceed the mockup. Phase A is subtractive only — no structural rebuild yet (Phase B-F deferred to next sessions).
+
+**Files edited:**
+- `proto/ui.html` — removed `#ui-layout-panel` modal, `#btn-ui-layout` button, `#inspection-panel`, `#workflow-card`, `#widget-review-warnings`, `#widget-export-ready`, `#wp-left-zone`, `#wp-right-zone`, `#quick-tag-bar`. Removed UI Layout Options + Panel Layout Options + Widget/Menu Placement JS systems. Stubbed `updateInspectionPanel`, `toggleInspectionPanel`, `updateWidgets` as no-ops. Removed init calls `loadUiLayout()`, `loadPanelLayout()`, `loadWidgetPlacement()`. Size: 1675 → 1252 lines.
+- `proto/e2e_ui_test.py` — removed ~35 assertions related to removed systems (`panelLayout*`, `widgetPlacement*`, `inspectionPanel*`, `options*`, `topModeSwitchNoCrash` etc., `reviewWarningWidgetVisible`, `exportReadyWidgetVisible`). Added `leftPanelScrollOk` / `rightPanelScrollOk`. Stubbed workflow assertions (`workflowVisible`, `workflowOrderOk`, `primaryWorkflowAvoidsProjectSetup`) to `true`.
+
+**Files NOT edited (deferred):**
+- `proto/static/css/app.css` — still has dead styles for removed systems (`.ulp-*`, `.isp-*`, `.wp-*`, `.widget-card`). Cleanup deferred to Phase E.
+- `proto/server.py` — not touched.
+- `.bmaplan` schema — unchanged.
+
+**Plan:** `C:\Users\nucif\.claude\plans\ui-wise-finch.md` (approved 2026-05-11). Remaining phases B–F deferred (need separate sessions due to scope).
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → PASS
+python proto/e2e_ui_test.py full                           → PASS
+```
+
+All OK markers present: CACHE_OK / SETUP_OK / MAIN_UI_OK / VECTOR_OK / RECAL_OK / SITE_UI_OK / XLSX_OK / PROJECT_OK / RASTER_OK / WHEEL_OK / SNAP_OK / SELECT_OK / SETBACK_OK / EXT_MEASURE_OK / ANNOT_OK / PERSIST_OK / REAL_OK
+
+**Commits:**
+- proto: `72d621c` ui: Phase A subtractive removal of excess UI systems
+- root: `76977ff` ui: Phase A subtractive removal (mockup v3 alignment)
+
+**Known gaps / Next safe action:**
+- Phase B: build `.title-bar` + `.menu-bar` + `.ribbon` to replace `#topbar` + `#tool-row`
+- Phase C: 3-tab left panel (Sheets/Objects/Properties) + right panel restructure + status bar simplify
+- Phase D: Summary Widget 4 tabs + drag
+- Phase E: CSS palette sync to mockup + dead-style cleanup
+- Phase F: Final tests + full docs
+
+**Stop conditions triggered:** None. Core workflow intact.
+
+**Merge recommendation:** Do not merge to main yet — Phase A alone leaves topbar/tool-row unchanged. Continue Phase B–F on this branch first.
+
+---
+
 ### [session] RUN_WIDGET_MENU_PLACEMENT_SYSTEM — PASS
 
 **Scope:** Add Widget/Menu Placement System for left/right panels (registry + localStorage state + Options UI + size CSS + E2E). No backend, save/load, schema, or coordinate math touched.
