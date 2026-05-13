@@ -133,6 +133,38 @@ After each sprint, also refresh: `CURRENT_STATUS.md` (one-line state), `docs/sta
 
 One sprint = one problem. Commits must pass `py_compile + smoke` before merge, and `full` if any forbidden-trigger surface (export, rotation, save/load, real-PDF, snap, layer) was touched.
 
+## Claude Code skills & subagents (`.claude/`, project-level)
+
+Project-scoped skills + subagents deployed to save tokens and standardize workflow (Pack A + C, 2026-05-13). Trigger by typing the phrase in any language OR `/skill-name` explicitly. Auto-trigger uses the skill `description` field — if it picks wrong, just say "use /xxx" and the choice is corrected.
+
+### Skills (`/command` or auto-trigger)
+
+| Skill | Trigger phrases | When to use |
+|---|---|---|
+| `/bma-start` | "เริ่มงาน", "ค้างอะไรอยู่", "session start", "resume" | Session start — 1-page brief replacing the 5-doc READ_ORDER ritual |
+| `/bma-check-forbidden` | "แตะ X ได้ไหม", "is X safe to edit" | BEFORE editing any forbidden surface (polyAreaM2 / pdfToC / RS / snap / .bmaplan / server core) |
+| `/bma-e2e` | "run test", "run smoke", "เทสต์" | Before commit, after touching forbidden-trigger surfaces, or to verify baseline |
+| `/bma-sprint-finalize` | "จบ sprint", "commit ได้", "sprint done" | End of sprint — generates all 7 mandatory outputs in one batch |
+| `/bma-log-add` | "log ไว้", "บันทึก", "log this" | Mid-sprint note — appends one entry without rewriting 50KB `log.md` |
+| `/bma-sprint-status` | "sprint ค้าง", "active sprints" | Sprint queue drill-down (lighter than `/bma-start`) |
+| `/bma-housekeep` | "housekeeping", "เก็บกวาด", "audit files" | Monthly — root file count, sprint triage, date drift detection |
+
+### Subagents (auto-delegated by main agent — usually no need to invoke directly)
+
+| Subagent | Model | Use |
+|---|---|---|
+| `bma-explorer` | haiku | Symbol lookup in `proto/ui.html` (~1700) + `proto/server.py` (~1370) — returns line ranges, never dumps whole files |
+| `bma-sprint-writer` | sonnet | Batch-write the 7 sprint output files with consistent cross-links + Latest/Previous demotion |
+| `bma-test-runner` | haiku | Run E2E and parse the 19 markers — keeps raw uvicorn/Playwright logs out of the main thread |
+| `bma-doc-auditor` | sonnet | Quarterly doc drift scan (dates, duplicate facts, broken links, contradictions across status docs) |
+
+### Invariants
+
+- `/bma-sprint-finalize` maintains 7 files: `log.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `CURRENT_STATUS.md`, `docs/status/LATEST_STATUS.md`, `docs/status/NEXT_ACTIONS.md`. Do not skip — drift between these is the most common housekeeping bug.
+- `bma-explorer` has a region map embedded for both runtime files. When asked "where is X", delegate instead of reading the whole file.
+- Skills auto-load on session start from `.claude/skills/<name>/SKILL.md`. New skills require a session restart.
+- `.claude/settings.local.json` stays gitignored (user-specific). Everything else under `.claude/` is tracked.
+
 ## Repository layout
 
 ```
@@ -148,6 +180,7 @@ sprints/
   completed/YYYY-MM-DD-name/RUN_*.md
   archive/            # superseded
 plans/                # cross-sprint planning docs
+.claude/              # tracked: skills/, agents/. Ignored: settings.local.json
 artifacts/            # gitignored — generated test outputs, screenshots, downloads
 archive/old_docs/     # historical context (includes the original CLAUDE.md predecessor)
 ```
