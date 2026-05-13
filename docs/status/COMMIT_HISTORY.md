@@ -6,6 +6,10 @@ Date: 2026-05-09
 
 | Hash | Message |
 |------|---------|
+| e92db93 | feat: Phase H.1 — unified path geometry model (line + cubic Bézier) |
+| 1700071 | chore: absorb proto submodule into main repo |
+| d3e6f14 | Merge branch 'feature/menu-power-up' into main |
+| 10588ef | feat: Phase H.1 + H.2 — Curves & Annotate menu |
 | b2400ce | refactor: frontend html split sprint - static CSS and JS extracted |
 | 599efca | refactor: reduce token load with split status and runtime files |
 | 4bda145 | feat: 10 UI testability micro sprints - Sprint B PASS |
