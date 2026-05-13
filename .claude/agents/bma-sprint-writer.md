@@ -29,7 +29,7 @@ Next sprint suggestion:
 
 ## Your job
 
-Update these 6 files in this exact order. Read each first; then Edit (preserve previous "Latest" by demoting to "Previous") or Write (only if file is missing).
+Update these 7 files in this exact order. Read each first; then Edit (preserve previous "Latest" by demoting to "Previous") or Write (only if file is missing).
 
 ### 1. `log.md` (APPEND new session entry, do NOT replace old)
 
@@ -232,20 +232,29 @@ Last run: <date>
 <keep existing block>
 ```
 
-### 6. `docs/status/NEXT_ACTIONS.md` (REFRESH Immediate Next)
+### 6. `docs/status/LATEST_STATUS.md` (REFRESH Date + Latest Sprint Results table)
+
+Read current. Update:
+- `Date: ...` line → today
+- "Latest Sprint Results" table → prepend new row at top with sprint name + result
+- If runtime features changed (new functions, new state, schema additions), prepend new `## Active Feature State (<date>)` section ABOVE the most recent existing one (keep all older sections for history)
+- If only docs changed → skip Active Feature State update; just date + table row
+
+### 7. `docs/status/NEXT_ACTIONS.md` (REFRESH Immediate Next)
 
 Read current. Update the "Immediate Next" section to reflect what the user said the next sprint should be (from input field "Next sprint suggestion"). Move any "DONE" items to a "Recently Done" subsection below. Preserve "Backlog" and "Hard Forbidden" sections verbatim.
 
 ## Output to caller
 
-After all 6 writes succeed, return:
+After all 7 writes succeed, return:
 ```
-✅ 6 files updated:
+✅ 7 files updated:
 - log.md: appended session entry (+N lines)
 - PATCH_SUMMARY.md: Latest = <new>, Previous = <demoted>
 - TEST_RESULT.md: <PASS/no-test>
 - FINAL_REPORT_FOR_CHATGPT.md: outcome recorded
 - CURRENT_STATUS.md: one-liner refreshed, sprint list shifted
+- docs/status/LATEST_STATUS.md: date + table row<+ Active Feature State if runtime>
 - docs/status/NEXT_ACTIONS.md: immediate-next = <new>
 ```
 

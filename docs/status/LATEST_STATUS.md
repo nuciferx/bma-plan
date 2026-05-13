@@ -1,6 +1,6 @@
 # LATEST_STATUS.md — BMA-Plan Current Feature State
 
-Date: 2026-05-10
+Date: 2026-05-13
 
 ## Phase
 
@@ -10,6 +10,10 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 
 | Sprint | Result |
 |--------|--------|
+| Phase I Open Questions DECIDED (docs-only) | PASS — Q1=A, Q2=A, Q3=A, Q4=Defer, Q5=A+B; Phase I-A unblocked |
+| Site Plan UI Mockup (docs-only) | PASS — `SITE_PLAN_UI_MOCKUP.md` ~530 lines |
+| Site Plan Measurement Plan (docs-only) | PASS — `SITE_PLAN_MEASUREMENT_PLAN.md` from กฎกระทรวง 33+55 |
+| Phase H.1 Path Geometry Design (docs-only) | PASS — `PATH_GEOMETRY_MODEL.md` |
 | Phase H.1 Path Geometry Implementation | PASS — all 19 E2E markers, PATH_GEOMETRY_OK |
 | Page-Scoped Layer Model Lock (docs) | PASS — root `82e1e4e` |
 | Layer Scope Audit (docs) | PASS — root `a3e1166` |
@@ -31,6 +35,12 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 | Annotated PDF Export Audit (docs) | PASS — root `9a46ff4` |
 | Export Current-Page Annotated PDF | PASS — proto `55dccdf` |
 | Export All-Pages Annotated PDF | PASS — proto `55dccdf` |
+
+## Active Feature State (2026-05-13)
+
+- **Path Geometry Model (additive)**: 9 new functions in `proto/ui.html` after line 955 — `_flattenCubicSeg`, `flattenPathToPoints`, `pathAreaM2`, `rectangleToPath`, `circleToPath`, `ellipseToPath`, `arcToCubic`, `renderPath`, plus `geometryType==='path'` branch in `objectAreaM2`. Legacy polygons/circles/ellipses/arcs unchanged. PATH_GEOMETRY_OK in smoke. Pen tool UI deferred to later sprint.
+- **Site Plan specs ready (Phase I)**: `docs/design/SITE_PLAN_MEASUREMENT_PLAN.md` (~573 lines) and `docs/design/SITE_PLAN_UI_MOCKUP.md` (~530 lines). All 5 open questions DECIDED. Phase I-A implementation unblocked — schema additions + Project Setup fields + AREA_LABELS extension. Next E2E marker target: `SITE_AREA_TYPES_OK`.
+- **`.claude/` Pack A**: 3 skills (`/bma-start`, `/bma-sprint-finalize`, `/bma-check-forbidden`) + 2 subagents (`bma-explorer` haiku, `bma-sprint-writer` sonnet). Token-saving workflow tooling. Tracked in git; `.claude/settings.local.json` stays ignored.
 
 ## Active Feature State (2026-05-10)
 

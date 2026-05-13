@@ -1,7 +1,7 @@
 ---
 name: bma-sprint-finalize
 description: |
-  Use when finishing a BMA-Plan sprint to generate ALL mandatory sprint outputs per AGENTS.md §1 in one shot. Updates 6 files with consistent cross-links: log.md, PATCH_SUMMARY.md, TEST_RESULT.md, FINAL_REPORT_FOR_CHATGPT.md, CURRENT_STATUS.md, docs/status/NEXT_ACTIONS.md. Delegates writing to the bma-sprint-writer subagent (sonnet) to save tokens in the main thread.
+  Use when finishing a BMA-Plan sprint to generate ALL mandatory sprint outputs per AGENTS.md §1 in one shot. Updates 7 files with consistent cross-links: log.md, PATCH_SUMMARY.md, TEST_RESULT.md, FINAL_REPORT_FOR_CHATGPT.md, CURRENT_STATUS.md, docs/status/LATEST_STATUS.md, docs/status/NEXT_ACTIONS.md. Delegates writing to the bma-sprint-writer subagent (sonnet) to save tokens in the main thread.
 
   Trigger phrases (Thai): "จบ sprint", "sprint เสร็จ", "update docs", "เขียน log", "ทำ patch summary", "เตรียม commit", "อัพเดทสถานะ", "finalize", "sprint done"
   Trigger phrases (English): "sprint done", "finalize sprint", "update sprint outputs", "write log", "prepare commit", "wrap up sprint"
@@ -38,14 +38,15 @@ Goal: replace ~10K tokens of per-file generation with delegated batch write.
 
 3. **Delegate writing** to the `bma-sprint-writer` subagent with the gathered context. Subagent receives:
    - Sprint context block (from step 1+2)
-   - Explicit file list to update (the 6 mandatory)
+   - Explicit file list to update (the 7 mandatory)
    - Template structure rules (see subagent definition)
 
 4. **After subagent returns**, verify with parallel reads:
-   - First 30 lines of each of the 6 files contains the new sprint title
+   - First 30 lines of each of the 7 files contains the new sprint title or date
    - `log.md` has new session entry appended (not replacing old)
    - `PATCH_SUMMARY.md` "Latest" demoted previous to "Previous"
    - `CURRENT_STATUS.md` one-liner updated
+   - `docs/status/LATEST_STATUS.md` Date stamp refreshed + new row in Latest Sprint Results table
 
 5. **Report back** to user:
    ```
@@ -55,6 +56,7 @@ Goal: replace ~10K tokens of per-file generation with delegated batch write.
    - TEST_RESULT.md (test result block + reference baseline)
    - FINAL_REPORT_FOR_CHATGPT.md (sprint outcome)
    - CURRENT_STATUS.md (one-liner)
+   - docs/status/LATEST_STATUS.md (date + table row + Active Feature State if runtime changed)
    - docs/status/NEXT_ACTIONS.md (immediate-next refresh)
 
    ⏭ Next: commit + push? (y/N)
