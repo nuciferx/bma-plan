@@ -1927,6 +1927,104 @@ def _test_menu_power_up(page):
     }
 
 
+def _test_path_geometry(page):
+    """Path geometry acceptance tests A-E (PATH_GEOMETRY_MODEL.md §10)."""
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+
+    result = page.evaluate("""() => {
+        // Test A: Straight-edge regression — rect path == polygon with same corners
+        const corners = [{x:100,y:100},{x:200,y:100},{x:200,y:180},{x:100,y:180}];
+        const polyA = polyAreaM2(corners);
+        const pathRect = rectangleToPath({x:100,y:100}, {x:200,y:180});
+        const pathA = pathAreaM2(pathRect);
+        const pathRectMatchesPolygon = polyA != null && pathA != null && Math.abs(polyA - pathA) < 1e-9;
+
+        // Test B: Circle approximation relative error < 0.1%
+        const radiusPt = 100;
+        const analytic = circleAreaM2(radiusPt);
+        const pathCirc = circleToPath({x:200,y:200}, radiusPt);
+        const numeric = pathAreaM2(pathCirc);
+        const pathCircleWithinTolerance = analytic != null && numeric != null
+            && Math.abs(numeric - analytic) / analytic < 0.001;
+
+        // Test C: Mixed path — deterministic repeat + translation invariant
+        const path1 = {
+            geometryType:'path', closed:true, generator:'freeform',
+            segments:[
+                {type:'line',  p0:{x:0,y:0},   p1:{x:100,y:0}},
+                {type:'line',  p0:{x:100,y:0},  p1:{x:150,y:80}},
+                {type:'cubic', p0:{x:150,y:80}, c1:{x:120,y:160}, c2:{x:40,y:160}, p1:{x:0,y:0}}
+            ]
+        };
+        const a1_1 = pathAreaM2(path1);
+        const a1_2 = pathAreaM2(path1);
+        const stableRepeat = a1_1 != null && a1_1 === a1_2;
+        const dx = 50, dy = 30;
+        const path2 = {
+            geometryType:'path', closed:true, generator:'freeform',
+            segments: path1.segments.map(s => {
+                const t = p => ({x:p.x+dx, y:p.y+dy});
+                if (s.type === 'line') return {type:'line', p0:t(s.p0), p1:t(s.p1)};
+                return {type:'cubic', p0:t(s.p0), c1:t(s.c1), c2:t(s.c2), p1:t(s.p1)};
+            })
+        };
+        const a2 = pathAreaM2(path2);
+        const pathMixedStable = stableRepeat && a2 != null && Math.abs(a1_1 - a2) < 1e-9;
+
+        // Test D: Legacy polygon unchanged — no geometryType, uses polyAreaM2 path
+        const legacyPoly = {pts:[{x:0,y:0},{x:100,y:0},{x:100,y:80},{x:0,y:80}], closed:true};
+        const legacyArea1 = objectAreaM2(legacyPoly);
+        const legacyArea2 = polyAreaM2(legacyPoly.pts);
+        const pathLegacyUnchanged = legacyArea1 != null && legacyArea2 != null
+            && Math.abs(legacyArea1 - legacyArea2) < 1e-12
+            && legacyPoly.geometryType === undefined;
+
+        // Test E: In-memory JSON save round-trip
+        const origPath = rectangleToPath({x:10,y:20}, {x:110,y:120});
+        const origArea = pathAreaM2(origPath);
+        const serialized = JSON.stringify(origPath);
+        const loaded = JSON.parse(serialized);
+        const loadedArea = pathAreaM2(loaded);
+        const segmentsIdentical = JSON.stringify(loaded.segments) === JSON.stringify(origPath.segments);
+        const generatorIdentical = loaded.generator === origPath.generator;
+        const pathSaveRoundTrip = origArea != null && loadedArea != null
+            && Math.abs(origArea - loadedArea) < 1e-12
+            && segmentsIdentical && generatorIdentical;
+
+        // helpers exist
+        const fnsExist = ['flattenPathToPoints','pathAreaM2','rectangleToPath',
+            'circleToPath','ellipseToPath','arcToCubic','renderPath'].every(n => typeof window[n] === 'function');
+
+        return {
+            pathRectMatchesPolygon, pathCircleWithinTolerance,
+            pathMixedStable, pathLegacyUnchanged, pathSaveRoundTrip,
+            fnsExist,
+            debug: {polyA, pathA, analytic, numeric, a1_1, a2}
+        };
+    }""")
+
+    pathRectMatchesPolygon     = result.get("pathRectMatchesPolygon") is True
+    pathCircleWithinTolerance  = result.get("pathCircleWithinTolerance") is True
+    pathMixedStable            = result.get("pathMixedStable") is True
+    pathLegacyUnchanged        = result.get("pathLegacyUnchanged") is True
+    pathSaveRoundTrip          = result.get("pathSaveRoundTrip") is True
+    fnsExist                   = result.get("fnsExist") is True
+
+    all_pass = all([pathRectMatchesPolygon, pathCircleWithinTolerance,
+                    pathMixedStable, pathLegacyUnchanged, pathSaveRoundTrip, fnsExist])
+    return {
+        "pathRectMatchesPolygon":    pathRectMatchesPolygon,
+        "pathCircleWithinTolerance": pathCircleWithinTolerance,
+        "pathMixedStable":           pathMixedStable,
+        "pathLegacyUnchanged":       pathLegacyUnchanged,
+        "pathSaveRoundTrip":         pathSaveRoundTrip,
+        "fnsExist":                  fnsExist,
+        "all":                       all_pass,
+        "debug":                     result.get("debug"),
+    }
+
+
 def main():
     mode = (sys.argv[1] if len(sys.argv) > 1 else "full").lower()
     if mode not in {"full", "smoke"}:
@@ -1955,6 +2053,7 @@ def main():
             setback_helpers = _test_setback_helpers(page)
             extended_helpers = _test_extended_measurement_helpers(page)
             menu_power_up = _test_menu_power_up(page)
+            path_geometry = _test_path_geometry(page)
             if mode == "full":
                 real_persist = _test_real_pdf_multipage_persistence(page)
                 real_pdf = _test_real_pdf_navigation_rotate_export(page, download_dir)
@@ -1975,6 +2074,7 @@ def main():
         print("SETBACK_OK", setback_helpers)
         print("EXT_MEASURE_OK", extended_helpers)
         print("MENU_OK", menu_power_up)
+        print("PATH_GEOMETRY_OK", path_geometry)
         if mode == "full":
             print("ANNOT_OK", annotated)
             print("PERSIST_OK", real_persist)

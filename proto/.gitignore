@@ -8,8 +8,9 @@ build/
 dist/
 dist2/
 
-# Runtime exports
-export/
+# Runtime exports (generated files) — use export/* not export/ so .py negation works
+export/*
+!export/*.py
 
 # Server logs
 *.log

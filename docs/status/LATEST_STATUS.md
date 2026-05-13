@@ -10,6 +10,7 @@ Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engi
 
 | Sprint | Result |
 |--------|--------|
+| Phase H.1 Path Geometry Implementation | PASS — all 19 E2E markers, PATH_GEOMETRY_OK |
 | Page-Scoped Layer Model Lock (docs) | PASS — root `82e1e4e` |
 | Layer Scope Audit (docs) | PASS — root `a3e1166` |
 | Page Layer Instance Model | PASS — proto `ed9944d` |

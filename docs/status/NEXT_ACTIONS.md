@@ -1,8 +1,33 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-11
+Date: 2026-05-13
 
 ## Immediate Next
+
+**Two design docs ready for review — implementation order is user's choice:**
+
+### A. `SITE_PLAN_MEASUREMENT_PLAN_IMPLEMENTATION` — queued (Phase I pre-planning done 2026-05-13)
+
+Spec: [`docs/design/SITE_PLAN_MEASUREMENT_PLAN.md`](../design/SITE_PLAN_MEASUREMENT_PLAN.md).
+
+Goal: Add measurement support for site plan (ผังบริเวณ) per กฎกระทรวง 33 + 55. **No legal pass/fail — capture facts only, user-defined limits.**
+
+Recommended implementation phases (each = separate sprint):
+- **I-A** (lowest risk, additive only): semanticTag enum additions + AREA_LABELS + Project Setup `buildingClassification`/`buildingUseType`/`userDefinedLimits`/`zoneCode` fields + applyLoadedProject backward-compat
+- **I-B**: Site Plan toolbar buttons + new marker types (parking_fire, parking_ambulance, entrance, aed, sign)
+- **I-C**: Summary Widget tab "ผังบริเวณ" + BCR/OSR/FAR/%permeable display + 4-direction setback grouping + XLSX sheet additive
+- **I-D** (highest risk for scope creep): "measured X / user-limit Y" side-by-side display — **must remain neutral facts, no verdict UI**
+- **I-E** (most complex): Building-to-building distance (มร.55 ข้อ 48) — wallType per edge + distance pair measurement
+
+5 open questions in `SITE_PLAN_MEASUREMENT_PLAN.md §16` must be decided before I-A.
+
+### B. `PHASE_H_PATH_GEOMETRY_IMPLEMENTATION` — **DONE (2026-05-13)**
+
+Sprint complete. PATH_GEOMETRY_OK passes all 5 tests A–E. All 19 E2E markers PASS. See `sprints/completed/2026-05-13-path-geometry/RUN_PATH_GEOMETRY.md`.
+
+---
+
+## Prior Status (2026-05-11)
 
 **`RUN_WIDGET_MENU_PLACEMENT_SYSTEM` DONE (2026-05-11)** — `docs/status/WIDGET_MENU_PLACEMENT_SYSTEM.md`. Added `WIDGET_MENU_REGISTRY`, localStorage key `bmaPlan.widgetPlacement.v1`, Widget/Menu UI in Layout Options panel (search, category filter, visibility toggle, region/order/size controls, reset), `.widget-size-*` CSS, and E2E coverage. Movable widgets: `workflow`, `reviewWarnings`, `exportReady`. Other widgets locked-by-region to keep current page layers / sheets / objects / properties workflow intact. No backend, save/load, schema, or coordinate math changes. py_compile + smoke + full PASS.
 

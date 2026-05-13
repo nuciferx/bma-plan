@@ -6,6 +6,158 @@
 
 ---
 
+## 2026-05-13
+
+### [session] PHASE_H1_PATH_GEOMETRY_IMPLEMENTATION — PASS (branch: main)
+
+**Scope:** Phase H.1 Revision — implement unified Path Geometry model in `proto/ui.html` + E2E acceptance tests A–E. Additive-only; does NOT touch forbidden surfaces (polyAreaM2, pdfToC, server.py, snap engine).
+
+**Problem solved:** `proto/export/` Python package was missing from the absorbed submodule — `server.py` import would fail. Recreated from `server.py.bak` + `static/js/semantic-meta.js`. Also `proto/test_plan_A1.pdf` was missing — regenerated via `make_test_pdf.py`. `_PATH_FLATTEN_TOL` tuning required: 0.5pt and 0.25pt both stop at de Casteljau level 4 for r=100pt (d_3≈0.63 > both, d_4≈0.158 < both). Changed to 0.1pt to force level 5 (d_4=0.158>0.1, d_5≈0.039<0.1) → area error drops from 0.133% to 0.012%.
+
+**Implementation (all additive to proto/ui.html):**
+- `const _PATH_FLATTEN_TOL=0.1`
+- `_flattenCubicSeg(p0,c1,c2,p1,tol,out,depth)` — adaptive de Casteljau subdivision (d1+d2 ≤ tol, depth ≤ 20, 10000-pt cap)
+- `flattenPathToPoints(path, tol)` — iterate segments → push pts
+- `pathAreaM2(path, pg)` — delegates to polyAreaM2(flattenPathToPoints(path))
+- `rectangleToPath(p0,p1)` — 4 line segments
+- `circleToPath(center,radius)` — 4 cubic quadrants, k=0.5522847498
+- `ellipseToPath(center,a,b,rotation)` — 4 cubics with rotation matrix
+- `arcToCubic(p0,p1,sweepRad)` — chord→center→tangents→(4/3)tan(|sweep|/4)×r
+- `renderPath(ctx,path)` — ctx.beginPath/moveTo/lineTo/bezierCurveTo via pdfToC
+- `objectAreaM2` — added `geometryType==='path'` branch first in dispatch
+- `applyLoadedProject` — path normalization: regenerate cached `pts` for path objects
+
+**New files (missing from submodule absorption):**
+- `proto/export/__init__.py`
+- `proto/export/semantic_metadata.py` — SEMANTIC_PROFILE_MAP etc.
+- `proto/export/xlsx_helpers.py` — _hex_to_rgb, _poly_area_pt2, _line_points, etc.
+- `proto/test_plan_A1.pdf` — regenerated fixture
+
+**Tests:**
+- `_test_path_geometry(page)` added to `e2e_ui_test.py` after `_test_menu_power_up` — tests A–E
+- `python3.11 proto/e2e_ui_test.py smoke` → all 16 markers PASS including PATH_GEOMETRY_OK
+- `python3.11 proto/e2e_ui_test.py full` → all 19 markers PASS
+
+**Phase 1 scope check:** ✅
+- `polyAreaM2`/`polyMetrics`/`polySelfIntersects` — unchanged
+- `pdfToC`/`cToPdf`/`RS` — unchanged
+- `proto/server.py` — unchanged
+- `.bmaplan` schema version stays 1; additive fields only
+- No UI (Pen tool / vertex handle = later sprint)
+- No legal / OCR / AI / FAR / OSR / rule engine
+
+---
+
+### [session] SITE_PLAN_MEASUREMENT_PLAN — PASS (docs-only, branch: feature/menu-power-up)
+
+**Scope:** Plan measurement requirements for site plan (ผังบริเวณ) — what to measure, what fields to add, what NOT to implement (no pass/fail / no Rule Engine). Reference-only doc; does not implement code.
+
+**Reading done this session:**
+- `law/mr35-33-upd69.pdf` (14 pages) — กฎกระทรวง ฉบับที่ 33 (พ.ศ. 2535) update 69 — อาคารสูง/ใหญ่พิเศษ
+- `law/mr43-55-upd68.pdf` (12 pages) — กฎกระทรวง ฉบับที่ 55 (พ.ศ. 2543) update 68 — อาคารทั่วไป
+- `law/สยามสินทร ร้านอาหาร 2568.pdf` (4 pages) — เคสจริง บริษัท สยามสินธร, ข.1 เลขรับ 153 (พ.ศ. 2568)
+- Cross-referenced with `MEASUREMENT_BY_SECTION_ANALYSIS.md §1` (existing pre-planning analysis)
+
+**Key findings extracted:**
+
+| Topic | Phase 1 measurement requirement |
+|---|---|
+| FAR ≤ 10:1 (มร.33 ข้อ 5) | Capture พื้นที่ดิน + total GFA → display ratio |
+| OSR ≥ 30% (อยู่อาศัย) / 10% (พาณิชย์) (มร.33 ข้อ 6) | Capture open_space polygon → display % |
+| ระยะรอบอาคาร ≥ 6 ม. (มร.33 ข้อ 3-4) | Capture per-direction setbacks (north/south/east/west) |
+| ที่ว่างหน้า/หลัง/ข้าง (มร.55 ข้อ 33-39) | Capture per-edge setbacks with edgeTag.role |
+| 2h rule (มร.55 ข้อ 44) | Capture height + diagonal distance → Phase H.0 45° lock needed |
+| ระยะอาคาร-อาคาร (มร.55 ข้อ 48) | Capture wallType (window/opaque) per edge + height bands |
+| ผนัง-เขตที่ดิน (มร.55 ข้อ 50) | window edge → ≥2/3 ม. ตามความสูง |
+| ที่จอดรถดับเพลิง/พยาบาล (มร.33 ข้อ 29/1) | New marker types (parking_fire, parking_ambulance) |
+| Permeable area | New semanticTag — not in existing system |
+
+**Files created:**
+- `docs/design/SITE_PLAN_MEASUREMENT_PLAN.md` (~520 lines) — comprehensive site plan measurement spec including:
+  - Phase 1 hard rule (capture ≠ judge)
+  - Building classification (general / large / tall / extra_large)
+  - 10 area types to measure + 5 optional
+  - 9 distance types to measure (4-direction setbacks, 2h, building-to-building, etc.)
+  - 8 count types (parking variants, entrance, AED, sign, tree)
+  - Reference % formulas (BCR, OSR, FAR, %permeable) — display only
+  - Field schema additions for `.bmaplan` (additive, version stays 1)
+  - Mapping to existing layer model + measurement profile
+  - UI feature suggestions (Project Setup, toolbar, Summary Widget tab)
+  - 5-phase implementation order (I-A through I-E, suggested split)
+  - Full example trace of สยามสินทร case
+  - Hard forbidden list (16 items)
+  - 5 open questions for user decision
+
+**Files modified (this entry):**
+- `log.md` — this session entry
+- `PATCH_SUMMARY.md` — Latest section
+- `TEST_RESULT.md` — no-test rationale
+- `FINAL_REPORT_FOR_CHATGPT.md` — sprint outcome
+- `CURRENT_STATUS.md` — one-line state updated
+- `docs/status/NEXT_ACTIONS.md` — Site Plan measurement queued
+
+**No source change. No tests run.** Existing test baseline (2026-05-11 smoke PASS) remains valid for next implementation sprint.
+
+**Phase 1 scope check:** ✅
+- No legal judgment introduced (only measurement capture + user-defined reference)
+- No Rule Engine (user gates own thresholds)
+- No OCR (user manually tags + measures)
+- No AI (no auto boundary)
+- No K.1 generator
+- Schema additive only (.bmaplan stays version 1)
+- Layer names NOT used for calculation (uses semanticTag)
+- `polyAreaM2`/`polyMetrics`/`pdfToC`/`cToPdf`/`RS`/server.py NOT modified (none touched)
+
+**Known gaps / Next safe action:** Two design docs now queued for implementation (after user decisions on open questions):
+1. `PATH_GEOMETRY_MODEL.md` — Phase H.1 path geometry (Sprint 5 alignment)
+2. `SITE_PLAN_MEASUREMENT_PLAN.md` — Phase I site plan measurement
+
+Both are docs-only and independent — implementation order is user's choice.
+
+---
+
+### [session] PHASE_H_PATH_GEOMETRY_DECISION — PASS (docs-only, branch: feature/menu-power-up)
+
+**Scope:** Phase H.1 Revision — pivot from split shape system (circle/ellipse/arc-edge) to unified Illustrator-style path geometry. Aligns Phase H.1 implementation with AGENTS.md §6 Sprint 5 — Curved Path backlog item. **Design only — no source code, no UI, no tests changed.**
+
+**Problem identified:** Current Phase H.1 ships 4 parallel area helpers (`circleAreaM2`, `ellipseAreaM2`, `arcSegmentAreaM2`, `polygonAreaWithArcsM2`) dispatched by `objectAreaM2`. Mixed shapes (curve + straight edges, common for road frontage and rounded corners) are awkward to represent; each shape type needs its own render/hit-test branch.
+
+**Decision:** Adopt `Path = ordered segments[] (line | cubic)`. Circles/ellipses/arcs/rectangles become **generator functions** that produce paths. Area math reduces to `pathAreaM2(path, pg) = polyAreaM2(flattenPathToPoints(path, tol), pg)`. `polyAreaM2` is unchanged.
+
+**Files created:**
+- `docs/design/PATH_GEOMETRY_MODEL.md` — full design spec: data model, function specs (flattenPathToPoints/pathAreaM2/renderPath), generators (rectangleToPath/circleToPath/ellipseToPath/arcToCubic), save/load additive schema, 5 acceptance test cases, hard forbidden list, implementation order.
+- `docs/status/PHASE_H_PATH_GEOMETRY_DECISION.md` — decision record: context, problem, decision, hard constraints, position in plan, out-of-scope, no-test rationale, next step, stop conditions.
+
+**Files modified (this entry):**
+- `log.md` — this session entry
+- `PATCH_SUMMARY.md` — Latest section replaced
+- `TEST_RESULT.md` — Latest section with no-test rationale
+- `FINAL_REPORT_FOR_CHATGPT.md` — Latest section, Phase G demoted to Previous
+- `CURRENT_STATUS.md` — one-line state updated
+- `docs/status/NEXT_ACTIONS.md` — Path Geometry implementation queued as next sprint
+
+**No source change. No tests run.** Existing baseline (2026-05-11 — smoke PASS with MENU_OK + all H.1/H.2 markers) remains the reference for the next sprint (implementation).
+
+**Reading done this session:**
+- AGENTS.md (full)
+- CLAUDE.md (newly written this session — v2 covers Phase 1 scope, run/test, architecture invariants including RS=1.5 baked-in coordinate math, page-scoped layer model, save format, localStorage keys, forbidden surfaces, anti-patterns, sprint discipline, repo layout)
+- archive/old_docs/claude.md (predecessor — incorporated relevant parts)
+- index.md, CURRENT_STATUS.md, log.md (prior 100+ lines)
+- proto/STATUS.md
+- proto/server.py + proto/e2e_ui_test.py (function signatures only)
+- proto/ui.html lines 940–1010 (existing polyAreaM2, polyMetrics, H.1 area helpers, H.2 annotations)
+- docs/process/ANTI_PATTERNS.md, TROUBLESHOOTING.md, QUICK_TEST_GUIDE.md, SPRINT_INDEX.md, FILE_STRUCTURE_PLAN.md, DOCS_SUMMARY.md, humancheck.md
+- docs/status/READ_ORDER.md, LATEST_STATUS.md, NEXT_ACTIONS.md, KNOWN_ISSUES.md, TEST_BASELINE.md, COMMIT_HISTORY.md
+- docs/design/PAGE_LAYER_MEASUREMENT_MODEL.md, LAYER_MODEL.md, PAGE_SCOPED_LAYER_MODEL.md, BMA_PLAN_V2_SCOPE.md, DEVELOPMENT_PLAN.md, SAVE_SYSTEM_IMPLEMENTATION_PLAN.md
+- docs/design/BMA_PLAN_PHASE1_CONTEXT.md (first 350 of 1355 lines)
+- PHASE_H_PLAN.md, MEASUREMENT_BY_SECTION_ANALYSIS.md
+
+**Known gaps:** Implementation sprint pending user approval of `PATH_GEOMETRY_MODEL.md`. Phase H.0 (45° lock) remains independent and can proceed in parallel without affecting this design.
+
+**Next safe action:** Wait for user approval, then schedule implementation sprint per `PATH_GEOMETRY_MODEL.md §13 Implementation Order`.
+
+---
+
 ## 2026-05-11
 
 ### [session] PHASE_G_MENU_POWER_UP — PASS (branch: feature/mockup-v3-alignment)

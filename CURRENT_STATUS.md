@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-11
+Date: 2026-05-13
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,13 @@ Date: 2026-05-11
 
 ## One-Line Status
 
-Phase G PASS: Menu Wiring + Measure/Layer Power-up COMPLETE on branch `feature/mockup-v3-alignment`. 6 functional dropdown menus (56 items), 11 keyboard shortcuts, 14 helper functions, per-page layer memory bug fixed. smoke PASS (15 markers including MENU_OK).
+Phase H.1 Path Geometry Implementation PASS on branch `main`. Unified path model (line + cubic Bézier) + 9 additive functions in `proto/ui.html`. PATH_GEOMETRY_OK passes all 5 acceptance tests A–E. All 19 E2E markers PASS (smoke + full). `_PATH_FLATTEN_TOL=0.1pt` → circle area error 0.012% vs exact π×r² (threshold 0.1%). Next: Site Plan Measurement (Phase I-A) or Pen tool (UI for path input).
 
 ## Latest Sprint
 
+- Phase H.1 Path Geometry Implementation: PASS (2026-05-13) — 9 additive functions, PATH_GEOMETRY_OK, all 19 markers PASS
+- Site Plan Measurement Plan (docs-only — Phase I pre-planning): PASS (2026-05-13) — `SITE_PLAN_MEASUREMENT_PLAN.md` produced from 3 law PDFs. No source change.
+- Phase H.1 Revision — Path Geometry Design (docs-only): PASS (2026-05-13) — design + decision doc; no source change.
 - Phase G: Menu Wiring + Measure/Layer Power-up: PASS (2026-05-11) — 6 menus, 56 items, 11 shortcuts, layer bug fix — proto `52167d8`
 - Mockup V3 Alignment — Phase E + F: PASS (2026-05-11) — CSS cleanup + final tests/docs. branch: feature/mockup-v3-alignment
 - Mockup V3 Alignment — Phase D: PASS (2026-05-11) — Summary Widget 4 tabs + drag — proto `203ae90`
@@ -32,7 +35,7 @@ python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 python proto/e2e_ui_test.py smoke                          # PASS
 python proto/e2e_ui_test.py full                           # PASS
 ```
-Last run: 2026-05-11 (current working tree). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last run: 2026-05-13 (full — 19 markers). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

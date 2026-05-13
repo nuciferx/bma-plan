@@ -1,6 +1,6 @@
 # TEST_BASELINE.md — BMA-Plan Test Baseline
 
-Date: 2026-05-09
+Date: 2026-05-13
 
 ## Commands
 
@@ -10,7 +10,7 @@ python proto/e2e_ui_test.py smoke
 python proto/e2e_ui_test.py full
 ```
 
-## Latest Result: PASS (2026-05-09)
+## Latest Result: PASS (2026-05-13)
 
 ### Smoke Test Assertions
 
@@ -30,6 +30,8 @@ python proto/e2e_ui_test.py full
 | SELECT_OK (incl. metaOk, parentSelectVisible, parentReassigned) | PASS |
 | SETBACK_OK | PASS |
 | EXT_MEASURE_OK | PASS |
+| MENU_OK (incl. curvesMath, rectTool, circleTool, ellipseTool, annotateMenu) | PASS |
+| PATH_GEOMETRY_OK (tests A–E: rect/circle/mixed/legacy/roundtrip) | PASS |
 
 ### Full Test (additional)
 
