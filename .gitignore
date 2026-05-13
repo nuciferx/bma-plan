@@ -12,7 +12,9 @@ desktop.ini
 .idea/
 
 # Claude Code / AI editor session files
-.claude/
+.claude/settings.local.json
+.claude/cache/
+.claude/sessions/
 opencode.json
 
 # Generated / runtime artifacts
