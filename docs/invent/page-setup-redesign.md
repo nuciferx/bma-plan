@@ -256,6 +256,82 @@ Keep modal layout + lifecycle unchanged. Redesign **only** the auto-naming into 
 Approach D + C composition cleared all criteria on the first attempt. Fallback C (delete-with-renumber-map alone) was not exercised.
 
 
+## Research — INV-2026-05-18-001c permanent delete addendum
+
+> Run 2026-05-19 via `bma-researcher` (haiku). User requested research before building 001c. Verdict: **PRIOR_ART_PARTIAL**.
+
+### Incumbent UX matrix (10 questions × 6 products)
+
+| Tool | Delete surface | Immediate action | Reversible | Renumber preview | Save model | Confirmation |
+|---|---|---|---|---|---|---|
+| **Bluebeam Revu** | Document menu / right-click thumbnail / Ctrl+Shift+D | Modal: range/selected/current picker | Ctrl+Z within session | NO — implicit on save | Implicit on save/Export | Dialog confirms range |
+| **Adobe Acrobat Pro** | Tools → Organize Pages / thumbnail | Multi-select + Delete button | Ctrl+Z within session | NO — inline renumber | File → Save / Save As | "Are you sure?" modal |
+| **Foxit PDF Editor** | Organize tab / right-click / Select+Delete | Right-click → Delete Pages | **NO** — explicitly permanent | NO — inline renumber | File → Save / Save As only | "Delete Pages?" dialog |
+| **Nitro PDF** | Pages pane / right-click | Right-click → Delete | Partial session undo | NO | File save | Right-click → Confirm |
+| **AutoCAD Sheet Sets** | Sheet Set Manager / right-click | Removes from set | Undo in drawing | NO (sheets ≠ doc order) | Manual save | Right-click only |
+| **PlanGrid** | Version archival, not delete | Create new "version set" | YES — older versions preserved | NO — versioning not deletion | Auto version archival | Version name picker |
+
+**Annotations on deleted pages — ALL incumbents**: deleted with page (no "move to preserved" logic). PlanGrid is unique with version-archival (keeps all old sheets).
+
+### Key insights
+
+1. **Renumber preview is rare** — only BMA's spike + AutoCAD's "Rename & Renumber" offer it. Most tools rely on user trust + implicit renumber. **BMA's preview is genuinely better UX than incumbents.**
+2. **Undo is session-scoped** — Ctrl+Z works only before save. After save, hard-delete is final.
+3. **Weak confirmations** — Foxit "permanent"; Acrobat "are you sure?"; others just a dialog. Renumber preview itself is the strongest confirmation.
+4. **Save triggers finality** — Foxit explicit: delete is non-reversible after save. Adobe/Bluebeam same in practice (no in-PDF trash).
+5. **Annotations follow pages** — universal pattern. BMA stores annotations in `.bmaplan` (separate from PDF) so this is actually our easiest part — reindex client-side dicts.
+
+### Library/algorithm
+
+- **PyMuPDF `doc.delete_page(n)`** → already in stack, raster-safe, reverse-order deletion avoids shift confusion. Recommended.
+- **pdf-lib client-side `removePage`** → MIT ~80KB but raster PDFs lose quality on rebuild. Not recommended for raster-first BMA.
+- No OCR/AI needed → zero Phase-1 boundary risk.
+
+### Verdict: PRIOR_ART_PARTIAL
+
+Algorithm = solved (PyMuPDF). UX pattern = mostly solved (incumbents all do implicit renumber + session undo). **BMA can ship better UX** with explicit renumber-map preview (spike already proved feasibility).
+
+## Q1–Q4 Design Answers (post-research, 2026-05-19)
+
+### Q1: ให้แก้ `proto/server.py` ได้ไหม?
+
+**✅ YES — add new `/rebuild-pdf` endpoint (do NOT edit existing `/upload`, `/page/{n}`, `/analyse`).**
+
+Rationale: precedent (U1, U2, SB-001, U1) all added new endpoints successfully. The "forbidden" surface table targets EXISTING core endpoints. New endpoint added next to them is permitted per the same pattern as `polyAreaM2` → add new functions alongside.
+
+### Q2: `/rebuild-pdf` scope — in-place vs new case?
+
+**✅ In-place edit of `CASES[case_id]["doc"]`.**
+
+Rationale: PyMuPDF `doc.delete_page()` is in-place by design. Server flushes `page_cache` + `image_cache` + bumps `docVersion` so client's thumbnail URLs invalidate. `case_id` stays — no client rebind needed. Simpler + matches incumbents' "modify file in place" pattern.
+
+### Q3: Client-side reindex strategy
+
+**✅ Server-authoritative renumber map.**
+
+Rationale: avoid client-side O(n²) shift loops that are error-prone with 7+ dicts. Server returns:
+```json
+{
+  "totalPages": 9,
+  "renumberMap": {"1":1, "2":2, "3":3, "4":4, "6":5, "7":6, "8":7, "9":8, "10":9},
+  "deletedNumbers": [5]
+}
+```
+Client uses `renumberMap` to walk every per-page dict (`pageStore`, `pageTags`, `pageNames`, `pageRotations`, `excludedPages`, `pageFloorKind`, `pageFloorNum`) and rebuild with new keys. Single helper `_reindexPageDicts(renumberMap)`. If `curPage` was deleted, redirect to nearest surviving page.
+
+### Q4: Mid-draw protection
+
+**✅ Hard-block during draw (matches HT-7 scale-gate pattern).**
+
+Rationale: if `mPts.length > 0` (uncommitted polygon vertices) when user clicks "🗑 ลบถาวร", refuse with toast "วาดอยู่ — กด Enter จบหรือ Esc ยกเลิกก่อนลบหน้า". Same defensive pattern as HT-7's `_scaleGateBeforeMode()` — refuse the destructive action until user resolves the in-flight state.
+
+### Confirmation UX (from research)
+
+- **Renumber-map dialog** = primary confirmation (BMA's UX advantage over incumbents)
+- **Warning line** "การลบนี้ไม่สามารถย้อนกลับได้หลังจากบันทึก" (Foxit style)
+- **No second modal** — preview + warning line is enough
+- **Undo**: session-scoped via `pushUndo()` before commit. After save, final.
+
 ## Decision
 
 **GO** — 2026-05-18, user verdict after testing spike.
