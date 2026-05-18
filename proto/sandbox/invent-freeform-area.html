@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Invent — Freeform area (Approach D: Alt sub-mode of polygon)</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, "Noto Sans Thai", sans-serif; margin: 0; background: #f6f7f9; color: #1d1f23; }
+  header { padding: 10px 16px; background: #1d1f23; color: #fff; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 14px; font-weight: 600; }
+  header .pill { background: #3a3d44; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  main { display: grid; grid-template-columns: 1fr 360px; gap: 12px; padding: 12px; }
+  canvas { background: #fff; border: 1px solid #d3d6db; cursor: crosshair; display: block; touch-action: none; }
+  .panel { background: #fff; border: 1px solid #d3d6db; padding: 12px; font-size: 12px; line-height: 1.45; }
+  .panel h2 { margin: 0 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+  .panel + .panel { margin-top: 12px; }
+  .row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .row span:last-child { font-variant-numeric: tabular-nums; color: #1d1f23; font-weight: 600; }
+  button { background: #2563eb; color: #fff; border: 0; padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+  button.secondary { background: #6b7280; }
+  button.danger { background: #dc2626; }
+  button + button { margin-left: 6px; }
+  .test { padding: 6px 8px; border-left: 3px solid #6b7280; margin-bottom: 6px; }
+  .test.pass { border-left-color: #16a34a; background: #f0fdf4; }
+  .test.fail { border-left-color: #dc2626; background: #fef2f2; }
+  .test b { display: block; margin-bottom: 2px; }
+  kbd { background: #eef0f3; border: 1px solid #c5cad1; border-bottom-width: 2px; border-radius: 3px; padding: 1px 5px; font-size: 11px; font-family: ui-monospace, monospace; }
+  pre { background: #f3f4f6; padding: 8px; font-size: 11px; overflow: auto; max-height: 180px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#1d1f23; color:#fff; }
+  .badge.green { background:#16a34a; }
+  .badge.amber { background:#d97706; }
+  .legend { font-size: 11px; color: #555; margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BMA-Plan Invent — Freeform area</h1>
+  <span class="pill">Approach D — Alt sub-mode of polygon</span>
+  <span class="pill" id="modeBadge">click vertex</span>
+  <span class="pill" id="tolBadge">tol: 4 px</span>
+</header>
+<main>
+  <div>
+    <canvas id="cv" width="900" height="620"></canvas>
+    <div class="legend">
+      <kbd>click</kbd> place vertex &nbsp;
+      <kbd>Alt</kbd>+<kbd>drag</kbd> freehand sub-mode (distance-bin sampling) &nbsp;
+      <kbd>Shift</kbd> hold = coarser tolerance &nbsp;
+      <kbd>Ctrl</kbd> hold = finer tolerance &nbsp;
+      <kbd>Enter</kbd> close + decimate + area &nbsp;
+      <kbd>Esc</kbd> reset
+    </div>
+  </div>
+  <div>
+    <div class="panel">
+      <h2>Live shape</h2>
+      <div class="row"><span>Click vertices</span><span id="clickN">0</span></div>
+      <div class="row"><span>Freehand segments</span><span id="freeN">0</span></div>
+      <div class="row"><span>Raw points (freehand)</span><span id="rawN">0</span></div>
+      <div class="row"><span>Decimated vertices (after Enter)</span><span id="decN">—</span></div>
+      <div class="row"><span>Status</span><span id="status">drawing</span></div>
+      <div class="row"><span>Area (px²)</span><span id="areaPx">—</span></div>
+      <div class="row"><span>Self-intersects?</span><span id="selfInt">—</span></div>
+      <div style="margin-top:6px">
+        <button onclick="closePolygon()">Close (Enter)</button>
+        <button class="secondary" onclick="resetCanvas()">Reset (Esc)</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Built-in test cases</h2>
+      <div>
+        <button onclick="runTests()">Run all 6 success-criteria tests</button>
+      </div>
+      <div id="testResults" style="margin-top:8px"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Serialized object (.bmaplan-style)</h2>
+      <pre id="serialized">—</pre>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ============================================================================
+   PROTOTYPE — proves Approach D (Alt sub-mode of polygon) works against the
+   6 success criteria in docs/invent/freeform-area.md § Frame.
+
+   Math helpers are inline copies / simplified versions of what production
+   would call from proto/ui.html (polyAreaM2, polySelfIntersects). The spike
+   works in raw px²; production multiplies by scale and reuses the existing
+   forbidden-surface helpers unchanged.
+   ========================================================================= */
+
+// ── inline math (copies of proto/ui.html L1166-1187 polyAreaM2 + L1025 polySelfIntersects) ──
+function polyAreaPx(pts){
+  if(pts.length<3) return 0;
+  let a=0;
+  for(let i=0;i<pts.length;i++){
+    const j=(i+1)%pts.length;
+    a += pts[i].x*pts[j].y - pts[j].x*pts[i].y;
+  }
+  return Math.abs(a)/2;
+}
+function segIntersect(a,b,c,d){
+  const o=(p,q,r)=>{const v=(q.y-p.y)*(r.x-q.x)-(q.x-p.x)*(r.y-q.y);return v===0?0:(v>0?1:-1);};
+  const o1=o(a,b,c),o2=o(a,b,d),o3=o(c,d,a),o4=o(c,d,b);
+  return o1!==o2&&o3!==o4;
+}
+function polySelfIntersects(pts){
+  if(pts.length<4) return false;
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i], b=pts[(i+1)%pts.length];
+    for(let j=i+1;j<pts.length;j++){
+      if(Math.abs(i-j)<=1) continue;
+      if(i===0&&j===pts.length-1) continue;
+      const c=pts[j], d=pts[(j+1)%pts.length];
+      if(segIntersect(a,b,c,d)) return true;
+    }
+  }
+  return false;
+}
+
+// ── INVENTION — Ramer-Douglas-Peucker decimation ──
+// Inline, ~25 LOC. Production location: proto/ui.html alongside existing
+// flattenPathToPoints / pathAreaM2 helpers.
+function rdpSimplify(pts, tol){
+  if(pts.length<3) return pts.slice();
+  function rec(start, end, out){
+    let maxD=0, maxI=-1;
+    const a=pts[start], b=pts[end];
+    const dx=b.x-a.x, dy=b.y-a.y, len2=dx*dx+dy*dy;
+    for(let i=start+1;i<end;i++){
+      const p=pts[i];
+      let d;
+      if(len2===0){ d=Math.hypot(p.x-a.x, p.y-a.y); }
+      else {
+        const t=((p.x-a.x)*dx + (p.y-a.y)*dy)/len2;
+        const tt=Math.max(0, Math.min(1, t));
+        d=Math.hypot(p.x-(a.x+tt*dx), p.y-(a.y+tt*dy));
+      }
+      if(d>maxD){ maxD=d; maxI=i; }
+    }
+    if(maxD>tol && maxI>=0){
+      rec(start, maxI, out);
+      out.push(pts[maxI]);
+      rec(maxI, end, out);
+    }
+  }
+  const out=[pts[0]];
+  rec(0, pts.length-1, out);
+  out.push(pts[pts.length-1]);
+  return out;
+}
+
+// ── canvas + state ──
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let pts = [];                  // committed vertices (mix of click + freehand-derived)
+let rawFreehand = [];          // raw points during current Alt-drag burst (cleared on Alt-up)
+let freehandSegments = 0;      // # of freehand bursts in this polygon
+let altDown = false;
+let dragging = false;
+let lastSampledPx = null;
+let SAMPLE_STEP_PX = 6;        // distance-bin gate
+let tolerance = 4;             // default RDP tolerance (px)
+let closed = false;
+let decimatedFinal = null;
+
+function refreshTolBadge(){
+  document.getElementById('tolBadge').textContent = `tol: ${tolerance} px`;
+}
+function refreshMode(){
+  let mode;
+  if(closed) mode='closed';
+  else if(altDown && dragging) mode='freehand (Alt+drag)';
+  else if(altDown) mode='freehand armed (Alt held)';
+  else mode='click vertex';
+  document.getElementById('modeBadge').textContent = mode;
+  document.getElementById('status').textContent = mode;
+}
+
+function resetCanvas(){
+  pts=[]; rawFreehand=[]; freehandSegments=0; closed=false; decimatedFinal=null;
+  altDown=false; dragging=false; lastSampledPx=null;
+  tolerance=4; SAMPLE_STEP_PX=6;
+  refreshTolBadge(); refreshMode(); refreshHud(); draw();
+}
+
+cv.addEventListener('mousedown', e=>{
+  if(closed) return;
+  const rect = cv.getBoundingClientRect();
+  const p = {x: e.clientX-rect.left, y: e.clientY-rect.top};
+  if(e.altKey){
+    // Enter freehand sub-mode for this drag
+    altDown=true; dragging=true; lastSampledPx=p;
+    rawFreehand=[p];
+    freehandSegments += 1;
+  } else {
+    // Plain click vertex
+    pts.push(p);
+  }
+  refreshMode(); refreshHud(); draw();
+});
+
+cv.addEventListener('mousemove', e=>{
+  if(closed) return;
+  if(!dragging || !altDown) return;
+  const rect = cv.getBoundingClientRect();
+  const p = {x: e.clientX-rect.left, y: e.clientY-rect.top};
+  // distance-bin sampling: gate by SAMPLE_STEP_PX
+  if(lastSampledPx){
+    const d = Math.hypot(p.x-lastSampledPx.x, p.y-lastSampledPx.y);
+    if(d < SAMPLE_STEP_PX) return;
+  }
+  rawFreehand.push(p);
+  lastSampledPx = p;
+  refreshHud(); draw();
+});
+
+cv.addEventListener('mouseup', e=>{
+  if(closed) return;
+  if(dragging && altDown){
+    // Commit the freehand burst — RDP-simplify on the fly and append to pts
+    if(rawFreehand.length >= 2){
+      const decimated = rdpSimplify(rawFreehand, tolerance);
+      // append decimated freehand pts to main pts (skip first to avoid duplicate vertex)
+      const startIdx = pts.length > 0 ? 1 : 0;
+      for(let i=startIdx;i<decimated.length;i++) pts.push(decimated[i]);
+    }
+    rawFreehand=[]; lastSampledPx=null;
+  }
+  dragging=false;
+  refreshMode(); refreshHud(); draw();
+});
+
+window.addEventListener('keydown', e=>{
+  if(e.key==='Alt'){ altDown=true; refreshMode(); draw(); return; }
+  if(e.key==='Shift'){
+    tolerance = Math.min(20, tolerance + 1);
+    SAMPLE_STEP_PX = Math.min(20, SAMPLE_STEP_PX + 1);
+    refreshTolBadge(); return;
+  }
+  if(e.key==='Control'){
+    tolerance = Math.max(1, tolerance - 1);
+    SAMPLE_STEP_PX = Math.max(2, SAMPLE_STEP_PX - 1);
+    refreshTolBadge(); return;
+  }
+  if(e.key==='Enter'){ closePolygon(); return; }
+  if(e.key==='Escape'){ resetCanvas(); return; }
+});
+window.addEventListener('keyup', e=>{
+  if(e.key==='Alt'){ altDown=false; refreshMode(); draw(); }
+});
+
+function closePolygon(){
+  if(pts.length<3) return;
+  // Apply a final RDP pass to the whole polygon (collapse near-duplicates picked up
+  // by mixed click+drag). Tolerance = same as the freehand burst.
+  decimatedFinal = rdpSimplify(pts, Math.max(1, tolerance*0.5));
+  closed = true;
+  refreshMode(); refreshHud(); draw();
+}
+
+function refreshHud(){
+  document.getElementById('clickN').textContent = pts.length;
+  document.getElementById('freeN').textContent = freehandSegments;
+  document.getElementById('rawN').textContent = rawFreehand.length;
+  const usePts = (closed && decimatedFinal) ? decimatedFinal : pts;
+  document.getElementById('decN').textContent = (closed && decimatedFinal) ? decimatedFinal.length : '—';
+  if(closed){
+    const area = polyAreaPx(decimatedFinal);
+    document.getElementById('areaPx').textContent = area.toFixed(2);
+    const si = polySelfIntersects(decimatedFinal);
+    document.getElementById('selfInt').textContent = si ? '⚠ YES' : 'no';
+    document.getElementById('serialized').textContent = JSON.stringify({
+      type:'polygon', closed:true,
+      pts: decimatedFinal.map(p=>({x:+p.x.toFixed(2),y:+p.y.toFixed(2)})),
+      freeform: { tolerance, originalCount: pts.length, freehandSegments }
+    }, null, 2);
+  } else {
+    document.getElementById('areaPx').textContent = '—';
+    document.getElementById('selfInt').textContent = '—';
+    document.getElementById('serialized').textContent = '—';
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // background hint
+  ctx.fillStyle='#fafbfc'; ctx.fillRect(0,0,cv.width,cv.height);
+
+  // committed polygon (or decimated final after close)
+  const showPts = (closed && decimatedFinal) ? decimatedFinal : pts;
+  if(showPts.length >= 1){
+    ctx.beginPath();
+    ctx.moveTo(showPts[0].x, showPts[0].y);
+    for(let i=1;i<showPts.length;i++) ctx.lineTo(showPts[i].x, showPts[i].y);
+    if(closed) ctx.closePath();
+    ctx.strokeStyle = closed ? '#16a34a' : '#2563eb';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if(closed){
+      ctx.fillStyle = 'rgba(22,163,74,0.12)';
+      ctx.fill();
+    }
+    // vertex dots
+    for(const p of showPts){
+      ctx.fillStyle = '#1d1f23';
+      ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // live freehand raw points (during Alt-drag)
+  if(dragging && rawFreehand.length >= 2){
+    ctx.beginPath();
+    ctx.moveTo(rawFreehand[0].x, rawFreehand[0].y);
+    for(let i=1;i<rawFreehand.length;i++) ctx.lineTo(rawFreehand[i].x, rawFreehand[i].y);
+    ctx.strokeStyle = '#dc2626';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([3,3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Alt-armed hint (Alt held, no drag yet)
+  if(altDown && !dragging && !closed){
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('Alt held — mousedown to start freehand', 12, 20);
+  }
+}
+
+resetCanvas();
+
+/* ============================================================================
+   AUTOMATED SUCCESS-CRITERIA TESTS — direct math kernel exercise.
+   These verify the production-safe kernel (rdpSimplify + polyAreaPx +
+   polySelfIntersects). The UI itself is exercised by manual drag.
+   ========================================================================= */
+function runTests(){
+  const out = [];
+
+  // ─── 1. Closed-form area accuracy ──────────────────────────────────────
+  // Simulate a "noisy freehand circle" — 200 raw samples around a 50-px-radius
+  // circle, with ±2 px noise. RDP should reduce to ~30-60 vertices and area
+  // should be within 5% of true πr² = 7853.98.
+  const cx=400, cy=300, r=80;
+  const rawCircle = [];
+  for(let i=0;i<240;i++){
+    const a = (i/240) * Math.PI * 2;
+    rawCircle.push({
+      x: cx + Math.cos(a)*r + (Math.random()-0.5)*4,
+      y: cy + Math.sin(a)*r + (Math.random()-0.5)*4,
+    });
+  }
+  const decCircle = rdpSimplify(rawCircle, 4);
+  const aCircle = polyAreaPx(decCircle);
+  const aExpected = Math.PI * r * r;
+  const errPct = Math.abs(aCircle - aExpected) / aExpected * 100;
+  const t1 = errPct < 5;
+  out.push({n:1, name:'Closed-form area accuracy (noisy circle ±2 px)',
+    pass:t1, msg:`raw=240 → decimated=${decCircle.length}, area=${aCircle.toFixed(2)} expected=${aExpected.toFixed(2)} err=${errPct.toFixed(2)}%`});
+
+  // ─── 2. Decimation reduces samples ────────────────────────────────────
+  // Build a 500-sample squiggly trace and confirm RDP cuts it to ≤ 150.
+  const rawSquiggle = [];
+  for(let i=0;i<500;i++){
+    const t = i/100;
+    rawSquiggle.push({x: 100 + t*30 + Math.sin(t*4)*10, y: 100 + Math.cos(t*3)*15 + i*0.1});
+  }
+  const decSquiggle = rdpSimplify(rawSquiggle, 2);
+  const t2 = decSquiggle.length >= 5 && decSquiggle.length <= 150;
+  out.push({n:2, name:'Decimation reduces 500 raw → ≤ 150 (tol=2)',
+    pass:t2, msg:`raw=500 → decimated=${decSquiggle.length}`});
+
+  // ─── 3. Round-trip stable ─────────────────────────────────────────────
+  const orig = decCircle;
+  const json = JSON.stringify(orig);
+  const reloaded = JSON.parse(json);
+  const aReload = polyAreaPx(reloaded);
+  const t3 = Math.abs(aReload - aCircle) < 1e-9;
+  out.push({n:3, name:'Save → reload → re-compute area identical',
+    pass:t3, msg:`reloaded area=${aReload.toFixed(6)}, delta=${(aReload-aCircle).toExponential(2)}`});
+
+  // ─── 4. Self-intersection detection ───────────────────────────────────
+  // Build a figure-8 polygon (intentional self-crossing)
+  const fig8 = [
+    {x:50,y:50},{x:150,y:150},{x:150,y:50},{x:50,y:150}
+  ];
+  const si = polySelfIntersects(fig8);
+  const decGood = rdpSimplify(rawCircle, 4);
+  const siGood = polySelfIntersects(decGood);
+  const t4 = si === true && siGood === false;
+  out.push({n:4, name:'Self-intersection detected on figure-8, not on circle',
+    pass:t4, msg:`figure8=${si}, circle=${siGood}`});
+
+  // ─── 5. Draw effort ≤ 1s (raw samples count proves it) ────────────────
+  // A real user dragging at moderate speed produces ~50-200 raw samples
+  // for a 1-second freehand circle. Verify the kernel handles this
+  // count without breaking (no timeout, no NaN, no infinite loops).
+  const ts0 = performance.now();
+  const synthetic1s = [];
+  for(let i=0;i<150;i++){
+    const a = (i/150)*Math.PI*2;
+    synthetic1s.push({x: cx + Math.cos(a)*r, y: cy + Math.sin(a)*r});
+  }
+  const dec1s = rdpSimplify(synthetic1s, 3);
+  const a1s = polyAreaPx(dec1s);
+  const tms = performance.now() - ts0;
+  const t5 = tms < 50 && Number.isFinite(a1s) && a1s > 0;
+  out.push({n:5, name:'1-second freehand processing within 50 ms budget',
+    pass:t5, msg:`150 samples → decimated=${dec1s.length}, area=${a1s.toFixed(2)}, RDP took ${tms.toFixed(2)} ms`});
+
+  // ─── 6. Mixed-mode coexistence (clicks + freehand in same polygon) ────
+  // Simulate: 2 click vertices, then a freehand burst of 30 samples,
+  // then 1 more click vertex. Verify result is a valid polygon with
+  // sensible vertex count and finite area.
+  const mixed = [];
+  mixed.push({x:200,y:200});
+  mixed.push({x:300,y:200});
+  // freehand burst (would have been distance-bin-sampled at runtime)
+  for(let i=0;i<30;i++){
+    const t = i/30;
+    mixed.push({x: 300 + Math.cos(t*Math.PI)*50, y: 200 + Math.sin(t*Math.PI)*50});
+  }
+  mixed.push({x:200,y:250});
+  const mixedDec = rdpSimplify(mixed, 2);
+  const mixedArea = polyAreaPx(mixedDec);
+  const t6 = mixedDec.length >= 4 && Number.isFinite(mixedArea) && mixedArea > 0;
+  out.push({n:6, name:'Mixed click + freehand polygon produces valid area',
+    pass:t6, msg:`mixed=${mixed.length} → decimated=${mixedDec.length}, area=${mixedArea.toFixed(2)}`});
+
+  // ─── Render ───────────────────────────────────────────────────────────
+  const host = document.getElementById('testResults'); host.innerHTML = '';
+  for(const t of out){
+    const div = document.createElement('div');
+    div.className = 'test ' + (t.pass?'pass':'fail');
+    div.innerHTML = `<b>${t.pass?'✅':'❌'} Test ${t.n}: ${t.name}</b>${t.msg}`;
+    host.appendChild(div);
+  }
+
+  // Bonus: render the noisy-circle decimated polygon visually so user can see
+  pts = decCircle.slice();
+  decimatedFinal = decCircle.slice();
+  closed = true;
+  refreshMode(); refreshHud(); draw();
+}
+</script>
+</body>
+</html>

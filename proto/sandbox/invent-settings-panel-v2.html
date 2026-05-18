@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Invent Spike v2 — Settings Panel (Approach A: Export + Loupe prefs)</title>
+<style>
+  :root { font-family: -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; font-size: 13px; }
+  body { margin: 0; background: #f4f5f7; color: #222; }
+  header { background: #0f172a; color: #fff; padding: 10px 18px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  header .pill { background: #16a34a; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  header .pill.v1 { background: #6b7280; }
+  main { padding: 20px; max-width: 1080px; margin: 0 auto; }
+  .row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .panel { background: #fff; border: 1px solid #d8dde3; border-radius: 8px; padding: 14px 16px; flex: 1; min-width: 280px; }
+  .panel h3 { margin: 0 0 8px; font-size: 13px; color: #0f172a; border-bottom: 1px solid #e5e9ee; padding-bottom: 6px; }
+  .panel .k { color: #6b7280; }
+  .panel .v { color: #0f172a; font-weight: 600; }
+  .panel pre { background: #f9fafb; border: 1px solid #e5e9ee; border-radius: 4px; padding: 8px 10px; font-size: 11.5px; max-height: 240px; overflow: auto; margin: 6px 0 0; white-space: pre-wrap; word-break: break-all; }
+  button { background: #fff; border: 1px solid #cdd3da; border-radius: 4px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  button:hover { background: #f6f8fa; }
+  button.primary { background: #16a34a; color: #fff; border-color: #16a34a; }
+  button.primary:hover { background: #15803d; }
+  button.danger { color: #b1322c; border-color: #e0b4b1; }
+  button.danger:hover { background: #fdecea; }
+  .ribbon { display: flex; gap: 8px; padding: 10px 18px; background: #e7eaee; border-bottom: 1px solid #d8dde3; }
+  .test-result { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .pass { background: #dcfce7; color: #166534; }
+  .fail { background: #fee2e2; color: #991b1b; }
+  .badge-new { background: #16a34a; color: #fff; padding: 1px 6px; border-radius: 8px; font-size: 10px; margin-left: 6px; vertical-align: middle; }
+
+  /* Settings overlay (v1 kernel preserved) */
+  #settings-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: none; align-items: center; justify-content: center; z-index: 100; }
+  #settings-overlay.open { display: flex; }
+  .settings-card { background: #fff; border-radius: 10px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); width: 760px; max-width: 92vw; height: 580px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+  .settings-head { padding: 14px 20px; border-bottom: 1px solid #e5e9ee; display: flex; align-items: center; justify-content: space-between; }
+  .settings-head h2 { margin: 0; font-size: 15px; }
+  .settings-body { flex: 1; display: flex; min-height: 0; }
+  .settings-tabs { width: 160px; background: #f6f8fa; border-right: 1px solid #e5e9ee; padding: 10px 0; }
+  .settings-tabs button { display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 10px 18px; border-left: 3px solid transparent; border-radius: 0; font-size: 13px; cursor: pointer; }
+  .settings-tabs button:hover { background: #ebeef2; }
+  .settings-tabs button.active { background: #fff; border-left-color: #16a34a; font-weight: 600; }
+  .settings-content { flex: 1; padding: 18px 24px; overflow: auto; }
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+  .settings-section h3 { margin: 0 0 10px; font-size: 14px; color: #0f172a; }
+  .settings-section h4 { margin: 16px 0 8px; font-size: 12.5px; color: #4b5563; text-transform: uppercase; letter-spacing: 0.04em; border-top: 1px dashed #e5e9ee; padding-top: 10px; }
+  .field { display: grid; grid-template-columns: 220px 1fr; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .field label { color: #4b5563; font-size: 12.5px; }
+  .field input[type="range"] { width: 220px; }
+  .field input[type="number"] { width: 80px; padding: 4px 6px; border: 1px solid #cdd3da; border-radius: 4px; font-size: 12.5px; }
+  .field select { padding: 4px 8px; border: 1px solid #cdd3da; border-radius: 4px; font-size: 12.5px; min-width: 160px; }
+  .field .radio-grp { display: flex; gap: 12px; }
+  .field .radio-grp label { display: flex; align-items: center; gap: 4px; color: #0f172a; font-size: 12.5px; }
+  .field .val-display { color: #0f172a; font-weight: 600; margin-left: 8px; min-width: 60px; display: inline-block; }
+  .settings-foot { border-top: 1px solid #e5e9ee; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .settings-foot .left { display: flex; gap: 8px; }
+  .settings-foot .right { display: flex; gap: 8px; }
+
+  /* Loupe demo */
+  #loupe-stage { position: relative; width: 100%; height: 320px; background: linear-gradient(135deg, #fde68a 0%, #fbbf24 25%, #f59e0b 50%, #d97706 75%, #92400e 100%); border-radius: 8px; overflow: hidden; cursor: crosshair; }
+  #loupe-stage .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.25) 1px, transparent 1px); background-size: 20px 20px; }
+  #loupe-stage .label-overlay { position: absolute; top: 8px; left: 12px; color: #fff; font-size: 11px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; }
+  #loupe-circle { position: absolute; border: 2px solid #16a34a; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 2px rgba(22,163,74,0.25), inset 0 0 0 1px rgba(255,255,255,0.3); display: none; }
+  #loupe-zoom-label { position: absolute; pointer-events: none; color: #0f172a; background: rgba(255,255,255,0.95); padding: 2px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700; display: none; }
+
+  /* Export demo */
+  .export-mock { background: #fff; border: 1px solid #d8dde3; border-radius: 6px; padding: 12px; }
+  .export-mock pre { margin: 6px 0 0; font-family: ui-monospace, monospace; font-size: 11px; background: #f9fafb; border: 1px solid #e5e9ee; padding: 8px 10px; border-radius: 4px; max-height: 140px; overflow: auto; }
+  .export-mock .toggle-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #f3f4f6; border: 1px solid #d8dde3; font-size: 11px; margin-left: 6px; }
+
+  .log { background: #0f172a; color: #d1d5db; font-family: ui-monospace, monospace; font-size: 11.5px; padding: 10px 12px; border-radius: 6px; max-height: 220px; overflow: auto; line-height: 1.6; }
+  .log .ok { color: #4ade80; }
+  .log .bad { color: #f87171; }
+  .log .info { color: #93c5fd; }
+  .log .new { color: #fde047; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BMA-Plan Invent Spike v2 — Settings Panel (Export + Loupe prefs)</h1>
+  <span class="pill">Approach A · Narrow-Deep</span>
+  <span class="pill v1">extends INV-2026-05-15-002 (v1 kernel preserved)</span>
+</header>
+
+<div class="ribbon">
+  <button id="btn-open-settings" class="primary">⚙ ตั้งค่า (Ctrl+,)</button>
+  <button id="btn-export-mock">📤 Mock CSV export (reads <code>export.csvSeparator</code>)</button>
+  <button id="btn-toggle-loupe">🔍 Toggle loupe (reads <code>loupe.radius</code> + <code>loupe.zoomFactor</code>)</button>
+</div>
+
+<main>
+  <div class="row">
+    <div class="panel" style="flex: 1.3;">
+      <h3>Live preferences via <code>getPref()</code> <span class="badge-new">v2 adds 4</span></h3>
+      <div><span class="k">snap.enabled:</span> <span class="v" id="live-snap-enabled">—</span> <span class="k">|  snap.threshold:</span> <span class="v" id="live-snap-threshold">—</span></div>
+      <div><span class="k">tool.default:</span> <span class="v" id="live-tool-default">—</span></div>
+      <div><span class="k">unit.area:</span> <span class="v" id="live-unit">—</span> <span class="k">|  decimals:</span> <span class="v" id="live-decimals">—</span></div>
+      <div><span class="k">layout.preset:</span> <span class="v" id="live-layout">—</span> <span class="k">|  density:</span> <span class="v" id="live-density">—</span></div>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #d8dde3;"><strong>v2 new paths:</strong></div>
+      <div><span class="k">export.csvSeparator:</span> <span class="v" id="live-csvsep">—</span></div>
+      <div><span class="k">export.includeLawBasis:</span> <span class="v" id="live-lawbasis">—</span></div>
+      <div><span class="k">loupe.radius:</span> <span class="v" id="live-loupe-radius">—</span></div>
+      <div><span class="k">loupe.zoomFactor:</span> <span class="v" id="live-loupe-zoom">—</span></div>
+    </div>
+    <div class="panel">
+      <h3>Persisted localStorage</h3>
+      <span class="k">bmaPlan.settings.v1:</span>
+      <pre id="ls-settings">(empty)</pre>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel" style="flex:1;">
+      <h3>Loupe demo — drag cursor inside the orange box</h3>
+      <div id="loupe-stage" data-active="0">
+        <div class="grid"></div>
+        <div class="label-overlay">cursor in here → loupe follows · size from <code>loupe.radius</code> · zoom badge from <code>loupe.zoomFactor</code></div>
+        <div id="loupe-circle"></div>
+        <div id="loupe-zoom-label"></div>
+      </div>
+    </div>
+    <div class="panel" style="flex:1;">
+      <h3>Mock CSV export</h3>
+      <div class="export-mock">
+        <div>separator <span class="toggle-pill" id="export-sep-pill">,</span> &nbsp;&middot;&nbsp; lawBasis col <span class="toggle-pill" id="export-lawbasis-pill">included</span></div>
+        <pre id="export-output">(click 📤 Mock CSV export to render)</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel" style="flex: 1;">
+      <h3>Spike acceptance tests (6 criteria from settings-panel-v2.md frame)</h3>
+      <button id="run-tests" class="primary">▶ Run all 6 tests</button>
+      <button id="wipe-all" class="danger" style="margin-left:8px;">Wipe localStorage</button>
+      <div id="test-results" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel" style="flex: 1;">
+      <h3>Event log</h3>
+      <div class="log" id="event-log"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================================================
+     Settings overlay — v1 4-tab modal + v2 additions
+     ============================================================ -->
+<div id="settings-overlay" role="dialog" aria-labelledby="settings-title">
+  <div class="settings-card">
+    <div class="settings-head">
+      <h2 id="settings-title">⚙ การตั้งค่า BMA-Plan (v2 spike)</h2>
+      <button id="btn-close-settings" aria-label="ปิด">✕</button>
+    </div>
+    <div class="settings-body">
+      <nav class="settings-tabs" role="tablist">
+        <button data-tab="draw" class="active">🔷 วาด</button>
+        <button data-tab="units">📏 หน่วย</button>
+        <button data-tab="layout">🖥 หน้าจอ</button>
+        <button data-tab="widgets">🧩 Widgets</button>
+      </nav>
+      <div class="settings-content">
+        <!-- Draw tab (v1 + v2 loupe sub-section) -->
+        <section class="settings-section active" data-section="draw">
+          <h3>การวาดและสแนป</h3>
+          <div class="field">
+            <label for="pref-snap-enabled">เปิดใช้ Snap</label>
+            <input type="checkbox" id="pref-snap-enabled">
+          </div>
+          <div class="field">
+            <label for="pref-snap-threshold">Snap threshold</label>
+            <div>
+              <input type="range" id="pref-snap-threshold" min="5" max="30" step="1">
+              <span class="val-display" id="pref-snap-threshold-val">10 px</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>เครื่องมือเริ่มต้น</label>
+            <div class="radio-grp">
+              <label><input type="radio" name="pref-tool" value="pan"> Pan</label>
+              <label><input type="radio" name="pref-tool" value="sel"> Select</label>
+              <label><input type="radio" name="pref-tool" value="area"> Area</label>
+              <label><input type="radio" name="pref-tool" value="dist"> Distance</label>
+            </div>
+          </div>
+
+          <h4>🔍 Loupe (v2 NEW)</h4>
+          <div class="field">
+            <label for="pref-loupe-radius">ขนาด loupe</label>
+            <div>
+              <input type="range" id="pref-loupe-radius" min="50" max="160" step="5">
+              <span class="val-display" id="pref-loupe-radius-val">80 px</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="pref-loupe-zoom">กำลังขยาย</label>
+            <div>
+              <input type="range" id="pref-loupe-zoom" min="2" max="8" step="1">
+              <span class="val-display" id="pref-loupe-zoom-val">4×</span>
+            </div>
+          </div>
+        </section>
+        <!-- Units tab (v1 + v2 export sub-section) -->
+        <section class="settings-section" data-section="units">
+          <h3>หน่วยและการแสดงผล</h3>
+          <div class="field">
+            <label for="pref-unit">หน่วยพื้นที่</label>
+            <select id="pref-unit">
+              <option value="sqm">ตร.ม. (m²)</option>
+              <option value="sqft">ตร.ฟต. (ft²)</option>
+              <option value="rnw">R/N/W</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pref-decimals">ทศนิยม</label>
+            <input type="number" id="pref-decimals" min="0" max="4" step="1">
+          </div>
+
+          <h4>📤 Export (v2 NEW)</h4>
+          <div class="field">
+            <label for="pref-csv-sep">ตัวคั่น CSV</label>
+            <select id="pref-csv-sep">
+              <option value=",">, (จุลภาค — มาตรฐาน)</option>
+              <option value=";">; (ไทย Excel)</option>
+              <option value="\t">↹ Tab</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pref-include-lawbasis">รวมคอลัมน์ lawBasis</label>
+            <input type="checkbox" id="pref-include-lawbasis">
+          </div>
+        </section>
+        <!-- Layout tab (v1 only) -->
+        <section class="settings-section" data-section="layout">
+          <h3>UI Layout</h3>
+          <div class="field">
+            <label for="pref-layout-preset">Preset</label>
+            <select id="pref-layout-preset">
+              <option value="current-stable">Current Stable</option>
+              <option value="mockup-v3">Mockup V3</option>
+              <option value="inspection-focus">Inspection Focus</option>
+              <option value="layer-focus">Layer Focus</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pref-density">Density</label>
+            <select id="pref-density">
+              <option value="compact">Compact</option>
+              <option value="comfortable">Comfortable</option>
+              <option value="spacious">Spacious</option>
+            </select>
+          </div>
+          <p style="color:#6b7280; font-size:12px;">v2 ไม่แก้ tab นี้ — preserved จาก v1 (HT-10 / HT-12a)</p>
+        </section>
+        <!-- Widgets tab (v1 only, simplified) -->
+        <section class="settings-section" data-section="widgets">
+          <h3>Widget visibility</h3>
+          <p style="color:#6b7280; font-size:12px;">v2 ไม่แก้ tab นี้ — preserved จาก v1</p>
+        </section>
+      </div>
+    </div>
+    <div class="settings-foot">
+      <div class="left">
+        <button id="btn-reset-defaults" class="danger">↺ คืนค่าเริ่มต้น</button>
+      </div>
+      <div class="right">
+        <button id="btn-cancel-settings">ยกเลิก</button>
+        <button id="btn-apply-settings" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   v1 KERNEL — preserved verbatim from settings-panel.md spike
+   (factory defaults extended with v2 paths: export.* + loupe.*)
+   ============================================================ */
+const PREF_DEFAULTS = Object.freeze({
+  version: 1,
+  snap:    { enabled: true, threshold: 10 },
+  tool:    { default: "pan" },
+  unit:    { area: "sqm", decimals: 2 },
+  layout:  { preset: "current-stable", density: "comfortable", hideLeftPanel: false, hideRightPanel: false },
+  widgets: { visible: {} },
+  // v2 NEW —
+  export:  { csvSeparator: ",", includeLawBasis: true },
+  loupe:   { radius: 80, zoomFactor: 4 }
+});
+const LS_KEY = "bmaPlan.settings.v1";
+
+/* log helper */
+const $log = document.getElementById("event-log");
+function logLine(msg, cls = "info") {
+  const t = new Date().toLocaleTimeString("en-GB", { hour12: false });
+  const line = document.createElement("div");
+  line.innerHTML = `[${t}] <span class="${cls}">${msg}</span>`;
+  $log.appendChild(line); $log.scrollTop = $log.scrollHeight;
+}
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+/* persistence — same as v1 */
+let PREFS = null;
+function loadPrefs() {
+  let raw;
+  try { raw = JSON.parse(localStorage.getItem(LS_KEY) || "null"); }
+  catch (e) { logLine(`load: bad JSON in ${LS_KEY} — using defaults (${e.message})`, "bad"); raw = null; }
+  if (!raw || raw.version !== 1) {
+    PREFS = clone(PREF_DEFAULTS);
+    logLine("load: factory defaults (incl. v2 paths)", "info");
+  } else {
+    // Shallow-merge each section over defaults — forward-compat for v2 paths added
+    // after the user's first save. Critical: a user saved on v1 has no export/loupe
+    // sections; the merge must supply defaults for those without overwriting their
+    // existing snap/unit/layout values.
+    const d = clone(PREF_DEFAULTS);
+    PREFS = {
+      version: 1,
+      snap:    Object.assign(d.snap,    raw.snap    || {}),
+      tool:    Object.assign(d.tool,    raw.tool    || {}),
+      unit:    Object.assign(d.unit,    raw.unit    || {}),
+      layout:  Object.assign(d.layout,  raw.layout  || {}),
+      widgets: Object.assign(d.widgets, raw.widgets || {}),
+      export:  Object.assign(d.export,  raw.export  || {}),   // v2 NEW
+      loupe:   Object.assign(d.loupe,   raw.loupe   || {})    // v2 NEW
+    };
+    if (!raw.export || !raw.loupe) logLine("load: v1 save detected → v2 defaults injected via shallow-merge", "new");
+  }
+}
+function savePrefs() {
+  localStorage.setItem(LS_KEY, JSON.stringify(PREFS));
+  logLine(`save: ${LS_KEY} updated`, "ok");
+}
+function getPref(path, fallback) {
+  const parts = path.split(".");
+  let cur = PREFS;
+  for (const p of parts) {
+    if (cur && typeof cur === "object" && p in cur) cur = cur[p];
+    else return fallback;
+  }
+  return cur;
+}
+
+/* ============================================================
+   v1 modal wiring — preserved + v2 form fields added
+   ============================================================ */
+const $overlay = document.getElementById("settings-overlay");
+const $btnOpen = document.getElementById("btn-open-settings");
+const $btnClose = document.getElementById("btn-close-settings");
+const $btnCancel = document.getElementById("btn-cancel-settings");
+const $btnApply = document.getElementById("btn-apply-settings");
+const $btnReset = document.getElementById("btn-reset-defaults");
+let DRAFT = null;
+
+function openSettings() {
+  DRAFT = clone(PREFS);
+  fillFormFromDraft();
+  $overlay.classList.add("open");
+  logLine("modal: opened (draft cloned from PREFS, incl. v2 fields)", "info");
+}
+function closeSettings() { $overlay.classList.remove("open"); }
+$btnOpen.addEventListener("click", openSettings);
+$btnClose.addEventListener("click", closeSettings);
+$btnCancel.addEventListener("click", closeSettings);
+$btnApply.addEventListener("click", () => {
+  PREFS = DRAFT;
+  savePrefs();
+  refreshLive(); refreshLsView(); refreshExportPills();
+  // If loupe is currently visible, re-apply its size immediately
+  if (loupeActive) repositionLoupe(lastLoupeX, lastLoupeY);
+  closeSettings();
+});
+$btnReset.addEventListener("click", () => {
+  if (!confirm("คืนค่าเริ่มต้นทั้งหมด?")) return;
+  PREFS = clone(PREF_DEFAULTS);
+  savePrefs();
+  DRAFT = clone(PREFS);
+  fillFormFromDraft();
+  refreshLive(); refreshLsView(); refreshExportPills();
+  logLine("reset: factory defaults restored (incl. v2 defaults)", "ok");
+});
+
+/* Tab switching */
+document.querySelectorAll(".settings-tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".settings-tabs button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".settings-section").forEach(s => s.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.getAttribute("data-tab");
+    document.querySelector(`.settings-section[data-section="${tab}"]`).classList.add("active");
+  });
+});
+
+/* Form fields — v1 */
+const $snapEnabled = document.getElementById("pref-snap-enabled");
+const $snapThreshold = document.getElementById("pref-snap-threshold");
+const $snapThresholdVal = document.getElementById("pref-snap-threshold-val");
+const $unit = document.getElementById("pref-unit");
+const $decimals = document.getElementById("pref-decimals");
+const $layoutPreset = document.getElementById("pref-layout-preset");
+const $density = document.getElementById("pref-density");
+/* Form fields — v2 NEW */
+const $csvSep = document.getElementById("pref-csv-sep");
+const $lawBasis = document.getElementById("pref-include-lawbasis");
+const $loupeRadius = document.getElementById("pref-loupe-radius");
+const $loupeRadiusVal = document.getElementById("pref-loupe-radius-val");
+const $loupeZoom = document.getElementById("pref-loupe-zoom");
+const $loupeZoomVal = document.getElementById("pref-loupe-zoom-val");
+
+$snapEnabled.addEventListener("change", () => { DRAFT.snap.enabled = $snapEnabled.checked; });
+$snapThreshold.addEventListener("input", () => {
+  DRAFT.snap.threshold = parseInt($snapThreshold.value, 10);
+  $snapThresholdVal.textContent = DRAFT.snap.threshold + " px";
+});
+document.querySelectorAll('input[name="pref-tool"]').forEach(r => {
+  r.addEventListener("change", () => { if (r.checked) DRAFT.tool.default = r.value; });
+});
+$unit.addEventListener("change", () => { DRAFT.unit.area = $unit.value; });
+$decimals.addEventListener("input", () => {
+  const n = parseInt($decimals.value, 10);
+  if (!Number.isNaN(n)) DRAFT.unit.decimals = Math.min(4, Math.max(0, n));
+});
+$layoutPreset.addEventListener("change", () => { DRAFT.layout.preset = $layoutPreset.value; });
+$density.addEventListener("change", () => { DRAFT.layout.density = $density.value; });
+
+/* v2 form-field listeners */
+$csvSep.addEventListener("change", () => { DRAFT.export.csvSeparator = $csvSep.value; });
+$lawBasis.addEventListener("change", () => { DRAFT.export.includeLawBasis = $lawBasis.checked; });
+$loupeRadius.addEventListener("input", () => {
+  DRAFT.loupe.radius = parseInt($loupeRadius.value, 10);
+  $loupeRadiusVal.textContent = DRAFT.loupe.radius + " px";
+});
+$loupeZoom.addEventListener("input", () => {
+  DRAFT.loupe.zoomFactor = parseInt($loupeZoom.value, 10);
+  $loupeZoomVal.textContent = DRAFT.loupe.zoomFactor + "×";
+});
+
+function fillFormFromDraft() {
+  $snapEnabled.checked = DRAFT.snap.enabled;
+  $snapThreshold.value = DRAFT.snap.threshold;
+  $snapThresholdVal.textContent = DRAFT.snap.threshold + " px";
+  document.querySelectorAll('input[name="pref-tool"]').forEach(r => {
+    r.checked = (r.value === DRAFT.tool.default);
+  });
+  $unit.value = DRAFT.unit.area;
+  $decimals.value = DRAFT.unit.decimals;
+  $layoutPreset.value = DRAFT.layout.preset;
+  $density.value = DRAFT.layout.density || "comfortable";
+  // v2
+  $csvSep.value = DRAFT.export.csvSeparator;
+  $lawBasis.checked = DRAFT.export.includeLawBasis;
+  $loupeRadius.value = DRAFT.loupe.radius;
+  $loupeRadiusVal.textContent = DRAFT.loupe.radius + " px";
+  $loupeZoom.value = DRAFT.loupe.zoomFactor;
+  $loupeZoomVal.textContent = DRAFT.loupe.zoomFactor + "×";
+}
+
+/* ============================================================
+   Live read-outs + persisted view
+   ============================================================ */
+function refreshLive() {
+  document.getElementById("live-snap-enabled").textContent = getPref("snap.enabled");
+  document.getElementById("live-snap-threshold").textContent = getPref("snap.threshold") + " px";
+  document.getElementById("live-tool-default").textContent = getPref("tool.default");
+  document.getElementById("live-unit").textContent = getPref("unit.area");
+  document.getElementById("live-decimals").textContent = getPref("unit.decimals");
+  document.getElementById("live-layout").textContent = getPref("layout.preset");
+  document.getElementById("live-density").textContent = getPref("layout.density");
+  // v2
+  const csv = getPref("export.csvSeparator");
+  document.getElementById("live-csvsep").textContent = csv === "\t" ? "\\t" : csv;
+  document.getElementById("live-lawbasis").textContent = getPref("export.includeLawBasis");
+  document.getElementById("live-loupe-radius").textContent = getPref("loupe.radius") + " px";
+  document.getElementById("live-loupe-zoom").textContent = getPref("loupe.zoomFactor") + "×";
+}
+function refreshLsView() {
+  document.getElementById("ls-settings").textContent = localStorage.getItem(LS_KEY) || "(empty)";
+}
+function refreshExportPills() {
+  const sep = getPref("export.csvSeparator");
+  document.getElementById("export-sep-pill").textContent = sep === "\t" ? "\\t" : sep;
+  document.getElementById("export-lawbasis-pill").textContent = getPref("export.includeLawBasis") ? "included" : "omitted";
+}
+
+/* ============================================================
+   v2 BEHAVIOR DEMOS — proves prefs actually change app output
+   (success criterion 2: at least 2 net-new prefs demonstrably
+   affect app behavior)
+   ============================================================ */
+
+/* Mock CSV export — reads export.csvSeparator + export.includeLawBasis */
+const MOCK_ROWS = [
+  { name: "ห้องนั่งเล่น",   semanticTag: "GFA",       area: 28.45, lawBasis: "พรบ.ควบคุมอาคาร §4" },
+  { name: "ห้องครัว",       semanticTag: "GFA",       area: 12.20, lawBasis: "พรบ.ควบคุมอาคาร §4" },
+  { name: "ห้องน้ำ",         semanticTag: "GFA",       area:  4.10, lawBasis: "พรบ.ควบคุมอาคาร §4" },
+  { name: "ดาดฟ้า",          semanticTag: "Setback",   area: 18.00, lawBasis: "—" }
+];
+function mockExportCsv() {
+  const sep = getPref("export.csvSeparator", ",");
+  const includeLaw = getPref("export.includeLawBasis", true);
+  const headers = ["name", "semanticTag", "area"];
+  if (includeLaw) headers.push("lawBasis");
+  const lines = [headers.join(sep)];
+  for (const r of MOCK_ROWS) {
+    const row = [r.name, r.semanticTag, r.area.toFixed(getPref("unit.decimals", 2))];
+    if (includeLaw) row.push(r.lawBasis);
+    lines.push(row.join(sep));
+  }
+  document.getElementById("export-output").textContent = lines.join("\n");
+  logLine(`export: csv rendered (sep="${sep === "\t" ? "\\t" : sep}", lawBasis=${includeLaw})`, "new");
+}
+document.getElementById("btn-export-mock").addEventListener("click", mockExportCsv);
+
+/* Mock loupe — reads loupe.radius + loupe.zoomFactor */
+const $stage = document.getElementById("loupe-stage");
+const $loupeCircle = document.getElementById("loupe-circle");
+const $loupeZoomLabel = document.getElementById("loupe-zoom-label");
+let loupeActive = false;
+let lastLoupeX = 200, lastLoupeY = 160;
+function toggleLoupe() {
+  loupeActive = !loupeActive;
+  $loupeCircle.style.display = loupeActive ? "block" : "none";
+  $loupeZoomLabel.style.display = loupeActive ? "block" : "none";
+  $stage.dataset.active = loupeActive ? "1" : "0";
+  logLine(`loupe: ${loupeActive ? "ON" : "OFF"} (radius=${getPref("loupe.radius")}px, zoom=${getPref("loupe.zoomFactor")}×)`, "new");
+  if (loupeActive) repositionLoupe(lastLoupeX, lastLoupeY);
+}
+function repositionLoupe(x, y) {
+  const r = getPref("loupe.radius", 80);
+  const z = getPref("loupe.zoomFactor", 4);
+  $loupeCircle.style.width  = (r * 2) + "px";
+  $loupeCircle.style.height = (r * 2) + "px";
+  $loupeCircle.style.left = (x - r) + "px";
+  $loupeCircle.style.top  = (y - r) + "px";
+  $loupeZoomLabel.textContent = z + "×";
+  $loupeZoomLabel.style.left = (x + r - 24) + "px";
+  $loupeZoomLabel.style.top  = (y - r - 4)  + "px";
+  lastLoupeX = x; lastLoupeY = y;
+}
+$stage.addEventListener("mousemove", (e) => {
+  if (!loupeActive) return;
+  const rect = $stage.getBoundingClientRect();
+  repositionLoupe(e.clientX - rect.left, e.clientY - rect.top);
+});
+document.getElementById("btn-toggle-loupe").addEventListener("click", toggleLoupe);
+
+/* Wipe */
+document.getElementById("wipe-all").addEventListener("click", () => {
+  if (!confirm("ลบ localStorage?")) return;
+  localStorage.removeItem(LS_KEY);
+  loadPrefs(); refreshLive(); refreshLsView(); refreshExportPills();
+  logLine("wipe: cleared, reloaded with defaults", "bad");
+});
+
+/* Ctrl+, shortcut — v1 compatibility */
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+    e.preventDefault();
+    openSettings();
+  }
+});
+
+/* ============================================================
+   SPIKE ACCEPTANCE TESTS — 6 criteria from frame
+   ============================================================ */
+const $testResults = document.getElementById("test-results");
+function addResult(name, pass, detail) {
+  const row = document.createElement("div");
+  row.style.marginTop = "6px";
+  row.innerHTML = `<span class="test-result ${pass ? "pass" : "fail"}">${pass ? "PASS" : "FAIL"}</span> <b>${name}</b> — ${detail}`;
+  $testResults.appendChild(row);
+  logLine(`TEST ${name}: ${pass ? "PASS" : "FAIL"} — ${detail}`, pass ? "ok" : "bad");
+  return pass;
+}
+function runAllTests() {
+  $testResults.innerHTML = "";
+  let all = true;
+
+  // === Test 1: No regression of v1 paths ===
+  const v1_ok = getPref("snap.enabled") !== undefined
+             && getPref("snap.threshold") !== undefined
+             && getPref("tool.default") !== undefined
+             && getPref("unit.area") !== undefined
+             && getPref("unit.decimals") !== undefined
+             && getPref("layout.preset") !== undefined
+             && getPref("layout.density") !== undefined;
+  all &= addResult("1. No regression of v1 paths", v1_ok,
+    `all v1 paths still readable via getPref: ${v1_ok}`);
+
+  // === Test 2: At least 2 net-new prefs demonstrably affect behavior ===
+  // Test 2a: export.csvSeparator changes the rendered output
+  const sepBefore = PREFS.export.csvSeparator;
+  PREFS.export.csvSeparator = ";";
+  mockExportCsv();
+  const out1 = document.getElementById("export-output").textContent;
+  const usesSemi = out1.includes(";") && !out1.split("\n")[0].includes(",");
+  PREFS.export.csvSeparator = ",";
+  mockExportCsv();
+  const out2 = document.getElementById("export-output").textContent;
+  const usesComma = out2.includes(",") && !out2.split("\n")[0].includes(";");
+  PREFS.export.csvSeparator = sepBefore;
+  refreshExportPills();
+  const sep_ok = usesSemi && usesComma;
+
+  // Test 2b: loupe.radius affects rendered circle diameter
+  const radBefore = PREFS.loupe.radius;
+  PREFS.loupe.radius = 60;
+  if (!loupeActive) toggleLoupe();
+  repositionLoupe(200, 160);
+  const w60 = $loupeCircle.style.width;
+  PREFS.loupe.radius = 140;
+  repositionLoupe(200, 160);
+  const w140 = $loupeCircle.style.width;
+  PREFS.loupe.radius = radBefore;
+  repositionLoupe(200, 160);
+  const loupe_ok = w60 === "120px" && w140 === "280px";
+
+  all &= addResult("2. Net-new prefs affect behavior",
+    sep_ok && loupe_ok,
+    `csvSeparator toggles output (${sep_ok}); loupe.radius changes diameter 60→120px, 140→280px (${loupe_ok})`);
+
+  // === Test 3: Schema additive ===
+  // All v1 paths must still exist with the same shape
+  const schema_ok = typeof PREFS.snap.enabled === "boolean"
+                 && typeof PREFS.snap.threshold === "number"
+                 && typeof PREFS.tool.default === "string"
+                 && typeof PREFS.unit.area === "string"
+                 && typeof PREFS.unit.decimals === "number"
+                 && typeof PREFS.layout.preset === "string"
+                 && typeof PREFS.export.csvSeparator === "string"   // v2
+                 && typeof PREFS.export.includeLawBasis === "boolean" // v2
+                 && typeof PREFS.loupe.radius === "number"           // v2
+                 && typeof PREFS.loupe.zoomFactor === "number";      // v2
+  all &= addResult("3. Schema additive (v1 paths intact + v2 paths added)",
+    schema_ok, `v1 + v2 paths typeof checks pass: ${schema_ok}`);
+
+  // === Test 4: Reachable in ≤2 clicks ===
+  // Click 1 = ribbon "⚙ ตั้งค่า"; modal opens on Draw tab (loupe controls there) = 1 click.
+  // For export.csvSeparator: Click 1 = ribbon, Click 2 = "หน่วย" tab = 2 clicks.
+  const drawTabDefault = document.querySelector('.settings-tabs button[data-tab="draw"]').classList.contains("active");
+  const loupeOnDraw    = !!document.querySelector('.settings-section[data-section="draw"] #pref-loupe-radius');
+  const csvOnUnits     = !!document.querySelector('.settings-section[data-section="units"] #pref-csv-sep');
+  const reach_ok = drawTabDefault && loupeOnDraw && csvOnUnits;
+  all &= addResult("4. Reachable in ≤2 clicks",
+    reach_ok,
+    `Draw default-active=${drawTabDefault}, loupe on Draw=${loupeOnDraw} (1 click), CSV sep on Units=${csvOnUnits} (2 clicks)`);
+
+  // === Test 5: Reset returns ALL prefs (v1 + v2) to factory defaults ===
+  const beforeReset = clone(PREFS);
+  PREFS.snap.threshold = 22;
+  PREFS.export.csvSeparator = ";";
+  PREFS.loupe.radius = 140;
+  savePrefs();
+  // Simulate reset (no confirm)
+  PREFS = clone(PREF_DEFAULTS);
+  savePrefs();
+  const reset_ok = PREFS.snap.threshold === 10
+                && PREFS.export.csvSeparator === ","
+                && PREFS.loupe.radius === 80
+                && PREFS.loupe.zoomFactor === 4;
+  all &= addResult("5. Reset returns ALL prefs to factory defaults",
+    reset_ok,
+    `v1 + v2 paths restored: snap=10, csv=",", loupe.r=80, loupe.z=4 → ${reset_ok}`);
+  PREFS = beforeReset; savePrefs();
+
+  // === Test 6: Schema version unchanged at 1 (forward-compat path) ===
+  // After v2 additions, a v1 user-save (without export/loupe sections) loads cleanly.
+  const v1Save = {
+    version: 1,
+    snap:   { enabled: false, threshold: 25 },
+    tool:   { default: "area" },
+    unit:   { area: "sqft", decimals: 3 },
+    layout: { preset: "compact", density: "compact" },
+    widgets:{ visible: {} }
+    // no export, no loupe — simulating a save from before v2 ships
+  };
+  const _savedReal = localStorage.getItem(LS_KEY);
+  localStorage.setItem(LS_KEY, JSON.stringify(v1Save));
+  loadPrefs();
+  const fwd_ok = PREFS.version === 1
+              && PREFS.snap.threshold === 25         // user's v1 value preserved
+              && PREFS.tool.default === "area"       // user's v1 value preserved
+              && PREFS.export.csvSeparator === ","   // v2 default injected
+              && PREFS.loupe.radius === 80;          // v2 default injected
+  all &= addResult("6. Schema version stays 1, v2 fields injected for v1 saves",
+    fwd_ok,
+    `v1 save loaded: user values preserved + v2 defaults injected via shallow-merge: ${fwd_ok}`);
+  // Restore
+  if (_savedReal) localStorage.setItem(LS_KEY, _savedReal); else localStorage.removeItem(LS_KEY);
+  loadPrefs();
+
+  // === Final summary ===
+  const summary = document.createElement("div");
+  summary.style.marginTop = "12px";
+  summary.style.fontWeight = "600";
+  summary.style.fontSize = "13px";
+  summary.innerHTML = all
+    ? `<span class="test-result pass">ALL 6 PASS</span> Spike approves Approach A — Narrow-Deep (Export + Loupe).`
+    : `<span class="test-result fail">ONE OR MORE FAILED</span> See log.`;
+  $testResults.appendChild(summary);
+  refreshLive(); refreshLsView(); refreshExportPills();
+}
+document.getElementById("run-tests").addEventListener("click", runAllTests);
+
+/* boot */
+loadPrefs();
+refreshLive();
+refreshLsView();
+refreshExportPills();
+logLine("v2 spike loaded — click ⚙ for modal, ▶ to run acceptance tests, 📤 for export demo, 🔍 for loupe demo", "info");
+</script>
+</body>
+</html>

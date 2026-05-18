@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Claude Code / AI editor session files
+.claude/settings.local.json
+.claude/cache/
+.claude/sessions/
+opencode.json
+
+# Generated / runtime artifacts
+manual_test_artifacts/
+artifacts/
+pic/
+*.log
+
+# User / generated files
+*.pdf
+*.xlsx
+*.bmaplan
+*.bmaplan.pdf
+*.docx
+*.doc
+
+# Optional patch/output
+PATCH.diff
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+credentials*
+token*
+secret*

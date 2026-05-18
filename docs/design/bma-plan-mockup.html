@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMA-Plan — UI Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg:        #1a1d21;
+    --surface:   #22262c;
+    --surface2:  #2a2f37;
+    --surface3:  #32383f;
+    --border:    #3a404a;
+    --border2:   #454c58;
+    --accent:    #0a84ff;
+    --accent2:   #34aadc;
+    --green:     #30d158;
+    --yellow:    #ffd60a;
+    --red:       #ff453a;
+    --text:      #e8eaed;
+    --text2:     #9aa0aa;
+    --text3:     #5f6572;
+    --ribbon-h:  44px;
+    --menu-h:    28px;
+    --left-w:    220px;
+    --right-w:   200px;
+    --font:      'Noto Sans Thai', 'Sarabun', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 13px;
+    user-select: none;
+  }
+
+  /* ═══════════════════════════════════ TITLE BAR */
+  .title-bar {
+    background: #141618;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    border-bottom: 1px solid #0d0e10;
+    flex-shrink: 0;
+  }
+  .win-btn { width: 12px; height: 12px; border-radius: 50%; }
+  .win-btn.close  { background: #ff5f56; }
+  .win-btn.min    { background: #ffbd2e; }
+  .win-btn.max    { background: #27c93f; }
+  .title-bar-label {
+    flex: 1; text-align: center;
+    font-size: 11px; color: var(--text3);
+    letter-spacing: 0.3px;
+  }
+
+  /* ═══════════════════════════════════ MENU BAR */
+  .menu-bar {
+    background: var(--surface);
+    height: var(--menu-h);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+    gap: 0;
+  }
+  .app-logo {
+    font-size: 12px; font-weight: 700;
+    color: var(--accent);
+    padding: 0 12px 0 4px;
+    letter-spacing: 0.5px;
+    border-right: 1px solid var(--border);
+    margin-right: 4px;
+  }
+  .menu-item {
+    padding: 0 10px;
+    height: var(--menu-h);
+    display: flex; align-items: center;
+    font-size: 12px; color: var(--text2);
+    cursor: pointer;
+    border-radius: 4px;
+    position: relative;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s;
+  }
+  .menu-item:hover, .menu-item.active {
+    background: var(--surface3);
+    color: var(--text);
+  }
+  .menu-item.phase-badge {
+    margin-left: auto;
+    background: rgba(10,132,255,0.12);
+    color: var(--accent2);
+    font-size: 10px;
+    border: 1px solid rgba(10,132,255,0.25);
+    border-radius: 20px;
+    padding: 0 10px;
+    cursor: default;
+  }
+
+  /* Dropdown */
+  .dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 220px;
+    padding: 4px 0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    z-index: 200;
+  }
+  .menu-item.active .dropdown { display: block; }
+  .dd-item {
+    padding: 5px 16px;
+    font-size: 12px; color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: background 0.08s, color 0.08s;
+  }
+  .dd-item:hover { background: var(--accent); color: #fff; }
+  .dd-item.disabled { color: var(--text3); cursor: default; }
+  .dd-item.disabled:hover { background: transparent; color: var(--text3); }
+  .dd-sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .dd-item .shortcut { margin-left: auto; font-size: 10px; color: var(--text3); }
+  .dd-item:hover .shortcut { color: rgba(255,255,255,0.6); }
+  .dd-item .badge-hidden {
+    margin-left: auto;
+    font-size: 9px; color: var(--text3);
+    background: var(--surface3);
+    padding: 1px 6px; border-radius: 3px;
+  }
+
+  /* ═══════════════════════════════════ RIBBON */
+  .ribbon {
+    background: var(--surface2);
+    height: var(--ribbon-h);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 2px;
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .ribbon::-webkit-scrollbar { height: 0; }
+
+  .ribbon-group {
+    display: flex; align-items: center; gap: 2px;
+    padding: 0 6px;
+    border-right: 1px solid var(--border);
+    height: 36px;
+  }
+  .ribbon-group:last-child { border-right: none; }
+
+  .rbtn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.1s;
+    min-width: 40px;
+    height: 34px;
+  }
+  .rbtn:hover { background: var(--surface3); }
+  .rbtn.primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .rbtn.primary:hover { background: #0070e0; }
+  .rbtn.success {
+    background: rgba(48,209,88,0.15);
+    color: var(--green);
+    border: 1px solid rgba(48,209,88,0.25);
+  }
+  .rbtn.success:hover { background: rgba(48,209,88,0.25); }
+  .rbtn.warn {
+    background: rgba(255,214,10,0.1);
+    color: var(--yellow);
+    border: 1px solid rgba(255,214,10,0.2);
+  }
+  .rbtn .icon { font-size: 14px; line-height: 1; }
+  .rbtn .label { font-size: 9px; color: var(--text2); white-space: nowrap; }
+  .rbtn.primary .label, .rbtn.success .label { color: inherit; opacity: 0.85; }
+  .rbtn.active-tool {
+    background: var(--accent);
+    color: #fff;
+  }
+  .rbtn.active-tool .label { color: #fff; }
+
+  .ribbon-sep { width: 1px; background: var(--border); height: 24px; margin: 0 4px; }
+
+  /* Scale badge in ribbon */
+  .scale-badge {
+    background: rgba(48,209,88,0.1);
+    border: 1px solid rgba(48,209,88,0.3);
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-size: 10px; color: var(--green);
+    white-space: nowrap;
+  }
+  .scale-badge.missing {
+    background: rgba(255,69,58,0.1);
+    border-color: rgba(255,69,58,0.3);
+    color: var(--red);
+  }
+
+  /* ═══════════════════════════════════ MAIN LAYOUT */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ═══════════════════════════════════ LEFT PANEL */
+  .left-panel {
+    width: var(--left-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .panel-tab {
+    flex: 1; text-align: center;
+    padding: 6px 4px;
+    font-size: 10px; color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.1s;
+  }
+  .panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .panel-tab:hover { color: var(--text2); }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sheet-item {
+    padding: 5px 12px;
+    font-size: 11px; color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.08s;
+    border-left: 2px solid transparent;
+  }
+  .sheet-item:hover { background: var(--surface2); }
+  .sheet-item.active {
+    background: rgba(10,132,255,0.1);
+    color: var(--text);
+    border-left-color: var(--accent);
+  }
+  .sheet-num {
+    font-size: 9px; color: var(--text3);
+    background: var(--surface3);
+    padding: 1px 5px; border-radius: 3px;
+    min-width: 22px; text-align: center;
+  }
+  .sheet-item.active .sheet-num { background: var(--accent); color: #fff; }
+  .sheet-type {
+    font-size: 9px; color: var(--text3);
+    margin-left: auto;
+  }
+  .sheet-item.active .sheet-type { color: var(--accent2); }
+
+  .sheet-warn { color: var(--yellow); font-size: 10px; margin-left: auto; }
+
+  .panel-section {
+    padding: 4px 12px 2px;
+    font-size: 9px; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-top: 8px;
+  }
+
+  /* Object list */
+  .obj-item {
+    padding: 4px 12px;
+    font-size: 11px; color: var(--text2);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .obj-item:hover { background: var(--surface2); }
+  .obj-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .obj-area { background: rgba(10,132,255,0.6); }
+  .obj-open { background: rgba(255,69,58,0.6); }
+  .obj-land { background: rgba(48,209,88,0.6); }
+  .obj-dim  { background: rgba(255,214,10,0.6); }
+  .obj-tag  { font-size: 9px; color: var(--text3); margin-left: auto; }
+
+  /* ═══════════════════════════════════ CANVAS */
+  .canvas-wrap {
+    flex: 1;
+    background: #2d3139;
+    position: relative;
+    overflow: hidden;
+  }
+  .canvas-bg {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* PDF mockup on canvas */
+  .pdf-mock {
+    position: absolute;
+    top: 40px; left: 60px;
+    width: 460px; height: 380px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .pdf-content {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Floor plan lines */
+  .fp-outline {
+    position: absolute;
+    top: 30px; left: 30px;
+    right: 30px; bottom: 30px;
+    border: 2px solid #333;
+  }
+  .fp-room {
+    position: absolute;
+    border: 1.5px solid #555;
+    background: transparent;
+  }
+  .fp-room.selected {
+    background: rgba(10,132,255,0.15);
+    border-color: var(--accent);
+  }
+  .fp-area-label {
+    position: absolute;
+    font-size: 9px;
+    color: #333;
+    font-family: Arial, sans-serif;
+  }
+
+  /* Measurement overlay */
+  .measure-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+  .area-polygon {
+    position: absolute;
+    border: 2px solid var(--accent);
+    background: rgba(10,132,255,0.1);
+    border-radius: 1px;
+  }
+  .area-polygon.deduct {
+    border-color: var(--red);
+    background: rgba(255,69,58,0.1);
+  }
+  .area-label {
+    position: absolute;
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-family: 'Noto Sans Thai', sans-serif;
+  }
+  .area-label.deduct { background: var(--red); }
+
+  /* Scale line */
+  .scale-line {
+    position: absolute;
+    height: 2px;
+    background: var(--yellow);
+    display: flex; align-items: center;
+  }
+  .scale-line::before, .scale-line::after {
+    content: ''; position: absolute;
+    width: 2px; height: 8px; background: var(--yellow);
+  }
+  .scale-line::before { left: 0; top: -3px; }
+  .scale-line::after { right: 0; top: -3px; }
+
+  /* Cursor crosshair */
+  .cursor-cross {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  /* Canvas top status bar */
+  .canvas-top {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 28px;
+    background: rgba(26,29,33,0.85);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 12px; gap: 12px;
+    font-size: 10px; color: var(--text3);
+  }
+  .canvas-top .page-nav {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--text2);
+  }
+  .nav-btn {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 10px;
+    background: var(--surface3);
+    color: var(--text2);
+  }
+  .nav-btn:hover { background: var(--border); }
+  .zoom-info { color: var(--text3); }
+  .canvas-top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .coord-info { font-family: monospace; font-size: 10px; color: var(--text3); }
+
+  /* ═══════════════════════════════════ RIGHT PANEL */
+  .right-panel {
+    width: var(--right-w);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .right-header {
+    padding: 6px 12px;
+    font-size: 10px; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .right-header .add-btn {
+    margin-left: auto;
+    width: 16px; height: 16px;
+    border-radius: 3px; background: var(--surface3);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 12px; color: var(--text2);
+  }
+  .layer-item {
+    padding: 5px 10px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text2);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .layer-item:hover { background: var(--surface2); }
+  .layer-item.active-layer {
+    background: rgba(10,132,255,0.08);
+    border-left-color: var(--accent);
+    color: var(--text);
+  }
+  .layer-color { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .layer-name { flex: 1; font-size: 11px; }
+  .layer-controls { display: flex; gap: 3px; margin-left: auto; }
+  .layer-btn {
+    width: 16px; height: 16px;
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text3);
+    cursor: pointer;
+  }
+  .layer-btn:hover { background: var(--surface3); color: var(--text2); }
+  .layer-btn.on { color: var(--text); }
+  .layer-count {
+    font-size: 9px; color: var(--text3);
+    background: var(--surface3);
+    padding: 1px 4px; border-radius: 2px;
+  }
+
+  /* Properties mini-panel */
+  .props-section {
+    border-top: 1px solid var(--border);
+    padding: 8px 10px;
+  }
+  .props-title {
+    font-size: 9px; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  .prop-row {
+    display: flex; align-items: center;
+    padding: 2px 0;
+    gap: 6px;
+  }
+  .prop-key { font-size: 10px; color: var(--text3); width: 70px; flex-shrink: 0; }
+  .prop-val { font-size: 10px; color: var(--text); flex: 1; }
+  .prop-val.accent { color: var(--accent2); }
+  .prop-val.green { color: var(--green); }
+  .prop-val.editable {
+    background: var(--surface3);
+    border-radius: 3px;
+    padding: 1px 6px;
+    cursor: text;
+  }
+
+  /* ═══════════════════════════════════ WORKFLOW WIDGET */
+  .workflow-widget {
+    position: absolute;
+    bottom: 20px; right: 20px;
+    background: rgba(26,29,33,0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    width: 220px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .wf-title {
+    font-size: 9px; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+  .wf-steps {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .wf-step {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0;
+  }
+  .wf-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .wf-dot.done { background: var(--green); }
+  .wf-dot.current { background: var(--accent); box-shadow: 0 0 0 3px rgba(10,132,255,0.2); }
+  .wf-dot.pending { background: var(--surface3); border: 1px solid var(--border2); }
+  .wf-step-label { font-size: 11px; color: var(--text2); }
+  .wf-step.current .wf-step-label { color: var(--text); font-weight: 500; }
+  .wf-step.done .wf-step-label { color: var(--text3); text-decoration: line-through; }
+
+  .wf-next {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 10px; color: var(--text3);
+  }
+  .wf-next-action {
+    color: var(--accent);
+    font-size: 11px;
+    margin-top: 2px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* ═══════════════════════════════════ STATUS BAR */
+  .status-bar {
+    height: 22px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 12px; gap: 16px;
+    font-size: 10px; color: var(--text3);
+    flex-shrink: 0;
+  }
+  .status-item { display: flex; align-items: center; gap: 4px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-dot.ok { background: var(--green); }
+  .status-dot.warn { background: var(--yellow); }
+  .status-bar-right { margin-left: auto; display: flex; gap: 16px; }
+  .autosave-badge {
+    background: rgba(48,209,88,0.1);
+    color: var(--green);
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 9px;
+    border: 1px solid rgba(48,209,88,0.2);
+  }
+
+  /* ═══════════════════════════════════ RIBBON TABS (context) */
+  .ribbon-context {
+    display: none;
+    align-items: center;
+  }
+  .ribbon-context.show { display: flex; }
+
+  /* Active menu highlight */
+  .menu-item[data-menu="Scale"] { color: var(--accent2); }
+
+</style>
+</head>
+<body>
+
+<!-- Title Bar -->
+<div class="title-bar">
+  <div class="win-btn close"></div>
+  <div class="win-btn min"></div>
+  <div class="win-btn max"></div>
+  <div class="title-bar-label">BMA-Plan — 20250616_RAMA4 APARTMENT PERMIT rev 1.pdf</div>
+</div>
+
+<!-- Menu Bar -->
+<div class="menu-bar" id="menuBar">
+  <div class="app-logo">BMA</div>
+
+  <!-- File -->
+  <div class="menu-item" data-menu="File" onclick="toggleMenu(this)">File
+    <div class="dropdown">
+      <div class="dd-item">📄 New Project<span class="shortcut">⌘N</span></div>
+      <div class="dd-item" style="color:var(--accent)">📂 Open PDF<span class="shortcut">⌘O</span></div>
+      <div class="dd-item">🗂 Open Project<span class="shortcut">⌘⇧O</span></div>
+      <div class="dd-item">🕒 Open Recent</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">💾 Save<span class="shortcut">⌘S</span></div>
+      <div class="dd-item">💾 Save As<span class="shortcut">⌘⇧S</span></div>
+      <div class="dd-item">⏱ Autosave Settings</div>
+      <div class="dd-item" style="color:var(--yellow)">🔄 Recover Unsaved Project</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">📤 Export</div>
+      <div class="dd-item">ℹ️ Project Info</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">✕ Close Project</div>
+    </div>
+  </div>
+
+  <!-- Edit -->
+  <div class="menu-item" data-menu="Edit" onclick="toggleMenu(this)">Edit
+    <div class="dropdown">
+      <div class="dd-item">↩ Undo<span class="shortcut">⌘Z</span></div>
+      <div class="dd-item">↪ Redo<span class="shortcut">⌘⇧Z</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">✂ Cut<span class="shortcut">⌘X</span></div>
+      <div class="dd-item">📋 Copy<span class="shortcut">⌘C</span></div>
+      <div class="dd-item">📌 Paste<span class="shortcut">⌘V</span></div>
+      <div class="dd-item">⎘ Duplicate<span class="shortcut">⌘D</span></div>
+      <div class="dd-item">🗑 Delete<span class="shortcut">⌫</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">☰ Select All<span class="shortcut">⌘A</span></div>
+      <div class="dd-item">Deselect</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Move to Layer</div>
+      <div class="dd-item">Lock Selected</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">⚙ Preferences</div>
+    </div>
+  </div>
+
+  <!-- View -->
+  <div class="menu-item" data-menu="View" onclick="toggleMenu(this)">View
+    <div class="dropdown">
+      <div class="dd-item">🔍 Zoom In<span class="shortcut">⌘+</span></div>
+      <div class="dd-item">🔍 Zoom Out<span class="shortcut">⌘-</span></div>
+      <div class="dd-item">Fit Page<span class="shortcut">⌘0</span></div>
+      <div class="dd-item">Fit Width</div>
+      <div class="dd-item">Actual Size 100%<span class="shortcut">⌘1</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">◀ Previous Page<span class="shortcut">⌘[</span></div>
+      <div class="dd-item">▶ Next Page<span class="shortcut">⌘]</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Rotate Left</div>
+      <div class="dd-item">Rotate Right</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">✓ Show Grid</div>
+      <div class="dd-item">✓ Show Labels</div>
+      <div class="dd-item">✓ Show Scale Line</div>
+      <div class="dd-item">✓ Show Measurement Overlay</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Full Screen<span class="shortcut">⌘⇧F</span></div>
+      <div class="dd-item">Clean View</div>
+    </div>
+  </div>
+
+  <!-- Project -->
+  <div class="menu-item" data-menu="Project" onclick="toggleMenu(this)">Project
+    <div class="dropdown">
+      <div class="dd-item">📋 Project Info</div>
+      <div class="dd-item">👤 Applicant / Owner Info</div>
+      <div class="dd-item">📐 Drawing Set Info</div>
+      <div class="dd-item">📍 Project Location</div>
+      <div class="dd-item">🏢 Building List</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">📝 Project Notes</div>
+      <div class="dd-item">⚙ Project Settings</div>
+      <div class="dd-item">📊 Project Summary</div>
+    </div>
+  </div>
+
+  <!-- Scale (highlighted) -->
+  <div class="menu-item" data-menu="Scale" onclick="toggleMenu(this)" style="color:var(--accent2); font-weight:500">Scale
+    <div class="dropdown">
+      <div class="dd-item" style="color:var(--accent)">📏 Set Scale Current Page</div>
+      <div class="dd-item">📊 Scale Manager</div>
+      <div class="dd-item">✓ Verify Scale</div>
+      <div class="dd-item">🔄 Reset Page Scale</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item disabled">Copy Scale to Selected Pages<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item disabled">Copy Scale to Similar Pages<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item">Scale Status by Page</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Show Scale Line</div>
+      <div class="dd-item" style="color:var(--yellow)">⚠ Scale Warning</div>
+      <div class="dd-item disabled">Scale History<span class="badge-hidden">ซ่อน</span></div>
+    </div>
+  </div>
+
+  <!-- Page -->
+  <div class="menu-item" data-menu="Page" onclick="toggleMenu(this)">Page
+    <div class="dropdown">
+      <div class="dd-item">📄 Page Manager</div>
+      <div class="dd-item">🏷 Set Page Type</div>
+      <div class="dd-item">🏢 Set Floor</div>
+      <div class="dd-item">Set Page Label</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Auto Name Pages</div>
+      <div class="dd-item">Floor Naming Rules</div>
+      <div class="dd-item">Basement Settings</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Apply Page Preset</div>
+      <div class="dd-item">Apply Layer Preset</div>
+      <div class="dd-item">Duplicate Page Setup</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Page Summary</div>
+    </div>
+  </div>
+
+  <!-- Measure -->
+  <div class="menu-item" data-menu="Measure" onclick="toggleMenu(this)">Measure
+    <div class="dropdown">
+      <div class="dd-item">↖ Select<span class="shortcut">V</span></div>
+      <div class="dd-item">✋ Pan<span class="shortcut">H</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" style="color:var(--accent)">⬡ Area<span class="shortcut">A</span></div>
+      <div class="dd-item">Opening / Deduction<span class="shortcut">O</span></div>
+      <div class="dd-item">Land / Site Boundary<span class="shortcut">L</span></div>
+      <div class="dd-item">Building Footprint</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Dimension Line<span class="shortcut">D</span></div>
+      <div class="dd-item">Height Line</div>
+      <div class="dd-item">Reference Line<span class="shortcut">R</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">↑ North Arrow</div>
+      <div class="dd-item">Label / Note<span class="shortcut">T</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Finish Drawing<span class="shortcut">Enter</span></div>
+      <div class="dd-item">Cancel Drawing<span class="shortcut">Esc</span></div>
+      <div class="dd-item">Undo Point<span class="shortcut">⌘Z</span></div>
+    </div>
+  </div>
+
+  <!-- Object -->
+  <div class="menu-item" data-menu="Object" onclick="toggleMenu(this)">Object
+    <div class="dropdown">
+      <div class="dd-item">Object Properties</div>
+      <div class="dd-item">Rename Object</div>
+      <div class="dd-item">Change Category</div>
+      <div class="dd-item">Change Semantic Tag</div>
+      <div class="dd-item">Change Measurement Profile</div>
+      <div class="dd-item">Change Report Target</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Link Opening to Area</div>
+      <div class="dd-item">Unlink Opening</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item disabled">Group Objects<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item disabled">Ungroup Objects<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Bring to Front</div>
+      <div class="dd-item">Send to Back</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Lock Object</div>
+      <div class="dd-item">Hide Object</div>
+      <div class="dd-item" style="color:var(--red)">Delete Object</div>
+    </div>
+  </div>
+
+  <!-- Layer -->
+  <div class="menu-item" data-menu="Layer" onclick="toggleMenu(this)">Layer
+    <div class="dropdown">
+      <div class="dd-item">Layer Manager</div>
+      <div class="dd-item">New Layer</div>
+      <div class="dd-item">Rename Layer</div>
+      <div class="dd-item">Delete Empty Layer</div>
+      <div class="dd-item">Set Active Layer</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Show Layer</div>
+      <div class="dd-item">Hide Layer</div>
+      <div class="dd-item">Lock Layer</div>
+      <div class="dd-item">Unlock Layer</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Show All Layers</div>
+      <div class="dd-item">Hide Other Layers</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Apply Layer Preset</div>
+    </div>
+  </div>
+
+  <!-- Review -->
+  <div class="menu-item" data-menu="Review" onclick="toggleMenu(this)">Review
+    <div class="dropdown">
+      <div class="dd-item" style="color:var(--yellow)">⚠ Review All</div>
+      <div class="dd-item">Scale Warnings (2)</div>
+      <div class="dd-item">Missing Page Setup (1)</div>
+      <div class="dd-item">Unnamed Objects</div>
+      <div class="dd-item">Unlinked Openings</div>
+      <div class="dd-item">Missing Report Target</div>
+      <div class="dd-item">Geometry Warnings</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Hidden Objects in Export</div>
+      <div class="dd-item">Locked Objects</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Go to Next Issue<span class="shortcut">⌘↓</span></div>
+      <div class="dd-item">Go to Previous Issue</div>
+      <div class="dd-item">Ignore Issue</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Review Summary</div>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="menu-item" data-menu="Export" onclick="toggleMenu(this)">Export
+    <div class="dropdown">
+      <div class="dd-item">Export Preview</div>
+      <div class="dd-item" style="color:var(--green)">📊 Export XLSX</div>
+      <div class="dd-item">Export Annotated PDF</div>
+      <div class="dd-item disabled">Export JSON<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item">Export All</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Export Settings</div>
+      <div class="dd-item">Include / Exclude Layers</div>
+      <div class="dd-item">Include Warnings</div>
+      <div class="dd-item">Include Audit Log</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Open Export Folder</div>
+      <div class="dd-item disabled">Export History<span class="badge-hidden">ซ่อน</span></div>
+    </div>
+  </div>
+
+  <!-- Workspace -->
+  <div class="menu-item" data-menu="Workspace" onclick="toggleMenu(this)">Workspace
+    <div class="dropdown">
+      <div class="dd-item">Default Workspace</div>
+      <div class="dd-item">Scale Workspace</div>
+      <div class="dd-item">Measurement Workspace</div>
+      <div class="dd-item">Review Workspace</div>
+      <div class="dd-item">Compact Workspace</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Show / Hide Left Panel</div>
+      <div class="dd-item">Show / Hide Right Panel</div>
+      <div class="dd-item">Show / Hide Workflow Widget</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item disabled">Move Panel Left<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item disabled">Move Panel Right<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item disabled">Collapse Panels<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Reset Workspace</div>
+      <div class="dd-item disabled">Save Current Workspace<span class="badge-hidden">ซ่อน</span></div>
+    </div>
+  </div>
+
+  <!-- Tools -->
+  <div class="menu-item" data-menu="Tools" onclick="toggleMenu(this)">Tools
+    <div class="dropdown">
+      <div class="dd-item disabled">Large File Mode<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item">PDF File Info</div>
+      <div class="dd-item disabled">Split PDF Suggestion<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item disabled">Performance Monitor<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Clear Cache</div>
+      <div class="dd-item">Rebuild Preview</div>
+      <div class="dd-item">Validate Project File</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Keyboard Shortcuts</div>
+      <div class="dd-item disabled">Developer Debug<span class="badge-hidden">ซ่อน</span></div>
+      <div class="dd-item">App Settings</div>
+    </div>
+  </div>
+
+  <!-- Help -->
+  <div class="menu-item" data-menu="Help" onclick="toggleMenu(this)">Help
+    <div class="dropdown">
+      <div class="dd-item">Quick Start Guide</div>
+      <div class="dd-item">How to Set Scale</div>
+      <div class="dd-item">How to Measure Area</div>
+      <div class="dd-item">Keyboard Shortcuts</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item">Phase 1 Scope</div>
+      <div class="dd-item">App Status</div>
+      <div class="dd-item">Test Status</div>
+      <div class="dd-item">View Log</div>
+      <div class="dd-sep"></div>
+      <div class="dd-item" style="color:var(--red)">Report Bug</div>
+      <div class="dd-item">About BMA-Plan</div>
+    </div>
+  </div>
+
+  <div class="menu-item phase-badge">Phase 1 · Measurement Only</div>
+</div>
+
+<!-- Ribbon -->
+<div class="ribbon">
+  <!-- Quick access group -->
+  <div class="ribbon-group">
+    <div class="rbtn primary" title="Open PDF">
+      <div class="icon">📂</div>
+      <div class="label">Open PDF</div>
+    </div>
+    <div class="rbtn" title="Save">
+      <div class="icon">💾</div>
+      <div class="label">Save</div>
+    </div>
+    <div class="rbtn warn" title="Recover">
+      <div class="icon">🔄</div>
+      <div class="label">Recover</div>
+    </div>
+  </div>
+
+  <!-- Scale group -->
+  <div class="ribbon-group">
+    <div class="rbtn primary" title="Set Scale">
+      <div class="icon">📏</div>
+      <div class="label">Set Scale</div>
+    </div>
+    <div class="rbtn" title="Scale Manager">
+      <div class="icon">📊</div>
+      <div class="label">Scale Mgr</div>
+    </div>
+    <div class="scale-badge">1 : 100</div>
+  </div>
+
+  <!-- Page group -->
+  <div class="ribbon-group">
+    <div class="rbtn" title="Page Manager">
+      <div class="icon">📄</div>
+      <div class="label">Page Mgr</div>
+    </div>
+    <div class="rbtn" title="Set Floor">
+      <div class="icon">🏢</div>
+      <div class="label">Set Floor</div>
+    </div>
+  </div>
+
+  <!-- Measure group -->
+  <div class="ribbon-group">
+    <div class="rbtn" title="Select">
+      <div class="icon">↖</div>
+      <div class="label">Select</div>
+    </div>
+    <div class="rbtn" title="Pan">
+      <div class="icon">✋</div>
+      <div class="label">Pan</div>
+    </div>
+    <div class="ribbon-sep"></div>
+    <div class="rbtn active-tool" title="Area">
+      <div class="icon">⬡</div>
+      <div class="label">Area</div>
+    </div>
+    <div class="rbtn" title="Opening">
+      <div class="icon">⊡</div>
+      <div class="label">Opening</div>
+    </div>
+    <div class="rbtn" title="Land">
+      <div class="icon">⬜</div>
+      <div class="label">Land</div>
+    </div>
+    <div class="rbtn" title="Dimension">
+      <div class="icon">↔</div>
+      <div class="label">Dim</div>
+    </div>
+    <div class="rbtn" title="North Arrow">
+      <div class="icon">↑N</div>
+      <div class="label">North</div>
+    </div>
+    <div class="rbtn" title="Label">
+      <div class="icon">T</div>
+      <div class="label">Label</div>
+    </div>
+  </div>
+
+  <!-- Edit group -->
+  <div class="ribbon-group">
+    <div class="rbtn" title="Undo">
+      <div class="icon">↩</div>
+      <div class="label">Undo</div>
+    </div>
+    <div class="rbtn" title="Redo">
+      <div class="icon">↪</div>
+      <div class="label">Redo</div>
+    </div>
+    <div class="rbtn" title="Delete" style="color:var(--red)">
+      <div class="icon">🗑</div>
+      <div class="label" style="color:var(--red)">Delete</div>
+    </div>
+  </div>
+
+  <!-- Review/Export group -->
+  <div class="ribbon-group">
+    <div class="rbtn warn" title="Review All">
+      <div class="icon">⚠</div>
+      <div class="label">Review</div>
+    </div>
+    <div class="rbtn success" title="Export XLSX">
+      <div class="icon">📊</div>
+      <div class="label">Export</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Area -->
+<div class="main">
+
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active">Sheets</div>
+      <div class="panel-tab">Objects</div>
+      <div class="panel-tab">Properties</div>
+    </div>
+    <div class="panel-body">
+      <div class="panel-section">แผ่นแบบ — 6 หน้า</div>
+
+      <div class="sheet-item">
+        <div class="sheet-num">01</div>
+        Site Plan
+        <div class="sheet-type">site_plan</div>
+        <div class="sheet-warn">⚠</div>
+      </div>
+      <div class="sheet-item">
+        <div class="sheet-num">02</div>
+        Basement 1
+        <div class="sheet-type">floor_plan</div>
+      </div>
+      <div class="sheet-item active">
+        <div class="sheet-num">03</div>
+        Ground Floor
+        <div class="sheet-type">floor_plan</div>
+      </div>
+      <div class="sheet-item">
+        <div class="sheet-num">04</div>
+        Floor 2
+        <div class="sheet-type">floor_plan</div>
+      </div>
+      <div class="sheet-item">
+        <div class="sheet-num">05</div>
+        Elevation A
+        <div class="sheet-type">elevation</div>
+        <div class="sheet-warn">⚠</div>
+      </div>
+      <div class="sheet-item">
+        <div class="sheet-num">06</div>
+        Section B-B
+        <div class="sheet-type">section</div>
+      </div>
+
+      <div class="panel-section" style="margin-top:16px">วัตถุในหน้านี้ — 8</div>
+
+      <div class="obj-item">
+        <div class="obj-dot obj-area"></div>
+        พื้นที่อาคาร ชั้น G
+        <div class="obj-tag">legal_building</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-area"></div>
+        พื้นที่พักอาศัย
+        <div class="obj-tag">use_area</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-area"></div>
+        สำนักงาน
+        <div class="obj-tag">use_area</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-open"></div>
+        Void ลิฟต์
+        <div class="obj-tag">deduction</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-open"></div>
+        Shaft บันได
+        <div class="obj-tag">deduction</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-land"></div>
+        แนวเขตที่ดิน
+        <div class="obj-tag">site_boundary</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-dim"></div>
+        เส้น Scale
+        <div class="obj-tag">scale_line</div>
+      </div>
+      <div class="obj-item">
+        <div class="obj-dot obj-dim"></div>
+        ระยะร่น
+        <div class="obj-tag">setback</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrap">
+    <div class="canvas-bg"></div>
+
+    <!-- Canvas top bar -->
+    <div class="canvas-top">
+      <div class="page-nav">
+        <div class="nav-btn">◀</div>
+        <span style="color:var(--text2)">หน้า 3 / 6</span>
+        <div class="nav-btn">▶</div>
+      </div>
+      <span class="zoom-info">75%</span>
+      <span style="color:var(--text3)">Ground Floor · Scale 1:100</span>
+      <div class="canvas-top-right">
+        <span class="coord-info">x: 1247 y: 834</span>
+        <div class="scale-badge">1 : 100 ✓</div>
+      </div>
+    </div>
+
+    <!-- PDF mockup -->
+    <div class="pdf-mock">
+      <div class="pdf-content">
+        <div class="fp-outline">
+          <!-- Interior walls -->
+          <div class="fp-room" style="top:10%;left:5%;width:35%;height:45%;"></div>
+          <div class="fp-room" style="top:10%;left:42%;width:30%;height:45%;"></div>
+          <div class="fp-room" style="top:10%;left:74%;width:21%;height:45%;"></div>
+          <div class="fp-room" style="top:57%;left:5%;width:90%;height:35%;"></div>
+          <div class="fp-room selected" style="top:10%;left:5%;width:35%;height:45%;background:rgba(10,132,255,0.06);border-color:#0a84ff;"></div>
+        </div>
+
+        <!-- Measurement overlay -->
+        <div class="measure-overlay">
+          <!-- Main area polygon -->
+          <div class="area-polygon" style="top:11%;left:6%;width:34%;height:43%;"></div>
+          <div class="area-label" style="top:27%;left:12%;">พักอาศัย 342.5 ม²</div>
+
+          <!-- Office area -->
+          <div class="area-polygon" style="top:11%;left:42%;width:29%;height:43%;opacity:0.7;"></div>
+          <div class="area-label" style="top:27%;left:46%;">สำนักงาน 218.3 ม²</div>
+
+          <!-- Deduction -->
+          <div class="area-polygon deduct" style="top:18%;left:20%;width:8%;height:12%;"></div>
+          <div class="area-label deduct" style="top:15%;left:20%;">Void 24.0 ม²</div>
+
+          <!-- Scale line -->
+          <div class="scale-line" style="bottom:12%;left:8%;width:20%;"></div>
+          <div class="area-label" style="bottom:9%;left:11%;background:var(--yellow);color:#000;">10 ม / 1:100</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow Widget -->
+    <div class="workflow-widget">
+      <div class="wf-title">Workflow</div>
+      <div class="wf-steps">
+        <div class="wf-step done">
+          <div class="wf-dot done"></div>
+          <div class="wf-step-label">เปิด PDF</div>
+        </div>
+        <div class="wf-step done">
+          <div class="wf-dot done"></div>
+          <div class="wf-step-label">ตั้ง Scale</div>
+        </div>
+        <div class="wf-step done">
+          <div class="wf-dot done"></div>
+          <div class="wf-step-label">Page Setup</div>
+        </div>
+        <div class="wf-step current">
+          <div class="wf-dot current"></div>
+          <div class="wf-step-label">วัดพื้นที่</div>
+        </div>
+        <div class="wf-step">
+          <div class="wf-dot pending"></div>
+          <div class="wf-step-label">Review</div>
+        </div>
+        <div class="wf-step">
+          <div class="wf-dot pending"></div>
+          <div class="wf-step-label">Export</div>
+        </div>
+      </div>
+      <div class="wf-next">
+        ขั้นต่อไป
+        <div class="wf-next-action">▶ Review All ก่อน Export</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel - Layers -->
+  <div class="right-panel">
+    <div class="right-header">
+      Layers
+      <div class="add-btn" title="New Layer">+</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;">
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#555"></div>
+        <div class="layer-name">แบบต้นฉบับ</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔒</div>
+        </div>
+        <div class="layer-count">0</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#30d158"></div>
+        <div class="layer-name">ที่ดิน/แนวเขต</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">1</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#ffd60a"></div>
+        <div class="layer-name">ทิศ/ถนน</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">2</div>
+      </div>
+
+      <div class="layer-item active-layer">
+        <div class="layer-color" style="background:#0a84ff"></div>
+        <div class="layer-name">พื้นที่อาคาร</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">3</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#34aadc"></div>
+        <div class="layer-name">พื้นที่ตามการใช้</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">2</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#ff453a"></div>
+        <div class="layer-name">ช่องว่าง/หัก</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">2</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#bf5af2"></div>
+        <div class="layer-name">เส้นอ้างอิง/ระยะ</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">2</div>
+      </div>
+
+      <div class="layer-item">
+        <div class="layer-color" style="background:#636366"></div>
+        <div class="layer-name">ป้าย/หมายเหตุ</div>
+        <div class="layer-controls">
+          <div class="layer-btn on">👁</div>
+          <div class="layer-btn">🔓</div>
+        </div>
+        <div class="layer-count">0</div>
+      </div>
+
+    </div>
+
+    <!-- Properties mini section -->
+    <div class="props-section">
+      <div class="props-title">Selected Object</div>
+      <div class="prop-row">
+        <div class="prop-key">Name</div>
+        <div class="prop-val editable">พักอาศัย ชั้น G</div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-key">Category</div>
+        <div class="prop-val accent">area</div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-key">Tag</div>
+        <div class="prop-val accent">legal_building_area</div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-key">Floor</div>
+        <div class="prop-val">Ground Floor (G)</div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-key">Use</div>
+        <div class="prop-val">residential</div>
+      </div>
+      <div class="prop-row">
+        <div class="prop-key">Area</div>
+        <div class="prop-val green">342.50 ม²</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot ok"></div>
+    Scale: 1:100
+  </div>
+  <div class="status-item">
+    <div class="status-dot ok"></div>
+    8 objects
+  </div>
+  <div class="status-item" style="color:var(--yellow)">
+    <div class="status-dot warn"></div>
+    2 warnings
+  </div>
+  <div class="status-item">
+    Layer: พื้นที่อาคาร
+  </div>
+  <div class="status-item">
+    Tool: Area ⬡
+  </div>
+  <div class="status-bar-right">
+    <span style="color:var(--text3)">RAMA4 APARTMENT · Page 3/6</span>
+    <div class="autosave-badge">✓ Saved 2 min ago</div>
+  </div>
+</div>
+
+<script>
+  let activeMenu = null;
+
+  function toggleMenu(el) {
+    if (activeMenu && activeMenu !== el) {
+      activeMenu.classList.remove('active');
+    }
+    el.classList.toggle('active');
+    activeMenu = el.classList.contains('active') ? el : null;
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-item')) {
+      if (activeMenu) {
+        activeMenu.classList.remove('active');
+        activeMenu = null;
+      }
+    }
+  });
+
+  // Panel tabs
+  document.querySelectorAll('.panel-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // Ribbon tool selection
+  document.querySelectorAll('.rbtn').forEach(btn => {
+    if (!btn.classList.contains('primary') && !btn.classList.contains('success') && !btn.classList.contains('warn')) {
+      btn.addEventListener('click', () => {
+        // Only toggle tool buttons in the measure group
+        const group = btn.closest('.ribbon-group');
+        if (group) {
+          group.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active-tool'));
+          btn.classList.add('active-tool');
+          btn.querySelectorAll('.label')[0].style.color = '#fff';
+        }
+      });
+    }
+  });
+
+  // Sheet item selection
+  document.querySelectorAll('.sheet-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.sheet-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  // Layer selection
+  document.querySelectorAll('.layer-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.layer-item').forEach(i => i.classList.remove('active-layer'));
+      item.classList.add('active-layer');
+    });
+  });
+</script>
+</body>
+</html>

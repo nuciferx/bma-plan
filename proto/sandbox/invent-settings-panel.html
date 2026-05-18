@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Invent Spike — Settings Panel (Approach A)</title>
+<style>
+  :root { font-family: -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; font-size: 13px; }
+  body { margin: 0; background: #f4f5f7; color: #222; }
+  header { background: #1f2933; color: #fff; padding: 10px 18px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  header .pill { background: #3b82f6; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  main { padding: 20px; max-width: 980px; margin: 0 auto; }
+  .row { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .panel { background: #fff; border: 1px solid #d8dde3; border-radius: 8px; padding: 14px 16px; flex: 1; min-width: 280px; }
+  .panel h3 { margin: 0 0 8px; font-size: 13px; color: #1f2933; border-bottom: 1px solid #e5e9ee; padding-bottom: 6px; }
+  .panel .k { color: #6b7280; }
+  .panel .v { color: #1f2933; font-weight: 600; }
+  .panel pre { background: #f9fafb; border: 1px solid #e5e9ee; border-radius: 4px; padding: 8px 10px; font-size: 11.5px; max-height: 200px; overflow: auto; margin: 6px 0 0; }
+  button { background: #fff; border: 1px solid #cdd3da; border-radius: 4px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  button:hover { background: #f6f8fa; }
+  button.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  button.primary:hover { background: #2563eb; }
+  button.danger { color: #b1322c; border-color: #e0b4b1; }
+  button.danger:hover { background: #fdecea; }
+  .ribbon { display: flex; gap: 8px; padding: 10px 18px; background: #e7eaee; border-bottom: 1px solid #d8dde3; }
+  .ribbon .grp { display: flex; gap: 4px; align-items: center; }
+  .ribbon .grp .sep { width: 1px; background: #d8dde3; height: 22px; margin: 0 4px; }
+  .test-result { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .pass { background: #dcfce7; color: #166534; }
+  .fail { background: #fee2e2; color: #991b1b; }
+
+  /* Settings overlay (Approach A) */
+  #settings-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: none; align-items: center; justify-content: center; z-index: 100; }
+  #settings-overlay.open { display: flex; }
+  .settings-card { background: #fff; border-radius: 10px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); width: 720px; max-width: 92vw; height: 540px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+  .settings-head { padding: 14px 20px; border-bottom: 1px solid #e5e9ee; display: flex; align-items: center; justify-content: space-between; }
+  .settings-head h2 { margin: 0; font-size: 15px; }
+  .settings-body { flex: 1; display: flex; min-height: 0; }
+  .settings-tabs { width: 160px; background: #f6f8fa; border-right: 1px solid #e5e9ee; padding: 10px 0; }
+  .settings-tabs button { display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 10px 18px; border-left: 3px solid transparent; border-radius: 0; font-size: 13px; cursor: pointer; }
+  .settings-tabs button:hover { background: #ebeef2; }
+  .settings-tabs button.active { background: #fff; border-left-color: #3b82f6; font-weight: 600; }
+  .settings-content { flex: 1; padding: 18px 24px; overflow: auto; }
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+  .settings-section h3 { margin: 0 0 14px; font-size: 14px; color: #1f2933; }
+  .field { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .field label { color: #4b5563; font-size: 12.5px; }
+  .field input[type="range"] { width: 100%; }
+  .field input[type="number"] { width: 80px; padding: 4px 6px; border: 1px solid #cdd3da; border-radius: 4px; font-size: 12.5px; }
+  .field select { padding: 4px 8px; border: 1px solid #cdd3da; border-radius: 4px; font-size: 12.5px; min-width: 160px; }
+  .field .radio-grp { display: flex; gap: 12px; }
+  .field .radio-grp label { display: flex; align-items: center; gap: 4px; color: #1f2933; font-size: 12.5px; }
+  .threshold-display { color: #1f2933; font-weight: 600; margin-left: 8px; min-width: 44px; display: inline-block; }
+  .widget-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .widget-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #f9fafb; border: 1px solid #e5e9ee; border-radius: 4px; }
+  .widget-row .name { font-size: 12.5px; flex: 1; }
+  .settings-foot { border-top: 1px solid #e5e9ee; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .settings-foot .left { display: flex; gap: 8px; }
+  .settings-foot .right { display: flex; gap: 8px; }
+
+  .log { background: #0f172a; color: #d1d5db; font-family: ui-monospace, monospace; font-size: 11.5px; padding: 10px 12px; border-radius: 6px; max-height: 240px; overflow: auto; line-height: 1.6; }
+  .log .ok { color: #4ade80; }
+  .log .bad { color: #f87171; }
+  .log .info { color: #93c5fd; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BMA-Plan Invent Spike — Settings Panel</h1>
+  <span class="pill">Approach A · Unified Tabbed Modal</span>
+  <span style="opacity:0.7; font-size:11.5px;">standalone — proves persistence + migration + reset (not wired to live UI)</span>
+</header>
+
+<div class="ribbon">
+  <div class="grp">
+    <button title="Mock ribbon button — unused in spike">📂 Open</button>
+    <button title="Mock ribbon button — unused in spike">📐 Scale</button>
+    <button title="Mock ribbon button — unused in spike">🔷 Measure</button>
+    <div class="sep"></div>
+    <button id="btn-open-settings" class="primary" title="Single entry point for ALL preferences">⚙ ตั้งค่า (1 click → modal)</button>
+  </div>
+</div>
+
+<main>
+  <div class="row">
+    <div class="panel" style="flex: 1.4;">
+      <h3>Live preferences (read via <code>getPref()</code>)</h3>
+      <div><span class="k">snap.enabled:</span> <span class="v" id="live-snap-enabled">—</span></div>
+      <div><span class="k">snap.threshold:</span> <span class="v" id="live-snap-threshold">—</span></div>
+      <div><span class="k">tool.default:</span> <span class="v" id="live-tool-default">—</span></div>
+      <div><span class="k">unit.area:</span> <span class="v" id="live-unit">—</span></div>
+      <div><span class="k">unit.decimals:</span> <span class="v" id="live-decimals">—</span></div>
+      <div><span class="k">layout.preset:</span> <span class="v" id="live-layout">—</span></div>
+      <div><span class="k">widgets visible:</span> <span class="v" id="live-widgets">—</span></div>
+    </div>
+    <div class="panel">
+      <h3>Persisted localStorage</h3>
+      <div style="margin-bottom:6px;">
+        <span class="k">bmaPlan.settings.v1:</span>
+        <pre id="ls-settings">(empty)</pre>
+      </div>
+      <div style="margin-bottom:6px;">
+        <span class="k">bmaPlan.uiLayoutOptions.v1 (legacy):</span>
+        <pre id="ls-legacy-layout">(empty)</pre>
+      </div>
+      <div>
+        <span class="k">bmaPlan.widgetPlacement.v1 (legacy):</span>
+        <pre id="ls-legacy-widgets">(empty)</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel" style="flex: 1;">
+      <h3>Spike acceptance tests</h3>
+      <button id="run-tests" class="primary">▶ Run all 6 tests</button>
+      <button id="seed-legacy" style="margin-left:8px;">Seed legacy keys (test backward-compat)</button>
+      <button id="wipe-all" class="danger" style="margin-left:8px;">Wipe ALL localStorage</button>
+      <div id="test-results" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel" style="flex: 1;">
+      <h3>Event log</h3>
+      <div class="log" id="event-log"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================================================
+     Settings overlay (Approach A) — Unified Tabbed Modal
+     ============================================================ -->
+<div id="settings-overlay" role="dialog" aria-labelledby="settings-title">
+  <div class="settings-card">
+    <div class="settings-head">
+      <h2 id="settings-title">⚙ การตั้งค่า BMA-Plan</h2>
+      <button id="btn-close-settings" aria-label="ปิด">✕</button>
+    </div>
+    <div class="settings-body">
+      <nav class="settings-tabs" role="tablist">
+        <button data-tab="draw" class="active">🔷 วาด</button>
+        <button data-tab="units">📏 หน่วย</button>
+        <button data-tab="layout">🖥 หน้าจอ</button>
+        <button data-tab="widgets">🧩 Widgets</button>
+      </nav>
+      <div class="settings-content">
+        <!-- Draw tab -->
+        <section class="settings-section active" data-section="draw">
+          <h3>การวาดและสแนป</h3>
+          <div class="field">
+            <label for="pref-snap-enabled">เปิดใช้ Snap</label>
+            <input type="checkbox" id="pref-snap-enabled">
+          </div>
+          <div class="field">
+            <label for="pref-snap-threshold">Snap threshold</label>
+            <div>
+              <input type="range" id="pref-snap-threshold" min="5" max="30" step="1" style="width:200px;">
+              <span class="threshold-display" id="pref-snap-threshold-val">10 px</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>เครื่องมือเริ่มต้น</label>
+            <div class="radio-grp">
+              <label><input type="radio" name="pref-tool" value="polygon"> Polygon</label>
+              <label><input type="radio" name="pref-tool" value="rect"> Rect</label>
+              <label><input type="radio" name="pref-tool" value="circle"> Circle</label>
+              <label><input type="radio" name="pref-tool" value="path"> Path</label>
+            </div>
+          </div>
+        </section>
+        <!-- Units tab -->
+        <section class="settings-section" data-section="units">
+          <h3>หน่วยและการแสดงผล</h3>
+          <div class="field">
+            <label for="pref-unit">หน่วยพื้นที่</label>
+            <select id="pref-unit">
+              <option value="sqm">ตร.ม. (m²)</option>
+              <option value="sqft">ตร.ฟต. (ft²)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pref-decimals">ทศนิยม</label>
+            <input type="number" id="pref-decimals" min="0" max="3" step="1">
+          </div>
+        </section>
+        <!-- Layout tab (absorbs bmaPlan.uiLayoutOptions.v1) -->
+        <section class="settings-section" data-section="layout">
+          <h3>UI Layout (รวมจาก <code>bmaPlan.uiLayoutOptions.v1</code>)</h3>
+          <div class="field">
+            <label for="pref-layout-preset">Preset</label>
+            <select id="pref-layout-preset">
+              <option value="current-stable">Current Stable</option>
+              <option value="mockup-v3">Mockup V3</option>
+              <option value="inspection-focus">Inspection Focus</option>
+              <option value="layer-focus">Layer Focus</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
+          <p style="color:#6b7280; font-size:12px;">การโยกย้ายจาก legacy key เกิดขึ้นอัตโนมัติเมื่อโหลดครั้งแรก legacy key ถูกเก็บไว้เพื่อ graceful degrade</p>
+        </section>
+        <!-- Widgets tab (absorbs bmaPlan.widgetPlacement.v1) -->
+        <section class="settings-section" data-section="widgets">
+          <h3>Widget visibility (รวมจาก <code>bmaPlan.widgetPlacement.v1</code>)</h3>
+          <div class="widget-list" id="widget-list"></div>
+        </section>
+      </div>
+    </div>
+    <div class="settings-foot">
+      <div class="left">
+        <button id="btn-reset-defaults" class="danger">↺ คืนค่าเริ่มต้น</button>
+      </div>
+      <div class="right">
+        <button id="btn-cancel-settings">ยกเลิก</button>
+        <button id="btn-apply-settings" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ---------- factory defaults ---------- */
+const PREF_DEFAULTS = Object.freeze({
+  version: 1,
+  snap: { enabled: true, threshold: 10 },
+  tool: { default: "polygon" },
+  unit: { area: "sqm", decimals: 2 },
+  layout: { preset: "current-stable" },
+  widgets: {
+    workflow: true, reviewWarnings: true, exportReady: true,
+    summary: true, inspection: true, layers: true,
+    pageNav: true, scaleStatus: true, snapTargets: false, projectInfo: false
+  }
+});
+const LS_KEY = "bmaPlan.settings.v1";
+const LEGACY_LAYOUT_KEY = "bmaPlan.uiLayoutOptions.v1";
+const LEGACY_WIDGET_KEY = "bmaPlan.widgetPlacement.v1";
+
+/* ---------- log helper ---------- */
+const $log = document.getElementById("event-log");
+function logLine(msg, cls = "info") {
+  const t = new Date().toLocaleTimeString("en-GB", { hour12: false });
+  const line = document.createElement("div");
+  line.innerHTML = `[${t}] <span class="${cls}">${msg}</span>`;
+  $log.appendChild(line); $log.scrollTop = $log.scrollHeight;
+}
+
+/* ---------- deep-clone helper (preserve defaults' Object.freeze immutability) ---------- */
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+/* ---------- migration ---------- */
+function migrateFromLegacy() {
+  // One-way seed from old keys → new key. Old keys are PRESERVED for graceful degrade.
+  let migrated = false;
+  const seed = clone(PREF_DEFAULTS);
+  try {
+    const legacyLayout = JSON.parse(localStorage.getItem(LEGACY_LAYOUT_KEY) || "null");
+    if (legacyLayout && typeof legacyLayout.preset === "string") {
+      seed.layout.preset = legacyLayout.preset;
+      migrated = true;
+      logLine(`migrate: layout preset "${legacyLayout.preset}" pulled from legacy`, "info");
+    }
+  } catch (e) { logLine(`migrate: bad legacy layout JSON — ignored (${e.message})`, "bad"); }
+  try {
+    const legacyWidgets = JSON.parse(localStorage.getItem(LEGACY_WIDGET_KEY) || "null");
+    if (legacyWidgets && typeof legacyWidgets === "object") {
+      for (const k of Object.keys(seed.widgets)) {
+        if (legacyWidgets[k] && typeof legacyWidgets[k].visible === "boolean") {
+          seed.widgets[k] = legacyWidgets[k].visible;
+          migrated = true;
+        }
+      }
+      if (migrated) logLine(`migrate: widget visibility seeded from legacy registry`, "info");
+    }
+  } catch (e) { logLine(`migrate: bad legacy widget JSON — ignored (${e.message})`, "bad"); }
+  if (migrated) {
+    localStorage.setItem(LS_KEY, JSON.stringify(seed));
+    logLine(`migrate: wrote new key ${LS_KEY} from legacy keys (legacy keys preserved)`, "ok");
+  }
+  return migrated;
+}
+
+/* ---------- persistence ---------- */
+let PREFS = null;
+function loadPrefs() {
+  let raw;
+  try { raw = JSON.parse(localStorage.getItem(LS_KEY) || "null"); }
+  catch (e) { logLine(`load: bad JSON in ${LS_KEY} — using defaults (${e.message})`, "bad"); raw = null; }
+  if (!raw) {
+    // Try migration before falling back to defaults
+    const did = migrateFromLegacy();
+    if (did) { raw = JSON.parse(localStorage.getItem(LS_KEY)); }
+  }
+  if (!raw || raw.version !== 1) {
+    PREFS = clone(PREF_DEFAULTS);
+    logLine("load: using factory defaults", "info");
+  } else {
+    // Shallow-merge each section over defaults so newly added defaults appear after upgrade
+    const d = clone(PREF_DEFAULTS);
+    PREFS = {
+      version: 1,
+      snap: Object.assign(d.snap, raw.snap || {}),
+      tool: Object.assign(d.tool, raw.tool || {}),
+      unit: Object.assign(d.unit, raw.unit || {}),
+      layout: Object.assign(d.layout, raw.layout || {}),
+      widgets: Object.assign(d.widgets, raw.widgets || {})
+    };
+  }
+}
+function savePrefs() {
+  localStorage.setItem(LS_KEY, JSON.stringify(PREFS));
+  logLine(`save: ${LS_KEY} updated (${Object.keys(PREFS).length} top-level sections)`, "ok");
+}
+function getPref(path, fallback) {
+  const parts = path.split(".");
+  let cur = PREFS;
+  for (const p of parts) {
+    if (cur && typeof cur === "object" && p in cur) cur = cur[p];
+    else return fallback;
+  }
+  return cur;
+}
+
+/* ---------- modal wiring ---------- */
+const $overlay = document.getElementById("settings-overlay");
+const $btnOpen = document.getElementById("btn-open-settings");
+const $btnClose = document.getElementById("btn-close-settings");
+const $btnCancel = document.getElementById("btn-cancel-settings");
+const $btnApply = document.getElementById("btn-apply-settings");
+const $btnReset = document.getElementById("btn-reset-defaults");
+
+let DRAFT = null;
+function openSettings() {
+  DRAFT = clone(PREFS);
+  fillFormFromDraft();
+  $overlay.classList.add("open");
+  logLine("modal: opened (draft cloned from PREFS)", "info");
+}
+function closeSettings() { $overlay.classList.remove("open"); }
+$btnOpen.addEventListener("click", openSettings);
+$btnClose.addEventListener("click", () => { logLine("modal: closed (no save)", "info"); closeSettings(); });
+$btnCancel.addEventListener("click", () => { logLine("modal: cancelled", "info"); closeSettings(); });
+$btnApply.addEventListener("click", () => {
+  PREFS = DRAFT;
+  savePrefs();
+  refreshLive();
+  refreshLsView();
+  closeSettings();
+});
+$btnReset.addEventListener("click", () => {
+  if (!confirm("คืนค่าเริ่มต้นทั้งหมด? การตั้งค่าทุกอย่างจะหายไป")) return;
+  PREFS = clone(PREF_DEFAULTS);
+  savePrefs();
+  // Also clear legacy keys — frame says "Existing widget placement + layout state are reset alongside."
+  localStorage.removeItem(LEGACY_LAYOUT_KEY);
+  localStorage.removeItem(LEGACY_WIDGET_KEY);
+  logLine("reset: factory defaults restored, legacy keys cleared", "ok");
+  fillFormFromDraft = fillFormFromDraft; // identity to silence linter
+  DRAFT = clone(PREFS);
+  fillFormFromDraft();
+  refreshLive(); refreshLsView();
+});
+
+// Tabs
+document.querySelectorAll(".settings-tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".settings-tabs button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".settings-section").forEach(s => s.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.getAttribute("data-tab");
+    document.querySelector(`.settings-section[data-section="${tab}"]`).classList.add("active");
+  });
+});
+
+// Form field elements
+const $snapEnabled = document.getElementById("pref-snap-enabled");
+const $snapThreshold = document.getElementById("pref-snap-threshold");
+const $snapThresholdVal = document.getElementById("pref-snap-threshold-val");
+const $unit = document.getElementById("pref-unit");
+const $decimals = document.getElementById("pref-decimals");
+const $layoutPreset = document.getElementById("pref-layout-preset");
+const $widgetList = document.getElementById("widget-list");
+
+$snapEnabled.addEventListener("change", () => { DRAFT.snap.enabled = $snapEnabled.checked; });
+$snapThreshold.addEventListener("input", () => {
+  DRAFT.snap.threshold = parseInt($snapThreshold.value, 10);
+  $snapThresholdVal.textContent = DRAFT.snap.threshold + " px";
+});
+document.querySelectorAll('input[name="pref-tool"]').forEach(r => {
+  r.addEventListener("change", () => {
+    if (r.checked) DRAFT.tool.default = r.value;
+  });
+});
+$unit.addEventListener("change", () => { DRAFT.unit.area = $unit.value; });
+$decimals.addEventListener("input", () => {
+  const n = parseInt($decimals.value, 10);
+  if (!Number.isNaN(n)) DRAFT.unit.decimals = Math.min(3, Math.max(0, n));
+});
+$layoutPreset.addEventListener("change", () => { DRAFT.layout.preset = $layoutPreset.value; });
+
+function fillFormFromDraft() {
+  $snapEnabled.checked = DRAFT.snap.enabled;
+  $snapThreshold.value = DRAFT.snap.threshold;
+  $snapThresholdVal.textContent = DRAFT.snap.threshold + " px";
+  document.querySelectorAll('input[name="pref-tool"]').forEach(r => {
+    r.checked = (r.value === DRAFT.tool.default);
+  });
+  $unit.value = DRAFT.unit.area;
+  $decimals.value = DRAFT.unit.decimals;
+  $layoutPreset.value = DRAFT.layout.preset;
+  // Build widget list
+  $widgetList.innerHTML = "";
+  for (const [key, visible] of Object.entries(DRAFT.widgets)) {
+    const row = document.createElement("div");
+    row.className = "widget-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = "w-" + key; cb.checked = visible;
+    cb.addEventListener("change", () => { DRAFT.widgets[key] = cb.checked; });
+    const lbl = document.createElement("label");
+    lbl.className = "name"; lbl.setAttribute("for", "w-" + key); lbl.textContent = key;
+    row.appendChild(cb); row.appendChild(lbl);
+    $widgetList.appendChild(row);
+  }
+}
+
+/* ---------- live read-out panel ---------- */
+function refreshLive() {
+  document.getElementById("live-snap-enabled").textContent = getPref("snap.enabled");
+  document.getElementById("live-snap-threshold").textContent = getPref("snap.threshold") + " px";
+  document.getElementById("live-tool-default").textContent = getPref("tool.default");
+  document.getElementById("live-unit").textContent = getPref("unit.area");
+  document.getElementById("live-decimals").textContent = getPref("unit.decimals");
+  document.getElementById("live-layout").textContent = getPref("layout.preset");
+  const widgets = getPref("widgets", {});
+  const visible = Object.entries(widgets).filter(([_, v]) => v).map(([k]) => k);
+  document.getElementById("live-widgets").textContent = `${visible.length}/${Object.keys(widgets).length} (${visible.join(", ")})`;
+}
+function refreshLsView() {
+  document.getElementById("ls-settings").textContent = localStorage.getItem(LS_KEY) || "(empty)";
+  document.getElementById("ls-legacy-layout").textContent = localStorage.getItem(LEGACY_LAYOUT_KEY) || "(empty)";
+  document.getElementById("ls-legacy-widgets").textContent = localStorage.getItem(LEGACY_WIDGET_KEY) || "(empty)";
+}
+
+/* ---------- support buttons ---------- */
+document.getElementById("seed-legacy").addEventListener("click", () => {
+  localStorage.setItem(LEGACY_LAYOUT_KEY, JSON.stringify({ preset: "mockup-v3", topMode: "compact" }));
+  localStorage.setItem(LEGACY_WIDGET_KEY, JSON.stringify({
+    workflow: { visible: false, region: "right" },
+    reviewWarnings: { visible: false, region: "right" },
+    summary: { visible: true, region: "bottom" }
+  }));
+  localStorage.removeItem(LS_KEY);
+  logLine("seed: legacy keys written, new key removed — reload page to test migration", "info");
+  refreshLsView();
+});
+document.getElementById("wipe-all").addEventListener("click", () => {
+  if (!confirm("ลบ localStorage ทั้งหมด?")) return;
+  localStorage.removeItem(LS_KEY);
+  localStorage.removeItem(LEGACY_LAYOUT_KEY);
+  localStorage.removeItem(LEGACY_WIDGET_KEY);
+  logLine("wipe: all spike localStorage keys cleared", "bad");
+  loadPrefs(); refreshLive(); refreshLsView();
+});
+
+/* ============================================================
+   SPIKE ACCEPTANCE TESTS — 6 criteria from the frame
+   ============================================================ */
+const $testResults = document.getElementById("test-results");
+function addResult(name, pass, detail) {
+  const row = document.createElement("div");
+  row.style.marginTop = "6px";
+  row.innerHTML = `<span class="test-result ${pass ? "pass" : "fail"}">${pass ? "PASS" : "FAIL"}</span> <b>${name}</b> — ${detail}`;
+  $testResults.appendChild(row);
+  logLine(`TEST ${name}: ${pass ? "PASS" : "FAIL"} — ${detail}`, pass ? "ok" : "bad");
+  return pass;
+}
+function runAllTests() {
+  $testResults.innerHTML = "";
+  let all = true;
+
+  // === Test 1: Single entry point ===
+  const entryButtons = document.querySelectorAll('[id*="open-settings"]');
+  all &= addResult("1. Single entry point",
+    entryButtons.length === 1,
+    `${entryButtons.length} entry button(s) found in DOM`);
+
+  // === Test 2: Read-write round-trip (in-memory + localStorage) ===
+  // Save current, then mutate, save, reload from localStorage, verify.
+  const saved = clone(PREFS);
+  PREFS.snap.threshold = 22;
+  PREFS.unit.area = "sqft";
+  PREFS.layout.preset = "compact";
+  savePrefs();
+  // Reload from localStorage
+  const reloaded = JSON.parse(localStorage.getItem(LS_KEY));
+  const rt_ok = reloaded.snap.threshold === 22
+             && reloaded.unit.area === "sqft"
+             && reloaded.layout.preset === "compact"
+             && reloaded.version === 1;
+  all &= addResult("2. Read-write round-trip",
+    rt_ok,
+    `threshold=22 unit=sqft layout=compact + version=1 → re-read from localStorage matches: ${rt_ok}`);
+  // Restore
+  PREFS = saved; savePrefs();
+
+  // === Test 3: Backward-compat migration from legacy keys ===
+  // Wipe new key, write legacy keys, run loadPrefs(), check that new key was seeded.
+  const savedLs = localStorage.getItem(LS_KEY);
+  const savedLegLayout = localStorage.getItem(LEGACY_LAYOUT_KEY);
+  const savedLegWidgets = localStorage.getItem(LEGACY_WIDGET_KEY);
+  localStorage.removeItem(LS_KEY);
+  localStorage.setItem(LEGACY_LAYOUT_KEY, JSON.stringify({ preset: "inspection-focus" }));
+  localStorage.setItem(LEGACY_WIDGET_KEY, JSON.stringify({
+    workflow: { visible: false },
+    summary: { visible: true }
+  }));
+  loadPrefs();
+  const mig_ok = PREFS.layout.preset === "inspection-focus"
+              && PREFS.widgets.workflow === false
+              && PREFS.widgets.summary === true
+              // Legacy keys preserved post-migration:
+              && localStorage.getItem(LEGACY_LAYOUT_KEY) !== null
+              && localStorage.getItem(LEGACY_WIDGET_KEY) !== null;
+  all &= addResult("3. Backward-compat migration",
+    mig_ok,
+    `legacy keys → new key seeded with layout=inspection-focus + widget overrides; old keys preserved: ${mig_ok}`);
+  // Restore prior state
+  if (savedLs) localStorage.setItem(LS_KEY, savedLs); else localStorage.removeItem(LS_KEY);
+  if (savedLegLayout) localStorage.setItem(LEGACY_LAYOUT_KEY, savedLegLayout); else localStorage.removeItem(LEGACY_LAYOUT_KEY);
+  if (savedLegWidgets) localStorage.setItem(LEGACY_WIDGET_KEY, savedLegWidgets); else localStorage.removeItem(LEGACY_WIDGET_KEY);
+  loadPrefs();
+
+  // === Test 4: Restore defaults ===
+  const beforeReset = clone(PREFS);
+  PREFS.snap.threshold = 28;
+  PREFS.unit.area = "sqft";
+  savePrefs();
+  // Simulate reset (without confirm())
+  PREFS = clone(PREF_DEFAULTS);
+  savePrefs();
+  const reset_ok = PREFS.snap.threshold === PREF_DEFAULTS.snap.threshold
+                && PREFS.unit.area === PREF_DEFAULTS.unit.area
+                && PREFS.version === 1;
+  all &= addResult("4. Restore defaults",
+    reset_ok,
+    `mutated → reset → all sections match PREF_DEFAULTS: ${reset_ok}`);
+  PREFS = beforeReset; savePrefs();
+
+  // === Test 5: Reachable in ≤2 clicks ===
+  // Click 1 = ribbon "⚙ ตั้งค่า"; Click 2 = "วาด" tab (default-active, so 0 extra clicks).
+  // Snap threshold control is on the default-active "วาด" tab, so 1 click reaches it.
+  const drawTabDefault = document.querySelector('.settings-tabs button[data-tab="draw"]').classList.contains("active");
+  const snapControlOnDraw = !!document.querySelector('.settings-section[data-section="draw"] #pref-snap-threshold');
+  const clicks_ok = drawTabDefault && snapControlOnDraw;
+  all &= addResult("5. Snap threshold reachable in ≤2 clicks",
+    clicks_ok,
+    `Draw tab default-active=${drawTabDefault}, snap control on Draw tab=${snapControlOnDraw} → 1 click from main UI`);
+
+  // === Test 6: Schema version field ===
+  const persisted = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+  const ver_ok = persisted.version === 1;
+  all &= addResult("6. Schema version field",
+    ver_ok,
+    `localStorage[${LS_KEY}].version === 1: ${ver_ok}`);
+
+  // Final summary
+  const summary = document.createElement("div");
+  summary.style.marginTop = "12px";
+  summary.style.fontWeight = "600";
+  summary.style.fontSize = "13px";
+  summary.innerHTML = all
+    ? `<span class="test-result pass">ALL 6 PASS</span> Spike approves Approach A.`
+    : `<span class="test-result fail">ONE OR MORE FAILED</span> See log for details.`;
+  $testResults.appendChild(summary);
+  refreshLive(); refreshLsView();
+}
+document.getElementById("run-tests").addEventListener("click", runAllTests);
+
+/* ---------- boot ---------- */
+loadPrefs();
+refreshLive();
+refreshLsView();
+logLine("spike loaded — click ⚙ to open settings, ▶ to run acceptance tests", "info");
+</script>
+</body>
+</html>

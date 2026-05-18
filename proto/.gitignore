@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# PyInstaller build outputs
+build/
+dist/
+dist2/
+
+# Runtime exports (generated files) — use export/* not export/ so .py negation works
+export/*
+!export/*.py
+
+# Server logs
+*.log
+
+# OS metadata
+.DS_Store
+desktop.ini
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Secrets / env
+.env
+
+# Generated/sample assets that drift
+*.pdf
+*.jpg
+*.jpeg
+*.png

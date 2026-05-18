@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Mockup — Top Menu Redesign + Left/Right Panels (confirm)</title>
+<style>
+  :root {
+    --bg: #1a1c20;
+    --surface: #23262c;
+    --surface2: #2a2e35;
+    --surface3: #353a42;
+    --border: #3a3f47;
+    --text: #e8ebef;
+    --text2: #aab1bb;
+    --text3: #6a737d;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --cyan: #5ac8fa;
+    --magenta: #bf5af2;
+    --accent: #3b82f6;
+    --measure: #30d158;
+    --annot: #ff453a;
+    --gold: #d4af37;
+    --lpanel-w: 240px;
+    --panel-w: 320px;
+    --menu-h: 32px;
+    --tab-h: 38px;
+    --ribbon-h: 78px;
+    --status-h: 28px;
+    --btn-min-w: 60px;
+    --btn-h: 60px;
+    --btn-icon-font: 22px;
+    --btn-font: 11px;
+    --mini-size: 28px;
+    --mini-font: 14px;
+    --hero-w: 88px;
+    --hero-icon: 28px;
+  }
+  /* Density variants — compact/comfortable(default)/spacious */
+  body.density-compact {
+    --menu-h: 28px; --tab-h: 32px; --ribbon-h: 48px; --status-h: 26px;
+    --btn-min-w: auto; --btn-h: 30px; --btn-icon-font: 14px; --btn-font: 11px;
+    --mini-size: 22px; --mini-font: 12px;
+    --hero-w: auto; --hero-icon: 16px;
+    --lpanel-w: 220px; --panel-w: 300px;
+  }
+  body.density-compact .rbtn { flex-direction: row; padding: 4px 10px; gap: 6px; }
+  body.density-compact .rbtn.hero { padding: 4px 14px; }
+  body.density-compact .rstack { flex-direction: row; }
+  body.density-spacious {
+    --menu-h: 36px; --tab-h: 44px; --ribbon-h: 90px; --status-h: 32px;
+    --btn-min-w: 72px; --btn-h: 76px; --btn-icon-font: 28px; --btn-font: 12px;
+    --mini-size: 34px; --mini-font: 16px;
+    --hero-w: 100px; --hero-icon: 36px;
+    --lpanel-w: 260px; --panel-w: 360px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+  body { display: grid; grid-template-rows: var(--menu-h) var(--tab-h) auto 1fr var(--status-h); transition: all 0.2s ease; }
+
+  /* ═══ MENU BAR (extended) ═══ */
+  .menu-bar { display: flex; align-items: stretch; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; position: relative; z-index: 50; }
+  .menu-item { padding: 0 12px; cursor: pointer; color: var(--text2); display: flex; align-items: center; user-select: none; }
+  .menu-item:hover, .menu-item.open { background: var(--surface3); color: var(--text); }
+  .menu-item .caret { font-size: 9px; margin-left: 4px; opacity: 0.6; }
+
+  /* DENSITY PICKER in menu bar */
+  .density-picker { display: flex; align-items: center; gap: 4px; padding: 0 8px; font-size: 11px; color: var(--text3); }
+  .density-picker .label { color: var(--text3); margin-right: 2px; }
+  .density-picker button { padding: 3px 10px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; }
+  .density-picker button:hover { background: var(--surface3); color: var(--text); }
+  .density-picker button.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+
+  /* DROPDOWN */
+  .dropdown { position: absolute; top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 8px 8px; min-width: 260px; padding: 4px 0; box-shadow: 0 10px 28px rgba(0,0,0,0.5); z-index: 100; display: none; }
+  .dropdown.show { display: block; }
+  .dd-item { padding: 7px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); font-size: 12px; position: relative; }
+  .dd-item:hover { background: var(--surface3); }
+  .dd-item .ic { width: 18px; text-align: center; opacity: 0.85; }
+  .dd-item .kb { margin-left: auto; font-family: ui-monospace, monospace; font-size: 10px; padding: 1px 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; color: var(--text2); }
+  .dd-item.new { background: linear-gradient(90deg, rgba(48,209,88,0.08) 0%, transparent 70%); border-left: 2px solid var(--measure); }
+  .dd-item.new::before { content: "ใหม่"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 9px; padding: 1px 6px; background: var(--measure); color: #000; border-radius: 3px; font-weight: 700; }
+  .dd-item.new .kb { margin-right: 36px; }
+  .dd-sep { height: 1px; background: var(--border); margin: 4px 8px; }
+  .dd-sub { padding: 4px 16px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .dd-recent { padding: 5px 14px 5px 38px; font-size: 11px; color: var(--text2); cursor: pointer; }
+  .dd-recent:hover { background: var(--surface3); color: var(--text); }
+  .dd-submenu-trigger::after { content: "▸"; margin-left: auto; opacity: 0.6; }
+  .dd-submenu { position: absolute; left: 100%; top: -4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-width: 200px; padding: 4px 0; box-shadow: 0 10px 28px rgba(0,0,0,0.5); display: none; }
+  .dd-submenu-trigger:hover .dd-submenu { display: block; }
+  .dd-submenu .dd-item { padding-right: 14px; }
+  .dd-submenu .dd-item.new::before { display: none; }
+  .dd-submenu .dd-item.new { background: transparent; border-left: 0; }
+
+  /* ═══ TAB STRIP — 3 tabs only ═══ */
+  .tabs { display: flex; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); align-items: stretch; gap: 4px; }
+  .tab { padding: 0 24px; display: flex; align-items: center; font-size: 13px; font-weight: 500; color: var(--text2); border-radius: 6px 6px 0 0; cursor: pointer; user-select: none; position: relative; }
+  .tab:hover { background: var(--surface2); color: var(--text); }
+  .tab.active { background: var(--surface3); color: #fff; }
+  .tab.active::after { content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--accent); }
+  .tab.disabled { color: var(--text3); opacity: 0.45; cursor: not-allowed; }
+  .tab .tdot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; margin-right: 8px; opacity: 0; }
+  .tab.active .tdot { opacity: 1; }
+
+  /* ═══ RIBBON ═══ */
+  .ribbon { display: flex; background: var(--surface3); border-bottom: 1px solid var(--border); padding: 6px 8px; align-items: stretch; overflow-x: auto; overflow-y: hidden; min-height: var(--ribbon-h); }
+  .rsection { display: flex; flex-direction: column; padding: 0 10px; gap: 4px; flex-shrink: 0; justify-content: space-between; }
+  .rlbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 2px; }
+  .rrow { display: flex; gap: 4px; align-items: stretch; }
+  .rdiv { width: 1px; background: var(--border); margin: 4px 4px; flex-shrink: 0; }
+  .rbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 10px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; min-width: var(--btn-min-w); height: var(--btn-h); font-size: var(--btn-font); }
+  .rbtn:hover { background: var(--surface3); border-color: var(--text3); }
+  .rbtn.active { background: var(--accent); color: #fff; border-color: var(--blue); }
+  .rbtn .ricon { font-size: var(--btn-icon-font); line-height: 1; }
+  .rbtn.hero { background: linear-gradient(180deg, #3b82f6 0%, #1e3a8a 100%); color: #fff; border: 0; min-width: var(--hero-w); font-weight: 700; }
+  .rbtn.hero:hover { background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%); }
+  .rbtn.hero .ricon { font-size: var(--hero-icon); }
+  .rmini { width: var(--mini-size); height: var(--mini-size); display: flex; align-items: center; justify-content: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: var(--mini-font); }
+  .rmini:hover { background: var(--surface3); }
+  .rmini.danger:hover { background: var(--red); color: #fff; border-color: var(--red); }
+  .rstack { display: flex; flex-direction: column; gap: 3px; }
+  .rstack-row { display: flex; gap: 3px; }
+
+  /* ═══ MAIN 3-column ═══ */
+  .main { display: grid; grid-template-columns: var(--lpanel-w) 1fr var(--panel-w); min-height: 0; transition: grid-template-columns 0.25s ease; }
+  body.left-collapsed { --lpanel-w: 38px; }
+  body.right-collapsed { --panel-w: 38px; }
+  body.left-collapsed .lpanel-body { display: none; }
+  body.left-collapsed .lptab span:not(.lpic) { display: none; }
+  body.right-collapsed .rbody { display: none !important; }
+  body.right-collapsed .panel-footer { display: none; }
+
+  /* LEFT PANEL */
+  .lpanel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .lpanel-tabs { display: flex; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .lptab { flex: 1; padding: 8px 4px; cursor: pointer; text-align: center; font-size: 11px; color: var(--text2); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .lptab:last-child { border-right: 0; }
+  .lptab:hover { background: var(--surface3); color: var(--text); }
+  .lptab.active { background: var(--surface); color: var(--cyan); border-bottom: 2px solid var(--cyan); margin-bottom: -1px; }
+  .lptab .lpic { font-size: 16px; }
+  .lp-collapse-btn { padding: 6px 0; background: var(--surface3); border: 0; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text2); font-size: 10px; width: 100%; }
+  .lp-collapse-btn:hover { background: var(--accent); color: #fff; }
+  body.left-collapsed .lp-collapse-btn::before { content: "▶"; }
+  body:not(.left-collapsed) .lp-collapse-btn::before { content: "◀"; }
+  .lpanel-body { flex: 1; overflow-y: auto; }
+
+  .pages-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .page-card { display: flex; gap: 8px; padding: 6px; cursor: pointer; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; align-items: center; }
+  .page-card:hover { border-color: var(--text3); }
+  .page-card.active { border-color: var(--cyan); background: rgba(90,200,250,0.08); }
+  .page-thumb { width: 54px; height: 40px; background: #fafbfc; border: 1px solid var(--border); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+  .page-info { flex: 1; min-width: 0; }
+  .page-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .page-meta { font-size: 10px; color: var(--text3); display: flex; gap: 5px; margin-top: 2px; }
+  .page-badge { padding: 1px 5px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 9px; font-weight: 600; }
+  .page-card .scale { color: var(--green); }
+
+  .layers-list { padding: 6px; }
+  .layer-row { display: grid; grid-template-columns: auto auto 1fr auto; gap: 6px; padding: 7px 8px; align-items: center; font-size: 12px; cursor: pointer; border-radius: 4px; margin-bottom: 2px; }
+  .layer-row:hover { background: var(--surface2); }
+  .layer-row.active { background: rgba(90,200,250,0.1); border-left: 3px solid var(--cyan); padding-left: 5px; }
+  .layer-row .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+  .layer-row .vis, .layer-row .lock { width: 18px; cursor: pointer; opacity: 0.7; font-size: 13px; text-align: center; }
+  .layer-row.hidden .name { opacity: 0.4; text-decoration: line-through; }
+  .layer-row .name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer-row .cnt { font-size: 10px; color: var(--text3); padding: 1px 5px; background: var(--surface3); border-radius: 3px; }
+  .new-layer-btn { width: 100%; margin-top: 6px; padding: 6px; background: var(--surface2); border: 1px dashed var(--border); color: var(--text2); border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+  .otree { padding: 6px; font-size: 12px; }
+  .otree-node { padding: 4px 6px; cursor: pointer; border-radius: 3px; display: flex; gap: 6px; align-items: center; }
+  .otree-node:hover { background: var(--surface2); }
+  .otree-node.parent { font-weight: 600; color: var(--text); }
+  .otree-node.child { padding-left: 22px; color: var(--text2); }
+  .otree-node.selected { background: rgba(59,130,246,0.15); color: #fff; }
+  .otree-cnt { margin-left: auto; font-size: 10px; color: var(--text3); padding: 1px 5px; background: var(--surface3); border-radius: 3px; }
+
+  .sheets-list { padding: 6px; }
+  .sheet-grp { margin-bottom: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .sheet-grp-head { padding: 8px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; }
+  .sheet-grp-body { padding: 4px 0; border-top: 1px solid var(--border); display: none; }
+  .sheet-grp.open .sheet-grp-body { display: block; }
+  .sheet-grp.open .sheet-grp-head::after { content: "▾"; color: var(--text2); }
+  .sheet-grp:not(.open) .sheet-grp-head::after { content: "▸"; color: var(--text2); }
+  .sheet-item { padding: 6px 14px; font-size: 12px; color: var(--text2); cursor: pointer; display: flex; justify-content: space-between; }
+  .sheet-item.active { background: rgba(90,200,250,0.12); color: var(--cyan); font-weight: 600; }
+  .sheet-page-num { font-size: 10px; color: var(--text3); padding: 1px 6px; background: var(--surface3); border-radius: 3px; }
+
+  /* CANVAS */
+  .canvas-wrap { position: relative; background: #ecedf0; overflow: hidden; }
+  .canvas-top { position: absolute; top: 10px; left: 10px; padding: 7px 14px; background: rgba(20,20,25,0.88); color: #fff; border-radius: 6px; display: flex; gap: 14px; font-size: 11px; backdrop-filter: blur(4px); }
+  .canvas-top b { color: var(--cyan); }
+  .canvas-ph { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888; gap: 8px; }
+  .canvas-ph .big { font-size: 48px; opacity: 0.2; }
+  .canvas-ph .lbl { font-size: 12px; }
+
+  /* RIGHT PANEL */
+  .panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .rpanel-tabs { display: flex; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .rptab { flex: 1; padding: 8px 4px; cursor: pointer; text-align: center; font-size: 11px; color: var(--text2); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .rptab:last-child { border-right: 0; }
+  .rptab:hover { background: var(--surface3); color: var(--text); }
+  .rptab.active { background: var(--surface); color: var(--accent); border-bottom: 2px solid var(--accent); margin-bottom: -1px; }
+  .rptab .rpic { font-size: 16px; }
+  .rp-collapse-btn { padding: 6px 0; background: var(--surface3); border: 0; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text2); font-size: 10px; width: 100%; }
+  .rp-collapse-btn:hover { background: var(--accent); color: #fff; }
+  body.right-collapsed .rp-collapse-btn::before { content: "◀"; }
+  body:not(.right-collapsed) .rp-collapse-btn::before { content: "▶"; }
+  .panel-head { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .panel-head h2 { margin: 0; font-size: 13px; font-weight: 700; flex: 1; }
+  .panel-head .count { padding: 2px 10px; background: var(--measure); color: #fff; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .rbody { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  /* Panel content */
+  .panel-filters { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); align-items: center; font-size: 11px; flex-wrap: wrap; }
+  .panel-filters select, .panel-filters input { padding: 4px 7px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 11px; }
+  .panel-filters input { flex: 1; min-width: 50px; }
+  .panel-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .lrow { padding: 8px 12px; cursor: pointer; border-left: 3px solid transparent; display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: start; }
+  .lrow:hover { background: var(--surface2); }
+  .lrow.selected { background: var(--surface3); border-left-color: var(--accent); }
+  .lrow .ic { font-size: 16px; padding-top: 1px; }
+  .lrow .body { min-width: 0; }
+  .lrow .sub { font-size: 12px; color: var(--text); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lrow .meta { font-size: 10px; color: var(--text3); }
+  .lrow .acts { display: flex; gap: 2px; opacity: 0; }
+  .lrow:hover .acts { opacity: 1; }
+  .lrow .acts button { padding: 3px 6px; background: var(--surface3); border: 0; border-radius: 3px; cursor: pointer; color: var(--text2); font-size: 11px; }
+  .lrow .acts button.del:hover { background: var(--red); color: #fff; }
+
+  .props-panel { padding: 12px 14px; }
+  .props-section { margin-bottom: 14px; }
+  .props-section h4 { margin: 0 0 8px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .props-row { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; font-size: 12px; margin-bottom: 5px; }
+  .props-row .k { color: var(--text2); }
+  .props-row .v { color: var(--text); font-weight: 500; }
+  .props-row .v.editable { background: var(--surface2); padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+
+  .summary-panel { padding: 10px 12px; }
+  .summary-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .summary-card .label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .summary-card .value { font-size: 22px; font-weight: 700; color: var(--text); }
+  .summary-card .value .unit { font-size: 12px; color: var(--text2); margin-left: 4px; }
+  .summary-card .delta { font-size: 11px; color: var(--green); margin-top: 4px; }
+  .summary-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .summary-row .summary-card { flex: 1; margin-bottom: 0; padding: 8px 10px; }
+  .summary-row .summary-card .value { font-size: 16px; }
+  .summary-bar { height: 18px; background: var(--surface3); border-radius: 4px; overflow: hidden; display: flex; margin-top: 6px; }
+  .summary-bar .seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; font-weight: 600; }
+
+  .notes-panel { padding: 10px 12px; }
+  .note-card { background: var(--surface2); border-left: 3px solid var(--cyan); border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; }
+  .note-card .author { font-weight: 600; color: var(--cyan); font-size: 11px; }
+  .note-card .ts { color: var(--text3); font-size: 10px; margin-left: 6px; }
+  .note-card .body { margin-top: 4px; color: var(--text); }
+  .note-card.resolved { border-left-color: var(--green); opacity: 0.6; }
+  .note-add { display: flex; gap: 6px; padding: 8px; background: var(--surface2); border-radius: 6px; margin-top: 8px; }
+  .note-add input { flex: 1; padding: 6px 8px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 12px; }
+  .note-add button { padding: 6px 12px; background: var(--accent); border: 0; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+
+  .panel-footer { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; }
+  .panel-footer button { padding: 7px 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; cursor: pointer; font-size: 11px; flex: 1; font-weight: 500; }
+  .panel-footer button.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 700; }
+
+  /* STATUS BAR */
+  .status { display: flex; align-items: center; padding: 0 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; color: var(--text2); gap: 0; overflow-x: auto; }
+  .status > * { padding: 0 8px; white-space: nowrap; }
+  .status .prefix { padding: 3px 10px; background: var(--accent); color: #fff; border-radius: 4px; font-weight: 700; font-size: 11px; margin-right: 6px; }
+  .status .sep { color: var(--border); padding: 0; }
+  .status b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ════════ MENU BAR (extended) ════════ -->
+<div class="menu-bar" id="menubar">
+  <div class="menu-item" data-menu="file">File<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="edit">Edit<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="view">View<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="page">Page<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="scale">Scale<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="project">Project<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="measure">Measure<span class="caret">▾</span></div>
+  <div class="menu-item" data-menu="annotate">Annotate<span class="caret">▾</span></div>
+
+  <!-- DENSITY PICKER (ขนาด UI) — push to right -->
+  <div class="density-picker" style="margin-left:auto">
+    <span class="label">ขนาด UI:</span>
+    <button onclick="setDensity('compact')">▪ Compact</button>
+    <button onclick="setDensity('comfortable')" class="active">▫ Comfortable</button>
+    <button onclick="setDensity('spacious')">⬜ Spacious</button>
+  </div>
+
+  <div class="menu-item" data-menu="help">Help<span class="caret">▾</span></div>
+</div>
+
+<!-- DROPDOWNS -->
+<div class="dropdown" id="dd-file">
+  <div class="dd-item new"><span class="ic">📂</span>Open PDF...<span class="kb">Ctrl+O</span></div>
+  <div class="dd-item new"><span class="ic">📁</span>Open Project...<span class="kb">Ctrl+⇧O</span></div>
+  <div class="dd-item new"><span class="ic">📄</span>Sample PDF</div>
+  <div class="dd-sep"></div>
+  <div class="dd-sub">Recent</div>
+  <div class="dd-recent">RAMA4 APARTMENT PERMIT rev 1</div>
+  <div class="dd-recent">CHH Submission REV2</div>
+  <div class="dd-recent">test_plan_A1</div>
+  <div class="dd-sep"></div>
+  <div class="dd-item new"><span class="ic">💾</span>Save Project<span class="kb">Ctrl+S</span></div>
+  <div class="dd-item new"><span class="ic">💾</span>Save Project As...<span class="kb">Ctrl+⇧S</span></div>
+  <div class="dd-item new"><span class="ic">📄</span>Save Annotated PDF<span class="kb">Ctrl+⌥S</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">🚪</span>Close PDF</div>
+</div>
+
+<div class="dropdown" id="dd-edit">
+  <div class="dd-item"><span class="ic">↶</span>Undo<span class="kb">Ctrl+Z</span></div>
+  <div class="dd-item"><span class="ic">↷</span>Redo<span class="kb">Ctrl+Y</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">⎘</span>Copy<span class="kb">Ctrl+C</span></div>
+  <div class="dd-item"><span class="ic">📋</span>Paste<span class="kb">Ctrl+V</span></div>
+  <div class="dd-item"><span class="ic">🗑</span>Delete<span class="kb">Del</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">🔍</span>Find...<span class="kb">Ctrl+F</span></div>
+</div>
+
+<div class="dropdown" id="dd-view">
+  <div class="dd-item new"><span class="ic">＋</span>Zoom In<span class="kb">Ctrl++</span></div>
+  <div class="dd-item new"><span class="ic">−</span>Zoom Out<span class="kb">Ctrl+−</span></div>
+  <div class="dd-item new"><span class="ic">⊡</span>Fit to Window<span class="kb">Ctrl+0</span></div>
+  <div class="dd-item new"><span class="ic">①</span>Actual Size (100%)<span class="kb">Ctrl+1</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item new"><span class="ic">↺</span>Rotate Left 90°<span class="kb">Ctrl+L</span></div>
+  <div class="dd-item new"><span class="ic">↻</span>Rotate Right 90°<span class="kb">Ctrl+R</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">◀</span>Toggle Left Panel<span class="kb">F9</span></div>
+  <div class="dd-item"><span class="ic">▶</span>Toggle Right Panel<span class="kb">F10</span></div>
+  <div class="dd-item"><span class="ic">⊞</span>Fit Golden φ</div>
+  <div class="dd-sep"></div>
+  <div class="dd-item dd-submenu-trigger"><span class="ic">⚙</span>UI Density
+    <div class="dd-submenu">
+      <div class="dd-item">▪ Compact</div>
+      <div class="dd-item">▫ Comfortable</div>
+      <div class="dd-item">⬜ Spacious</div>
+    </div>
+  </div>
+  <div class="dd-item"><span class="ic">⚙</span>Settings...<span class="kb">Ctrl+,</span></div>
+</div>
+
+<div class="dropdown" id="dd-page">
+  <div class="dd-item new"><span class="ic">◀</span>Previous Page<span class="kb">PgUp</span></div>
+  <div class="dd-item new"><span class="ic">▶</span>Next Page<span class="kb">PgDn</span></div>
+  <div class="dd-item new"><span class="ic">⏮</span>First Page<span class="kb">Home</span></div>
+  <div class="dd-item new"><span class="ic">⏭</span>Last Page<span class="kb">End</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item new"><span class="ic">⚙</span>Page Setup</div>
+  <div class="dd-item dd-submenu-trigger"><span class="ic">🏷</span>Set Page Tag
+    <div class="dd-submenu">
+      <div class="dd-item">📍 Site Plan</div>
+      <div class="dd-item">🏢 Floor Plan</div>
+      <div class="dd-item">⬜ Elevation</div>
+      <div class="dd-item">✂ Section</div>
+    </div>
+  </div>
+  <div class="dd-item"><span class="ic">🗂</span>Excluded Pages...</div>
+  <div class="dd-item"><span class="ic">🧭</span>Set North / Compass</div>
+</div>
+
+<div class="dropdown" id="dd-scale">
+  <div class="dd-item"><span class="ic">📏</span>Set Scale (current page)<span class="kb">S</span></div>
+  <div class="dd-item"><span class="ic">📐</span>Scale Manager...</div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">🔄</span>Recalibrate</div>
+</div>
+
+<div class="dropdown" id="dd-project">
+  <div class="dd-item"><span class="ic">🆕</span>New Project</div>
+  <div class="dd-item"><span class="ic">ℹ</span>Project Info...</div>
+  <div class="dd-sep"></div>
+  <div class="dd-sub">Export</div>
+  <div class="dd-item new"><span class="ic">📊</span>Export XLSX (full)</div>
+  <div class="dd-item new"><span class="ic">📊</span>Export XLSX Summary (1 หน้า)</div>
+  <div class="dd-item new"><span class="ic">📄</span>Annotated PDF — current page</div>
+  <div class="dd-item new"><span class="ic">📄</span>Annotated PDF — all pages</div>
+  <div class="dd-item new"><span class="ic">📋</span>Export CSV (raw)</div>
+</div>
+
+<div class="dropdown" id="dd-measure">
+  <div class="dd-item"><span class="ic">⬡</span>Polygon (Area)<span class="kb">A</span></div>
+  <div class="dd-item"><span class="ic">□</span>Opening<span class="kb">O</span></div>
+  <div class="dd-item"><span class="ic">▱</span>Land / Site Boundary<span class="kb">L</span></div>
+  <div class="dd-item"><span class="ic">🏛</span>Building Footprint<span class="kb">B</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">↔</span>Distance<span class="kb">D</span></div>
+  <div class="dd-item"><span class="ic">〽</span>Path<span class="kb">⇧D</span></div>
+  <div class="dd-item"><span class="ic">⌁</span>Reference Line<span class="kb">R</span></div>
+  <div class="dd-sep"></div>
+  <div class="dd-item dd-submenu-trigger"><span class="ic">📍</span>Site Plan
+    <div class="dd-submenu">
+      <div class="dd-item">▦ ปกคลุมอาคาร</div>
+      <div class="dd-item">▢ ที่ว่าง</div>
+      <div class="dd-item">💧 พื้นที่ซึมน้ำ</div>
+      <div class="dd-item">▨ พื้นแข็ง</div>
+      <div class="dd-item">🌿 สนามหญ้า</div>
+      <div class="dd-item">🅿 จอด ภายนอก</div>
+      <div class="dd-item">🛣 ถนนภายใน</div>
+    </div>
+  </div>
+  <div class="dd-item"><span class="ic">🗑</span>Clear Measures</div>
+</div>
+
+<div class="dropdown" id="dd-annotate">
+  <div class="dd-item"><span class="ic">𝕋</span>Text Label</div>
+  <div class="dd-item"><span class="ic">🖍</span>Highlight</div>
+  <div class="dd-item"><span class="ic">▭</span>Rect Frame</div>
+  <div class="dd-item"><span class="ic">◯</span>Circle Frame</div>
+  <div class="dd-item"><span class="ic">☁</span>Cloud Frame</div>
+  <div class="dd-item"><span class="ic">➜</span>Arrow</div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">📋</span>Show Markups Panel</div>
+  <div class="dd-item"><span class="ic">🗑</span>Clear Annotations</div>
+</div>
+
+<div class="dropdown" id="dd-help">
+  <div class="dd-item"><span class="ic">📖</span>User Manual</div>
+  <div class="dd-item"><span class="ic">⌨</span>Keyboard Shortcuts</div>
+  <div class="dd-item"><span class="ic">📜</span>Dev Log</div>
+  <div class="dd-sep"></div>
+  <div class="dd-item"><span class="ic">🐛</span>Report Issue</div>
+  <div class="dd-item"><span class="ic">ℹ</span>About</div>
+</div>
+
+<!-- ════════ TAB STRIP — 3 tabs only ════════ -->
+<div class="tabs">
+  <div class="tab active"><span class="tdot"></span>📐 วัด</div>
+  <div class="tab"><span class="tdot"></span>📝 Annotate</div>
+  <div class="tab disabled" title="Double-click เพื่อเปิด — สำหรับวาด Site Plan"><span class="tdot"></span>📍 Site Plan</div>
+</div>
+
+<!-- ════════ RIBBON — Measure ════════ -->
+<div class="ribbon">
+  <div class="rsection">
+    <div class="rlbl">🔍 Tool</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini active" title="Select [V]">↖</div>
+        <div class="rmini" title="Pan [H]">✋</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" title="Vertex edit">◇</div>
+        <div class="rmini" title="Front/Back">▤</div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">📐 Scale</div>
+    <div class="rrow">
+      <button class="rbtn hero"><span class="ricon">∕</span><span>Set Scale</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">🟩 พื้นที่ (Area)</div>
+    <div class="rrow">
+      <button class="rbtn hero"><span class="ricon">⬡</span><span>Polygon</span></button>
+      <button class="rbtn"><span class="ricon">□</span><span>Opening</span></button>
+      <button class="rbtn"><span class="ricon">▱</span><span>Land</span></button>
+      <button class="rbtn"><span class="ricon">🏛</span><span>Building</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">📏 Lines</div>
+    <div class="rrow">
+      <button class="rbtn"><span class="ricon">↔</span><span>Dist</span></button>
+      <button class="rbtn"><span class="ricon">〽</span><span>Path</span></button>
+      <button class="rbtn"><span class="ricon">⌁</span><span>Ref</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">📍 Marker</div>
+    <div class="rrow">
+      <button class="rbtn"><span class="ricon">↑N</span><span>North</span></button>
+      <button class="rbtn"><span class="ricon">🚗</span><span>Parking</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">🛠 Helpers</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" title="Loupe">🔍</div>
+        <div class="rmini" title="Ortho">⊖</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" title="Perp">⊥</div>
+        <div class="rmini" title="Snap">⊚</div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">↩ Edit</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" title="Undo">↶</div>
+        <div class="rmini" title="Redo">↷</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" title="Copy">⎘</div>
+        <div class="rmini danger" title="Delete">🗑</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MAIN: LEFT + CANVAS + RIGHT ════════ -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="lpanel">
+    <button class="lp-collapse-btn" onclick="document.body.classList.toggle('left-collapsed')"></button>
+    <div class="lpanel-tabs">
+      <div class="lptab active" onclick="switchLP('pages',this)"><span class="lpic">📑</span><span>Pages</span></div>
+      <div class="lptab" onclick="switchLP('sheets',this)"><span class="lpic">📚</span><span>Sheets</span></div>
+      <div class="lptab" onclick="switchLP('objects',this)"><span class="lpic">🌳</span><span>Tree</span></div>
+    </div>
+    <div class="lpanel-body" id="lpanel-body">
+      <div class="pages-list" id="lp-pages">
+        <div class="page-card"><div class="page-thumb">P.1</div><div class="page-info"><div class="page-name">หน้าปก</div><div class="page-meta"><span>A1</span><span class="scale">★ 1:50</span></div></div></div>
+        <div class="page-card"><div class="page-thumb">P.2</div><div class="page-info"><div class="page-name">Site Plan</div><div class="page-meta"><span>A1 · 90°</span><span class="scale">★ 1:200</span></div></div></div>
+        <div class="page-card active"><div class="page-thumb" style="background:#dbeafe">P.3</div><div class="page-info"><div class="page-name">Floor Plan — 1F</div><div class="page-meta"><span class="page-badge">CUR</span><span class="scale">★ 1:100</span></div></div></div>
+        <div class="page-card"><div class="page-thumb">P.4</div><div class="page-info"><div class="page-name">Floor Plan — 2F</div><div class="page-meta"><span>A1</span><span class="scale">★ 1:100</span></div></div></div>
+        <div class="page-card"><div class="page-thumb">P.5</div><div class="page-info"><div class="page-name">Roof Plan</div><div class="page-meta"><span>A1</span><span style="color:var(--yellow)">⚠ no scale</span></div></div></div>
+        <div class="page-card"><div class="page-thumb">P.6</div><div class="page-info"><div class="page-name">Elevation</div><div class="page-meta"><span>A1</span><span class="scale">★ 1:100</span></div></div></div>
+        <div class="page-card"><div class="page-thumb">P.7</div><div class="page-info"><div class="page-name">Section A-A</div><div class="page-meta"><span>A1</span><span style="color:var(--text3)">excluded</span></div></div></div>
+        <div style="text-align:center;color:var(--text3);font-size:11px;padding:10px">… 38 หน้าเพิ่ม</div>
+      </div>
+
+      <div class="sheets-list" id="lp-sheets" style="display:none">
+        <div class="sheet-grp open"><div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">A — Architectural (15)</div><div class="sheet-grp-body">
+          <div class="sheet-item">A-01 Cover<span class="sheet-page-num">1</span></div>
+          <div class="sheet-item">A-02 Site Plan<span class="sheet-page-num">2</span></div>
+          <div class="sheet-item active">A-03 Floor 1F<span class="sheet-page-num">3</span></div>
+          <div class="sheet-item">A-04 Floor 2F<span class="sheet-page-num">4</span></div>
+        </div></div>
+        <div class="sheet-grp"><div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">S — Structural (12)</div></div>
+        <div class="sheet-grp"><div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">M — Mechanical (8)</div></div>
+        <div class="sheet-grp"><div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">E — Electrical (6)</div></div>
+      </div>
+
+      <div class="otree" id="lp-objects" style="display:none">
+        <div style="font-size:10px;color:var(--text3);padding:0 6px 6px">Tree ของ object บน P.3</div>
+        <div class="otree-node parent">⬡ Polygon <span class="otree-cnt">5</span></div>
+        <div class="otree-node child">⬢ Living Room — 24.5 ตร.ม.</div>
+        <div class="otree-node child selected">⬢ Bedroom 1 — 18.2 ตร.ม.</div>
+        <div class="otree-node child">⬢ Bedroom 2 — 12.8 ตร.ม.</div>
+        <div class="otree-node child">⬢ Kitchen — 9.4 ตร.ม.</div>
+        <div class="otree-node parent">□ Opening <span class="otree-cnt">3</span></div>
+        <div class="otree-node child">□ Door 1 — 0.8 ม.</div>
+        <div class="otree-node parent">↔ Distance <span class="otree-cnt">2</span></div>
+        <div class="otree-node parent">📝 Markups <span class="otree-cnt">5</span></div>
+        <div class="otree-node child">💬 "เพิ่มประตู"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap">
+    <div class="canvas-top">
+      <span>📐 <b>↖ Select</b></span>
+      <span>หน้า <b>3 / 45</b></span>
+      <span>Scale <b>1:100</b> ★</span>
+    </div>
+    <div class="canvas-ph">
+      <div class="big">📐</div>
+      <div class="lbl">Canvas (mockup placeholder)</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel">
+    <button class="rp-collapse-btn" onclick="document.body.classList.toggle('right-collapsed')"></button>
+    <div class="rpanel-tabs">
+      <div class="rptab" onclick="switchRP('list',this)"><span class="rpic">📋</span><span>List</span></div>
+      <div class="rptab active" onclick="switchRP('layers',this)"><span class="rpic">🗂</span><span>Layers</span></div>
+      <div class="rptab" onclick="switchRP('props',this)"><span class="rpic">🔧</span><span>Props</span></div>
+      <div class="rptab" onclick="switchRP('summary',this)"><span class="rpic">📊</span><span>Summary</span></div>
+      <div class="rptab" onclick="switchRP('notes',this)"><span class="rpic">💬</span><span>Notes</span></div>
+    </div>
+
+    <!-- LIST -->
+    <div class="rbody" id="rp-list" style="display:none">
+      <div class="panel-head"><h2>📐 Object List</h2><span class="count">8</span></div>
+      <div class="panel-filters">
+        <select><option>ทุกประเภท</option></select>
+        <select><option>เรียงเวลา</option></select>
+        <input placeholder="🔍">
+      </div>
+      <div class="panel-list">
+        <div class="lrow selected"><div class="ic">⬢</div><div class="body"><div class="sub">Bedroom 1</div><div class="meta">18.24 ตร.ม. · P.3</div></div><div class="acts"><button>✎</button><button class="del">🗑</button></div></div>
+        <div class="lrow"><div class="ic">⬢</div><div class="body"><div class="sub">Living Room</div><div class="meta">24.50 ตร.ม. · P.3</div></div><div class="acts"><button>✎</button><button class="del">🗑</button></div></div>
+        <div class="lrow"><div class="ic">⬢</div><div class="body"><div class="sub">Kitchen</div><div class="meta">9.40 ตร.ม. · P.3</div></div><div class="acts"><button>✎</button><button class="del">🗑</button></div></div>
+        <div class="lrow"><div class="ic">□</div><div class="body"><div class="sub">Door 1</div><div class="meta">0.80 ม. · P.3</div></div><div class="acts"><button>✎</button><button class="del">🗑</button></div></div>
+      </div>
+    </div>
+
+    <!-- LAYERS (default active — moved from left per HT-8d-1) -->
+    <div class="rbody" id="rp-layers">
+      <div class="panel-head"><h2>🗂 Layers (P.3)</h2><span class="count">4</span></div>
+      <div class="layers-list">
+        <div class="layer-row active"><span class="vis">👁</span><span class="lock">🔓</span><div style="display:flex;gap:6px;align-items:center;min-width:0"><span class="swatch" style="background:#30d158"></span><span class="name">★ Base — พื้นที่อาคาร</span></div><span class="cnt">8</span></div>
+        <div class="layer-row"><span class="vis">👁</span><span class="lock">🔓</span><div style="display:flex;gap:6px;align-items:center;min-width:0"><span class="swatch" style="background:#5ac8fa"></span><span class="name">Additions</span></div><span class="cnt">3</span></div>
+        <div class="layer-row hidden"><span class="vis">⊘</span><span class="lock">🔓</span><div style="display:flex;gap:6px;align-items:center;min-width:0"><span class="swatch" style="background:#bf5af2"></span><span class="name">Reference</span></div><span class="cnt">1</span></div>
+        <div class="layer-row"><span class="vis">👁</span><span class="lock">🔒</span><div style="display:flex;gap:6px;align-items:center;min-width:0"><span class="swatch" style="background:#ff453a"></span><span class="name">📝 Markups</span></div><span class="cnt">5</span></div>
+        <button class="new-layer-btn">+ เลเยอร์ใหม่</button>
+      </div>
+    </div>
+
+    <!-- PROPS -->
+    <div class="rbody" id="rp-props" style="display:none">
+      <div class="props-panel">
+        <div class="props-section">
+          <h4>🟢 Selected Object</h4>
+          <div class="props-row"><span class="k">Type:</span><span class="v">⬡ Polygon</span></div>
+          <div class="props-row"><span class="k">Name:</span><span class="v editable">Bedroom 1</span></div>
+          <div class="props-row"><span class="k">Area:</span><span class="v">18.24 ตร.ม.</span></div>
+          <div class="props-row"><span class="k">Perimeter:</span><span class="v">17.20 ม.</span></div>
+          <div class="props-row"><span class="k">Vertices:</span><span class="v">6 จุด</span></div>
+        </div>
+        <div class="props-section">
+          <h4>🏷 Semantic</h4>
+          <div class="props-row"><span class="k">tag:</span><span class="v editable">building.gross</span></div>
+          <div class="props-row"><span class="k">profile:</span><span class="v">enclosed_area</span></div>
+          <div class="props-row"><span class="k">reportTo:</span><span class="v">GFA</span></div>
+        </div>
+        <div class="props-section">
+          <h4>🎨 Style</h4>
+          <div class="props-row"><span class="k">Color:</span><span class="v editable" style="color:#30d158">#30d158</span></div>
+          <div class="props-row"><span class="k">Layer:</span><span class="v editable" style="color:var(--cyan)">★ Base</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="rbody" id="rp-summary" style="display:none">
+      <div class="summary-panel">
+        <div class="summary-card">
+          <div class="label">🏛 Total GFA</div>
+          <div class="value">487.50<span class="unit">ตร.ม.</span></div>
+          <div class="delta">+24.5 vs last save</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-card"><div class="label">Site</div><div class="value">1,200<span class="unit">ม²</span></div></div>
+          <div class="summary-card"><div class="label">OSR</div><div class="value">40.6<span class="unit">%</span></div></div>
+        </div>
+        <div style="margin:14px 0 6px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:700">📊 Breakdown</div>
+        <div class="summary-bar">
+          <div class="seg" style="width:48%;background:#30d158">48%</div>
+          <div class="seg" style="width:22%;background:#5ac8fa">22%</div>
+          <div class="seg" style="width:20%;background:#a3a3a3">20%</div>
+          <div class="seg" style="width:10%;background:#22c55e">10%</div>
+        </div>
+        <div style="margin-top:12px;font-size:11px">
+          <div class="props-row"><span class="k">Pages:</span><span class="v">5 / 45</span></div>
+          <div class="props-row"><span class="k">Objects:</span><span class="v">38</span></div>
+          <div class="props-row"><span class="k">Markups:</span><span class="v" style="color:var(--red)">5</span></div>
+          <div class="props-row"><span class="k">Warnings:</span><span class="v" style="color:var(--yellow)">⚠ 2</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="rbody" id="rp-notes" style="display:none">
+      <div class="notes-panel">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Comments บน object ที่เลือก</div>
+        <div class="note-card"><span class="author">ผู้ตรวจ</span><span class="ts">14:31</span><div class="body">ระยะถอยร่นน้อยไป — ตรวจ ม.41</div></div>
+        <div class="note-card"><span class="author">ผู้ตรวจ</span><span class="ts">14:34</span><div class="body">ห้องนอนต่ำกว่า 9 ตร.ม.</div></div>
+        <div class="note-card resolved"><span class="author">ผู้ขอ</span><span class="ts">เมื่อวาน</span><div class="body">✓ ปรับขนาดแล้ว</div></div>
+        <div class="note-add"><input placeholder="💬 พิมพ์ comment..."><button>ส่ง</button></div>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button>⬇ CSV</button>
+      <button class="primary">📤 ส่งกลับ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ STATUS BAR ════════ -->
+<div class="status">
+  <span class="prefix">📐 วัด</span>
+  <span>Tool: <b>↖ Select</b></span>
+  <span class="sep">│</span>
+  <span>Scale: <b>1:100 ★</b></span>
+  <span class="sep">│</span>
+  <span>Objects: <b>38</b></span>
+  <span class="sep">│</span>
+  <span>Warnings: <b style="color:var(--yellow)">⚠ 2</b></span>
+  <span class="sep">│</span>
+  <span>Layer: <b style="color:var(--measure)">★ Base</b></span>
+  <span class="sep">│</span>
+  <span>Save: <b style="color:var(--green)">✓</b></span>
+  <span class="sep">│</span>
+  <span>Page: <b style="color:var(--cyan)">3 / 45</b></span>
+</div>
+
+<script>
+// Density picker
+function setDensity(d) {
+  document.body.className = document.body.className.replace(/density-\w+/g, '').trim() + ' density-' + d;
+  document.querySelectorAll('.density-picker button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.density-picker button[onclick*="${d}"]`).classList.add('active');
+  try { localStorage.setItem('mockup_density', d); } catch(e) {}
+}
+try {
+  const saved = localStorage.getItem('mockup_density');
+  if (saved && ['compact','comfortable','spacious'].includes(saved)) {
+    setTimeout(() => setDensity(saved), 0);
+  } else {
+    document.body.classList.add('density-comfortable');
+  }
+} catch(e) { document.body.classList.add('density-comfortable'); }
+
+// Menu dropdown logic
+let openDD = null;
+function closeAll() {
+  document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('open'));
+  openDD = null;
+}
+document.querySelectorAll('.menu-item[data-menu]').forEach(mi => {
+  const dd = document.getElementById('dd-' + mi.dataset.menu);
+  if (!dd) return;
+  const position = () => {
+    const r = mi.getBoundingClientRect();
+    if (mi.dataset.menu === 'help') {
+      dd.style.right = (window.innerWidth - r.right) + 'px';
+      dd.style.left = 'auto';
+    } else {
+      dd.style.left = r.left + 'px';
+      dd.style.right = 'auto';
+    }
+  };
+  mi.addEventListener('click', e => {
+    e.stopPropagation();
+    if (openDD === dd) { closeAll(); return; }
+    closeAll();
+    position();
+    dd.classList.add('show');
+    mi.classList.add('open');
+    openDD = dd;
+  });
+  mi.addEventListener('mouseenter', () => {
+    if (openDD && openDD !== dd) {
+      closeAll();
+      position();
+      dd.classList.add('show');
+      mi.classList.add('open');
+      openDD = dd;
+    }
+  });
+});
+document.addEventListener('click', () => closeAll());
+
+// Left panel tab switching
+function switchLP(name, el) {
+  document.querySelectorAll('.lptab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('lp-pages').style.display = (name === 'pages') ? 'flex' : 'none';
+  document.getElementById('lp-sheets').style.display = (name === 'sheets') ? 'block' : 'none';
+  document.getElementById('lp-objects').style.display = (name === 'objects') ? 'block' : 'none';
+}
+// Right panel tab switching
+function switchRP(name, el) {
+  document.querySelectorAll('.rptab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['list','layers','props','summary','notes'].forEach(n => {
+    document.getElementById('rp-' + n).style.display = (n === name) ? 'flex' : 'none';
+  });
+}
+
+// Auto-show File menu on load (showcase)
+setTimeout(() => document.querySelector('.menu-item[data-menu="file"]').click(), 400);
+</script>
+</body>
+</html>

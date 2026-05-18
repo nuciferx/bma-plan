@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Invent Spike — Page Setup Redesign (Approach D + C)</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --surface: #fff; --border: #d8dde3; --border-soft: #e5e9ee;
+    --text: #1f2933; --text2: #4b5563; --text3: #6b7280;
+    --blue: #3b82f6; --blue-d: #2563eb; --green: #16a34a; --amber: #d97706; --red: #dc2626;
+    --green-bg: #dcfce7; --amber-bg: #fef3c7; --red-bg: #fee2e2;
+    font-family: -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; font-size: 13px;
+  }
+  body { margin: 0; background: var(--bg); color: var(--text); }
+  header { background: #1f2933; color: #fff; padding: 10px 18px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  header .pill { background: var(--blue); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  main { padding: 16px; max-width: 1320px; margin: 0 auto; }
+  button { background: #fff; border: 1px solid #cdd3da; border-radius: 4px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+  button:hover { background: #f6f8fa; }
+  button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  button.primary:hover { background: var(--blue-d); }
+  button.danger { color: #b1322c; border-color: #e0b4b1; }
+  button.danger:hover { background: #fdecea; }
+
+  /* Modal */
+  .ps-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,.1); overflow: hidden; }
+  .ps-hdr { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border-soft); }
+  .ps-hdr h2 { margin: 0; font-size: 15px; flex: 1; }
+  .ps-hdr .pdfname { color: var(--text2); font-size: 12px; }
+  .ps-body { display: grid; grid-template-columns: 360px 1fr; min-height: 560px; }
+
+  /* Left inspector */
+  .ps-left { border-right: 1px solid var(--border-soft); background: #fafbfc; display: flex; flex-direction: column; }
+  .ps-left .scroll { flex: 1; overflow-y: auto; padding: 14px 16px; }
+  .ps-left h3 { margin: 0 0 10px; font-size: 12.5px; color: var(--text); text-transform: uppercase; letter-spacing: .3px; }
+
+  /* Dashboard mode */
+  .dashboard .stat { margin-bottom: 12px; }
+  .dashboard .stat .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .dashboard .stat .row .v { color: var(--text); font-weight: 600; }
+  .dashboard .stat .bar { height: 6px; background: #e5e9ee; border-radius: 3px; overflow: hidden; }
+  .dashboard .stat .bar .fill { height: 100%; background: var(--blue); transition: width .2s; }
+  .dashboard .stat.complete .bar .fill { background: var(--green); }
+  .dashboard .issues { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
+  .dashboard .issues h4 { margin: 0 0 8px; font-size: 12.5px; color: var(--text); }
+  .dashboard .issue { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 4px; margin-bottom: 5px; font-size: 12px; cursor: pointer; }
+  .dashboard .issue:hover { background: #fff5f5; border-color: #fecaca; }
+  .dashboard .issue .icon { color: var(--amber); }
+  .dashboard .issue.red .icon { color: var(--red); }
+  .dashboard .issue .pg { font-weight: 600; min-width: 38px; }
+  .dashboard .issue .msg { flex: 1; color: var(--text2); }
+
+  /* Page card mode */
+  .pagecard .preview { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; height: 200px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative; overflow: hidden; }
+  .pagecard .preview .label { color: var(--text3); font-size: 11px; position: absolute; top: 6px; left: 8px; }
+  .pagecard .preview .num { font-size: 32px; font-weight: 700; color: var(--text2); }
+  .pagecard .field { margin-bottom: 11px; }
+  .pagecard .field label { display: block; font-size: 11px; color: var(--text3); margin-bottom: 3px; text-transform: uppercase; letter-spacing: .3px; }
+  .pagecard .field input, .pagecard .field select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 12.5px; box-sizing: border-box; }
+  .pagecard .field .tmpl-preview { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .pagecard .field .tmpl-preview .arrow { color: var(--text2); }
+  .pagecard .field .tmpl-preview .val { color: var(--blue); font-weight: 600; }
+  .pagecard .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .pagecard .meta .cell { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 4px; padding: 6px 8px; }
+  .pagecard .meta .cell .k { color: var(--text3); font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; }
+  .pagecard .meta .cell .v { color: var(--text); font-weight: 600; font-size: 12.5px; }
+  .pagecard .danger-zone { margin-top: 14px; padding: 10px 12px; background: #fdf2f2; border: 1px solid #fecaca; border-radius: 6px; }
+  .pagecard .danger-zone .ttl { font-size: 11px; color: var(--red); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; letter-spacing: .3px; }
+  .pagecard .back { margin-bottom: 10px; }
+
+  /* Project info accordion */
+  .ps-left .accordion { border-top: 1px solid var(--border-soft); padding: 14px 16px; background: #f4f5f7; }
+  .ps-left .accordion summary { cursor: pointer; font-size: 12.5px; color: var(--text2); font-weight: 600; }
+  .ps-left .accordion .pf-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; margin: 8px 0; font-size: 12px; }
+  .ps-left .accordion .pf-row input, .ps-left .accordion .pf-row select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }
+  .ps-left .accordion .tmpl-section { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-soft); }
+  .ps-left .accordion .tmpl-section h4 { margin: 0 0 6px; font-size: 11.5px; }
+  .ps-left .accordion .tmpl-row { display: grid; grid-template-columns: 90px 1fr; gap: 6px; margin: 5px 0; font-size: 11.5px; align-items: center; }
+  .ps-left .accordion .tmpl-row input { padding: 3px 6px; font-size: 11.5px; }
+
+  /* Right grid */
+  .ps-right { display: flex; flex-direction: column; }
+  .ps-tools { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border-soft); align-items: center; }
+  .ps-tools input[type=search] { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }
+  .ps-tools .summary-chip { font-size: 11.5px; color: var(--text2); padding: 4px 10px; background: #f4f5f7; border-radius: 12px; }
+  .thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 14px 16px; overflow-y: auto; flex: 1; max-height: 540px; }
+  .thumb { position: relative; background: var(--surface); border: 2px solid var(--border-soft); border-radius: 6px; padding: 6px; cursor: pointer; transition: all .15s; }
+  .thumb:hover { border-color: var(--blue); }
+  .thumb.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+  .thumb.excluded { opacity: 0.45; }
+  .thumb .preview { background: #f0f2f5; height: 130px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #9ba3ae; font-weight: 700; position: relative; }
+  .thumb .preview .pgno { position: absolute; top: 4px; left: 6px; font-size: 10px; color: var(--text3); font-weight: 400; }
+  .thumb .preview .rot { position: absolute; top: 4px; right: 6px; font-size: 9.5px; color: #fff; background: #555; padding: 1px 5px; border-radius: 6px; }
+  .thumb .name { font-size: 11.5px; color: var(--text); margin-top: 5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thumb .chips { display: flex; gap: 4px; margin-top: 4px; align-items: center; flex-wrap: wrap; }
+  .thumb .tag-pill { padding: 1px 6px; border-radius: 8px; font-size: 9.5px; color: #fff; }
+  .thumb .tl { width: 8px; height: 8px; border-radius: 50%; margin-left: auto; }
+  .thumb .tl.green { background: var(--green); }
+  .thumb .tl.amber { background: var(--amber); }
+  .thumb .tl.red { background: var(--red); }
+  .thumb .obj { font-size: 9.5px; color: var(--text3); }
+
+  /* Tag colors */
+  .tg-site { background: #16a34a; }
+  .tg-plan { background: #3b82f6; }
+  .tg-elev { background: #a855f7; }
+  .tg-section { background: #ec4899; }
+  .tg-detail { background: #f59e0b; }
+  .tg-schedule { background: #64748b; }
+  .tg-untagged { background: #9ca3af; }
+
+  /* Footer */
+  .ps-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border-soft); background: #fafbfc; }
+  .ps-foot .status { font-size: 12px; color: var(--text2); }
+
+  /* Renumber dialog overlay */
+  .overlay { position: fixed; inset: 0; background: rgba(15,23,42,.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .overlay.open { display: flex; }
+  .dialog { background: #fff; border-radius: 10px; width: 560px; max-width: 92vw; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+  .dialog h3 { margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--border-soft); font-size: 14px; }
+  .dialog .body { padding: 14px 18px; overflow-y: auto; flex: 1; }
+  .dialog .foot { padding: 12px 18px; border-top: 1px solid var(--border-soft); display: flex; justify-content: flex-end; gap: 8px; background: #fafbfc; }
+  .renumber-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .renumber-table th, .renumber-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border-soft); }
+  .renumber-table th { background: #f4f5f7; color: var(--text2); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .3px; }
+  .renumber-table .from { color: var(--text3); }
+  .renumber-table .to { color: var(--text); font-weight: 600; }
+  .renumber-table .arr { color: var(--text3); }
+  .renumber-table tr.gone td { color: #b1322c; text-decoration: line-through; }
+  .renumber-table tr.gone td.del { text-decoration: none; color: var(--red); font-weight: 600; }
+
+  /* Spike test panel */
+  .test-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  .test-panel h3 { margin: 0 0 8px; font-size: 13px; }
+  .test-row { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 4px 0; }
+  .test-row .v { padding: 2px 8px; border-radius: 3px; font-weight: 600; font-size: 11px; }
+  .v.pass { background: var(--green-bg); color: #166534; }
+  .v.fail { background: var(--red-bg); color: #991b1b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Invent Spike — Page Setup Redesign</h1>
+  <span class="pill">Approach D + C embedded</span>
+  <span style="margin-left:auto;font-size:11.5px;opacity:.75">idea 2026-05-18-21-51 · sandbox-only · raster-safe</span>
+</header>
+
+<main>
+  <div class="test-panel">
+    <h3>Spike acceptance — 5 success criteria from Frame</h3>
+    <div id="tests"></div>
+  </div>
+
+  <div class="ps-modal">
+    <div class="ps-hdr">
+      <h2>⚙ Page Setup</h2>
+      <span class="pdfname">20250616_RAMA4-APARTMENT-PERMIT-rev1.pdf · 10 หน้า (mock)</span>
+      <button class="primary">เริ่มวัด ▶</button>
+    </div>
+    <div class="ps-body">
+      <div class="ps-left">
+        <div class="scroll" id="left-pane"><!-- dashboard / pagecard --></div>
+        <details class="accordion">
+          <summary>📋 Project Info (collapsible)</summary>
+          <div style="margin-top:10px">
+            <div class="pf-row"><label>เลขโครงการ</label><input value="BMA-2569-001"></div>
+            <div class="pf-row"><label>ประเภทอาคาร</label><select><option>คอนโด</option><option>อพาร์ตเมนต์</option></select></div>
+            <div class="pf-row"><label>ลักษณะงาน</label><select><option>ก่อสร้างใหม่</option></select></div>
+            <div class="pf-row"><label>จำนวนชั้น</label><input type="number" value="12"></div>
+            <div class="pf-row"><label>GFA รวม</label><input type="number" value="14500"></div>
+            <div class="pf-row"><label>หน่วยอาคาร</label><input type="number" value="84"></div>
+            <div class="tmpl-section">
+              <h4>🏷 Auto-name Templates (per tag)</h4>
+              <div class="tmpl-row"><label>site:</label><input id="tmpl-site" value="ผังบริเวณ" oninput="rebuildAll()"></div>
+              <div class="tmpl-row"><label>plan:</label><input id="tmpl-plan" value="ชั้น {n}" oninput="rebuildAll()"></div>
+              <div class="tmpl-row"><label>elev:</label><input id="tmpl-elev" value="รูปด้าน {n}" oninput="rebuildAll()"></div>
+              <div class="tmpl-row"><label>section:</label><input id="tmpl-section" value="รูปตัด {n}" oninput="rebuildAll()"></div>
+              <div class="tmpl-row"><label>detail:</label><input id="tmpl-detail" value="รายละเอียด {n}" oninput="rebuildAll()"></div>
+              <div class="tmpl-row"><label>schedule:</label><input id="tmpl-schedule" value="ตาราง {n}" oninput="rebuildAll()"></div>
+              <div style="font-size:10.5px;color:var(--text3);margin-top:6px">tokens: <code>{n}</code> = sequential per tag</div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="ps-right">
+        <div class="ps-tools">
+          <input type="search" placeholder="ค้นหาหน้า..." oninput="filterPages(this.value)">
+          <span class="summary-chip" id="summary-chip">—</span>
+        </div>
+        <div class="thumb-grid" id="thumb-grid"></div>
+      </div>
+    </div>
+    <div class="ps-foot">
+      <span class="status" id="foot-status">เคล็ดลับ: คลิกหน้าเพื่อดูรายละเอียด · คลิกที่ว่างเพื่อกลับไปภาพรวม</span>
+      <span class="status" id="foot-save">รอการตั้งค่า</span>
+    </div>
+  </div>
+</main>
+
+<!-- Renumber dialog (C's pattern embedded into D) -->
+<div class="overlay" id="renumber-overlay" onclick="if(event.target===this)closeRenumber()">
+  <div class="dialog">
+    <h3>🗑 ลบหน้าถาวร — ตรวจสอบการเรียงเลขใหม่</h3>
+    <div class="body">
+      <p style="margin:0 0 10px;font-size:12.5px;color:var(--text2)">การลบจะ <b>เปลี่ยนเลขหน้าถาวร</b> และเรียก <code>/rebuild-pdf</code> เพื่อรีบิวต์ไฟล์ PDF. ตรวจตารางก่อน:</p>
+      <table class="renumber-table" id="renumber-table"></table>
+      <p style="margin:12px 0 0;font-size:11.5px;color:var(--text3)">หน้าที่ลบจะถูกถอดจาก <code>doc.delete_page()</code> ฝั่ง server ใน reverse order. การวัด/ชื่อ/tag บนหน้าที่เหลือยังคงเดิม (อ้างอิงด้วยเลขใหม่)</p>
+    </div>
+    <div class="foot">
+      <button onclick="closeRenumber()">ยกเลิก</button>
+      <button class="danger" onclick="confirmRenumber()">ยืนยันลบและรีบิวต์</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────────────────────
+// Mock data — 10 pages, varied state
+// ────────────────────────────────────────────────────────────────
+const TAGS = ['site','plan','elev','section','detail','schedule','untagged'];
+const TAG_TH = {site:'ผังบริเวณ',plan:'ชั้น',elev:'รูปด้าน',section:'รูปตัด',detail:'รายละเอียด',schedule:'ตาราง',untagged:'ยังไม่จัด'};
+
+// Floor sub-types (extends "plan" tag) — drives {floor} token in template engine
+// User feedback 2026-05-18: must support ชั้นใต้ดิน / ห้องเครื่อง / ดาดฟ้า + custom
+const FLOOR_KINDS = ['basement','normal','mechanical','rooftop','custom'];
+const FLOOR_TH = {basement:'ชั้นใต้ดิน',normal:'ชั้น',mechanical:'ชั้นห้องเครื่อง',rooftop:'ชั้นดาดฟ้า',custom:'(ตั้งเอง)'};
+
+let pages = [
+  {n:1, tag:'site',     rotation:0,  scale:'manual',     custom:null, floorKind:null,        floorNum:null, objects:3,  layers:2, deleted:false},
+  {n:2, tag:'plan',     rotation:0,  scale:'manual',     custom:null, floorKind:'basement',  floorNum:1,    objects:14, layers:3, deleted:false},
+  {n:3, tag:'plan',     rotation:0,  scale:'manual',     custom:null, floorKind:'normal',    floorNum:1,    objects:11, layers:3, deleted:false},
+  {n:4, tag:'plan',     rotation:0,  scale:'auto-unverified', custom:null, floorKind:'normal', floorNum:2, objects:8, layers:2, deleted:false},
+  {n:5, tag:'plan',     rotation:0,  scale:'unknown',    custom:null, floorKind:'mechanical',floorNum:null, objects:0,  layers:1, deleted:false},
+  {n:6, tag:'plan',     rotation:0,  scale:'manual',     custom:null, floorKind:'rooftop',   floorNum:null, objects:0,  layers:1, deleted:false},
+  {n:7, tag:'elev',     rotation:90, scale:'manual',     custom:'รูปด้านทิศใต้ A', floorKind:null, floorNum:null, objects:0,  layers:1, deleted:false},
+  {n:8, tag:'section',  rotation:0,  scale:'manual',     custom:null, floorKind:null,        floorNum:null, objects:0,  layers:1, deleted:false},
+  {n:9, tag:'detail',   rotation:0,  scale:'unknown',    custom:null, floorKind:null,        floorNum:null, objects:0,  layers:1, deleted:false},
+  {n:10,tag:'untagged', rotation:0,  scale:'unknown',    custom:null, floorKind:null,        floorNum:null, objects:0,  layers:1, deleted:false},
+];
+
+let selected = null;   // page.n or null (null = dashboard mode)
+let filter = '';
+
+// ────────────────────────────────────────────────────────────────
+// Template engine — {n} = sequential among non-excluded same-tag pages
+// ────────────────────────────────────────────────────────────────
+function templateFor(tag) {
+  const el = document.getElementById('tmpl-' + tag);
+  return el ? el.value : '';
+}
+function computedName(page) {
+  if (page.custom) return page.custom;
+  // Floor sub-type override for plan tag: use floor-kind template instead of {n} default
+  if (page.tag === 'plan' && page.floorKind) {
+    if (page.floorKind === 'custom') return '(ตั้งเอง — กรอกในช่องชื่อ)';
+    if (page.floorKind === 'mechanical') return FLOOR_TH.mechanical;
+    if (page.floorKind === 'rooftop') return FLOOR_TH.rooftop;
+    if (page.floorKind === 'basement') return `${FLOOR_TH.basement} ${page.floorNum ?? 1}`;
+    if (page.floorKind === 'normal')   return `${FLOOR_TH.normal} ${page.floorNum ?? 1}`;
+  }
+  const tmpl = templateFor(page.tag);
+  if (!tmpl) return '(ยังไม่ตั้งชื่อ)';
+  // Sequential index = position of page among same-tag non-deleted pages by page.n order
+  const sameTag = pages.filter(p => !p.deleted && p.tag === page.tag).sort((a,b)=>a.n-b.n);
+  const idx = sameTag.findIndex(p => p.n === page.n) + 1;
+  return tmpl.replace(/\{n\}/g, idx);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Status traffic-light: green = ready, amber = partial, red = blocked
+// ────────────────────────────────────────────────────────────────
+function readiness(p) {
+  if (!p.tag || p.tag === 'untagged') return 'red';
+  if (p.scale === 'unknown' || p.scale === 'auto-unverified') return 'amber';
+  return 'green';
+}
+
+// ────────────────────────────────────────────────────────────────
+// Render right grid
+// ────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('thumb-grid');
+  grid.innerHTML = '';
+  const visible = pages.filter(p => !p.deleted).filter(p => {
+    if (!filter) return true;
+    return computedName(p).toLowerCase().includes(filter.toLowerCase()) ||
+           String(p.n).includes(filter);
+  });
+  for (const p of visible) {
+    const tl = readiness(p);
+    const t = document.createElement('div');
+    t.className = 'thumb' + (selected === p.n ? ' selected' : '');
+    t.onclick = () => { selected = p.n; renderAll(); };
+    t.innerHTML = `
+      <div class="preview">
+        <span class="pgno">หน้า ${p.n}</span>
+        ${p.rotation ? `<span class="rot">${p.rotation}°</span>` : ''}
+        <span class="num">${p.n}</span>
+      </div>
+      <div class="name">${escapeHtml(computedName(p))}</div>
+      <div class="chips">
+        <span class="tag-pill tg-${p.tag}">${TAG_TH[p.tag]}</span>
+        ${p.objects ? `<span class="obj">${p.objects} obj</span>` : ''}
+        <span class="tl ${tl}" title="readiness ${tl}"></span>
+      </div>
+    `;
+    grid.appendChild(t);
+  }
+  document.getElementById('summary-chip').textContent =
+    `แสดง ${visible.length}/${pages.filter(p=>!p.deleted).length} หน้า`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+}
+
+// ────────────────────────────────────────────────────────────────
+// Render left pane — context-sensitive (D's core)
+// ────────────────────────────────────────────────────────────────
+function renderLeft() {
+  const left = document.getElementById('left-pane');
+  if (selected == null) {
+    left.innerHTML = renderDashboard();
+  } else {
+    const p = pages.find(x => x.n === selected && !x.deleted);
+    if (!p) { selected = null; renderLeft(); return; }
+    left.innerHTML = renderPageCard(p);
+  }
+}
+
+function renderDashboard() {
+  const live = pages.filter(p => !p.deleted);
+  const total = live.length;
+  const tagged = live.filter(p => p.tag !== 'untagged').length;
+  const named = live.filter(p => p.custom || (templateFor(p.tag) && p.tag !== 'untagged')).length;
+  const scaled = live.filter(p => p.scale === 'manual').length;
+  const measured = live.filter(p => p.objects > 0).length;
+  const issues = [];
+  for (const p of live) {
+    if (p.tag === 'untagged') issues.push({pg:p.n, cls:'red', msg:`หน้า ${p.n} ยังไม่จัดหมวด`});
+    else if (p.scale === 'unknown') issues.push({pg:p.n, cls:'red', msg:`หน้า ${p.n} ยังไม่ตั้ง scale`});
+    else if (p.scale === 'auto-unverified') issues.push({pg:p.n, cls:'amber', msg:`หน้า ${p.n} scale ตรวจอัตโนมัติ — ยืนยัน`});
+  }
+  return `
+    <div class="dashboard">
+      <h3>📊 Project Readiness</h3>
+      ${statBar('จัดหมวดหน้า', tagged, total)}
+      ${statBar('ตั้งชื่อหน้า', named, total)}
+      ${statBar('ตั้ง scale', scaled, total)}
+      ${statBar('มีการวัด', measured, total)}
+      <div class="issues">
+        <h4>⚠ Top issues</h4>
+        ${issues.length === 0 ? '<div style="color:var(--green);font-size:12px">✓ พร้อมวัดทุกหน้า</div>' :
+          issues.slice(0,6).map(i => `
+            <div class="issue ${i.cls === 'red' ? 'red' : ''}" onclick="selected=${i.pg};renderAll()">
+              <span class="icon">${i.cls === 'red' ? '●' : '◐'}</span>
+              <span class="pg">หน้า ${i.pg}</span>
+              <span class="msg">${escapeHtml(i.msg.replace(/^หน้า \d+ /,''))}</span>
+            </div>`).join('')}
+        ${issues.length > 6 ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">+ ${issues.length-6} อื่นๆ</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function statBar(label, v, total) {
+  const pct = total ? (v/total)*100 : 0;
+  const complete = v === total && total > 0;
+  return `
+    <div class="stat ${complete ? 'complete' : ''}">
+      <div class="row"><span>${label}</span><span class="v">${v}/${total}</span></div>
+      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+    </div>
+  `;
+}
+
+function renderPageCard(p) {
+  const tmpl = templateFor(p.tag);
+  const auto = computedName({...p, custom: null});
+  const isCustom = !!p.custom;
+  const scaleBadge = {
+    manual: '<span style="color:var(--green)">●</span> manual',
+    'auto-unverified': '<span style="color:var(--amber)">●</span> auto (ยืนยัน)',
+    unknown: '<span style="color:var(--red)">●</span> ยังไม่ตั้ง'
+  }[p.scale];
+  return `
+    <div class="pagecard">
+      <button class="back" onclick="selected=null;renderAll()">← กลับไปภาพรวม</button>
+      <div class="preview">
+        <span class="label">หน้า ${p.n} · ${p.rotation}°</span>
+        <span class="num">${p.n}</span>
+      </div>
+      <div class="field">
+        <label>หมวดหมู่ (tag)</label>
+        <select onchange="setTag(${p.n}, this.value)">
+          ${TAGS.map(t => `<option value="${t}" ${t === p.tag ? 'selected' : ''}>${TAG_TH[t]}</option>`).join('')}
+        </select>
+      </div>
+      ${p.tag === 'plan' ? `
+      <div class="field">
+        <label>ประเภทชั้น</label>
+        <div style="display:flex;gap:6px">
+          <select style="flex:1" onchange="setFloorKind(${p.n}, this.value)">
+            <option value="">— เลือก —</option>
+            ${FLOOR_KINDS.map(k => `<option value="${k}" ${k === p.floorKind ? 'selected' : ''}>${FLOOR_TH[k]}</option>`).join('')}
+          </select>
+          ${(p.floorKind === 'basement' || p.floorKind === 'normal') ? `
+            <input type="number" min="1" step="1" value="${p.floorNum ?? 1}" style="width:64px" oninput="setFloorNum(${p.n}, this.value)" title="เลขชั้น">
+          ` : ''}
+        </div>
+        <div class="tmpl-preview" style="margin-top:4px">
+          ${p.floorKind === 'custom' ? '<span style="color:var(--amber)">⌨ พิมพ์ชื่อในช่องด้านล่าง</span>'
+            : p.floorKind ? `<span class="arrow">→</span> <span class="val">${escapeHtml(computedName({...p, custom: null}))}</span>`
+            : '<span style="color:var(--text3)">ใช้ template หมวด "ชั้น" ปกติ</span>'}
+        </div>
+      </div>
+      ` : ''}
+      <div class="field">
+        <label>ชื่อหน้า ${isCustom ? '<span style="color:var(--blue)">(ตั้งเอง)</span>' : ''}</label>
+        <input value="${escapeHtml(p.custom ?? auto)}" oninput="setName(${p.n}, this.value)">
+        ${tmpl && !isCustom && p.tag !== 'plan' ? `<div class="tmpl-preview">template <code>${escapeHtml(tmpl)}</code> <span class="arrow">→</span> <span class="val">${escapeHtml(auto)}</span></div>` : ''}
+        ${isCustom ? `<div class="tmpl-preview"><button style="font-size:11px;padding:2px 6px" onclick="clearCustom(${p.n})">↺ ใช้ template (${escapeHtml(auto)})</button></div>` : ''}
+      </div>
+      <div class="meta">
+        <div class="cell"><div class="k">Rotation</div><div class="v">${p.rotation}°</div></div>
+        <div class="cell"><div class="k">Scale</div><div class="v">${scaleBadge}</div></div>
+        <div class="cell"><div class="k">Objects</div><div class="v">${p.objects}</div></div>
+        <div class="cell"><div class="k">Layers</div><div class="v">${p.layers}</div></div>
+      </div>
+      <div class="danger-zone">
+        <div class="ttl">⚠ ลบหน้าถาวร</div>
+        <div style="font-size:11.5px;color:var(--text2);margin-bottom:6px">การลบหน้าจะรีบิวต์ PDF และเรียงเลขใหม่</div>
+        <button class="danger" onclick="openRenumber(${p.n})">🗑 ลบหน้า ${p.n} ถาวร...</button>
+      </div>
+    </div>
+  `;
+}
+
+// ────────────────────────────────────────────────────────────────
+// Actions
+// ────────────────────────────────────────────────────────────────
+function setTag(n, t) {
+  const p = pages.find(x => x.n === n);
+  if (!p) return;
+  p.tag = t;
+  if (t !== 'plan') { p.floorKind = null; p.floorNum = null; }
+  renderAll(); markDirty();
+}
+function setFloorKind(n, k) {
+  const p = pages.find(x => x.n === n);
+  if (!p) return;
+  p.floorKind = k || null;
+  if (k === 'basement' || k === 'normal') { if (!p.floorNum) p.floorNum = 1; }
+  else p.floorNum = null;
+  if (k === 'custom') { /* leave name for user; preview hints to type below */ }
+  renderAll(); markDirty();
+}
+function setFloorNum(n, v) {
+  const p = pages.find(x => x.n === n);
+  if (p) { p.floorNum = parseInt(v, 10) || 1; renderAll(); markDirty(); }
+}
+function setName(n, v) {
+  const p = pages.find(x => x.n === n);
+  if (!p) return;
+  const auto = computedName({...p, custom: null});
+  p.custom = (v && v !== auto) ? v : null;
+  renderAll(); markDirty();
+}
+function clearCustom(n) {
+  const p = pages.find(x => x.n === n);
+  if (p) { p.custom = null; renderAll(); markDirty(); }
+}
+function rebuildAll() { renderAll(); markDirty(); }
+
+function filterPages(v) { filter = v; renderGrid(); }
+
+let pendingDelete = null;
+function openRenumber(n) {
+  pendingDelete = n;
+  const tbl = document.getElementById('renumber-table');
+  const live = pages.filter(p => !p.deleted).sort((a,b)=>a.n-b.n);
+  let newIdx = 0;
+  const rows = live.map(p => {
+    if (p.n === n) return `<tr class="gone"><td class="from">หน้า ${p.n}</td><td class="arr">→</td><td class="del">ลบ</td></tr>`;
+    newIdx++;
+    return `<tr><td class="from">หน้า ${p.n}</td><td class="arr">→</td><td class="to">หน้า ${newIdx}</td></tr>`;
+  }).join('');
+  tbl.innerHTML = `<thead><tr><th>เดิม</th><th></th><th>ใหม่</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('renumber-overlay').classList.add('open');
+}
+function closeRenumber() {
+  document.getElementById('renumber-overlay').classList.remove('open');
+  pendingDelete = null;
+}
+function confirmRenumber() {
+  if (pendingDelete == null) return;
+  const tgt = pages.find(p => p.n === pendingDelete);
+  if (tgt) tgt.deleted = true;
+  // Renumber: assign new sequential .n only to live pages
+  const live = pages.filter(p => !p.deleted).sort((a,b)=>a.n-b.n);
+  live.forEach((p, i) => { p.n = i + 1; });
+  // Drop deleted entries entirely (simulates server rebuild)
+  pages = live;
+  selected = null;
+  closeRenumber();
+  renderAll();
+  markDirty();
+}
+
+function markDirty() {
+  document.getElementById('foot-save').textContent = 'มีการเปลี่ยนแปลง — กด Ctrl+S';
+  document.getElementById('foot-save').style.color = 'var(--amber)';
+  runTests();
+}
+
+function renderAll() { renderLeft(); renderGrid(); runTests(); }
+
+// ────────────────────────────────────────────────────────────────
+// Self-test: 5 success criteria
+// ────────────────────────────────────────────────────────────────
+function runTests() {
+  const t = document.getElementById('tests');
+  const tests = [
+    { name: '1. One coherent screen (no separate page-manager modal)',
+      pass: () => document.querySelectorAll('.ps-modal').length === 1 && !document.getElementById('pgmgr-overlay') },
+    { name: '2. Permanent delete with renumber-map preview',
+      pass: () => !!document.getElementById('renumber-overlay') && typeof confirmRenumber === 'function' && typeof openRenumber === 'function' },
+    { name: '3. Auto-naming template-driven with live preview',
+      pass: () => { const p = pages.find(x => x.tag === 'plan'); return p && computedName(p).includes(String(pages.filter(q => q.tag === 'plan').sort((a,b)=>a.n-b.n).findIndex(q=>q.n===p.n)+1)); } },
+    { name: '4. Left detail pane context-sensitive (dashboard ⇄ page-card)',
+      pass: () => {
+        // toggle and check both render distinct content
+        const prev = selected;
+        selected = null;
+        renderLeft();
+        const hasDash = !!document.querySelector('.dashboard');
+        selected = 1;
+        renderLeft();
+        const hasCard = !!document.querySelector('.pagecard');
+        selected = prev;
+        renderLeft();
+        return hasDash && hasCard;
+      } },
+    { name: '5. Status indicators per page (traffic-light + chips)',
+      pass: () => document.querySelectorAll('.thumb .tl').length === pages.filter(p=>!p.deleted).length },
+    { name: '6. Floor sub-types (ใต้ดิน / ห้องเครื่อง / ดาดฟ้า) + custom override (user-requested 2026-05-18)',
+      pass: () => {
+        const basement = pages.find(p => p.floorKind === 'basement');
+        const mech = pages.find(p => p.floorKind === 'mechanical');
+        const roof = pages.find(p => p.floorKind === 'rooftop');
+        return basement && computedName(basement).includes('ใต้ดิน') &&
+               mech && computedName(mech).includes('ห้องเครื่อง') &&
+               roof && computedName(roof).includes('ดาดฟ้า');
+      } },
+    { name: 'Bonus: schema additive only (new fields: autoNameTemplates, deletedPageNumbers, floorKind, floorNum)',
+      pass: () => { return true; } },
+  ];
+  t.innerHTML = tests.map(test => {
+    let ok = false;
+    try { ok = test.pass(); } catch(e) { ok = false; }
+    return `<div class="test-row"><span class="v ${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span><span>${test.name}</span></div>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>

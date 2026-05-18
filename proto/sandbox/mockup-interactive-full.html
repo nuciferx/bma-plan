@@ -1,0 +1,1669 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Mockup — Foxit-style (3 patterns + Left & Right panels)</title>
+<style>
+  :root {
+    --bg: #1a1c20;
+    --surface: #23262c;
+    --surface2: #2a2e35;
+    --surface3: #353a42;
+    --border: #3a3f47;
+    --text: #e8ebef;
+    --text2: #aab1bb;
+    --text3: #6a737d;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --cyan: #5ac8fa;
+    --magenta: #bf5af2;
+    --accent: #3b82f6;
+    --measure: #30d158;
+    --annot: #ff453a;
+    --hero-bg: linear-gradient(180deg, #3b82f6 0%, #1e3a8a 100%);
+    --hero-bg-hover: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+    --annot-hero: linear-gradient(180deg, #ef4444 0%, #991b1b 100%);
+
+    --menu-h: 32px;
+    --menu-pad-x: 14px;
+    --menu-font: 13px;
+    --tab-h: 38px;
+    --tab-pad-x: 22px;
+    --tab-font: 13px;
+    --ribbon-pad: 6px 4px;
+    --rlbl-font: 10px;
+    --rlbl-mb: 4px;
+    --btn-flex-dir: column;
+    --btn-pad-x: 10px;
+    --btn-pad-y: 7px;
+    --btn-font: 11px;
+    --btn-icon-font: 22px;
+    --btn-min-h: 64px;
+    --btn-min-w: 56px;
+    --btn-gap: 3px;
+    --rsection-pad: 0 6px;
+    --rsection-gap: 3px;
+    --mini-size: 28px;
+    --mini-font: 14px;
+    --hero-icon: 30px;
+    --hero-w: 80px;
+    --lpanel-w: 240px;
+    --panel-w: 320px;
+    --row-pad-y: 10px;
+    --row-pad-x: 14px;
+    --row-sub-font: 13px;
+    --row-meta-font: 11px;
+    --status-h: 28px;
+    --status-font: 12px;
+  }
+  body.density-compact {
+    --menu-h: 28px; --tab-h: 30px; --tab-font: 12px;
+    --ribbon-pad: 3px 3px; --rlbl-font: 9px; --rlbl-mb: 3px;
+    --btn-flex-dir: row;
+    --btn-pad-x: 8px; --btn-pad-y: 5px; --btn-font: 11px;
+    --btn-icon-font: 13px; --btn-min-h: 26px; --btn-min-w: auto; --btn-gap: 4px;
+    --mini-size: 22px; --mini-font: 12px;
+    --hero-icon: 16px; --hero-w: auto;
+    --lpanel-w: 220px; --panel-w: 300px;
+    --row-pad-y: 7px; --row-pad-x: 12px;
+    --row-sub-font: 12px; --row-meta-font: 10px;
+    --status-h: 26px; --status-font: 11px;
+  }
+  body.density-spacious {
+    --menu-h: 36px; --tab-h: 44px; --tab-font: 14px;
+    --ribbon-pad: 8px 6px; --rlbl-font: 11px; --rlbl-mb: 5px;
+    --btn-flex-dir: column;
+    --btn-pad-x: 12px; --btn-pad-y: 9px; --btn-font: 12px;
+    --btn-icon-font: 28px; --btn-min-h: 78px; --btn-min-w: 72px; --btn-gap: 4px;
+    --mini-size: 34px; --mini-font: 16px;
+    --hero-icon: 36px; --hero-w: 96px;
+    --lpanel-w: 260px; --panel-w: 360px;
+    --row-pad-y: 14px; --row-pad-x: 18px;
+    --row-sub-font: 14px; --row-meta-font: 12px;
+    --status-h: 32px; --status-font: 13px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+  body { display: grid; grid-template-rows: var(--menu-h) var(--tab-h) auto 1fr var(--status-h); transition: all 0.15s ease; }
+
+  .menu-bar { display: flex; align-items: center; padding: 0 var(--menu-pad-x); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--menu-font); gap: 4px; }
+  .menu-item { padding: 4px 10px; cursor: pointer; border-radius: 4px; color: var(--text2); }
+  .menu-item:hover { background: var(--surface3); color: var(--text); }
+  .menu-item.dead { color: var(--text3); cursor: not-allowed; text-decoration: line-through; opacity: 0.5; }
+  .density-picker { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .density-picker .label { color: var(--text3); margin-right: 4px; }
+  .density-picker button { padding: 3px 10px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; }
+  .density-picker button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .tabs { display: flex; align-items: stretch; background: var(--surface); border-bottom: 1px solid var(--border); padding-left: 10px; gap: 2px; }
+  .tab { display: flex; align-items: center; padding: 0 var(--tab-pad-x); cursor: pointer; font-size: var(--tab-font); font-weight: 500; color: var(--text2); border-radius: 6px 6px 0 0; transition: all 0.15s; }
+  .tab:hover { background: var(--surface2); color: var(--text); }
+  .tab.active { background: var(--surface3); color: #fff; position: relative; border-bottom: 3px solid var(--accent); }
+  .tab.disabled { opacity: 0.45; cursor: not-allowed; }
+  .tab .tdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; opacity: 0; }
+  .tab.active .tdot { opacity: 1; }
+  #tab-measure.active .tdot { background: var(--measure); }
+  #tab-annotate.active .tdot { background: var(--annot); }
+  #tab-site.active .tdot { background: var(--cyan); }
+  #tab-workspace.active .tdot { background: var(--magenta); }
+
+  .ribbon { display: flex; align-items: stretch; background: var(--surface3); border-bottom: 1px solid var(--border); padding: var(--ribbon-pad); gap: 0; overflow-x: auto; }
+  .rsection { display: flex; flex-direction: column; padding: var(--rsection-pad); gap: var(--rlbl-mb); min-width: 0; }
+  .rlbl { font-size: var(--rlbl-font); font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 2px; white-space: nowrap; text-align: center; }
+  body.density-compact .rlbl { text-align: left; }
+  .rrow { display: flex; gap: var(--btn-gap); align-items: stretch; flex: 1; }
+  .rdiv { width: 1px; background: var(--border); margin: 4px 2px; }
+
+  .rbtn {
+    display: flex; flex-direction: var(--btn-flex-dir);
+    align-items: center; justify-content: center;
+    gap: var(--btn-gap);
+    padding: var(--btn-pad-y) var(--btn-pad-x);
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer;
+    font-size: var(--btn-font);
+    min-height: var(--btn-min-h); min-width: var(--btn-min-w);
+    user-select: none; white-space: nowrap; position: relative;
+    transition: all 0.12s ease; line-height: 1.2; text-align: center;
+  }
+  .rbtn .ricon { font-size: var(--btn-icon-font); line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+  .rbtn:hover { background: var(--surface3); border-color: var(--text3); transform: translateY(-1px); }
+  .rbtn:active { transform: translateY(0); }
+  .rbtn.active { background: var(--accent); border-color: var(--blue); color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.35); }
+  .rbtn.icon-only { padding: var(--btn-pad-y) calc(var(--btn-pad-x) - 2px); }
+  body.density-compact .rbtn.icon-only { min-width: var(--btn-min-h); }
+  .rbtn.dropdown::after { content: "▾"; font-size: 10px; opacity: 0.7; }
+  body.density-compact .rbtn.dropdown::after { margin-left: 2px; }
+
+  /* Foxit Pattern 1: HERO */
+  .rbtn.hero {
+    background: var(--hero-bg); color: #fff; border-color: var(--blue);
+    min-width: var(--hero-w); font-weight: 600;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+  }
+  body.density-compact .rbtn.hero { min-width: auto; padding: var(--btn-pad-y) calc(var(--btn-pad-x) + 4px); }
+  .rbtn.hero .ricon { font-size: var(--hero-icon); }
+  .rbtn.hero:hover { background: var(--hero-bg-hover); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(37,99,235,0.55); }
+  .rbtn.hero.annot { background: var(--annot-hero); border-color: #991b1b; box-shadow: 0 2px 6px rgba(220,38,38,0.3); }
+  .rbtn.hero.annot:hover { background: linear-gradient(180deg, #f87171 0%, #dc2626 100%); box-shadow: 0 6px 14px rgba(220,38,38,0.55); }
+
+  /* Foxit Pattern 2: 2-line label */
+  body:not(.density-compact) .rbtn.label-2line {
+    white-space: normal; line-height: 1.15;
+    padding-left: 4px; padding-right: 4px; max-width: 80px;
+  }
+  body:not(.density-compact) .rbtn.label-2line span:last-child:not(.ricon) {
+    display: inline-block; width: 100%; word-break: keep-all;
+  }
+
+  /* Foxit Pattern 3: 2-row mini stack */
+  .rstack {
+    display: flex; flex-direction: column; gap: 2px;
+    justify-content: center; align-items: center;
+    padding: 2px;
+  }
+  body.density-compact .rstack { flex-direction: row; }
+  .rstack-row { display: flex; gap: 2px; }
+  .rmini {
+    width: var(--mini-size); height: var(--mini-size);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; cursor: pointer;
+    font-size: var(--mini-font); color: var(--text);
+    transition: all 0.1s ease;
+  }
+  .rmini:hover { background: var(--surface3); border-color: var(--text3); }
+  .rmini.active { background: var(--accent); border-color: var(--blue); color: #fff; }
+  .rmini.danger:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+  .poly-dd { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; min-width: 340px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); z-index: 200; font-size: 13px; display: none; }
+  .poly-dd.open { display: block; }
+  .poly-dd .pd-row { padding: 10px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .poly-dd .pd-row:hover { background: var(--surface3); }
+  .poly-dd .pd-section { padding: 10px 14px 4px; font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .poly-dd .pd-sub { padding: 6px 14px 6px 32px; font-size: 12px; color: var(--text2); }
+  .poly-dd .kb { padding: 2px 6px; background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--text2); }
+  .poly-dd .pd-divider { height: 1px; background: var(--border); margin: 6px 10px; }
+
+  /* MAIN 3-column — Golden Ratio default: panels ~38.2%, canvas ~61.8% */
+  .main { display: grid; grid-template-columns: var(--lpanel-w) 1fr var(--panel-w); min-height: 0; transition: grid-template-columns 0.25s ease; }
+  body.left-collapsed { --lpanel-w: 38px; }
+  body.right-collapsed { --panel-w: 38px; }
+  body.left-collapsed .lpanel-body { display: none; }
+  body.left-collapsed .lpanel-tabs { flex-direction: column; }
+  body.left-collapsed .lptab { border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 2px; font-size: 0; }
+  body.left-collapsed .lptab .lpic { font-size: 18px; }
+  body.left-collapsed .lptab span:not(.lpic) { display: none; }
+  body.left-collapsed .lp-collapse-btn::before { content: "▶"; }
+  body:not(.left-collapsed) .lp-collapse-btn::before { content: "◀"; }
+  body.right-collapsed .rbody { display: none !important; }
+  body.right-collapsed .rpanel-tabs { flex-direction: column; }
+  body.right-collapsed .rptab { border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 2px; font-size: 0; }
+  body.right-collapsed .rptab .rpic { font-size: 18px; }
+  body.right-collapsed .rptab span:not(.rpic) { display: none; }
+  body.right-collapsed .panel-footer { display: none; }
+  body.right-collapsed .rp-collapse-btn::before { content: "◀"; }
+  body:not(.right-collapsed) .rp-collapse-btn::before { content: "▶"; }
+
+  /* Collapse buttons (chevron strip) */
+  .lp-collapse-btn, .rp-collapse-btn {
+    padding: 6px 0; background: var(--surface3); border: 0; border-bottom: 1px solid var(--border);
+    cursor: pointer; color: var(--text2); font-size: 10px; text-align: center; width: 100%;
+  }
+  .lp-collapse-btn:hover, .rp-collapse-btn:hover { background: var(--accent); color: #fff; }
+
+  /* Golden ratio guide overlay on canvas */
+  .canvas-toolbar button.tb-btn {
+    margin-left: 6px; padding: 3px 8px; background: var(--surface3); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; cursor: pointer; font-size: 11px;
+  }
+  .canvas-toolbar button.tb-btn:hover { background: var(--accent); border-color: var(--accent); }
+  .canvas-toolbar button.tb-btn.active { background: #d4af37; color: #000; border-color: #d4af37; font-weight: 700; }
+  .canvas-toolbar .grow { flex: 1; }
+  .canvas-toolbar .canvas-ratio { color: #d4af37; font-weight: 600; }
+
+  /* LEFT panel */
+  .lpanel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .lpanel-tabs { display: flex; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .lptab {
+    flex: 1; padding: 8px 4px; cursor: pointer; text-align: center;
+    font-size: 11px; color: var(--text2); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: all 0.1s;
+  }
+  .lptab:last-child { border-right: 0; }
+  .lptab:hover { background: var(--surface3); color: var(--text); }
+  .lptab.active { background: var(--surface); color: var(--cyan); border-bottom: 2px solid var(--cyan); margin-bottom: -1px; }
+  .lptab .lpic { font-size: 16px; }
+  .lpanel-body { flex: 1; overflow-y: auto; }
+
+  .pages-list { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .page-card {
+    display: flex; gap: 8px; padding: 6px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    align-items: center;
+  }
+  .page-card:hover { border-color: var(--text3); }
+  .page-card.active { border-color: var(--cyan); background: rgba(90,200,250,0.08); }
+  .page-thumb {
+    width: 64px; height: 48px; background: #fafbfc; border: 1px solid var(--border);
+    border-radius: 3px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #94a3b8;
+  }
+  .page-info { flex: 1; min-width: 0; }
+  .page-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .page-meta { font-size: 10px; color: var(--text3); display: flex; gap: 6px; margin-top: 2px; }
+  .page-badge { padding: 1px 5px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 9px; font-weight: 600; }
+  .page-card .scale { color: var(--green); }
+
+  .sheets-list { padding: 6px; }
+  .sheet-grp { margin-bottom: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .sheet-grp-head { padding: 8px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; }
+  .sheet-grp-head:hover { background: var(--surface3); }
+  .sheet-grp-body { padding: 4px 0; border-top: 1px solid var(--border); display: none; }
+  .sheet-grp.open .sheet-grp-body { display: block; }
+  .sheet-grp.open .sheet-grp-head::after { content: "▾"; color: var(--text2); }
+  .sheet-grp:not(.open) .sheet-grp-head::after { content: "▸"; color: var(--text2); }
+  .sheet-item { padding: 6px 14px; font-size: 12px; color: var(--text2); cursor: pointer; display: flex; justify-content: space-between; }
+  .sheet-item:hover { background: var(--surface3); color: var(--text); }
+  .sheet-item.active { background: rgba(90,200,250,0.12); color: var(--cyan); font-weight: 600; }
+  .sheet-page-num { font-size: 10px; color: var(--text3); padding: 1px 6px; background: var(--surface3); border-radius: 3px; }
+
+  .layers-list { padding: 6px; }
+  .layer-row {
+    display: grid; grid-template-columns: auto auto 1fr auto; gap: 6px;
+    padding: 7px 8px; align-items: center; font-size: 12px; cursor: pointer;
+    border-radius: 4px; margin-bottom: 2px;
+  }
+  .layer-row:hover { background: var(--surface2); }
+  .layer-row.active { background: rgba(90,200,250,0.1); border-left: 3px solid var(--cyan); padding-left: 5px; }
+  .layer-row .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+  .layer-row .vis, .layer-row .lock { width: 18px; cursor: pointer; opacity: 0.7; font-size: 13px; text-align: center; }
+  .layer-row .vis:hover, .layer-row .lock:hover { opacity: 1; }
+  .layer-row.hidden .name { opacity: 0.4; text-decoration: line-through; }
+  .layer-row .name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer-row .cnt { font-size: 10px; color: var(--text3); padding: 1px 5px; background: var(--surface3); border-radius: 3px; }
+  .new-layer-btn { width: 100%; margin-top: 6px; padding: 6px; background: var(--surface2); border: 1px dashed var(--border); color: var(--text2); border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .new-layer-btn:hover { background: var(--surface3); color: var(--text); }
+
+  .otree { padding: 6px; font-size: 12px; }
+  .otree-node { padding: 4px 6px; cursor: pointer; border-radius: 3px; display: flex; gap: 6px; align-items: center; }
+  .otree-node:hover { background: var(--surface2); }
+  .otree-node.parent { font-weight: 600; color: var(--text); }
+  .otree-node.child { padding-left: 22px; color: var(--text2); }
+  .otree-node.selected { background: rgba(59,130,246,0.15); color: #fff; }
+  .otree-cnt { margin-left: auto; font-size: 10px; color: var(--text3); padding: 1px 5px; background: var(--surface3); border-radius: 3px; }
+
+  .canvas-wrap { position: relative; background: #ecedf0; overflow: hidden; }
+  #cv { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  .canvas-toolbar { position: absolute; top: 10px; left: 10px; padding: 7px 14px; background: rgba(20,20,25,0.88); color: #fff; border-radius: 6px; display: flex; gap: 14px; font-size: 12px; }
+  .canvas-toolbar b { color: var(--cyan); }
+
+  .panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .rpanel-tabs { display: flex; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .rptab { flex: 1; padding: 8px 4px; cursor: pointer; text-align: center;
+    font-size: 11px; color: var(--text2); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; transition: all 0.1s;
+  }
+  .rptab:last-child { border-right: 0; }
+  .rptab:hover { background: var(--surface3); color: var(--text); }
+  .rptab.active { background: var(--surface); color: var(--accent); border-bottom: 2px solid var(--accent); margin-bottom: -1px; }
+  .rptab .rpic { font-size: 16px; }
+  .panel-head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .panel-head h2 { margin: 0; font-size: 14px; font-weight: 700; flex: 1; }
+  .panel-head .count { padding: 2px 10px; color: #fff; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .rbody { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  /* Props panel */
+  .props-panel { padding: 12px 14px; }
+  .props-section { margin-bottom: 16px; }
+  .props-section h4 { margin: 0 0 8px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .props-row { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; font-size: 12px; margin-bottom: 5px; }
+  .props-row .k { color: var(--text2); }
+  .props-row .v { color: var(--text); font-weight: 500; }
+  .props-row .v.editable { background: var(--surface2); padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+  .props-row .v.editable:hover { background: var(--surface3); }
+
+  /* Summary panel */
+  .summary-panel { padding: 10px 12px; }
+  .summary-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .summary-card .label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .summary-card .value { font-size: 22px; font-weight: 700; color: var(--text); }
+  .summary-card .value .unit { font-size: 12px; color: var(--text2); margin-left: 4px; font-weight: 400; }
+  .summary-card .delta { font-size: 11px; color: var(--green); margin-top: 4px; }
+  .summary-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .summary-row .summary-card { flex: 1; margin-bottom: 0; padding: 8px 10px; }
+  .summary-row .summary-card .value { font-size: 16px; }
+  .summary-bar { height: 18px; background: var(--surface3); border-radius: 4px; overflow: hidden; display: flex; margin-top: 6px; }
+  .summary-bar .seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; font-weight: 600; }
+
+  /* Notes panel */
+  .notes-panel { padding: 10px 12px; }
+  .note-card { background: var(--surface2); border-left: 3px solid var(--cyan); border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; }
+  .note-card .author { font-weight: 600; color: var(--cyan); font-size: 11px; }
+  .note-card .ts { color: var(--text3); font-size: 10px; margin-left: 6px; }
+  .note-card .body { margin-top: 4px; color: var(--text); }
+  .note-card.resolved { border-left-color: var(--green); opacity: 0.6; }
+  .note-add { display: flex; gap: 6px; padding: 8px; background: var(--surface2); border-radius: 6px; margin-top: 8px; }
+  .note-add input { flex: 1; padding: 6px 8px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 12px; }
+  .note-add button { padding: 6px 12px; background: var(--accent); border: 0; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .count.measure { background: var(--measure); }
+  .count.annot { background: var(--annot); }
+  .panel-filters { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); align-items: center; font-size: 12px; flex-wrap: wrap; }
+  .panel-filters select, .panel-filters input { padding: 5px 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; font-size: 12px; }
+  .panel-filters input { flex: 1; min-width: 60px; }
+  .panel-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .row { padding: var(--row-pad-y) var(--row-pad-x); cursor: pointer; border-left: 3px solid transparent; display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; }
+  .row:hover { background: var(--surface2); }
+  .row.selected { background: var(--surface3); border-left-color: var(--accent); }
+  .row .ic { font-size: 18px; line-height: 1; padding-top: 2px; }
+  .row .body { min-width: 0; }
+  .row .sub { font-size: var(--row-sub-font); color: var(--text); margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .meta { font-size: var(--row-meta-font); color: var(--text3); display: flex; gap: 8px; }
+  .row .acts { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+  .row:hover .acts { opacity: 1; }
+  .row .acts button { padding: 4px 7px; background: var(--surface3); border: 0; border-radius: 4px; cursor: pointer; color: var(--text2); font-size: 12px; }
+  .row .acts button.del:hover { background: var(--red); color: #fff; }
+
+  .panel-footer-info {
+    padding: 10px 14px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 11px;
+    display: none;
+  }
+  .panel-footer-info.show { display: block; }
+  .panel-footer-info .title { color: var(--cyan); font-weight: 700; margin-bottom: 4px; font-size: 12px; }
+  .panel-footer-info .kv { display: grid; grid-template-columns: 80px 1fr; gap: 4px 8px; color: var(--text2); }
+  .panel-footer-info .kv b { color: var(--text); }
+
+  .panel-footer { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px; }
+  .panel-footer button { padding: 9px 12px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; cursor: pointer; font-size: 12px; flex: 1; font-weight: 500; }
+  .panel-footer button:hover { background: var(--surface3); }
+  .panel-footer button.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 700; }
+  .panel-footer button.primary:hover { background: #15803d; }
+
+  .status { display: flex; align-items: center; padding: 0 14px; background: var(--surface); border-top: 1px solid var(--border); font-size: var(--status-font); color: var(--text2); gap: 14px; overflow-x: auto; }
+  .status .prefix { padding: 3px 8px; color: #fff; border-radius: 4px; font-weight: 700; font-size: 11px; white-space: nowrap; }
+  .prefix.measure { background: var(--accent); }
+  .prefix.annot { background: var(--magenta); }
+  .prefix.site { background: var(--cyan); color: #000; }
+  .prefix.workspace { background: #6b7280; }
+  .sep { color: var(--text3); }
+  .status > * { white-space: nowrap; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 300; backdrop-filter: blur(2px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; min-width: 420px; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  .modal h3 { margin: 0 0 16px; font-size: 16px; font-weight: 700; }
+  .modal label { display: block; font-size: 12px; color: var(--text2); margin: 12px 0 6px; font-weight: 500; }
+  .modal input, .modal textarea, .modal select { width: 100%; padding: 9px 12px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .modal textarea { min-height: 72px; resize: vertical; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .modal-actions button { padding: 9px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; border: 0; font-weight: 600; }
+  .modal-actions button.cancel { background: var(--surface3); color: var(--text); }
+  .modal-actions button.save { background: var(--blue); color: #fff; }
+
+  .help-toast { position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); padding: 10px 20px; background: rgba(20,20,25,0.95); color: #fff; border-radius: 8px; font-size: 12px; z-index: 100; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .help-toast.show { opacity: 1; }
+</style>
+</head>
+<body class="density-comfortable">
+
+<div class="menu-bar">
+  <span class="menu-item dead">File</span>
+  <span class="menu-item dead">Edit</span>
+  <span class="menu-item dead">View</span>
+  <span class="menu-item">Project</span>
+  <span class="menu-item">Scale</span>
+  <span class="menu-item">Page</span>
+  <span class="menu-item">Measure</span>
+  <span class="menu-item">Annotate</span>
+  <span class="menu-item dead">Help</span>
+  <div class="density-picker">
+    <span class="label">ขนาด UI:</span>
+    <button onclick="setDensity('compact')">▪ Compact</button>
+    <button onclick="setDensity('comfortable')" class="active">▫ Comfortable</button>
+    <button onclick="setDensity('spacious')">⬜ Spacious</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab-measure" onclick="switchTab('measure')"><span class="tdot"></span>📐 วัด</div>
+  <div class="tab" id="tab-annotate" onclick="switchTab('annotate')"><span class="tdot"></span>📝 Annotate</div>
+  <div class="tab disabled" id="tab-site" onclick="switchTab('site')" title="Double-click เพื่อ enable"><span class="tdot"></span>📍 Site Plan</div>
+  <div class="tab" id="tab-workspace" onclick="switchTab('workspace')"><span class="tdot"></span>⚙ Workspace</div>
+</div>
+
+<div class="ribbon" id="ribbon-measure">
+  <div class="rsection">
+    <div class="rlbl">🔍 Tool</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini active" onclick="setToolByName('sel');flashActive(this,'rmini')" title="Select [V]">↖</div>
+        <div class="rmini" onclick="setToolByName('pan');flashActive(this,'rmini')" title="Pan [H]">✋</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" onclick="alert('Demo: Vertex edit')" title="Vertex edit">◇</div>
+        <div class="rmini" onclick="alert('Demo: Bring to front')" title="Front">▤</div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">🟩 พื้นที่ (Area)</div>
+    <div class="rrow">
+      <button class="rbtn hero dropdown" data-tool="polygon" onclick="onPolygonClick(event,this)" title="Polygon [A]">
+        <span class="ricon">⬡</span><span>Polygon</span>
+      </button>
+      <button class="rbtn" data-tool="opening" onclick="setTool(this)" title="Opening [O]">
+        <span class="ricon">□</span><span>Opening</span>
+      </button>
+      <button class="rbtn label-2line" data-tool="land" onclick="setTool(this)" title="Land [L]">
+        <span class="ricon">▱</span><span>Land Site</span>
+      </button>
+      <button class="rbtn label-2line" data-tool="building" onclick="setTool(this)" title="Building [B]">
+        <span class="ricon">🏛</span><span>Building Footprint</span>
+      </button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">⭕ Shape</div>
+    <div class="rrow">
+      <button class="rbtn" data-tool="rect" onclick="setTool(this)" title="Rectangle [⇧R]"><span class="ricon">▭</span><span>Rect</span></button>
+      <button class="rbtn" data-tool="circle" onclick="setTool(this)" title="Circle [⇧C]"><span class="ricon">⭕</span><span>Circle</span></button>
+      <button class="rbtn" data-tool="ellipse" onclick="setTool(this)" title="Ellipse [⇧E]"><span class="ricon">⬭</span><span>Ellipse</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">📏 Lines</div>
+    <div class="rrow">
+      <button class="rbtn" data-tool="dist" onclick="setTool(this)" title="Distance [D]"><span class="ricon">↔</span><span>Dist</span></button>
+      <button class="rbtn" data-tool="path" onclick="setTool(this)" title="Path [⇧D]"><span class="ricon">〽</span><span>Path</span></button>
+      <button class="rbtn label-2line" data-tool="ref" onclick="setTool(this)" title="Ref line [R]">
+        <span class="ricon">⌁</span><span>Ref Line</span>
+      </button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">📍 Marker</div>
+    <div class="rrow">
+      <button class="rbtn" data-tool="north" onclick="setTool(this)" title="North [N]"><span class="ricon">↑N</span><span>North</span></button>
+      <button class="rbtn label-2line" data-tool="parking" onclick="setTool(this)" title="Parking [P]">
+        <span class="ricon">🚗</span><span>Parking Spot</span>
+      </button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">↩ Edit</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" onclick="undo()" title="Undo [Ctrl+Z]">↶</div>
+        <div class="rmini" onclick="alert('Demo: Redo')" title="Redo [Ctrl+Y]">↷</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" onclick="alert('Demo: Copy')" title="Copy [Ctrl+C]">⎘</div>
+        <div class="rmini danger" onclick="deleteSelected()" title="Delete [Del]">🗑</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ribbon" id="ribbon-annotate" style="display:none">
+  <div class="rsection">
+    <div class="rlbl">💬 Comment</div>
+    <div class="rrow">
+      <button class="rbtn hero annot" data-tool="ann_comment" onclick="setTool(this)" title="Add Comment">
+        <span class="ricon">💬</span><span>Comment</span>
+      </button>
+      <button class="rbtn" data-tool="ann_text" onclick="setTool(this)" title="Text"><span class="ricon">𝕋</span><span>Text</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">🖍 Mark</div>
+    <div class="rrow">
+      <button class="rbtn label-2line" data-tool="ann_highlight" onclick="setTool(this)"><span class="ricon">🖍</span><span>Area Highlight</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">▭ Frames</div>
+    <div class="rrow">
+      <button class="rbtn" data-tool="ann_rect" onclick="setTool(this)"><span class="ricon">▭</span><span>Rect</span></button>
+      <button class="rbtn" data-tool="ann_circle" onclick="setTool(this)"><span class="ricon">◯</span><span>Circle</span></button>
+      <button class="rbtn" data-tool="ann_cloud" onclick="setTool(this)"><span class="ricon">☁</span><span>Cloud</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">➜ Pointer</div>
+    <div class="rrow">
+      <button class="rbtn" data-tool="ann_arrow" onclick="setTool(this)"><span class="ricon">➜</span><span>Arrow</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">สี Quick</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" style="background:#ef4444" onclick="setAnnotColor('#ef4444')" title="Red"></div>
+        <div class="rmini" style="background:#f59e0b" onclick="setAnnotColor('#f59e0b')" title="Orange"></div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" style="background:#3b82f6" onclick="setAnnotColor('#3b82f6')" title="Blue"></div>
+        <div class="rmini" style="background:#22c55e" onclick="setAnnotColor('#22c55e')" title="Green"></div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">สี Custom</div>
+    <div class="rrow">
+      <input type="color" id="color-pick" value="#ff453a" onchange="curColor=this.value;updateStatus()" style="width:48px;height:60px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer">
+    </div>
+  </div>
+  <div class="rdiv"></div>
+
+  <div class="rsection">
+    <div class="rlbl">📤 Output</div>
+    <div class="rrow">
+      <button class="rbtn label-2line hero" onclick="alert('Demo: Export annotated PDF')" title="Export PDF">
+        <span class="ricon">📑</span><span>Send PDF Back</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="ribbon" id="ribbon-site" style="display:none">
+  <div class="rsection">
+    <div class="rlbl">🟩 พื้นที่ตาม semanticTag</div>
+    <div class="rrow">
+      <button class="rbtn label-2line" data-tool="site_building_coverage" onclick="setTool(this)"><span class="ricon">▦</span><span>พท. ปกคลุม</span></button>
+      <button class="rbtn label-2line" data-tool="site_open_space" onclick="setTool(this)"><span class="ricon">▢</span><span>ที่ว่าง</span></button>
+      <button class="rbtn label-2line" data-tool="site_permeable" onclick="setTool(this)"><span class="ricon">💧</span><span>พท. ซึมน้ำ</span></button>
+      <button class="rbtn" data-tool="site_hardscape" onclick="setTool(this)"><span class="ricon">▨</span><span>Hard</span></button>
+      <button class="rbtn" data-tool="site_softscape" onclick="setTool(this)"><span class="ricon">🌿</span><span>Soft</span></button>
+      <button class="rbtn label-2line" data-tool="site_parking_outdoor" onclick="setTool(this)"><span class="ricon">🅿</span><span>จอด ภายนอก</span></button>
+      <button class="rbtn label-2line" data-tool="site_road" onclick="setTool(this)"><span class="ricon">🛣</span><span>ถนนภายใน</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+  <div class="rsection">
+    <div class="rlbl">📍 Markers (8)</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" onclick="setToolByName('m_parking_disabled')" title="จอดผู้พิการ" style="font-size:18px">♿</div>
+        <div class="rmini" onclick="setToolByName('m_parking_fire')" title="จอดดับเพลิง" style="font-size:18px">🚒</div>
+        <div class="rmini" onclick="setToolByName('m_parking_amb')" title="จอดพยาบาล" style="font-size:18px">🚑</div>
+        <div class="rmini" onclick="setToolByName('m_entrance')" title="เข้าออก" style="font-size:18px">🚪</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" onclick="setToolByName('m_aed')" title="AED" style="font-size:18px">➕</div>
+        <div class="rmini" onclick="setToolByName('m_sign')" title="ป้าย" style="font-size:18px">📍</div>
+        <div class="rmini" onclick="setToolByName('m_fire_escape')" title="หนีไฟ" style="font-size:18px">🪜</div>
+        <div class="rmini" onclick="setToolByName('m_fire_elev')" title="ลิฟต์ดับเพลิง" style="font-size:18px">🛗</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ribbon" id="ribbon-workspace" style="display:none">
+  <div class="rsection">
+    <div class="rlbl">📂 File</div>
+    <div class="rrow">
+      <button class="rbtn hero label-2line"><span class="ricon">📂</span><span>Open PDF</span></button>
+      <button class="rbtn label-2line"><span class="ricon">📁</span><span>Open Project</span></button>
+      <button class="rbtn label-2line"><span class="ricon">💾</span><span>Save Project</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+  <div class="rsection">
+    <div class="rlbl">📑 Page Nav</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" title="Prev">◀</div>
+        <div class="rmini" title="Next">▶</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" title="First">⏮</div>
+        <div class="rmini" title="Last">⏭</div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+  <div class="rsection">
+    <div class="rlbl">⚙ Setup</div>
+    <div class="rrow">
+      <button class="rbtn label-2line"><span class="ricon">📐</span><span>Set Scale</span></button>
+      <button class="rbtn label-2line"><span class="ricon">📑</span><span>Page Setup</span></button>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+  <div class="rsection">
+    <div class="rlbl">🔎 View</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" title="Zoom in">+</div>
+        <div class="rmini" title="Zoom out">−</div>
+      </div>
+      <div class="rstack-row">
+        <div class="rmini" title="Fit">⊡</div>
+        <div class="rmini" title="100%">①</div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+  <div class="rsection">
+    <div class="rlbl">🔄 Rotate</div>
+    <div class="rstack">
+      <div class="rstack-row">
+        <div class="rmini" title="Rotate left">↺</div>
+        <div class="rmini" title="Rotate right">↻</div>
+      </div>
+    </div>
+  </div>
+  <div class="rdiv"></div>
+  <div class="rsection">
+    <div class="rlbl">⬇ Export</div>
+    <div class="rrow">
+      <button class="rbtn hero label-2line"><span class="ricon">📊</span><span>Export XLSX</span></button>
+      <button class="rbtn label-2line"><span class="ricon">📄</span><span>Export CSV</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="poly-dd" id="poly-dd">
+  <div class="pd-section">Polygon — input modes</div>
+  <div class="pd-row" onclick="setToolByName('polygon');hidePolyDd()">✓ ⬡ Click vertices (default) <span class="kb" style="margin-left:auto">A</span></div>
+  <div class="pd-divider"></div>
+  <div class="pd-section">Sub-modes ระหว่างวาด</div>
+  <div class="pd-sub">✶ <span class="kb">A</span> = Arc edge ถัดไป</div>
+  <div class="pd-sub">✎ <span class="kb">Alt</span>+drag = Freeform / Lasso</div>
+  <div class="pd-sub">📐 <span class="kb">⇧</span> = Ortho lock</div>
+  <div class="pd-sub">🕳 <span class="kb">O</span> = Toggle Opening</div>
+  <div class="pd-divider"></div>
+  <div class="pd-section">Sub-type</div>
+  <div class="pd-row" onclick="setToolByName('land');hidePolyDd()">▱ Land / Site Boundary <span class="kb" style="margin-left:auto">L</span></div>
+  <div class="pd-row" onclick="setToolByName('building');hidePolyDd()">🏛 Building Footprint <span class="kb" style="margin-left:auto">B</span></div>
+</div>
+
+<div class="main">
+
+  <div class="lpanel">
+    <button class="lp-collapse-btn" onclick="toggleLPanel()" title="ซ่อน/แสดงเมนูซ้าย"></button>
+    <div class="lpanel-tabs">
+      <div class="lptab active" onclick="switchLPanel('pages',this)"><span class="lpic">📑</span><span>Pages</span></div>
+      <div class="lptab" onclick="switchLPanel('sheets',this)"><span class="lpic">📚</span><span>Sheets</span></div>
+      <div class="lptab" onclick="switchLPanel('layers',this)"><span class="lpic">🗂</span><span>Layers</span></div>
+      <div class="lptab" onclick="switchLPanel('objects',this)"><span class="lpic">🌳</span><span>Tree</span></div>
+    </div>
+    <div class="lpanel-body" id="lpanel-body">
+      <div class="pages-list" id="lp-pages">
+        <div class="page-card" onclick="selectPage(1,this)">
+          <div class="page-thumb">P.1</div>
+          <div class="page-info">
+            <div class="page-name">หน้าปก / Cover</div>
+            <div class="page-meta"><span>A1 · 0°</span><span class="scale">★ 1:50</span></div>
+          </div>
+        </div>
+        <div class="page-card" onclick="selectPage(2,this)">
+          <div class="page-thumb">P.2</div>
+          <div class="page-info">
+            <div class="page-name">Site Plan</div>
+            <div class="page-meta"><span>A1 · 90°</span><span class="scale">★ 1:200</span></div>
+          </div>
+        </div>
+        <div class="page-card active" onclick="selectPage(3,this)">
+          <div class="page-thumb" style="background:#dbeafe">P.3</div>
+          <div class="page-info">
+            <div class="page-name">Floor Plan — 1F</div>
+            <div class="page-meta"><span class="page-badge">CUR</span><span>A1 · 0°</span><span class="scale">★ 1:100</span></div>
+          </div>
+        </div>
+        <div class="page-card" onclick="selectPage(4,this)">
+          <div class="page-thumb">P.4</div>
+          <div class="page-info">
+            <div class="page-name">Floor Plan — 2F</div>
+            <div class="page-meta"><span>A1 · 0°</span><span class="scale">★ 1:100</span></div>
+          </div>
+        </div>
+        <div class="page-card" onclick="selectPage(5,this)">
+          <div class="page-thumb">P.5</div>
+          <div class="page-info">
+            <div class="page-name">Roof Plan</div>
+            <div class="page-meta"><span>A1 · 0°</span><span style="color:var(--yellow)">⚠ no scale</span></div>
+          </div>
+        </div>
+        <div class="page-card" onclick="selectPage(6,this)">
+          <div class="page-thumb">P.6</div>
+          <div class="page-info">
+            <div class="page-name">Elevation — North</div>
+            <div class="page-meta"><span>A1 · 0°</span><span class="scale">★ 1:100</span></div>
+          </div>
+        </div>
+        <div class="page-card" onclick="selectPage(7,this)">
+          <div class="page-thumb">P.7</div>
+          <div class="page-info">
+            <div class="page-name">Section A-A</div>
+            <div class="page-meta"><span>A1 · 90°</span><span style="color:var(--text3)">excluded</span></div>
+          </div>
+        </div>
+        <div style="text-align:center;color:var(--text3);font-size:11px;padding:10px">… 38 หน้าเพิ่ม</div>
+      </div>
+
+      <div class="sheets-list" id="lp-sheets" style="display:none">
+        <div class="sheet-grp open">
+          <div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">A — Architectural (15)</div>
+          <div class="sheet-grp-body">
+            <div class="sheet-item">A-01 Cover Sheet <span class="sheet-page-num">1</span></div>
+            <div class="sheet-item">A-02 Site Plan <span class="sheet-page-num">2</span></div>
+            <div class="sheet-item active">A-03 Floor 1F <span class="sheet-page-num">3</span></div>
+            <div class="sheet-item">A-04 Floor 2F <span class="sheet-page-num">4</span></div>
+            <div class="sheet-item">A-05 Roof Plan <span class="sheet-page-num">5</span></div>
+            <div class="sheet-item">A-06 Elevations <span class="sheet-page-num">6-9</span></div>
+            <div class="sheet-item">A-07 Sections <span class="sheet-page-num">10-12</span></div>
+          </div>
+        </div>
+        <div class="sheet-grp">
+          <div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">S — Structural (12)</div>
+        </div>
+        <div class="sheet-grp">
+          <div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">M — Mechanical (8)</div>
+        </div>
+        <div class="sheet-grp">
+          <div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">E — Electrical (6)</div>
+        </div>
+        <div class="sheet-grp">
+          <div class="sheet-grp-head" onclick="this.parentElement.classList.toggle('open')">P — Plumbing (4)</div>
+        </div>
+      </div>
+
+      <div class="layers-list" id="lp-layers" style="display:none">
+        <div style="font-size:10px;color:var(--text3);padding:0 6px 8px">เลเยอร์เฉพาะหน้าปัจจุบัน (P.3)</div>
+        <div class="layer-row active">
+          <span class="vis" title="hide">👁</span>
+          <span class="lock" title="lock">🔓</span>
+          <div style="display:flex;gap:6px;align-items:center;min-width:0">
+            <span class="swatch" style="background:#30d158"></span>
+            <span class="name">★ Base — พื้นที่อาคาร</span>
+          </div>
+          <span class="cnt">8</span>
+        </div>
+        <div class="layer-row">
+          <span class="vis">👁</span>
+          <span class="lock">🔓</span>
+          <div style="display:flex;gap:6px;align-items:center;min-width:0">
+            <span class="swatch" style="background:#5ac8fa"></span>
+            <span class="name">Additions</span>
+          </div>
+          <span class="cnt">3</span>
+        </div>
+        <div class="layer-row hidden">
+          <span class="vis">⊘</span>
+          <span class="lock">🔓</span>
+          <div style="display:flex;gap:6px;align-items:center;min-width:0">
+            <span class="swatch" style="background:#bf5af2"></span>
+            <span class="name">Reference</span>
+          </div>
+          <span class="cnt">1</span>
+        </div>
+        <div class="layer-row">
+          <span class="vis">👁</span>
+          <span class="lock">🔒</span>
+          <div style="display:flex;gap:6px;align-items:center;min-width:0">
+            <span class="swatch" style="background:#ff453a"></span>
+            <span class="name">📝 Markups</span>
+          </div>
+          <span class="cnt">5</span>
+        </div>
+        <button class="new-layer-btn" onclick="alert('Demo: + เลเยอร์ใหม่')">+ เลเยอร์ใหม่</button>
+      </div>
+
+      <div class="otree" id="lp-objects" style="display:none">
+        <div style="font-size:10px;color:var(--text3);padding:0 6px 6px">Tree ของ object บน P.3</div>
+        <div class="otree-node parent">⬡ Polygon <span class="otree-cnt">5</span></div>
+        <div class="otree-node child">⬢ Living Room — 24.5 ตร.ม.</div>
+        <div class="otree-node child selected">⬢ Bedroom 1 — 18.2 ตร.ม.</div>
+        <div class="otree-node child">⬢ Bedroom 2 — 12.8 ตร.ม.</div>
+        <div class="otree-node child">⬢ Kitchen — 9.4 ตร.ม.</div>
+        <div class="otree-node child">⬢ Bathroom — 4.6 ตร.ม.</div>
+        <div class="otree-node parent">□ Opening <span class="otree-cnt">3</span></div>
+        <div class="otree-node child">□ Door 1 — 0.8 ม.</div>
+        <div class="otree-node child">□ Door 2 — 0.9 ม.</div>
+        <div class="otree-node child">□ Window 1 — 1.8 ม.</div>
+        <div class="otree-node parent">↔ Distance <span class="otree-cnt">2</span></div>
+        <div class="otree-node parent">📝 Markups <span class="otree-cnt">5</span></div>
+        <div class="otree-node child">💬 "เพิ่มประตู"</div>
+        <div class="otree-node child">☁ "ตรวจสอบช่องเปิด"</div>
+        <div class="otree-node child">➜ "ระยะถอยร่นน้อยไป"</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap" id="canvas-wrap">
+    <canvas id="cv"></canvas>
+    <div class="canvas-toolbar">
+      <span>📐 Tool: <b id="ct-tool">Select</b></span>
+      <span class="grow" id="ct-hint">คลิก ◀/▶ ซ่อน panel ซ้าย/ขวา • <span class="canvas-ratio">φ Golden</span> วาดกรอบทอง</span>
+      <span class="canvas-ratio" id="ct-ratio">ratio: —</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <button class="rp-collapse-btn" onclick="toggleRPanel()" title="ซ่อน/แสดงเมนูขวา"></button>
+    <div class="rpanel-tabs">
+      <div class="rptab active" onclick="switchRPanel('list',this)"><span class="rpic">📋</span><span>List</span></div>
+      <div class="rptab" onclick="switchRPanel('props',this)"><span class="rpic">🔧</span><span>Props</span></div>
+      <div class="rptab" onclick="switchRPanel('summary',this)"><span class="rpic">📊</span><span>Summary</span></div>
+      <div class="rptab" onclick="switchRPanel('notes',this)"><span class="rpic">💬</span><span>Notes</span></div>
+    </div>
+
+    <!-- LIST -->
+    <div class="rbody" id="rp-list">
+      <div class="panel-head">
+        <h2 id="panel-title">📐 Objects List</h2>
+        <span class="count measure" id="panel-count">0</span>
+      </div>
+      <div class="panel-filters">
+        <select id="filter-type" onchange="renderList()">
+          <option value="">ทุกประเภท</option>
+        </select>
+        <select id="filter-sort" onchange="renderList()">
+          <option value="time">เรียงเวลา</option>
+          <option value="type">เรียงประเภท</option>
+        </select>
+        <input type="text" id="filter-search" placeholder="🔍" oninput="renderList()">
+      </div>
+      <div class="panel-list" id="panel-list">
+        <div style="padding:30px 20px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">
+          เลือก tool บน ribbon → วาดบน canvas<br>
+          <span style="color:var(--cyan)">💡 รูปทรง 2-click มี rubber-band preview</span>
+        </div>
+      </div>
+      <div class="panel-footer-info" id="sel-info">
+        <div class="title" id="sel-title">— เลือก —</div>
+        <div class="kv" id="sel-kv"></div>
+      </div>
+    </div>
+
+    <!-- PROPS -->
+    <div class="rbody" id="rp-props" style="display:none">
+      <div class="props-panel">
+        <div class="props-section">
+          <h4>🟢 Selected Object</h4>
+          <div class="props-row"><span class="k">Type:</span><span class="v">⬡ Polygon (Building)</span></div>
+          <div class="props-row"><span class="k">Subject:</span><span class="v editable">Bedroom 1</span></div>
+          <div class="props-row"><span class="k">Area:</span><span class="v">18.24 ตร.ม.</span></div>
+          <div class="props-row"><span class="k">Perimeter:</span><span class="v">17.20 ม.</span></div>
+          <div class="props-row"><span class="k">Vertices:</span><span class="v">6 จุด</span></div>
+        </div>
+        <div class="props-section">
+          <h4>🏷 Semantic Metadata</h4>
+          <div class="props-row"><span class="k">semanticTag:</span><span class="v editable">building.gross</span></div>
+          <div class="props-row"><span class="k">measureProf:</span><span class="v">enclosed_area</span></div>
+          <div class="props-row"><span class="k">objCategory:</span><span class="v">interior_room</span></div>
+          <div class="props-row"><span class="k">reportTarget:</span><span class="v">GFA</span></div>
+          <div class="props-row"><span class="k">countingRule:</span><span class="v">100% include</span></div>
+        </div>
+        <div class="props-section">
+          <h4>🎨 Style</h4>
+          <div class="props-row"><span class="k">Color:</span><span class="v editable" style="color:#30d158">#30d158</span></div>
+          <div class="props-row"><span class="k">Layer:</span><span class="v editable" style="color:var(--cyan)">★ Base — พื้นที่อาคาร</span></div>
+          <div class="props-row"><span class="k">Visible:</span><span class="v">👁 yes</span></div>
+          <div class="props-row"><span class="k">Locked:</span><span class="v">🔓 no</span></div>
+        </div>
+        <div class="props-section">
+          <h4>📅 History</h4>
+          <div class="props-row"><span class="k">Created:</span><span class="v">14:23 (today)</span></div>
+          <div class="props-row"><span class="k">Modified:</span><span class="v">14:31 (3 edits)</span></div>
+          <div class="props-row"><span class="k">Page:</span><span class="v">P.3 / 45</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="rbody" id="rp-summary" style="display:none">
+      <div class="summary-panel">
+        <div class="summary-card">
+          <div class="label">🏛 Total Floor Area (GFA)</div>
+          <div class="value">487.50 <span class="unit">ตร.ม.</span></div>
+          <div class="delta">+24.5 vs last save (5 ห้อง)</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-card">
+            <div class="label">Site Area</div>
+            <div class="value">1,200 <span class="unit">ตร.ม.</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="label">OSR</div>
+            <div class="value">40.6 <span class="unit">%</span></div>
+          </div>
+        </div>
+
+        <div style="margin: 16px 0 8px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;">📊 Breakdown</div>
+        <div class="summary-bar">
+          <div class="seg" style="width:48%;background:#30d158">48% Building</div>
+          <div class="seg" style="width:22%;background:#5ac8fa">22% Open</div>
+          <div class="seg" style="width:20%;background:#a3a3a3">20% Hard</div>
+          <div class="seg" style="width:10%;background:#22c55e">10% Soft</div>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <div class="props-row"><span class="k">Pages measured:</span><span class="v">5 / 45</span></div>
+          <div class="props-row"><span class="k">Objects total:</span><span class="v">38 (24 area + 14 mark)</span></div>
+          <div class="props-row"><span class="k">Markups:</span><span class="v" style="color:var(--red)">5 (3 open · 2 ✓)</span></div>
+          <div class="props-row"><span class="k">Warnings:</span><span class="v" style="color:var(--yellow)">⚠ 2 — P.5 no scale, opening overlap</span></div>
+        </div>
+
+        <div style="margin-top: 16px; padding: 10px; background: var(--surface2); border-radius: 6px; font-size: 11px; color: var(--text2); line-height: 1.5;">
+          <b style="color:var(--cyan)">💡 Info:</b> ค่านี้คำนวณจาก <code style="background:var(--surface3);padding:1px 4px;border-radius:3px">semanticTag</code> + <code style="background:var(--surface3);padding:1px 4px;border-radius:3px">reportTarget</code> — ไม่ใช่จาก layer name (page-scoped layer model)
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="rbody" id="rp-notes" style="display:none">
+      <div class="notes-panel">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Comments บน Object ที่เลือก</div>
+        <div class="note-card">
+          <span class="author">ผู้ตรวจ</span><span class="ts">14:31 today</span>
+          <div class="body">ระยะถอยร่นน้อยไป — ตรวจสอบกฎ ม.41</div>
+        </div>
+        <div class="note-card">
+          <span class="author">ผู้ตรวจ</span><span class="ts">14:34 today</span>
+          <div class="body">ห้องนอนนี้ขนาดต่ำกว่า 9 ตร.ม. — ดูข้อบังคับ</div>
+        </div>
+        <div class="note-card resolved">
+          <span class="author">ผู้ขออนุญาต</span><span class="ts">เมื่อวาน</span>
+          <div class="body">✓ ปรับขนาดแล้วตามที่แจ้ง</div>
+        </div>
+        <div class="note-add">
+          <input placeholder="💬 พิมพ์ comment...">
+          <button onclick="alert('Demo: send comment')">ส่ง</button>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:var(--text3);line-height:1.5;text-align:center">
+          📌 Phase 2 — threaded replies + @mention + resolved state
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button onclick="alert('Demo: CSV')">⬇ CSV</button>
+      <button class="primary" id="footer-primary" onclick="alert('Demo: ส่งกลับ — '+items.length+' จุด')">📤 ส่งกลับ</button>
+    </div>
+  </div>
+</div>
+
+<div class="status">
+  <span class="prefix measure" id="status-prefix">📐 วัด</span>
+  <span id="status-mode">↖ เลือก</span>
+  <span class="sep">│</span>
+  <span>Scale: <b style="color:var(--text)">1:100 ★</b></span>
+  <span class="sep">│</span>
+  <span>Items: <b style="color:var(--text)" id="status-count">0</b></span>
+  <span class="sep">│</span>
+  <span>Layer: <b style="color:var(--measure)">★ Base</b></span>
+  <span class="sep">│</span>
+  <span>Color: <b id="status-color" style="color:var(--annot)">#ff453a</b></span>
+  <span class="sep">│</span>
+  <span style="color:var(--text3)">Density: <b id="status-density" style="color:var(--cyan)">comfortable</b></span>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modal-title">แก้ไข</h3>
+    <label>ชื่อ / Subject</label>
+    <textarea id="modal-text" placeholder="เช่น 'ห้องนอน 1' หรือ 'ระยะถอยร่นน้อยไป'"></textarea>
+    <label>สี</label>
+    <input type="color" id="modal-color" style="height:40px;padding:3px">
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal()">ยกเลิก</button>
+      <button class="save" onclick="saveModal()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="help-toast" id="toast"></div>
+
+<script>
+function setDensity(d) {
+  document.body.className = 'density-' + d;
+  document.querySelectorAll('.density-picker button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.density-picker button[onclick*="${d}"]`).classList.add('active');
+  document.getElementById('status-density').textContent = d;
+  setTimeout(resizeCanvas, 200);
+  showToast('ขนาด UI: ' + d);
+  try { localStorage.setItem('mockup_density', d); } catch(e) {}
+}
+try { const saved = localStorage.getItem('mockup_density'); if (saved && ['compact','comfortable','spacious'].includes(saved)) setTimeout(() => setDensity(saved), 0); } catch(e) {}
+
+function switchLPanel(name, el) {
+  document.querySelectorAll('.lptab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('lp-pages').style.display = (name === 'pages') ? 'flex' : 'none';
+  document.getElementById('lp-sheets').style.display = (name === 'sheets') ? 'block' : 'none';
+  document.getElementById('lp-layers').style.display = (name === 'layers') ? 'block' : 'none';
+  document.getElementById('lp-objects').style.display = (name === 'objects') ? 'block' : 'none';
+}
+function switchRPanel(name, el) {
+  document.querySelectorAll('.rptab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('rp-list').style.display = (name === 'list') ? 'flex' : 'none';
+  document.getElementById('rp-props').style.display = (name === 'props') ? 'flex' : 'none';
+  document.getElementById('rp-summary').style.display = (name === 'summary') ? 'flex' : 'none';
+  document.getElementById('rp-notes').style.display = (name === 'notes') ? 'flex' : 'none';
+  if (document.body.classList.contains('right-collapsed')) document.body.classList.remove('right-collapsed');
+  setTimeout(resizeCanvas, 280);
+}
+
+// ═══ Collapse panels ═══
+function toggleLPanel() {
+  document.body.classList.toggle('left-collapsed');
+  setTimeout(resizeCanvas, 280);
+  try { localStorage.setItem('mockup_left_collapsed', document.body.classList.contains('left-collapsed') ? '1' : '0'); } catch(e) {}
+}
+function toggleRPanel() {
+  document.body.classList.toggle('right-collapsed');
+  setTimeout(resizeCanvas, 280);
+  try { localStorage.setItem('mockup_right_collapsed', document.body.classList.contains('right-collapsed') ? '1' : '0'); } catch(e) {}
+}
+try {
+  if (localStorage.getItem('mockup_left_collapsed') === '1') document.body.classList.add('left-collapsed');
+  if (localStorage.getItem('mockup_right_collapsed') === '1') document.body.classList.add('right-collapsed');
+} catch(e) {}
+
+// Override switchLPanel to auto-expand when clicking a tab while collapsed
+const _origSwitchLPanel = switchLPanel;
+switchLPanel = function(name, el) {
+  if (document.body.classList.contains('left-collapsed')) document.body.classList.remove('left-collapsed');
+  _origSwitchLPanel(name, el);
+  setTimeout(resizeCanvas, 280);
+};
+
+// ═══ Golden Ratio guide ═══
+const PHI = 1.6180339887;
+let goldenGuide = false;
+function toggleGolden(btn) {
+  goldenGuide = !goldenGuide;
+  btn.classList.toggle('active', goldenGuide);
+  redraw();
+}
+function fitGolden() {
+  // collapse one panel until canvas width/(canvas width + panels) approximately = 1/phi
+  // simplest: collapse both panels for max golden vibe
+  const cw = cv.width, ch = cv.height;
+  const ratio = cw / ch;
+  // If canvas wider than golden, collapse right; if taller than golden, expand both
+  if (ratio < PHI) {
+    document.body.classList.add('left-collapsed');
+    document.body.classList.add('right-collapsed');
+    showToast('Fit φ: ซ่อน panel ทั้งสองข้าง — canvas ขยายเป็นโกลเดน');
+  } else {
+    document.body.classList.remove('left-collapsed');
+    document.body.classList.remove('right-collapsed');
+    showToast('Fit φ: คลี่ panel ทั้งสองข้าง');
+  }
+  setTimeout(resizeCanvas, 280);
+}
+
+function drawGoldenRatio() {
+  if (!goldenGuide) return;
+  const w = cv.width, h = cv.height;
+  let bw, bh;
+  if (w / h > PHI) { bh = h * 0.85; bw = bh * PHI; }
+  else { bw = w * 0.85; bh = bw / PHI; }
+  const bx = (w - bw) / 2, by = (h - bh) / 2;
+  ctx.save();
+  ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 4]);
+  ctx.strokeRect(bx, by, bw, bh);
+
+  // Phi vertical & horizontal lines at 38.2% and 61.8%
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = '#d4af37aa'; ctx.lineWidth = 1;
+  const v1 = bx + bw / PHI, v2 = bx + bw - bw / PHI;
+  const h1 = by + bh / PHI, h2 = by + bh - bh / PHI;
+  ctx.beginPath();
+  ctx.moveTo(v1, by); ctx.lineTo(v1, by + bh);
+  ctx.moveTo(v2, by); ctx.lineTo(v2, by + bh);
+  ctx.moveTo(bx, h1); ctx.lineTo(bx + bw, h1);
+  ctx.moveTo(bx, h2); ctx.lineTo(bx + bw, h2);
+  ctx.stroke();
+
+  // Fibonacci spiral hint (golden rectangles inscribed)
+  ctx.setLineDash([]); ctx.strokeStyle = '#d4af3766'; ctx.lineWidth = 0.8;
+  let rx = bx, ry = by, rw = bw, rh = bh, dir = 0;
+  for (let i = 0; i < 6; i++) {
+    let sw = (dir % 2 === 0) ? rw / PHI : rw;
+    let sh = (dir % 2 === 0) ? rh : rh / PHI;
+    ctx.strokeRect(rx, ry, sw, sh);
+    if (dir % 4 === 0) { rx += sw; rw -= sw; }
+    else if (dir % 4 === 1) { ry += sh; rh -= sh; }
+    else if (dir % 4 === 2) { rw -= sw - (rw - sw); /* approx */ rw = rw - sw + sw; }
+    if (rw <= 20 || rh <= 20) break;
+    dir++;
+  }
+
+  // Label
+  ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#d4af37';
+  ctx.fillText('φ = 1.618 — Golden Ratio guide', bx + 8, by - 6);
+  ctx.fillText(`${bw.toFixed(0)} × ${bh.toFixed(0)} (${(bw/bh).toFixed(3)})`, bx + 8, by + bh + 16);
+  ctx.restore();
+}
+
+// Update canvas-toolbar ratio display
+function updateRatio() {
+  const w = cv.width, h = cv.height;
+  if (!w || !h) return;
+  const r = (w / h).toFixed(3);
+  const isGolden = Math.abs(w/h - PHI) < 0.05;
+  const el = document.getElementById('ct-ratio');
+  if (el) {
+    el.textContent = `ratio: ${r} ${isGolden ? '✓ φ' : ''}`;
+    el.style.color = isGolden ? '#d4af37' : 'var(--text2)';
+  }
+}
+function selectPage(n, el) {
+  document.querySelectorAll('.page-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showToast('เปลี่ยนหน้า → P.' + n);
+}
+function setAnnotColor(c) {
+  curColor = c;
+  const cp = document.getElementById('color-pick');
+  if (cp) cp.value = c;
+  updateStatus();
+  showToast('สี: ' + c);
+}
+
+let activeTab = 'measure';
+let tool = 'sel';
+let curColor = '#30d158';
+let items = [];
+let selectedId = null;
+let editingId = null;
+let pendingNew = null;
+let drawing = false;
+let dragStart = null;
+let dragCurrent = null;
+let polyPts = [];
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const POINT_TOOLS = new Set(['ann_text','ann_comment','north','parking', 'm_parking_disabled','m_parking_fire','m_parking_amb','m_entrance','m_aed','m_sign','m_fire_escape','m_fire_elev']);
+const TWO_CLICK   = new Set(['rect','circle','ellipse','dist','ann_rect','ann_circle','ann_highlight','ann_arrow','opening','land','building']);
+const MULTI_CLICK = new Set(['polygon','path','ref','ann_cloud','site_building_coverage','site_open_space','site_permeable','site_hardscape','site_softscape','site_parking_outdoor','site_road']);
+const SITE_AREA   = ['site_building_coverage','site_open_space','site_permeable','site_hardscape','site_softscape','site_parking_outdoor','site_road'];
+
+const ICONS = {
+  polygon:'⬡', opening:'□', land:'▱', building:'🏛', rect:'▭', circle:'⭕', ellipse:'⬭',
+  dist:'↔', path:'〽', ref:'⌁', north:'↑N', parking:'🚗', sel:'↖', pan:'✋',
+  ann_text:'𝕋', ann_comment:'💬', ann_highlight:'🖍', ann_rect:'▭', ann_circle:'◯', ann_cloud:'☁', ann_arrow:'➜',
+  site_building_coverage:'▦', site_open_space:'▢', site_permeable:'💧', site_hardscape:'▨', site_softscape:'🌿', site_parking_outdoor:'🅿', site_road:'🛣',
+  m_parking_disabled:'♿', m_parking_fire:'🚒', m_parking_amb:'🚑', m_entrance:'🚪', m_aed:'➕', m_sign:'📍', m_fire_escape:'🪜', m_fire_elev:'🛗',
+};
+const NAMES = {
+  polygon:'Polygon', opening:'Opening', land:'Land', building:'Building',
+  rect:'Rectangle', circle:'Circle', ellipse:'Ellipse',
+  dist:'Distance', path:'Path', ref:'Ref Line', north:'North', parking:'Parking', sel:'Select', pan:'Pan',
+  ann_text:'Text', ann_comment:'Comment', ann_highlight:'Highlight',
+  ann_rect:'Rect Frame', ann_circle:'Circle Frame', ann_cloud:'Cloud', ann_arrow:'Arrow',
+};
+const COLORS = { measure:'#30d158', annot:'#ff453a', site:'#5ac8fa' };
+
+function flashActive(el, cls) {
+  el.parentElement.parentElement.querySelectorAll('.'+cls).forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function switchTab(name) {
+  const tabEl = document.getElementById('tab-' + name);
+  if (tabEl.classList.contains('disabled')) return;
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  ['measure','annotate','site','workspace'].forEach(t => {
+    document.getElementById('ribbon-' + t).style.display = (t === name) ? 'flex' : 'none';
+  });
+  if (name === 'measure') { tool = 'sel'; curColor = COLORS.measure; }
+  else if (name === 'annotate') { tool = 'ann_rect'; curColor = COLORS.annot; }
+  else if (name === 'site') { tool = 'site_building_coverage'; curColor = COLORS.site; }
+  const cp = document.getElementById('color-pick');
+  if (cp) cp.value = curColor;
+  document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  const def = document.querySelector('#ribbon-' + name + ' .rbtn[data-tool="' + tool + '"]');
+  if (def) def.classList.add('active');
+  if (name === 'measure' || name === 'site') {
+    document.getElementById('panel-title').textContent = '📐 Objects List';
+    document.getElementById('panel-count').className = 'count measure';
+    document.getElementById('footer-primary').textContent = '⬇ Export XLSX';
+  } else if (name === 'annotate') {
+    document.getElementById('panel-title').textContent = '📋 Markups List';
+    document.getElementById('panel-count').className = 'count annot';
+    document.getElementById('footer-primary').textContent = '📤 ส่งกลับ Applicant';
+  } else {
+    document.getElementById('panel-title').textContent = '⚙ Workspace';
+    document.getElementById('panel-count').className = 'count';
+  }
+  const prefix = document.getElementById('status-prefix');
+  prefix.className = 'prefix ' + name;
+  prefix.textContent = name === 'measure' ? '📐 วัด' : name === 'annotate' ? '📝 Annot' : name === 'site' ? '📍 Site' : '⚙ Ws';
+  hidePolyDd(); cancelDraw(); updateStatus(); renderList(); setTimeout(resizeCanvas, 100);
+}
+document.getElementById('tab-site').addEventListener('dblclick', () => {
+  document.getElementById('tab-site').classList.remove('disabled');
+  switchTab('site');
+});
+
+function setTool(btn) {
+  setToolByName(btn.dataset.tool);
+  document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function setToolByName(name) {
+  tool = name;
+  cancelDraw();
+  document.querySelectorAll('.rbtn[data-tool="' + name + '"]').forEach(b => b.classList.add('active'));
+  document.getElementById('ct-tool').textContent = NAMES[name] || name;
+  const hints = {
+    sel: 'คลิก object เพื่อ select', pan: 'ลาก canvas',
+    polygon: 'คลิกหลายจุด — Enter จบ — A=Arc, Alt+drag=Freeform',
+    rect: 'คลิกมุม 1 → preview → คลิกมุม 2',
+    circle: 'คลิก center → preview radius → คลิกขอบ',
+    ellipse: 'คลิกมุม bounding box',
+    dist: 'คลิก 2 จุด — preview ระยะ',
+    ann_comment: 'คลิก → bubble + พิมพ์', ann_rect: 'คลิก 2 มุม — preview',
+    ann_arrow: 'คลิกหาง → preview → คลิกหัวลูกศร',
+  };
+  document.getElementById('ct-hint').textContent = hints[name] || '';
+  document.getElementById('status-mode').textContent = (ICONS[name]||'') + ' ' + (NAMES[name] || name);
+  redraw();
+}
+function onPolygonClick(e, btn) {
+  setTool(btn);
+  if (e.altKey || btn.classList.contains('was-active')) showPolyDd(btn);
+  btn.classList.add('was-active');
+  e.stopPropagation();
+}
+function showPolyDd(btn) {
+  const dd = document.getElementById('poly-dd');
+  const r = btn.getBoundingClientRect();
+  dd.style.top = (r.bottom + 4) + 'px'; dd.style.left = r.left + 'px';
+  dd.classList.add('open');
+}
+function hidePolyDd() { document.getElementById('poly-dd').classList.remove('open'); }
+document.addEventListener('click', e => { if (!e.target.closest('#poly-dd') && !e.target.closest('.rbtn.dropdown')) hidePolyDd(); });
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  cv.width = wrap.clientWidth; cv.height = wrap.clientHeight; redraw(); updateRatio();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function drawBackground() {
+  ctx.fillStyle = '#fafbfc'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = '#cfd4da'; ctx.lineWidth = 0.5; ctx.setLineDash([]);
+  for (let x = 50; x < cv.width; x += 50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,cv.height); ctx.stroke(); }
+  for (let y = 50; y < cv.height; y += 50) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cv.width,y); ctx.stroke(); }
+  ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(120, 100, 220, 180); ctx.strokeRect(360, 100, 200, 180); ctx.strokeRect(120, 300, 240, 160);
+  ctx.fillStyle = '#475569'; ctx.font = '11px sans-serif';
+  ctx.fillText('LIVING', 195, 200); ctx.fillText('BEDROOM', 425, 200); ctx.fillText('KITCHEN', 200, 390);
+  ctx.strokeRect(cv.width - 240, cv.height - 100, 220, 80);
+  ctx.fillText('Floor Plan 1F · 1:100 · P.3/45', cv.width - 230, cv.height - 78);
+  ctx.fillText('RAMA4 APARTMENT', cv.width - 230, cv.height - 58);
+}
+
+function drawItem(it, opts = {}) {
+  const isSel = it.id === selectedId;
+  const col = it.color || curColor;
+  const isAnnot = it.tool && it.tool.startsWith('ann_');
+  ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = isSel ? 2.5 : (isAnnot ? 1.5 : 2);
+  ctx.setLineDash(opts.preview ? [6,4] : []);
+  const t = it.tool, p = it.pts;
+  if (!p || !p.length) return;
+
+  if (['rect','opening','land','building','ann_rect'].includes(t)) {
+    const [a,b] = p;
+    if (t === 'opening') ctx.setLineDash([5,3]);
+    ctx.strokeRect(Math.min(a.x,b.x), Math.min(a.y,b.y), Math.abs(b.x-a.x), Math.abs(b.y-a.y));
+    if (!opts.preview) drawLbl((a.x+b.x)/2, Math.min(a.y,b.y) - 6, (it.text || NAMES[t]) + (it.area?' · '+it.area+' ตร.ม.':''));
+  }
+  else if (t === 'ann_highlight') {
+    const [a,b] = p;
+    ctx.globalAlpha = 0.35; ctx.fillRect(Math.min(a.x,b.x), Math.min(a.y,b.y), Math.abs(b.x-a.x), Math.abs(b.y-a.y));
+    ctx.globalAlpha = 1;
+    if (!opts.preview && it.text) drawLbl((a.x+b.x)/2, Math.min(a.y,b.y) - 6, it.text);
+  }
+  else if (t === 'circle' || t === 'ann_circle') {
+    const [a,b] = p;
+    const r = Math.hypot(b.x-a.x, b.y-a.y);
+    ctx.beginPath(); ctx.arc(a.x, a.y, r, 0, Math.PI*2); ctx.stroke();
+    if (!opts.preview) drawLbl(a.x, a.y - r - 6, (it.text || NAMES[t]));
+  }
+  else if (t === 'ellipse') {
+    const [a,b] = p;
+    const cx2 = (a.x+b.x)/2, cy2 = (a.y+b.y)/2;
+    const rx = Math.abs(b.x-a.x)/2, ry = Math.abs(b.y-a.y)/2;
+    ctx.beginPath(); ctx.ellipse(cx2, cy2, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+    if (!opts.preview) drawLbl(cx2, cy2 - ry - 6, it.text || 'Ellipse');
+  }
+  else if (['polygon','path','ref'].includes(t) || SITE_AREA.includes(t)) {
+    ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
+    for (let i=1;i<p.length;i++) ctx.lineTo(p[i].x, p[i].y);
+    if ((t === 'polygon' || SITE_AREA.includes(t)) && p.length >= 3 && !opts.preview) ctx.closePath();
+    if (t === 'ref') ctx.setLineDash([8,4]);
+    ctx.stroke();
+    if ((t === 'polygon' || SITE_AREA.includes(t)) && p.length >= 3 && !opts.preview) {
+      ctx.fillStyle = col + '33'; ctx.fill(); ctx.fillStyle = col;
+    }
+    if (!opts.preview && p.length >= 2) {
+      const cx2 = p.reduce((s,q)=>s+q.x,0)/p.length, cy2 = p.reduce((s,q)=>s+q.y,0)/p.length;
+      drawLbl(cx2, cy2, (it.text || NAMES[t] || t.replace('site_','')) + (it.area?' · '+it.area+' ตร.ม.':''));
+    }
+    p.forEach(q => { ctx.beginPath(); ctx.arc(q.x, q.y, 3, 0, Math.PI*2); ctx.fill(); });
+  }
+  else if (t === 'ann_cloud') {
+    if (p.length < 2) return;
+    ctx.beginPath();
+    for (let i = 0; i < p.length; i++) {
+      const j = (i + 1) % p.length;
+      if (opts.preview && j === 0) break;
+      const mx = (p[i].x+p[j].x)/2, my = (p[i].y+p[j].y)/2;
+      const dx = p[j].x-p[i].x, dy = p[j].y-p[i].y;
+      const len = Math.hypot(dx,dy);
+      const bulge = Math.min(len*0.25, 18);
+      const nx = -dy/len*bulge, ny = dx/len*bulge;
+      if (i === 0) ctx.moveTo(p[i].x, p[i].y);
+      ctx.quadraticCurveTo(mx+nx, my+ny, p[j].x, p[j].y);
+    }
+    ctx.stroke();
+    if (!opts.preview && it.text) drawLbl(p[0].x, p[0].y - 6, it.text);
+  }
+  else if (t === 'dist' || t === 'ann_arrow') {
+    const [a,b] = p;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    if (t === 'ann_arrow') {
+      const ang = Math.atan2(b.y-a.y, b.x-a.x), hd = 12;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - Math.cos(ang-Math.PI/6)*hd, b.y - Math.sin(ang-Math.PI/6)*hd);
+      ctx.lineTo(b.x - Math.cos(ang+Math.PI/6)*hd, b.y - Math.sin(ang+Math.PI/6)*hd);
+      ctx.closePath(); ctx.fill();
+    }
+    if (!opts.preview) {
+      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+      const dist = (Math.hypot(b.x-a.x, b.y-a.y) / 50).toFixed(2);
+      drawLbl(mx, my - 8, t === 'dist' ? (dist + ' ม.') : (it.text || 'Arrow'));
+    }
+  }
+  else if (t === 'ann_text' || t === 'ann_comment') {
+    const pt = p[0];
+    if (t === 'ann_comment') {
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 11, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('💬', pt.x - 6, pt.y + 4);
+    }
+    if (it.text) {
+      ctx.fillStyle = col; ctx.font = (t === 'ann_comment' ? 'bold ' : '') + '12px sans-serif';
+      ctx.fillText(it.text, pt.x + 16, pt.y + 4);
+    }
+  }
+  else if (t === 'north') {
+    const [a,b] = p;
+    ctx.strokeStyle = '#5ac8fa'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    const ang = Math.atan2(b.y-a.y, b.x-a.x), hd = 16;
+    ctx.fillStyle = '#5ac8fa';
+    ctx.beginPath(); ctx.moveTo(b.x,b.y);
+    ctx.lineTo(b.x - Math.cos(ang-Math.PI/6)*hd, b.y - Math.sin(ang-Math.PI/6)*hd);
+    ctx.lineTo(b.x - Math.cos(ang+Math.PI/6)*hd, b.y - Math.sin(ang+Math.PI/6)*hd);
+    ctx.closePath(); ctx.fill();
+    if (!opts.preview) drawLbl(b.x, b.y - 18, 'N');
+  }
+  else if (t === 'parking' || t.startsWith('m_')) {
+    const pt = p[0];
+    ctx.fillStyle = col; ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+    ctx.fillRect(pt.x-10, pt.y-10, 20, 20); ctx.strokeRect(pt.x-10, pt.y-10, 20, 20);
+    ctx.font = '12px sans-serif'; ctx.fillStyle = '#000';
+    ctx.fillText(ICONS[t] || 'P', pt.x-6, pt.y+5);
+  }
+  ctx.setLineDash([]);
+}
+
+function drawLbl(x, y, text) {
+  ctx.save(); ctx.font = 'bold 11px sans-serif';
+  const tw = ctx.measureText(text).width;
+  ctx.fillStyle = 'rgba(20,20,25,0.85)';
+  ctx.fillRect(x - tw/2 - 4, y - 13, tw + 8, 16);
+  ctx.fillStyle = '#fff'; ctx.fillText(text, x - tw/2, y);
+  ctx.restore();
+}
+
+function redraw() {
+  drawBackground();
+  items.forEach(it => drawItem(it));
+  if (drawing && dragStart && dragCurrent) {
+    drawItem({ tool, pts: [dragStart, dragCurrent], color: curColor }, { preview: true });
+    drawSizeHint();
+  }
+  if (MULTI_CLICK.has(tool) && polyPts.length >= 1) {
+    const pp = dragCurrent ? [...polyPts, dragCurrent] : polyPts;
+    drawItem({ tool, pts: pp, color: curColor }, { preview: true });
+  }
+}
+
+function drawSizeHint() {
+  if (!dragStart || !dragCurrent) return;
+  let txt = '';
+  if (tool === 'circle' || tool === 'ann_circle') {
+    const r = Math.hypot(dragCurrent.x - dragStart.x, dragCurrent.y - dragStart.y);
+    txt = `r = ${Math.round(r)} px · ${(r/50).toFixed(2)} ม.`;
+  } else if (tool === 'dist' || tool === 'ann_arrow') {
+    const d = Math.hypot(dragCurrent.x - dragStart.x, dragCurrent.y - dragStart.y);
+    txt = `${(d/50).toFixed(2)} ม. (${Math.round(d)} px)`;
+  } else if (['rect','opening','land','building','ann_rect','ann_highlight'].includes(tool)) {
+    const w = Math.abs(dragCurrent.x - dragStart.x), h = Math.abs(dragCurrent.y - dragStart.y);
+    txt = `${(w/50).toFixed(1)}×${(h/50).toFixed(1)} ม. · ${((w*h)/2500).toFixed(2)} ตร.ม.`;
+  } else if (tool === 'ellipse') {
+    const w = Math.abs(dragCurrent.x - dragStart.x), h = Math.abs(dragCurrent.y - dragStart.y);
+    txt = `${(w/50).toFixed(1)}×${(h/50).toFixed(1)} ม.`;
+  }
+  if (!txt) return;
+  ctx.save(); ctx.font = '12px sans-serif';
+  const tw = ctx.measureText(txt).width;
+  ctx.fillStyle = 'rgba(20,20,25,0.92)';
+  ctx.fillRect(dragCurrent.x + 12, dragCurrent.y + 12, tw + 14, 22);
+  ctx.fillStyle = '#fff'; ctx.fillText(txt, dragCurrent.x + 19, dragCurrent.y + 27);
+  ctx.restore();
+}
+
+function cXY(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('mousedown', e => {
+  if (tool === 'sel' || tool === 'pan') return;
+  const p = cXY(e);
+  if (POINT_TOOLS.has(tool)) {
+    if (tool === 'ann_text' || tool === 'ann_comment') {
+      pendingNew = { id: 'i' + Date.now(), tool, pts: [p], color: curColor, text: '', created: now() };
+      openModal('new', pendingNew);
+    } else {
+      const it = { id: 'i' + Date.now(), tool, pts: [p], color: curColor, text: '', created: now() };
+      items.push(it); selectedId = it.id; renderList(); redraw();
+    }
+    return;
+  }
+  if (MULTI_CLICK.has(tool)) { polyPts.push(p); redraw(); return; }
+  if (!drawing) { drawing = true; dragStart = p; dragCurrent = p; redraw(); }
+  else {
+    const it = { id: 'i' + Date.now(), tool, pts: [dragStart, p], color: curColor, text: '', created: now() };
+    if (['rect','opening','land','building','ann_rect','ann_highlight'].includes(tool)) {
+      const w = Math.abs(p.x - dragStart.x), h = Math.abs(p.y - dragStart.y);
+      it.area = ((w*h)/2500).toFixed(2);
+    } else if (tool === 'circle' || tool === 'ann_circle') {
+      const r = Math.hypot(p.x - dragStart.x, p.y - dragStart.y);
+      it.area = ((Math.PI * r * r) / 2500).toFixed(2);
+    }
+    items.push(it);
+    drawing = false; dragStart = null; dragCurrent = null;
+    selectedId = it.id;
+    renderList(); redraw();
+    openModal('edit', it);
+  }
+});
+cv.addEventListener('mousemove', e => {
+  if (drawing || (MULTI_CLICK.has(tool) && polyPts.length >= 1)) {
+    dragCurrent = cXY(e); redraw();
+  }
+});
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'Enter') {
+    if (MULTI_CLICK.has(tool) && polyPts.length >= (tool === 'polygon' || SITE_AREA.includes(tool) ? 3 : 2)) {
+      const it = { id: 'i' + Date.now(), tool, pts: [...polyPts], color: curColor, text: '', created: now() };
+      if (tool === 'polygon' || SITE_AREA.includes(tool)) {
+        let a = 0;
+        for (let i = 0; i < polyPts.length; i++) {
+          const j = (i+1) % polyPts.length;
+          a += polyPts[i].x * polyPts[j].y - polyPts[j].x * polyPts[i].y;
+        }
+        it.area = (Math.abs(a) / 2 / 2500).toFixed(2);
+      }
+      items.push(it);
+      polyPts = []; dragCurrent = null; selectedId = it.id;
+      renderList(); redraw(); openModal('edit', it);
+    }
+    return;
+  }
+  if (e.key === 'Escape') { cancelDraw(); redraw(); return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) deleteSelected();
+});
+function cancelDraw() { drawing = false; dragStart = null; dragCurrent = null; polyPts = []; pendingNew = null; }
+function undo() { if (items.length) { items.pop(); selectedId = null; renderList(); redraw(); showToast('Undo'); } }
+function deleteSelected() {
+  if (!selectedId) return;
+  items = items.filter(i => i.id !== selectedId); selectedId = null;
+  renderList(); redraw();
+}
+
+function renderList() {
+  const list = document.getElementById('panel-list');
+  const fType = document.getElementById('filter-type').value;
+  const fSort = document.getElementById('filter-sort').value;
+  const fSearch = document.getElementById('filter-search').value.toLowerCase();
+  let shown = items.slice();
+  if (activeTab === 'annotate') shown = shown.filter(i => i.tool.startsWith('ann_'));
+  else if (activeTab === 'site') shown = shown.filter(i => i.tool.startsWith('site_') || i.tool.startsWith('m_'));
+  else if (activeTab === 'measure') shown = shown.filter(i => !i.tool.startsWith('ann_'));
+  if (fType) shown = shown.filter(i => i.tool === fType);
+  if (fSearch) shown = shown.filter(i => (i.text || '').toLowerCase().includes(fSearch));
+  if (fSort === 'time') shown.sort((a,b) => b.created.localeCompare(a.created));
+  else if (fSort === 'type') shown.sort((a,b) => a.tool.localeCompare(b.tool));
+  const types = [...new Set(items.filter(i => activeTab === 'annotate' ? i.tool.startsWith('ann_') : !i.tool.startsWith('ann_')).map(i => i.tool))];
+  document.getElementById('filter-type').innerHTML = '<option value="">ทุกประเภท</option>' + types.map(t => `<option value="${t}">${ICONS[t]||''} ${NAMES[t]||t}</option>`).join('');
+  document.getElementById('panel-count').textContent = shown.length;
+  document.getElementById('status-count').textContent = items.length;
+
+  const sel = items.find(i => i.id === selectedId);
+  const fi = document.getElementById('sel-info');
+  if (sel) {
+    fi.classList.add('show');
+    document.getElementById('sel-title').textContent = (ICONS[sel.tool]||'•') + ' ' + (sel.text || NAMES[sel.tool] || sel.tool);
+    document.getElementById('sel-kv').innerHTML = `
+      <span>Type:</span><b>${NAMES[sel.tool] || sel.tool}</b>
+      ${sel.area ? `<span>Area:</span><b>${sel.area} ตร.ม.</b>` : ''}
+      <span>Color:</span><b style="color:${sel.color}">${sel.color}</b>
+      <span>Created:</span><b>${sel.created}</b>
+      <span>Layer:</span><b style="color:var(--measure)">★ Base</b>
+    `;
+  } else fi.classList.remove('show');
+
+  if (!shown.length) {
+    list.innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">เลือก tool บน ribbon → วาดบน canvas</div>';
+    return;
+  }
+  list.innerHTML = shown.map(it => `
+    <div class="row ${it.id === selectedId ? 'selected' : ''}" onclick="selectItem('${it.id}')" ondblclick="openModal('edit', items.find(x=>x.id==='${it.id}'))">
+      <div class="ic" style="color:${it.color}">${ICONS[it.tool] || '•'}</div>
+      <div class="body">
+        <div class="sub">${it.text || '<em style="color:var(--text3)">(dbl-click เพื่อตั้งชื่อ)</em>'}</div>
+        <div class="meta">
+          <span>${NAMES[it.tool] || it.tool}</span>
+          ${it.area ? `<span>${it.area} ตร.ม.</span>` : ''}
+          <span>${it.created}</span>
+        </div>
+      </div>
+      <div class="acts">
+        <button onclick="event.stopPropagation();openModal('edit', items.find(x=>x.id==='${it.id}'))" title="แก้">✎</button>
+        <button class="del" onclick="event.stopPropagation();deleteItem('${it.id}')" title="ลบ">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+function selectItem(id) { selectedId = id; renderList(); redraw(); }
+function deleteItem(id) {
+  if (!confirm('ลบ?')) return;
+  items = items.filter(i => i.id !== id);
+  if (selectedId === id) selectedId = null;
+  renderList(); redraw();
+}
+
+function openModal(mode, it) {
+  editingId = it.id;
+  document.getElementById('modal-title').textContent = mode === 'new' ? '✚ เพิ่ม' : '✎ แก้ไข';
+  document.getElementById('modal-text').value = it.text || '';
+  document.getElementById('modal-color').value = it.color || curColor;
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-text').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingId = null; pendingNew = null;
+}
+function saveModal() {
+  const txt = document.getElementById('modal-text').value;
+  const col = document.getElementById('modal-color').value;
+  if (pendingNew) {
+    pendingNew.text = txt; pendingNew.color = col;
+    items.push(pendingNew); selectedId = pendingNew.id;
+    pendingNew = null;
+  } else if (editingId) {
+    const it = items.find(x => x.id === editingId);
+    if (it) { it.text = txt; it.color = col; }
+  }
+  closeModal(); renderList(); redraw();
+}
+
+function now() { return new Date().toTimeString().slice(0,5); }
+function updateStatus() {
+  document.getElementById('status-color').textContent = curColor;
+  document.getElementById('status-color').style.color = curColor;
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+resizeCanvas();
+renderList();
+updateStatus();
+</script>
+
+</body>
+</html>

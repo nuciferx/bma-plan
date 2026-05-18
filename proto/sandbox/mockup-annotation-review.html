@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Mockup — Annotation Review (Markups List + Rubber-band Preview)</title>
+<style>
+  :root {
+    --bg: #1a1c20;
+    --surface: #23262c;
+    --surface2: #2a2e35;
+    --surface3: #353a42;
+    --border: #3a3f47;
+    --text: #e8ebef;
+    --text2: #aab1bb;
+    --text3: #6a737d;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --cyan: #5ac8fa;
+    --magenta: #bf5af2;
+    --accent: #3b82f6;
+    --annot: #ff453a;
+    --annot-soft: rgba(255,69,58,0.4);
+    --highlight: rgba(255,235,59,0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+  body { display: grid; grid-template-rows: 32px 44px 1fr 26px; }
+
+  /* ── topbar + tabs ── */
+  .topbar { display: flex; align-items: center; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 12px; gap: 10px; }
+  .topbar .brand { font-weight: 700; color: var(--text); }
+  .topbar .breadcrumb { color: var(--text2); }
+  .topbar .pill { padding: 1px 8px; background: var(--magenta); color: #fff; border-radius: 8px; font-size: 10px; font-weight: 600; margin-left: auto; }
+
+  .ribbon { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--surface3); border-bottom: 1px solid var(--border); font-size: 11px; }
+  .ribbon .group { display: flex; gap: 4px; padding: 0 8px; border-right: 1px solid var(--border); }
+  .ribbon .group:last-of-type { border-right: none; }
+  .ribbon button { display: flex; align-items: center; gap: 4px; padding: 5px 9px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; }
+  .ribbon button:hover { background: var(--surface3); }
+  .ribbon button.active { background: var(--annot); border-color: var(--annot); color: #fff; }
+  .ribbon .glabel { font-size: 9px; text-transform: uppercase; color: var(--text3); align-self: center; letter-spacing: 0.06em; padding-right: 4px; }
+
+  /* ── main split: canvas + markups panel ── */
+  .main { display: grid; grid-template-columns: 1fr 360px; min-height: 0; }
+  .canvas-wrap { background: #ecedf0; position: relative; overflow: hidden; }
+  #cv { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .canvas-toolbar { position: absolute; top: 8px; left: 8px; padding: 4px 10px; background: rgba(20,20,25,0.82); color: #fff; border-radius: 5px; display: flex; gap: 12px; font-size: 11px; }
+  .canvas-toolbar b { color: var(--cyan); }
+
+  /* ── Markups List Panel (right) ── */
+  .panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .panel-head { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .panel-head h2 { margin: 0; font-size: 13px; font-weight: 700; flex: 1; }
+  .panel-head .count { padding: 1px 8px; background: var(--magenta); color: #fff; border-radius: 8px; font-size: 10px; font-weight: 600; }
+  .panel-filters { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--border); align-items: center; font-size: 11px; flex-wrap: wrap; }
+  .panel-filters select, .panel-filters input { padding: 3px 7px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 11px; }
+  .panel-filters input { flex: 1; min-width: 80px; }
+  .panel-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .markup-row { padding: 8px 12px; cursor: pointer; border-left: 3px solid transparent; display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: start; }
+  .markup-row:hover { background: var(--surface2); }
+  .markup-row.selected { background: var(--surface3); border-left-color: var(--annot); }
+  .markup-row .icon { font-size: 18px; line-height: 1; padding-top: 1px; }
+  .markup-row .body { min-width: 0; }
+  .markup-row .subject { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .markup-row .meta { font-size: 10px; color: var(--text3); display: flex; gap: 8px; }
+  .markup-row .meta .page { color: var(--cyan); font-weight: 600; }
+  .markup-row .actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+  .markup-row:hover .actions { opacity: 1; }
+  .markup-row .actions button { padding: 2px 5px; background: var(--surface3); border: 0; border-radius: 3px; cursor: pointer; color: var(--text2); font-size: 11px; }
+  .markup-row .actions button:hover { background: var(--surface); color: var(--text); }
+  .markup-row .actions button.delete:hover { background: var(--red); color: #fff; }
+
+  .panel-footer { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; font-size: 11px; }
+  .panel-footer button { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 11px; flex: 1; }
+  .panel-footer button.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+  .panel-footer button.primary:hover { background: #15803d; }
+
+  /* ── status bar ── */
+  .status { display: flex; align-items: center; padding: 0 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; color: var(--text2); gap: 12px; }
+  .status .prefix { padding: 1px 6px; background: var(--magenta); color: #fff; border-radius: 3px; font-weight: 700; font-size: 10px; }
+  .status .sep { color: var(--text3); }
+
+  /* ── floating hint when nothing drawn ── */
+  .empty-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 12px 18px; background: rgba(20,20,25,0.92); color: #fff; border-radius: 8px; font-size: 12px; pointer-events: none; opacity: 0.85; max-width: 380px; text-align: center; line-height: 1.6; }
+  .empty-hint b { color: var(--cyan); }
+
+  /* ── modal for editing ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 200; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; min-width: 360px; max-width: 480px; }
+  .modal h3 { margin: 0 0 12px; font-size: 14px; }
+  .modal label { display: block; font-size: 11px; color: var(--text2); margin: 8px 0 4px; }
+  .modal input, .modal textarea, .modal select { width: 100%; padding: 6px 8px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: inherit; }
+  .modal textarea { min-height: 60px; resize: vertical; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .modal-actions button { padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; border: 0; }
+  .modal-actions button.cancel { background: var(--surface3); color: var(--text); }
+  .modal-actions button.save { background: var(--blue); color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ── Topbar ── -->
+<div class="topbar">
+  <span class="brand">BMA-Plan</span>
+  <span class="breadcrumb">[20250616_RAMA4 APARTMENT PERMIT rev 1.pdf] · Page 3 / 45 · Reviewer: รุ่งทิวา</span>
+  <span class="pill">📝 Annotate mode</span>
+</div>
+
+<!-- ── Annotate Ribbon ── -->
+<div class="ribbon">
+  <span class="glabel">เครื่องมือ</span>
+  <div class="group">
+    <button id="t-text" onclick="setTool('text')"><span>𝕋</span><span>Text</span></button>
+    <button id="t-comment" onclick="setTool('comment')"><span>💬</span><span>Comment</span></button>
+  </div>
+  <div class="group">
+    <button id="t-highlight" onclick="setTool('highlight')"><span>🖍</span><span>Highlight</span></button>
+  </div>
+  <div class="group">
+    <button id="t-rect" class="active" onclick="setTool('rect')"><span>▭</span><span>Rect Frame</span></button>
+    <button id="t-circle" onclick="setTool('circle')"><span>◯</span><span>Circle</span></button>
+    <button id="t-cloud" onclick="setTool('cloud')"><span>☁</span><span>Cloud</span></button>
+  </div>
+  <div class="group">
+    <button id="t-arrow" onclick="setTool('arrow')"><span>➜</span><span>Arrow</span></button>
+  </div>
+  <span class="glabel" style="margin-left:auto">สี</span>
+  <div class="group" style="border:none">
+    <input type="color" id="color-pick" value="#ff453a" onchange="setColor(this.value)" style="width:28px;height:24px;border:1px solid var(--border);border-radius:3px;background:var(--surface2);cursor:pointer">
+  </div>
+</div>
+
+<!-- ── Main: canvas + markups panel ── -->
+<div class="main">
+  <div class="canvas-wrap" id="canvas-wrap">
+    <canvas id="cv"></canvas>
+    <div class="canvas-toolbar">
+      <span>📐 Tool: <b id="active-tool-name">Rect Frame</b></span>
+      <span>คลิก 2 มุม</span>
+      <span style="color:#5ac8fa">💡 ระหว่างคลิก 1 ↔ คลิก 2 จะเห็น <b>rubber-band preview</b> ขนาดจริง</span>
+    </div>
+    <div class="empty-hint" id="hint" style="display:none">
+      <b>Demo mockup</b> — เลือกเครื่องมือบน ribbon แล้วลากบน canvas นี้<br>
+      <b>หลัก:</b> ก่อนคลิกครั้งที่ 2 จะเห็นรูปร่าง preview ตามเมาส์<br>
+      ทุก annotation จะปรากฏใน Markups List ด้านขวา → คลิกเพื่อ jump
+    </div>
+  </div>
+
+  <!-- ── Markups List Panel ── -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>📋 Markups List</h2>
+      <span class="count" id="markup-count">0</span>
+    </div>
+    <div class="panel-filters">
+      <select id="filter-type" onchange="renderList()">
+        <option value="">ทุกประเภท</option>
+        <option value="text">𝕋 Text</option>
+        <option value="comment">💬 Comment</option>
+        <option value="highlight">🖍 Highlight</option>
+        <option value="rect">▭ Rect</option>
+        <option value="circle">◯ Circle</option>
+        <option value="cloud">☁ Cloud</option>
+        <option value="arrow">➜ Arrow</option>
+      </select>
+      <select id="filter-sort" onchange="renderList()">
+        <option value="page">เรียงตาม Page</option>
+        <option value="time">เรียงตามเวลา</option>
+        <option value="type">เรียงตามประเภท</option>
+      </select>
+      <input type="text" id="filter-search" placeholder="🔍 ค้นหา..." oninput="renderList()">
+    </div>
+    <div class="panel-list" id="markup-list">
+      <div style="padding:20px;text-align:center;color:var(--text3);font-size:11px">ยังไม่มี annotation บนหน้านี้<br><br>คลิก-ลากบน canvas เพื่อเริ่ม</div>
+    </div>
+    <div class="panel-footer">
+      <button onclick="alert('Demo: export comments to CSV')">⬇ CSV</button>
+      <button class="primary" onclick="alert('Demo: send annotated PDF กลับให้ผู้ขออนุญาต — รวม markups ทั้ง '+markups.length+' จุด ใน 45 หน้า')">📤 ส่งกลับ Applicant</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status bar ── -->
+<div class="status">
+  <span class="prefix">📝 Annot</span>
+  <span id="mode-label">▭ Rect Frame: คลิกมุมที่ 1 (รอ rubber-band preview)</span>
+  <span class="sep">│</span>
+  <span>Page 3 / 45</span>
+  <span class="sep">│</span>
+  <span>Markups: <b id="status-count" style="color:var(--text)">0</b></span>
+  <span class="sep">│</span>
+  <span>Color: <b id="status-color" style="color:var(--annot)">#ff453a</b></span>
+</div>
+
+<!-- ── Edit modal ── -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modal-title">แก้ไข Markup</h3>
+    <label>Subject / Comment</label>
+    <textarea id="modal-text" placeholder="เช่น 'ตำแหน่งบันไดผิด มร.55 ข้อ 27'"></textarea>
+    <label>สี</label>
+    <input type="color" id="modal-color" value="#ff453a" style="height:32px;padding:2px">
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal()">ยกเลิก</button>
+      <button class="save" onclick="saveModal()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── state ───
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let tool = 'rect';
+let color = '#ff453a';
+let markups = [
+  // Seeded examples to show panel populated
+  {id:'m1', page:1, type:'rect',      pts:[{x:200,y:150},{x:340,y:240}], text:'ระยะถอยร่นด้านหน้าน้อยกว่ากำหนด มร.55 ข้อ 27', color:'#ff453a', created:'14:32'},
+  {id:'m2', page:1, type:'arrow',     pts:[{x:120,y:340},{x:280,y:280}], text:'ลูกศรชี้บันไดที่ขนาดไม่ตรง', color:'#d97706', created:'14:35'},
+  {id:'m3', page:3, type:'circle',    pts:[{x:200,y:200},{x:260,y:200}], text:'ขนาด lift shaft ต้องไม่น้อยกว่า 1.5×1.5 ม.', color:'#dc2626', created:'14:40'},
+  {id:'m4', page:3, type:'cloud',     pts:[{x:380,y:160},{x:480,y:160},{x:480,y:260},{x:380,y:260}], text:'ที่ตั้งกล่องไฟฟ้าไม่ถูกต้อง', color:'#dc2626', created:'14:41'},
+  {id:'m5', page:5, type:'highlight', pts:[{x:100,y:100},{x:300,y:120}], text:'ข้อความใน title block ไม่ตรงกับแบบฟอร์ม', color:'#fbbf24', created:'14:50'},
+  {id:'m6', page:5, type:'text',      pts:[{x:400,y:200}], text:'แก้ scale 1:50', color:'#16a34a', created:'14:52'},
+  {id:'m7', page:7, type:'comment',   pts:[{x:250,y:300}], text:'ตำแหน่งทางหนีไฟไม่ตรงตาม กฎกระทรวง 55 ข้อ 31', color:'#dc2626', created:'15:01'},
+  {id:'m8', page:7, type:'rect',      pts:[{x:200,y:200},{x:380,y:330}], text:'พื้นที่ห้องน้อยกว่ามาตรฐาน', color:'#ff453a', created:'15:05'},
+];
+
+// drawing state
+let drawing = false;
+let dragStart = null;
+let dragCurrent = null;
+let cloudPts = [];
+let pendingText = null;
+let selectedId = null;
+let editingId = null;
+
+// ─── canvas sizing ───
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  cv.width = wrap.clientWidth;
+  cv.height = wrap.clientHeight;
+  redraw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ─── render ───
+function drawBackground() {
+  // Simulate raster PDF — light tile pattern
+  ctx.fillStyle = '#fafbfc';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  // Draw fake "blueprint" lines
+  ctx.strokeStyle = '#9ca3af';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([]);
+  for (let x = 50; x < cv.width; x += 80) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv.height); ctx.stroke();
+  }
+  for (let y = 50; y < cv.height; y += 80) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cv.width, y); ctx.stroke();
+  }
+  // Title block bottom-right
+  ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(cv.width - 250, cv.height - 120, 230, 100);
+  ctx.fillStyle = '#374151'; ctx.font = '11px sans-serif';
+  ctx.fillText('DRAWING — Floor Plan', cv.width - 240, cv.height - 100);
+  ctx.fillText('Scale 1:100   Page 3/45', cv.width - 240, cv.height - 80);
+  ctx.fillText('20250616_RAMA4 APARTMENT', cv.width - 240, cv.height - 60);
+  ctx.fillText('PERMIT rev 1', cv.width - 240, cv.height - 45);
+  // Demo room outlines
+  ctx.strokeStyle = '#374151'; ctx.lineWidth = 2;
+  ctx.strokeRect(150, 100, 200, 160);
+  ctx.strokeRect(360, 100, 180, 160);
+  ctx.strokeRect(150, 280, 220, 140);
+  ctx.fillText('LIVING', 220, 180);
+  ctx.fillText('BEDROOM', 410, 180);
+  ctx.fillText('KITCHEN', 220, 350);
+}
+
+function drawAnnotation(a, opts = {}) {
+  const isSel = (a.id === selectedId);
+  ctx.strokeStyle = a.color || '#ff453a';
+  ctx.fillStyle = a.color || '#ff453a';
+  ctx.lineWidth = isSel ? 2.5 : 1.8;
+  ctx.setLineDash(opts.preview ? [6,4] : []);
+  if (a.type === 'rect') {
+    const [a1, a2] = a.pts;
+    ctx.strokeRect(Math.min(a1.x,a2.x), Math.min(a1.y,a2.y), Math.abs(a2.x-a1.x), Math.abs(a2.y-a1.y));
+    if (a.text && !opts.preview) drawLabel(a1.x, Math.min(a1.y,a2.y) - 6, a.text, a.color);
+  } else if (a.type === 'highlight') {
+    const [a1, a2] = a.pts;
+    ctx.fillStyle = a.color || '#fbbf24';
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(Math.min(a1.x,a2.x), Math.min(a1.y,a2.y), Math.abs(a2.x-a1.x), Math.abs(a2.y-a1.y));
+    ctx.globalAlpha = 1;
+    if (a.text && !opts.preview) drawLabel(a1.x, Math.min(a1.y,a2.y) - 6, a.text, a.color);
+  } else if (a.type === 'circle') {
+    const [a1, a2] = a.pts;
+    const r = Math.hypot(a2.x-a1.x, a2.y-a1.y);
+    ctx.beginPath(); ctx.arc(a1.x, a1.y, r, 0, Math.PI*2); ctx.stroke();
+    if (a.text && !opts.preview) drawLabel(a1.x - r, a1.y - r - 6, a.text, a.color);
+  } else if (a.type === 'cloud') {
+    const pts = a.pts;
+    if (pts.length < 2) return;
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      if (opts.preview && j === 0) break; // open loop during draw
+      const mx = (pts[i].x + pts[j].x) / 2;
+      const my = (pts[i].y + pts[j].y) / 2;
+      const dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y;
+      const len = Math.hypot(dx, dy);
+      const bulge = Math.min(len * 0.25, 18);
+      const nx = -dy / len * bulge, ny = dx / len * bulge;
+      if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+      ctx.quadraticCurveTo(mx + nx, my + ny, pts[j].x, pts[j].y);
+    }
+    ctx.stroke();
+    if (a.text && !opts.preview) drawLabel(pts[0].x, pts[0].y - 6, a.text, a.color);
+  } else if (a.type === 'arrow') {
+    const [a1, a2] = a.pts;
+    ctx.beginPath(); ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x, a2.y); ctx.stroke();
+    const ang = Math.atan2(a2.y - a1.y, a2.x - a1.x);
+    const hd = 12;
+    ctx.beginPath();
+    ctx.moveTo(a2.x, a2.y);
+    ctx.lineTo(a2.x - Math.cos(ang - Math.PI/6) * hd, a2.y - Math.sin(ang - Math.PI/6) * hd);
+    ctx.lineTo(a2.x - Math.cos(ang + Math.PI/6) * hd, a2.y - Math.sin(ang + Math.PI/6) * hd);
+    ctx.closePath(); ctx.fill();
+    if (a.text && !opts.preview) drawLabel(a2.x + 6, a2.y, a.text, a.color);
+  } else if (a.type === 'text' || a.type === 'comment') {
+    const p = a.pts[0];
+    if (a.type === 'comment') {
+      // bubble
+      ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('💬', p.x - 7, p.y + 5);
+    }
+    if (a.text) {
+      ctx.fillStyle = a.color || '#ff453a';
+      ctx.font = (a.type === 'comment' ? 'bold ' : '') + '12px sans-serif';
+      ctx.fillText(a.text, p.x + 18, p.y + 4);
+    }
+  }
+  ctx.setLineDash([]);
+  // selection highlight box
+  if (isSel) {
+    const bb = bbox(a);
+    if (bb) {
+      ctx.save();
+      ctx.strokeStyle = '#2563eb'; ctx.setLineDash([4,3]); ctx.lineWidth = 1.5;
+      ctx.strokeRect(bb.x - 4, bb.y - 4, bb.w + 8, bb.h + 8);
+      ctx.restore();
+    }
+  }
+}
+
+function drawLabel(x, y, txt, col) {
+  ctx.save();
+  ctx.font = 'bold 11px sans-serif';
+  const tw = ctx.measureText(txt).width;
+  ctx.fillStyle = 'rgba(20,20,25,0.85)';
+  ctx.fillRect(x - 4, y - 13, tw + 8, 16);
+  ctx.fillStyle = col || '#fff';
+  ctx.fillText(txt.length > 30 ? txt.slice(0, 28) + '…' : txt, x, y);
+  ctx.restore();
+}
+
+function bbox(a) {
+  if (!a.pts || !a.pts.length) return null;
+  const xs = a.pts.map(p => p.x), ys = a.pts.map(p => p.y);
+  let x0 = Math.min(...xs), y0 = Math.min(...ys), x1 = Math.max(...xs), y1 = Math.max(...ys);
+  if (a.type === 'circle' && a.pts.length === 2) {
+    const r = Math.hypot(a.pts[1].x - a.pts[0].x, a.pts[1].y - a.pts[0].y);
+    return { x: a.pts[0].x - r, y: a.pts[0].y - r, w: r*2, h: r*2 };
+  }
+  return { x: x0, y: y0, w: x1 - x0 || 20, h: y1 - y0 || 20 };
+}
+
+function redraw() {
+  drawBackground();
+  // draw all annotations on current "page" 3 (mockup — show only page 3 ones)
+  markups.filter(m => m.page === 3).forEach(a => drawAnnotation(a));
+  // draw preview if drawing
+  if (drawing && dragStart && dragCurrent) {
+    const preview = { type: tool, pts: tool === 'cloud' ? [...cloudPts, dragCurrent] : [dragStart, dragCurrent], color: color };
+    drawAnnotation(preview, { preview: true });
+    // show size hint
+    const w = Math.abs(dragCurrent.x - dragStart.x), h = Math.abs(dragCurrent.y - dragStart.y);
+    if (tool === 'rect' || tool === 'highlight') {
+      ctx.fillStyle = 'rgba(20,20,25,0.85)'; ctx.font = '11px sans-serif';
+      const txt = `${Math.round(w)} × ${Math.round(h)} px`;
+      const tw = ctx.measureText(txt).width;
+      ctx.fillRect(dragCurrent.x + 8, dragCurrent.y - 18, tw + 8, 16);
+      ctx.fillStyle = '#fff'; ctx.fillText(txt, dragCurrent.x + 12, dragCurrent.y - 6);
+    } else if (tool === 'circle') {
+      const r = Math.hypot(dragCurrent.x - dragStart.x, dragCurrent.y - dragStart.y);
+      ctx.fillStyle = 'rgba(20,20,25,0.85)'; ctx.font = '11px sans-serif';
+      const txt = `r = ${Math.round(r)} px`;
+      const tw = ctx.measureText(txt).width;
+      ctx.fillRect(dragCurrent.x + 8, dragCurrent.y - 18, tw + 8, 16);
+      ctx.fillStyle = '#fff'; ctx.fillText(txt, dragCurrent.x + 12, dragCurrent.y - 6);
+    } else if (tool === 'arrow') {
+      const len = Math.hypot(dragCurrent.x - dragStart.x, dragCurrent.y - dragStart.y);
+      ctx.fillStyle = 'rgba(20,20,25,0.85)'; ctx.font = '11px sans-serif';
+      const txt = `len = ${Math.round(len)} px`;
+      const tw = ctx.measureText(txt).width;
+      ctx.fillRect(dragCurrent.x + 8, dragCurrent.y + 6, tw + 8, 16);
+      ctx.fillStyle = '#fff'; ctx.fillText(txt, dragCurrent.x + 12, dragCurrent.y + 18);
+    }
+  }
+  // cloud committed pts during draw (multi-click)
+  if (tool === 'cloud' && cloudPts.length > 0) {
+    ctx.fillStyle = color;
+    cloudPts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill(); });
+    if (cloudPts.length >= 2) {
+      ctx.strokeStyle = color; ctx.setLineDash([4,3]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cloudPts[0].x, cloudPts[0].y);
+      cloudPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+}
+
+// ─── tool selection ───
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.ribbon button').forEach(b => b.classList.remove('active'));
+  document.getElementById('t-' + t).classList.add('active');
+  document.getElementById('active-tool-name').textContent = ({text:'Text', comment:'Comment', highlight:'Highlight', rect:'Rect Frame', circle:'Circle', cloud:'Cloud', arrow:'Arrow'})[t];
+  const hints = {
+    text:      '𝕋 Text: คลิก 1 ครั้ง แล้วพิมพ์ข้อความ',
+    comment:   '💬 Comment: คลิก 1 ครั้ง แล้วพิมพ์ข้อความ — มี bubble marker',
+    highlight: '🖍 Highlight: คลิกมุมที่ 1 (rubber-band preview)',
+    rect:      '▭ Rect Frame: คลิกมุมที่ 1 (rubber-band preview)',
+    circle:    '◯ Circle: คลิกศูนย์กลาง (rubber-band preview = รัศมีตามเมาส์)',
+    cloud:     '☁ Cloud: คลิกหลายจุด → กด Enter จบ',
+    arrow:     '➜ Arrow: คลิกหาง (rubber-band preview = ลูกศรตามเมาส์)',
+  };
+  document.getElementById('mode-label').textContent = hints[t];
+  cloudPts = []; drawing = false; dragStart = null; dragCurrent = null;
+  redraw();
+}
+function setColor(c) {
+  color = c;
+  document.getElementById('status-color').textContent = c;
+  document.getElementById('status-color').style.color = c;
+}
+
+// ─── canvas events ───
+function cXY(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+cv.addEventListener('mousedown', e => {
+  const p = cXY(e);
+  if (tool === 'text' || tool === 'comment') {
+    // one-click + text input
+    pendingText = { type: tool, pts: [p], color };
+    openModal('new', pendingText);
+    return;
+  }
+  if (tool === 'cloud') {
+    cloudPts.push(p);
+    redraw();
+    return;
+  }
+  // 2-click tools: rect, highlight, circle, arrow
+  if (!drawing) {
+    drawing = true;
+    dragStart = p;
+    dragCurrent = p;
+    redraw();
+  } else {
+    // commit
+    const a = {
+      id: 'm' + (markups.length + 1) + '_' + Date.now(),
+      page: 3, type: tool,
+      pts: [dragStart, p],
+      text: '', color,
+      created: new Date().toTimeString().slice(0,5)
+    };
+    markups.push(a);
+    drawing = false; dragStart = null; dragCurrent = null;
+    selectedId = a.id;
+    renderList();
+    redraw();
+    // optional: open edit modal for subject
+    openModal('edit', a);
+  }
+});
+cv.addEventListener('mousemove', e => {
+  if (!drawing && tool !== 'cloud') return;
+  dragCurrent = cXY(e);
+  redraw();
+});
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && tool === 'cloud' && cloudPts.length >= 3) {
+    const a = {
+      id: 'mc_' + Date.now(), page: 3, type: 'cloud',
+      pts: [...cloudPts], text: '', color,
+      created: new Date().toTimeString().slice(0,5)
+    };
+    markups.push(a);
+    cloudPts = [];
+    selectedId = a.id;
+    renderList(); redraw();
+    openModal('edit', a);
+  }
+  if (e.key === 'Escape') {
+    drawing = false; dragStart = null; dragCurrent = null; cloudPts = [];
+    closeModal();
+    redraw();
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
+    deleteMarkup(selectedId);
+  }
+});
+
+// ─── Markups List ───
+function renderList() {
+  const list = document.getElementById('markup-list');
+  const fType = document.getElementById('filter-type').value;
+  const fSort = document.getElementById('filter-sort').value;
+  const fSearch = document.getElementById('filter-search').value.toLowerCase();
+  let filtered = markups.filter(m => (!fType || m.type === fType) && (!fSearch || (m.text||'').toLowerCase().includes(fSearch)));
+  if (fSort === 'page') filtered.sort((a,b) => a.page - b.page || a.created.localeCompare(b.created));
+  else if (fSort === 'time') filtered.sort((a,b) => b.created.localeCompare(a.created));
+  else if (fSort === 'type') filtered.sort((a,b) => a.type.localeCompare(b.type));
+  document.getElementById('markup-count').textContent = filtered.length;
+  document.getElementById('status-count').textContent = markups.length;
+  const ICONS = { text:'𝕋', comment:'💬', highlight:'🖍', rect:'▭', circle:'◯', cloud:'☁', arrow:'➜' };
+  const NAMES = { text:'Text', comment:'Comment', highlight:'Highlight', rect:'Rect Frame', circle:'Circle', cloud:'Cloud Frame', arrow:'Arrow' };
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11px">ไม่พบ markup ที่ตรงกับเงื่อนไข</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(m => `
+    <div class="markup-row ${m.id === selectedId ? 'selected' : ''}" onclick="selectMarkup('${m.id}')" ondblclick="openModal('edit', markups.find(x=>x.id==='${m.id}'))">
+      <div class="icon" style="color:${m.color}">${ICONS[m.type] || '•'}</div>
+      <div class="body">
+        <div class="subject">${m.text || '<em style="color:var(--text3)">(ยังไม่มี subject — double-click เพื่อแก้)</em>'}</div>
+        <div class="meta">
+          <span class="page">P.${m.page}</span>
+          <span>${NAMES[m.type]}</span>
+          <span>${m.created}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button onclick="event.stopPropagation();openModal('edit', markups.find(x=>x.id==='${m.id}'))" title="แก้ไข">✎</button>
+        <button class="delete" onclick="event.stopPropagation();deleteMarkup('${m.id}')" title="ลบ">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+function selectMarkup(id) {
+  selectedId = id;
+  const m = markups.find(x => x.id === id);
+  if (m && m.page !== 3) {
+    // simulate page jump
+    document.getElementById('mode-label').textContent = `→ Jump to Page ${m.page} (mockup: jumping not animated)`;
+  }
+  renderList(); redraw();
+}
+function deleteMarkup(id) {
+  if (!confirm('ลบ markup นี้?')) return;
+  markups = markups.filter(m => m.id !== id);
+  if (selectedId === id) selectedId = null;
+  renderList(); redraw();
+}
+
+// ─── Modal ───
+function openModal(mode, m) {
+  editingId = m.id;
+  document.getElementById('modal-title').textContent = mode === 'new' ? 'เพิ่ม Markup ใหม่' : 'แก้ไข Markup';
+  document.getElementById('modal-text').value = m.text || '';
+  document.getElementById('modal-color').value = m.color || color;
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-text').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingId = null;
+  if (pendingText) pendingText = null;
+}
+function saveModal() {
+  const txt = document.getElementById('modal-text').value;
+  const col = document.getElementById('modal-color').value;
+  if (pendingText) {
+    pendingText.text = txt; pendingText.color = col;
+    pendingText.id = 'm_' + Date.now();
+    pendingText.created = new Date().toTimeString().slice(0,5);
+    markups.push(pendingText);
+    pendingText = null;
+  } else if (editingId) {
+    const m = markups.find(x => x.id === editingId);
+    if (m) { m.text = txt; m.color = col; }
+  }
+  closeModal();
+  renderList();
+  redraw();
+}
+
+// ─── init ───
+resizeCanvas();
+renderList();
+</script>
+
+</body>
+</html>

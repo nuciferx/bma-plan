@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>BMA-Plan Dev Site — Spike</title>
+<style>
+  :root { --fg:#1b1f23; --bg:#fdfdfd; --muted:#6a737d; --link:#0366d6; --code:#f6f8fa; --border:#e1e4e8; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; padding:0; font-family: -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif; color: var(--fg); background: var(--bg); }
+  body { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  nav { background: #f6f8fa; border-right: 1px solid var(--border); padding: 16px 12px; overflow-y: auto; position: sticky; top: 0; max-height: 100vh; }
+  nav h1 { font-size: 13px; margin: 0 0 12px 0; text-transform: uppercase; color: var(--muted); letter-spacing: .04em; }
+  nav h2 { font-size: 11px; margin: 14px 0 6px 0; text-transform: uppercase; color: var(--muted); letter-spacing: .04em; }
+  nav a { display:block; padding: 4px 8px; color: var(--fg); text-decoration: none; border-radius: 4px; font-size: 13px; }
+  nav a:hover { background: #e7ebef; }
+  nav a.active { background: #ddebff; color: var(--link); font-weight: 600; }
+  nav .search { width:100%; padding:6px 8px; margin-bottom:10px; border:1px solid var(--border); border-radius:4px; font-size:13px; }
+  main { padding: 30px 50px; max-width: 900px; }
+  main h1 { font-size: 28px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-top: 0; }
+  main h2 { margin-top: 28px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  main h3 { margin-top: 22px; }
+  main p { line-height: 1.6; }
+  main code { background: var(--code); padding: 2px 5px; border-radius: 3px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 90%; }
+  main pre { background: var(--code); padding: 12px; border-radius: 6px; overflow-x: auto; }
+  main pre code { background: none; padding: 0; font-size: 12px; }
+  main blockquote { border-left: 4px solid #dfe2e5; padding: 0 1em; color: var(--muted); margin: 0 0 16px 0; }
+  main table { border-collapse: collapse; margin: 12px 0; }
+  main table th, main table td { border: 1px solid var(--border); padding: 6px 12px; }
+  main table th { background: var(--code); }
+  main a { color: var(--link); text-decoration: none; }
+  main a:hover { text-decoration: underline; }
+  .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .badge { display:inline-block; padding:1px 6px; background:#e7ebef; border-radius:3px; font-size:10px; color:var(--muted); margin-left:6px; vertical-align:middle; }
+  .test-runner { background:#fffbe6; border:1px solid #f7d574; padding:10px; border-radius:6px; margin:10px 0; font-size:12px; }
+  .test-runner button { padding:4px 10px; cursor:pointer; }
+  .test-runner pre { background:#fff; margin-top:8px; max-height: 220px; overflow:auto; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>BMA-Plan Dev</h1>
+  <input class="search" id="search" placeholder="ค้นหา…" />
+  <div id="nav-list"></div>
+</nav>
+<main id="main">
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <article id="article">Loading…</article>
+  <div class="footer" id="footer"></div>
+</main>
+
+<!--
+  CONTENT BUNDLE — embedded markdown content.
+  In production this would be auto-generated at build/serve time by
+  walking the real repo (log.md, sprints/completed/**, docs/design/**)
+  and writing the bundle out as either:
+    (a) inline JSON inside this HTML (chosen for the spike), or
+    (b) a sibling `content.json` fetched on first paint.
+
+  For the spike we embed FOUR representative pages — enough to exercise:
+    - markdown renderer
+    - navigation
+    - nested grouping (manual / dev-log / sprints / design)
+    - search across multiple pages
+-->
+<script id="content-bundle" type="application/json">
+{
+  "site": {
+    "title": "BMA-Plan Dev Site",
+    "subtitle": "Spike — invent-dev-website",
+    "generated": "2026-05-17"
+  },
+  "groups": [
+    {
+      "title": "Manual / คู่มือผู้ใช้",
+      "pages": [
+        {
+          "slug": "manual/getting-started",
+          "title": "เริ่มต้นใช้งาน",
+          "body": "# เริ่มต้นใช้งาน BMA-Plan\n\nBMA-Plan คือเครื่องมือวัดพื้นที่จากแบบก่อสร้าง PDF (raster หรือ vector ก็ได้)\n\n## Workflow หลัก 6 ขั้นตอน\n\n1. **Open PDF** — เลือกไฟล์แบบจากเมนู File > Open\n2. **Set Scale** — กดปุ่ม Scale บน ribbon แล้วคลิก 2 จุดที่รู้ระยะจริง\n3. **Page Setup** — ตั้งชื่อหน้า / ชั้น / ประเภทแบบ\n4. **Measure** — เลือกเครื่องมือ (Rect / Polygon / Path) แล้ววาดพื้นที่\n5. **Review** — ตรวจ Warnings widget (มุมแหลม, area=0, opening ไม่มี parent)\n6. **Export** — XLSX สำหรับสรุป / Annotated PDF สำหรับยื่นเขต\n\n## คีย์ลัดที่ใช้บ่อย\n\n| Key | ทำอะไร |\n|---|---|\n| `Ctrl+S` | บันทึกโปรเจกต์ |\n| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |\n| `Esc` | ยกเลิกการวาด |\n| `Enter` | จบ polygon |\n| `Shift` (ค้าง) | ล็อกมุม 15° |\n| `Space` (ค้าง) | Pan ชั่วคราว |\n\n## ถัดไป\n\n- ดู [Set Scale](#manual/set-scale) สำหรับรายละเอียดการตั้ง scale\n- ดู [Anti-patterns](#design/anti-patterns) ถ้ากำลังพัฒนา feature ใหม่"
+        },
+        {
+          "slug": "manual/set-scale",
+          "title": "ตั้ง Scale ให้แม่นยำ",
+          "body": "# ตั้ง Scale ให้แม่นยำ\n\nค่า scale คือ **อัตราแปลง pixel ของ PDF → เมตรจริง** ค่าผิด = พื้นที่ผิดทั้งหน้า\n\n## ขั้นตอน\n\n1. คลิกปุ่ม **Scale** บน ribbon\n2. คลิก **จุดเริ่ม** ของเส้นที่รู้ระยะจริง (เช่น dimension line)\n3. คลิก **จุดปลาย**\n4. ใส่ระยะจริงเป็นเมตร (เช่น `10.0`)\n5. ยืนยัน → status bar จะแสดง `Scale: 1px = X.XXX m`\n\n## สถานะของ Scale\n\n- `manual` — ผู้ใช้ตั้งเอง (เชื่อถือได้สูงสุด)\n- `auto-unverified` — ระบบเดาจาก vector PDF (ต้องยืนยันก่อนใช้)\n- `unknown` — ไม่มีข้อมูล (วัดในหน่วย pt² ชั่วคราว)\n\n> ⚠️ ห้าม export XLSX โดยที่หน้ายังเป็น `auto-unverified` — ตัวเลขในรายงานจะมีคำว่า `?` ติดมาด้วย"
+        }
+      ]
+    },
+    {
+      "title": "Dev Log / บันทึกการพัฒนา",
+      "pages": [
+        {
+          "slug": "log/2026-05-15",
+          "title": "2026-05-15 — HT-5 submenu overflow",
+          "body": "# 2026-05-15 — HT-5 — `.dd-submenu` overflow on short viewports — PASS\n\n> Auto-extracted from `log.md` headings — first 6 lines of each session.\n\n**What changed:**\n- `proto/static/css/app.css:25` — `.dd-submenu` rule += `max-height:calc(100vh - 120px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin`.\n- `proto/e2e_ui_test.py` — NEW `_test_ht5_submenu_overflow()` marker `PHASE_HT5_OK`.\n\nMarker count: 30 → **31**.\n\n**Why:** Found by human-test 2026-05-15 (COSMETIC, HT-5). Measure menu's site submenu มี 15 items — `.dd-submenu` ล้น short viewports (412 px tall) เพราะไม่มี `max-height` / `overflow`.\n\n**Tests:** full → 31/31 GREEN."
+        }
+      ]
+    },
+    {
+      "title": "Design Docs",
+      "pages": [
+        {
+          "slug": "design/anti-patterns",
+          "title": "Anti-patterns ที่เคยเจอ",
+          "body": "# Anti-patterns\n\nทุกข้อใน list นี้ **เคยเกิดขึ้นจริงในประวัติ commit**\n\n## 1. Guarding `app.mount` with `if _STATIC_DIR.exists()`\n\nกลืน `RuntimeError` ที่เกิดเพราะขาด `aiofiles` → `/static/*` คืน 404 เงียบๆ → UI โหลดไม่มี CSS → E2E pass เพราะ cached asset.\n\n**Required pattern:**\n```python\nfrom pathlib import Path\n_BASE_DIR = Path(__file__).resolve().parent\n_STATIC_DIR = _BASE_DIR / \"static\"\nprint(f\"[static] serving from: {_STATIC_DIR}\")\napp.mount(\"/static\", StaticFiles(directory=str(_STATIC_DIR)), name=\"static\")\n```\n\n## 2. UTF-8 BOM in `app.css`\n\nบาง browser fail parse rule แรก ไฟล์ HTTP 200 แต่ไม่มี style apply\n\n## 3. คำนวณจาก `layer.name`\n\nForbidden ตาม Page-Scoped Layer Model — ให้อ่าน `semanticTag` / `measurementProfile` / `reportTarget` แทน"
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<!--
+  MICRO-MD RENDERER — ~80 lines, zero external deps.
+  Handles: # h1, ## h2, ### h3, ``` code fences, `inline code`,
+           **bold**, [link](url), - lists, | tables |, > blockquote, paragraphs.
+  Not a CommonMark superset — deliberately tiny.
+  Production version would swap in marked.js (~50KB UMD) if more fidelity is needed.
+-->
+<script>
+const BUNDLE = JSON.parse(document.getElementById('content-bundle').textContent);
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderInline(text) {
+  // escape first, then introduce HTML
+  text = esc(text);
+  // code spans
+  text = text.replace(/`([^`]+)`/g, (m,c) => `<code>${c}</code>`);
+  // bold
+  text = text.replace(/\*\*([^*]+)\*\*/g, (m,c) => `<strong>${c}</strong>`);
+  // links [txt](url) — only intra-doc # links and absolute http
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, href) => {
+    if (href.startsWith('#')) return `<a href="${href}">${label}</a>`;
+    if (href.startsWith('http')) return `<a href="${href}" target="_blank" rel="noopener">${label}</a>`;
+    return `<a href="#${href}">${label}</a>`;
+  });
+  return text;
+}
+
+function renderMd(md) {
+  const lines = md.split('\n');
+  let out = [], i = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    // code fence
+    if (ln.startsWith('```')) {
+      const lang = ln.slice(3).trim();
+      const buf = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) { buf.push(lines[i]); i++; }
+      i++; // skip closing fence
+      out.push(`<pre><code class="lang-${lang}">${esc(buf.join('\n'))}</code></pre>`);
+      continue;
+    }
+    // table — detect by | ... | on this line AND next line being |---|---|
+    if (ln.startsWith('|') && i+1 < lines.length && /^\|[\s:|\-]+\|$/.test(lines[i+1])) {
+      const header = ln.split('|').slice(1,-1).map(s=>s.trim());
+      i += 2; // skip separator
+      const rows = [];
+      while (i < lines.length && lines[i].startsWith('|')) {
+        rows.push(lines[i].split('|').slice(1,-1).map(s=>s.trim()));
+        i++;
+      }
+      out.push('<table><thead><tr>' + header.map(h=>`<th>${renderInline(h)}</th>`).join('') + '</tr></thead><tbody>' +
+        rows.map(r => '<tr>' + r.map(c=>`<td>${renderInline(c)}</td>`).join('') + '</tr>').join('') +
+        '</tbody></table>');
+      continue;
+    }
+    // headings
+    let m;
+    if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) {
+      const lvl = m[1].length;
+      out.push(`<h${lvl}>${renderInline(m[2])}</h${lvl}>`);
+      i++; continue;
+    }
+    // blockquote
+    if (ln.startsWith('> ')) {
+      const buf = [];
+      while (i < lines.length && lines[i].startsWith('> ')) { buf.push(lines[i].slice(2)); i++; }
+      out.push(`<blockquote>${renderInline(buf.join(' '))}</blockquote>`);
+      continue;
+    }
+    // unordered list
+    if (/^[-*]\s+/.test(ln)) {
+      const items = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+        items.push(`<li>${renderInline(lines[i].replace(/^[-*]\s+/, ''))}</li>`);
+        i++;
+      }
+      out.push(`<ul>${items.join('')}</ul>`);
+      continue;
+    }
+    // ordered list
+    if (/^\d+\.\s+/.test(ln)) {
+      const items = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+        items.push(`<li>${renderInline(lines[i].replace(/^\d+\.\s+/, ''))}</li>`);
+        i++;
+      }
+      out.push(`<ol>${items.join('')}</ol>`);
+      continue;
+    }
+    // blank
+    if (ln.trim() === '') { i++; continue; }
+    // paragraph — gather until blank
+    const buf = [ln];
+    i++;
+    while (i < lines.length && lines[i].trim() !== '' &&
+           !lines[i].startsWith('#') && !lines[i].startsWith('```') &&
+           !lines[i].startsWith('|') && !lines[i].startsWith('> ') &&
+           !/^[-*]\s+/.test(lines[i]) && !/^\d+\.\s+/.test(lines[i])) {
+      buf.push(lines[i]); i++;
+    }
+    out.push(`<p>${renderInline(buf.join(' '))}</p>`);
+  }
+  return out.join('\n');
+}
+
+// flatten bundle into pages map
+const PAGES = {};
+for (const g of BUNDLE.groups) for (const p of g.pages) PAGES[p.slug] = { ...p, group: g.title };
+
+// nav
+function renderNav(filter) {
+  filter = (filter || '').toLowerCase().trim();
+  const root = document.getElementById('nav-list');
+  root.innerHTML = '';
+  const cur = location.hash.replace(/^#/, '');
+  for (const g of BUNDLE.groups) {
+    const matches = g.pages.filter(p =>
+      !filter || p.title.toLowerCase().includes(filter) || p.body.toLowerCase().includes(filter));
+    if (matches.length === 0) continue;
+    const h = document.createElement('h2');
+    h.textContent = g.title;
+    root.appendChild(h);
+    for (const p of matches) {
+      const a = document.createElement('a');
+      a.href = '#' + p.slug;
+      a.textContent = p.title;
+      if (p.slug === cur) a.className = 'active';
+      root.appendChild(a);
+    }
+  }
+}
+
+function renderPage() {
+  const slug = location.hash.replace(/^#/, '') || 'manual/getting-started';
+  const page = PAGES[slug];
+  const art = document.getElementById('article');
+  const bc = document.getElementById('breadcrumb');
+  const ft = document.getElementById('footer');
+  if (!page) {
+    art.innerHTML = `<h1>Not found</h1><p>No page with slug <code>${esc(slug)}</code></p>`;
+    bc.textContent = '';
+  } else {
+    art.innerHTML = renderMd(page.body);
+    bc.textContent = `${page.group} ›`;
+  }
+  ft.innerHTML = `${BUNDLE.site.title} · generated ${BUNDLE.site.generated} · <a href="#run-tests">run spike tests</a>`;
+  renderNav(document.getElementById('search').value);
+  window.scrollTo(0,0);
+}
+
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#run-tests') { runTests(); return; }
+  renderPage();
+});
+document.getElementById('search').addEventListener('input', e => renderNav(e.target.value));
+
+// ──────────────────────────────────────────────────────────────────
+// SPIKE ACCEPTANCE TESTS — run in-browser via #run-tests
+// ──────────────────────────────────────────────────────────────────
+function runTests() {
+  const results = [];
+  function pass(name, detail) { results.push({ok:true, name, detail:detail||''}); }
+  function fail(name, detail) { results.push({ok:false, name, detail:detail||''}); }
+
+  // 1. Markdown renderer round-trips key constructs
+  try {
+    const md = '# h1\n\n## h2\n\n**bold** and `code`\n\n- a\n- b\n\n| col1 | col2 |\n|---|---|\n| x | y |\n\n> quote\n\npara';
+    const html = renderMd(md);
+    const expect = ['<h1>h1</h1>', '<h2>h2</h2>', '<strong>bold</strong>', '<code>code</code>',
+      '<ul>', '<li>a</li>', '<table>', '<th>col1</th>', '<td>x</td>', '<blockquote>quote</blockquote>', '<p>para</p>'];
+    const miss = expect.filter(e => !html.includes(e));
+    if (miss.length === 0) pass('1. Markdown renderer covers all primitives', `${expect.length}/${expect.length}`);
+    else fail('1. Markdown renderer covers all primitives', `missing: ${miss.join(', ')}`);
+  } catch (e) { fail('1. Markdown renderer covers all primitives', e.message); }
+
+  // 2. All declared pages render without throwing
+  try {
+    let count = 0;
+    for (const slug in PAGES) { renderMd(PAGES[slug].body); count++; }
+    if (count >= 4) pass('2. All bundled pages render without error', `${count} pages`);
+    else fail('2. All bundled pages render without error', `only ${count} pages`);
+  } catch (e) { fail('2. All bundled pages render without error', e.message); }
+
+  // 3. Navigation builds entries for every bundled page
+  try {
+    renderNav('');
+    const links = document.querySelectorAll('#nav-list a');
+    const expected = Object.keys(PAGES).length;
+    if (links.length === expected) pass('3. Navigation lists every page', `${links.length}/${expected}`);
+    else fail('3. Navigation lists every page', `${links.length}/${expected}`);
+  } catch (e) { fail('3. Navigation lists every page', e.message); }
+
+  // 4. Search filters
+  try {
+    renderNav('scale');
+    const matches = document.querySelectorAll('#nav-list a');
+    renderNav('');
+    if (matches.length >= 1 && matches.length < Object.keys(PAGES).length)
+      pass('4. Search filter narrows the nav', `'scale' → ${matches.length} hits`);
+    else
+      fail('4. Search filter narrows the nav', `'scale' → ${matches.length} hits (expected 1..n)`);
+  } catch (e) { fail('4. Search filter narrows the nav', e.message); }
+
+  // 5. Single-file load — no external requests required
+  try {
+    // Check the DOM that the browser actually built: no remote stylesheet links,
+    // no remote script srcs. We deliberately do NOT grep the source for the
+    // word 'fetch' because this very file contains a regex literal '/fetch/'
+    // in the test runner — which would self-trigger a false positive.
+    const remoteCss = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .filter(l => /^https?:/i.test(l.href)).length;
+    const remoteJs = Array.from(document.querySelectorAll('script[src]'))
+      .filter(s => /^https?:/i.test(s.src)).length;
+    // Runtime check: nothing has set window.__fetchCalled — we never call fetch.
+    const fetchUsed = !!window.__fetchCalled;
+    if (remoteCss === 0 && remoteJs === 0 && !fetchUsed) pass('5. Single-file, zero external requests', 'remoteCss:0 remoteJs:0 fetchUsed:false');
+    else fail('5. Single-file, zero external requests', `remoteCss:${remoteCss} remoteJs:${remoteJs} fetchUsed:${fetchUsed}`);
+  } catch (e) { fail('5. Single-file, zero external requests', e.message); }
+
+  // 6. Schema-versioned content bundle (mirrors settings-panel pattern)
+  try {
+    const b = BUNDLE;
+    if (b.site && b.site.title && b.site.generated && Array.isArray(b.groups) && b.groups.length > 0)
+      pass('6. Content bundle has stable shape', `groups=${b.groups.length}, generated=${b.site.generated}`);
+    else fail('6. Content bundle has stable shape', JSON.stringify(b).slice(0,80));
+  } catch (e) { fail('6. Content bundle has stable shape', e.message); }
+
+  // render results
+  const passN = results.filter(r=>r.ok).length;
+  const failN = results.length - passN;
+  const art = document.getElementById('article');
+  art.innerHTML = '<h1>Spike acceptance test results</h1>' +
+    `<p><strong>${passN} passed, ${failN} failed</strong> (of ${results.length})</p>` +
+    '<table><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Detail</th></tr></thead><tbody>' +
+    results.map((r,i) => `<tr><td>${i+1}</td><td>${esc(r.name)}</td><td>${r.ok?'PASS':'FAIL'}</td><td><code>${esc(r.detail)}</code></td></tr>`).join('') +
+    '</tbody></table><p><a href="#manual/getting-started">← back to docs</a></p>';
+  document.getElementById('breadcrumb').textContent = 'Test runner ›';
+}
+
+renderPage();
+</script>
+</body>
+</html>

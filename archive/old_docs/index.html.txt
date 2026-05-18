@@ -1,0 +1,3312 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   BASE RESET
+═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+:root {
+  --bg: #1c1c1e;
+  --bar: #2c2c2e;
+  --bar2: #3a3a3c;
+  --border: rgba(255,255,255,0.08);
+  --text: #e5e5e7;
+  --text2: #98989f;
+  --accent: #0a84ff;
+  --accent2: #30d158;
+  --danger: #ff453a;
+  --warn: #ffd60a;
+  --radius: 10px;
+  --radius-sm: 7px;
+}
+body {
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  margin: 0; padding: 0;
+  height: 100vh; width: 100vw;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  font-size: 13px; overflow: hidden;
+  user-select: none; -webkit-user-select: none;
+}
+button, select, input {
+  font-family: inherit; font-size: 13px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bar2); color: var(--text); cursor: pointer;
+  transition: all 0.15s ease;
+}
+button:hover:not(:disabled) { background: #48484a; }
+button:disabled { opacity: 0.3; cursor: not-allowed; }
+input[type="color"] { padding: 2px; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid var(--border); }
+input[type="number"], input[type="text"] { padding: 5px 8px; background: var(--bar2); color: var(--text); border-color: var(--border); }
+
+/* ═══════════════════════════════════════════════
+   TOP BAR — GoodNotes style
+═══════════════════════════════════════════════ */
+#top-bar {
+  background: var(--bar);
+  height: 48px;
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 2px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  backdrop-filter: blur(20px);
+}
+#top-bar .sep {
+  width: 1px; height: 24px;
+  background: var(--border); margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* tool group — pill container */
+.tool-group {
+  display: flex; align-items: center; gap: 1px;
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+  padding: 3px;
+}
+
+/* file upload */
+#pdf-upload-label {
+  background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+  font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+  letter-spacing: 0.2px;
+}
+#pdf-upload-label:hover { background: #0071e3; }
+#pdf-upload { display: none; }
+
+/* toolbar buttons */
+.tb-btn {
+  background: transparent; border: none; color: var(--text2);
+  padding: 5px 7px; border-radius: var(--radius-sm);
+  font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 32px; height: 32px;
+  transition: all 0.12s ease;
+  position: relative;
+}
+.tb-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: var(--text); }
+.tb-btn.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(10,132,255,0.4), 0 2px 8px rgba(10,132,255,0.3);
+}
+.tb-btn:disabled { opacity: 0.25; }
+.tb-btn.danger { color: var(--danger); }
+.tb-btn.danger.active { background: var(--danger); color: #fff; }
+.tb-btn.btn-success { color: var(--accent2); }
+.tb-btn.btn-success.active { background: var(--accent2); color: #fff; }
+
+/* tool label small */
+.tb-label {
+  color: var(--text2); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.3px; white-space: nowrap; padding: 0 4px;
+}
+
+/* page nav pill */
+#page-nav {
+  display: flex; align-items: center; gap: 2px;
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+  padding: 3px; border: 1px solid var(--border);
+}
+#page-info {
+  font-size: 11px; font-weight: 600; min-width: 38px;
+  text-align: center; color: var(--text); padding: 0 4px;
+}
+
+/* zoom pill */
+#zoom-display {
+  background: rgba(255,255,255,0.07); color: var(--text);
+  border-radius: var(--radius-sm); padding: 4px 8px;
+  font-size: 11px; font-weight: 600; min-width: 48px; text-align: center;
+  border: 1px solid var(--border);
+}
+
+/* scale badge */
+#scale-badge {
+  font-size: 10px; font-weight: 600; padding: 3px 8px;
+  border-radius: 20px; white-space: nowrap;
+  background: rgba(255,69,58,0.2); color: var(--danger);
+  border: 1px solid rgba(255,69,58,0.3);
+}
+#scale-badge.ok {
+  background: rgba(48,209,88,0.15); color: var(--accent2);
+  border-color: rgba(48,209,88,0.3);
+}
+
+/* mode toggle */
+#mode-toggle {
+  margin-left: auto;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 4px 10px;
+  color: var(--text2); font-size: 11px; font-weight: 500;
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* color dot picker */
+.color-dot-wrap {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+  padding: 3px 6px; border: 1px solid var(--border);
+}
+.color-dot-wrap label { cursor: pointer; }
+.color-dot-wrap input[type="color"] {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  padding: 1px; cursor: pointer;
+}
+.stroke-input {
+  width: 38px; padding: 3px 5px; font-size: 11px;
+  background: rgba(255,255,255,0.07); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px; text-align: center;
+}
+
+/* park counter pill */
+#park-counter {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--radius); padding: 3px 8px;
+  font-size: 11px; font-weight: 600; color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* dropdown */
+.tb-dropdown { position: relative; }
+.tb-dropdown-menu {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: #2c2c2e;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.05);
+  z-index: 999; min-width: 170px; white-space: nowrap;
+}
+.tb-dropdown.open .tb-dropdown-menu { display: block; animation: fadeDown 0.12s ease; }
+@keyframes fadeDown { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.tb-dropdown-menu button {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; background: transparent; border: none;
+  color: var(--text); padding: 7px 10px; border-radius: var(--radius-sm);
+  text-align: left; font-size: 13px; font-weight: 400;
+}
+.tb-dropdown-menu button:hover { background: rgba(255,255,255,0.08); }
+.tb-dropdown-menu button.active { background: var(--accent); color: #fff; }
+.tb-dropdown-menu .menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── Floating Context Bar (GoodNotes-style) ── */
+#context-bar {
+  display: none;
+  position: fixed;
+  z-index: 500;
+  background: #2c2c2e;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 5px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.05);
+  align-items: center; gap: 4px;
+  animation: popIn 0.15s ease;
+  pointer-events: all;
+}
+#context-bar.visible { display: flex; }
+@keyframes popIn { from { opacity:0; transform:scale(0.92) translateY(4px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.ctx-btn {
+  background: transparent; border: none; color: var(--text2);
+  padding: 5px 8px; border-radius: 8px; font-size: 14px;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap; font-weight: 500;
+}
+.ctx-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+.ctx-btn.danger:hover { background: rgba(255,69,58,0.15); color: var(--danger); }
+.ctx-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+.ctx-info { font-size: 11px; color: var(--text2); padding: 0 4px; white-space: nowrap; }
+.ctx-color {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25); padding: 1px; cursor: pointer;
+}
+.ctx-color-wrap { display: flex; align-items: center; gap: 3px; padding: 2px 4px; }
+.ctx-color-dot {
+  width: 20px; height: 20px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.1s; flex-shrink: 0;
+}
+.ctx-color-dot:hover { transform: scale(1.15); border-color: rgba(255,255,255,0.4); }
+
+/* status bar */
+#status-bar {
+  background: rgba(255,255,255,0.04); color: var(--text2);
+  padding: 3px 14px; font-size: 11px; font-weight: 500;
+  flex-shrink: 0; border-bottom: 1px solid var(--border);
+  letter-spacing: 0.1px;
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN WORKSPACE
+═══════════════════════════════════════════════ */
+#workspace {
+  flex-grow: 1; position: relative; overflow: hidden;
+  display: flex;
+}
+
+/* ─── Canvas area ─── */
+#canvas-scroll {
+  flex-grow: 1; overflow: hidden;
+  position: relative; background: #111;
+  display: flex; align-items: flex-start; justify-content: flex-start;
+}
+#canvas-wrapper {
+  position: absolute; top: 0; left: 0;
+  background: white;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  transform-origin: top left;
+}
+
+/* ─── Thumbnail strip ─── */
+#thumb-strip {
+  width: 140px; min-width: 80px; max-width: 320px;
+  background: var(--bar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; flex-shrink: 0;
+  position: relative;
+  user-select: none;
+}
+#thumb-strip.collapsed { width: 0 !important; overflow: hidden; }
+#thumb-strip.collapsed #thumb-resize-handle { display: none; }
+#thumb-strip-inner { padding: 8px; min-width: 80px; }
+
+/* resize handle — แนวตั้งขวาสุดของ strip */
+#thumb-resize-handle {
+  position: absolute; top: 0; right: 0;
+  width: 5px; height: 100%;
+  cursor: col-resize; z-index: 20;
+  background: transparent;
+  transition: background 0.15s;
+}
+#thumb-resize-handle:hover,
+#thumb-resize-handle.dragging { background: rgba(10,132,255,0.35); }
+.thumb-wrap {
+  margin-bottom: 10px; text-align: center; cursor: pointer;
+  border-radius: var(--radius-sm); padding: 5px;
+  transition: background 0.15s;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+.thumb-wrap:hover { background: rgba(255,255,255,0.06); }
+.thumb-wrap.active { background: rgba(10,132,255,0.15); border-left-color: var(--accent); }
+.thumb-canvas { max-width: 100%; border-radius: 4px; display: block; margin: 0 auto; }
+.thumb-label { font-size: 10px; color: var(--text2); margin-top: 4px; }
+.thumb-wrap.active .thumb-label { color: var(--text); }
+.page-tag-select {
+  width: 100%; margin-top: 4px; font-size: 10px;
+  background: rgba(255,255,255,0.06); color: var(--text2);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 2px 4px; cursor: pointer;
+}
+.page-tag-select:focus { outline: none; border-color: var(--accent); }
+
+/* strip toggle */
+#thumb-toggle {
+  position: absolute; right: -14px; top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 48px;
+  background: var(--bar2); border: none;
+  border-radius: 0 6px 6px 0;
+  color: var(--text2); font-size: 10px;
+  cursor: pointer; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  border-left: 1px solid var(--border);
+}
+#thumb-toggle:hover { background: #48484a; }
+
+/* ─── Floating panel (right) ─── */
+#float-panel {
+  position: absolute; top: 12px; right: 12px;
+  width: 320px; max-height: calc(100% - 24px);
+  background: var(--bar); border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.05);
+  display: flex; flex-direction: column;
+  z-index: 200; overflow: hidden;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+#float-panel.hidden {
+  transform: translateX(340px); opacity: 0; pointer-events: none;
+}
+#float-panel-header {
+  background: var(--bar2); color: var(--text);
+  padding: 8px 10px; display: flex; align-items: center;
+  cursor: move; flex-shrink: 0; gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+#float-panel-header .panel-tabs {
+  display: flex; gap: 3px; flex-grow: 1;
+}
+.panel-tab-btn {
+  background: transparent; border: none; color: var(--text2);
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600;
+}
+.panel-tab-btn.active { background: var(--accent); color: #fff; }
+#float-panel-close {
+  background: transparent; border: none; color: var(--text2);
+  font-size: 14px; padding: 2px 6px; line-height: 1; border-radius: 6px;
+}
+#float-panel-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+#float-panel-body {
+  overflow-y: auto; flex-grow: 1; padding: 12px;
+  color: var(--text);
+}
+
+/* panel toggle button */
+#panel-toggle-btn {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--radius-sm); padding: 7px 12px;
+  font-size: 13px; font-weight: 600;
+  z-index: 199; box-shadow: 0 4px 16px rgba(10,132,255,0.3);
+  display: none;
+}
+#panel-toggle-btn.visible { display: block; }
+
+/* panel sections */
+.panel-section { margin-bottom: 14px; }
+.panel-section h3 {
+  font-size: 11px; color: var(--accent);
+  margin: 0 0 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--border); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.form-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+.form-row label { flex: 1; font-size: 12px; color: var(--text2); }
+.form-row input, .form-row select { width: 145px; font-size: 12px; background: var(--bar2); color: var(--text); border-color: var(--border); }
+.check-item {
+  margin-bottom: 6px; padding: 6px 10px;
+  border-radius: var(--radius-sm); border-left: 3px solid var(--border);
+  background: rgba(255,255,255,0.04); font-size: 12px; color: var(--text);
+}
+.check-pass { border-left-color: var(--accent2); background: rgba(48,209,88,0.08); }
+.check-fail { border-left-color: var(--danger); background: rgba(255,69,58,0.08); }
+.check-wait { border-left-color: var(--warn); background: rgba(255,214,10,0.08); }
+
+/* comment panel */
+.checklist-group {
+  margin-bottom: 5px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: rgba(255,255,255,0.03);
+}
+.checklist-group summary {
+  padding: 7px 10px; background: rgba(255,255,255,0.05);
+  font-weight: 600; cursor: pointer; border-radius: var(--radius-sm);
+  font-size: 12px; list-style: none; color: var(--text);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.checklist-group summary::-webkit-details-marker { display: none; }
+.checklist-group summary::after { content: "▼"; font-size: 9px; color: var(--text2); }
+.checklist-group[open] summary::after { content: "▲"; }
+.checklist-group .content {
+  padding: 7px; border-top: 1px solid var(--border);
+  max-height: 200px; overflow-y: auto;
+}
+.std-comment-box { margin-bottom: 4px; display: flex; align-items: flex-start; gap: 7px; }
+.std-comment-box input[type="checkbox"] { margin-top: 3px; cursor: pointer; accent-color: var(--accent); }
+.std-comment-box label { font-size: 12px; cursor: pointer; line-height: 1.4; color: var(--text2); }
+.active-comment-list { list-style: none; padding: 0; margin: 0; }
+.active-comment-list li {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  padding: 6px 8px; margin-bottom: 4px; border-radius: var(--radius-sm);
+  display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text);
+}
+.btn-del { background: rgba(255,69,58,0.2); color: var(--danger); border: 1px solid rgba(255,69,58,0.3); padding: 2px 7px; border-radius: 4px; font-size: 11px; }
+
+/* ─── Law drag-drop panel ─── */
+.law-group {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+}
+.law-group-header {
+  padding: 7px 10px;
+  background: rgba(255,255,255,0.06);
+  font-weight: 700; font-size: 11px;
+  cursor: pointer; border-radius: var(--radius-sm);
+  color: var(--accent); letter-spacing: 0.3px;
+  display: flex; align-items: center; justify-content: space-between;
+  user-select: none;
+}
+.law-group-header .law-arrow { font-size: 9px; color: var(--text2); transition: transform 0.2s; }
+.law-group.open .law-arrow { transform: rotate(180deg); }
+.law-group-body { display: none; padding: 4px; border-top: 1px solid var(--border); }
+.law-group.open .law-group-body { display: block; }
+.law-item {
+  padding: 6px 8px; margin-bottom: 3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: grab; font-size: 11px; color: var(--text);
+  line-height: 1.45; transition: background 0.12s;
+  position: relative;
+}
+.law-item:hover { background: rgba(10,132,255,0.12); border-color: rgba(10,132,255,0.3); }
+.law-item:active { cursor: grabbing; }
+.law-item .law-no {
+  font-weight: 700; color: var(--accent);
+  font-size: 10px; display: block; margin-bottom: 2px;
+}
+.law-item.dragging { opacity: 0.4; }
+.law-drop-ghost {
+  position: fixed; pointer-events: none; z-index: 9999;
+  background: rgba(28,28,30,0.92); border: 2px solid var(--accent);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 11px; color: var(--text); max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%);
+  white-space: pre-wrap; line-height: 1.4;
+}
+
+/* ── Page management ── */
+#page-mgmt-bar {
+  display: none; padding: 6px 8px; gap: 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bar); flex-wrap: wrap; flex-shrink: 0;
+}
+#page-mgmt-bar.visible { display: flex; }
+.pmgmt-btn {
+  background: rgba(255,255,255,0.07); border: 1px solid var(--border);
+  color: var(--text); border-radius: 5px; padding: 3px 7px;
+  font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+.pmgmt-btn:hover { background: rgba(255,255,255,0.13); }
+.pmgmt-btn.danger:hover { background: rgba(255,69,58,0.2); border-color: var(--danger); color: var(--danger); }
+.thumb-chk {
+  position: absolute; top: 4px; left: 4px; width: 14px; height: 14px;
+  accent-color: var(--accent); cursor: pointer; display: none; z-index: 5;
+}
+.page-mgmt-mode .thumb-chk { display: block; }
+.thumb-wrap.pg-selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+.thumb-drag-handle {
+  position: absolute; top: 4px; right: 20px;
+  font-size: 11px; color: var(--text2); cursor: grab;
+  display: none; z-index: 5; padding: 2px; user-select: none;
+}
+.page-mgmt-mode .thumb-drag-handle { display: block; }
+.thumb-wrap.drag-over-top    { border-top: 2px solid var(--accent); }
+.thumb-wrap.drag-over-bottom { border-bottom: 2px solid var(--accent); }
+.thumb-wrap.dragging-page    { opacity: 0.35; }
+#page-context-menu {
+  position: fixed; z-index: 9999;
+  background: var(--bar); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  min-width: 160px; padding: 4px 0; display: none;
+}
+#page-context-menu.visible { display: block; }
+.ctx-item { padding: 7px 14px; font-size: 12px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.ctx-item:hover { background: rgba(255,255,255,0.08); }
+.ctx-item.danger { color: var(--danger); }
+.ctx-sep { border-top: 1px solid var(--border); margin: 3px 0; }
+#exp-menu {
+  position: absolute; bottom: calc(100% + 4px); left: 0;
+  background: var(--bar); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+  min-width: 190px; padding: 4px 0; display: none; z-index: 500;
+}
+#exp-menu.open { display: block; }
+.exp-item { padding: 7px 14px; font-size: 12px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.exp-item:hover { background: rgba(255,255,255,0.08); }
+.exp-sep { border-top: 1px solid var(--border); margin: 3px 0; padding: 3px 14px 0; font-size: 10px; color: var(--text2); }
+
+/* V/R badge บน thumbnail */
+.vr-badge {
+  position: absolute; top: 3px; right: 3px;
+  font-size: 9px; font-weight: 700; padding: 1px 4px;
+  border-radius: 3px; pointer-events: none; letter-spacing: 0.3px;
+}
+.vr-vector      { background: rgba(10,132,255,0.85); color: #fff; }
+.vr-vector-done { background: rgba(48,209,88,0.85);  color: #fff; }
+.vr-raster      { background: rgba(120,120,128,0.7); color: #fff; }
+.vr-extracting  { background: rgba(255,214,10,0.85); color: #000; }
+.thumb-wrap { position: relative; }
+
+/* snap dropdown menu */
+.snap-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  color: var(--text); border-radius: 4px; margin: 1px 4px;
+  transition: background 0.12s;
+}
+.snap-menu-item:hover { background: rgba(255,255,255,0.08); }
+.snap-check { width: 14px; color: var(--accent); font-size: 13px; flex-shrink: 0; }
+.snap-check.off { color: transparent; }
+.snap-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.snap-thresh-row { display:flex; align-items:center; gap:8px; padding:5px 12px; font-size:11px; color:var(--text2); }
+.snap-thresh-row label { width:80px; flex-shrink:0; }
+.snap-thresh-row input[type=range] { flex:1; accent-color:var(--accent); cursor:pointer; }
+.snap-thresh-row .snap-thresh-val { width:28px; text-align:right; color:var(--text); font-weight:600; flex-shrink:0; }
+
+/* ─── Bottom sheet (iPad) ─── */
+#bottom-sheet {
+  display: none; position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bar); border-radius: 16px 16px 0 0;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+  z-index: 300; max-height: 60vh;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  overflow: hidden; flex-direction: column;
+}
+#bottom-sheet.open { transform: translateY(0); }
+#bs-handle {
+  width: 36px; height: 4px; background: var(--bar2);
+  border-radius: 3px; margin: 10px auto 0; cursor: pointer; flex-shrink: 0;
+}
+#bs-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  padding: 0 12px; flex-shrink: 0;
+}
+.bs-tab {
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--text2);
+}
+.bs-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+#bs-body { overflow-y: auto; padding: 12px; flex-grow: 1; }
+
+/* ─── iPad bottom toolbar ─── */
+#ipad-bottom-bar {
+  display: none; background: var(--bar);
+  height: 58px; align-items: center; justify-content: space-around;
+  padding: 0 8px; border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ipad-tool-btn {
+  background: transparent; border: none; color: var(--text2);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 6px 10px; border-radius: var(--radius-sm);
+  font-size: 10px; min-width: 52px;
+}
+.ipad-tool-btn span { font-size: 20px; line-height: 1; }
+.ipad-tool-btn.active { background: rgba(10,132,255,0.2); color: var(--accent); }
+
+/* ─── Mini zoom ─── */
+#mini-zoom {
+  position: absolute; bottom: 14px; right: 14px;
+  display: flex; flex-direction: column; gap: 3px;
+  z-index: 100;
+}
+.mini-btn {
+  width: 34px; height: 34px;
+  background: rgba(44,44,46,0.9);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+}
+.mini-btn:hover { background: var(--accent); }
+
+/* ─── Doc editor ─── */
+#workspace-editor {
+  display: none; flex-direction: column;
+  height: 100%; width: 100%;
+  padding: 20px; background: var(--bar); overflow-y: auto;
+}
+.doc-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.doc-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  padding: 7px 16px; font-size: 12px; font-weight: 600;
+  border-radius: var(--radius-sm); color: var(--text2);
+}
+.doc-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+textarea.report-box {
+  flex-grow: 1; width: 100%;
+  font-family: 'Sarabun', sans-serif; font-size: 15px;
+  padding: 16px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: rgba(255,255,255,0.04);
+  color: var(--text); resize: none; line-height: 1.7;
+}
+
+/* misc */
+.hide { display: none !important; }
+.btn-active  { background: var(--accent) !important; color: #fff !important; }
+.btn-danger  { background: var(--danger) !important; color: #fff !important; }
+.btn-success { background: var(--accent2) !important; color: #fff !important; font-weight: 700 !important; }
+.btn-warning { background: var(--warn) !important; color: #333 !important; }
+
+/* iPad mode overrides */
+body.ipad-mode #top-bar { height: 56px; }
+body.ipad-mode .tb-btn { min-width: 44px; height: 44px; font-size: 20px; }
+body.ipad-mode #ipad-bottom-bar { display: flex; }
+body.ipad-mode #float-panel { display: none !important; }
+body.ipad-mode #panel-toggle-btn { display: none !important; }
+body.ipad-mode #bottom-sheet { display: flex; }
+body.ipad-mode #mini-zoom { bottom: 74px; }
+/* ── Loading Overlay ── */
+#loading-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0d1117;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px; transition: opacity 0.4s ease;
+}
+#loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+#loading-overlay.hidden { display: none; }
+#loading-title {
+  color: #7eb8f7; font-size: 18px; font-weight: 700; letter-spacing: 1px;
+}
+#loading-sub {
+  color: #888; font-size: 13px; min-height: 20px; text-align: center;
+}
+#loading-bar-wrap {
+  width: 320px; height: 10px;
+  background: #1e2a3a; border-radius: 99px; overflow: hidden;
+}
+#loading-bar {
+  height: 100%; width: 0%; border-radius: 99px;
+  background: linear-gradient(90deg,#0056b3,#7eb8f7);
+  transition: width 0.25s ease;
+}
+#loading-pct {
+  color: #7eb8f7; font-size: 13px; font-weight: 700;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     LOADING OVERLAY
+═══════════════════════════════════ -->
+<div id="loading-overlay" class="hidden">
+  <div id="loading-title">📄 กำลังโหลด PDF</div>
+  <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+  <div id="loading-pct">0%</div>
+  <div id="loading-sub">กรุณารอสักครู่...</div>
+</div>
+
+<!-- ═══════════════════════════════════
+     TOP BAR
+═══════════════════════════════════ -->
+<div id="top-bar">
+  <!-- File -->
+  <label id="pdf-upload-label" for="pdf-upload">📂 เปิดไฟล์</label>
+  <input type="file" id="pdf-upload" accept="application/pdf">
+
+  <div class="sep"></div>
+
+  <!-- Page nav -->
+  <div id="page-nav">
+    <button class="tb-btn" onclick="changePage(-1)" id="btn-prev" disabled title="หน้าก่อน">◀</button>
+    <span id="page-info">-/-</span>
+    <button class="tb-btn" onclick="changePage(1)" id="btn-next" disabled title="หน้าถัดไป">▶</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Primary tools group -->
+  <div class="tool-group">
+    <button class="tb-btn active" id="btn-pan" onclick="setMode('pan')" disabled title="เลื่อน [Space+Drag]">🖐️</button>
+    <button class="tb-btn" id="btn-select" onclick="setMode('select')" disabled title="เลือก/ย้าย">↖️</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Measure tools group -->
+  <div class="tool-group">
+    <button class="tb-btn danger" id="btn-calibrate" onclick="setMode('calibrate')" title="ตั้งสเกล">🎯</button>
+    <button class="tb-btn" id="btn-measure-line" onclick="setMode('measure-line')" disabled title="วัดระยะ">📏</button>
+    <div class="tb-dropdown" id="poly-dropdown">
+      <button class="tb-btn" id="btn-polygon" onclick="toggleDropdown('poly-dropdown')" disabled title="วัดพื้นที่">📐</button>
+      <div class="tb-dropdown-menu" id="poly-menu-inner">
+        <button onclick="setPolyType('site');setMode('polygon');closeDropdowns()">🔵 ที่ดิน</button>
+        <button onclick="setPolyType('building');setMode('polygon');closeDropdowns()">🔴 อาคาร</button>
+        <button onclick="setPolyType('space');setMode('polygon');closeDropdowns()">🟢 ที่ว่าง</button>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;"></div>
+        <button onclick="setPolyTypeCustom();closeDropdowns()">✏️ กำหนดเอง</button>
+      </div>
+    </div>
+    <button class="tb-btn" id="btn-setback" onclick="setMode('setback')" disabled title="ระยะร่น">🛣️</button>
+    <button class="tb-btn btn-success hide" id="btn-finish" onclick="finishCurrentTool()" title="ปิดรูป">✔️</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Snap dropdown -->
+  <div class="tb-dropdown" id="snap-dropdown">
+    <button class="tb-btn active" id="btn-snap" onclick="toggleDropdown('snap-dropdown')" title="ตั้งค่า Snap">🧲</button>
+    <div class="tb-dropdown-menu" id="snap-menu" style="min-width:180px;">
+      <div class="snap-menu-item" onclick="toggleSnap('vector')">
+        <span class="snap-check" id="snapchk-vector">✓</span>
+        <span class="snap-icon">⚓</span>
+        <span>Vector endpoint</span>
+      </div>
+      <div class="snap-menu-item" onclick="toggleSnap('object')">
+        <span class="snap-check" id="snapchk-object">✓</span>
+        <span class="snap-icon">🔲</span>
+        <span>Object snap</span>
+      </div>
+      <div class="snap-menu-item" onclick="toggleSnap('midpoint')">
+        <span class="snap-check" id="snapchk-midpoint">✓</span>
+        <span class="snap-icon">⊕</span>
+        <span>Midpoint</span>
+      </div>
+      <div class="snap-menu-item" onclick="toggleSnap('ortho')">
+        <span class="snap-check" id="snapchk-ortho">✓</span>
+        <span class="snap-icon">⊞</span>
+        <span>Ortho ถาวร</span>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;"></div>
+      <div style="padding:4px 12px 2px;font-size:10px;color:var(--text2);letter-spacing:0.04em;">ระยะ SNAP (px)</div>
+      <div class="snap-thresh-row">
+        <label>📍 จุด (EP/MP/CT)</label>
+        <input type="range" id="snap-thresh-pt" min="6" max="50" value="22" step="1"
+          oninput="updateSnapThreshold()">
+        <span class="snap-thresh-val" id="snap-thresh-pt-val">22</span>
+      </div>
+      <div class="snap-thresh-row">
+        <label>📏 เส้น (NL/IX)</label>
+        <input type="range" id="snap-thresh-ln" min="4" max="30" value="14" step="1"
+          oninput="updateSnapThreshold()">
+        <span class="snap-thresh-val" id="snap-thresh-ln-val">14</span>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;padding:4px 10px;font-size:10px;color:var(--text2);">
+        💡 Shift ค้าง = ortho ชั่วคราว
+      </div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Parking -->
+  <div class="tool-group">
+    <button class="tb-btn" id="btn-park-normal" onclick="setMode('park-normal')" disabled title="นับที่จอดรถปกติ">🚗</button>
+    <button class="tb-btn" id="btn-park-disabled" onclick="setMode('park-disabled')" disabled title="นับที่จอดรถคนพิการ">♿</button>
+  </div>
+  <div id="park-counter" style="display:none;">
+    🚗 <span id="park-normal-count">0</span>&nbsp;♿ <span id="park-disabled-count">0</span>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Annotation tools -->
+  <div class="tool-group">
+    <div class="tb-dropdown" id="annot-dropdown">
+      <button class="tb-btn" onclick="toggleDropdown('annot-dropdown')" disabled id="btn-annot" title="เครื่องมือวาด">✏️</button>
+      <div class="tb-dropdown-menu">
+        <button id="btn-text"      onclick="setMode('text');closeDropdowns()">🇹 ข้อความ</button>
+        <button id="btn-rect"      onclick="setMode('rect');closeDropdowns()">⬜ กรอบ</button>
+        <button id="btn-zone"      onclick="setMode('zone');closeDropdowns()">🟪 Zone ไฮไลท์</button>
+        <button id="btn-pen"       onclick="setMode('pen');closeDropdowns()">🖊️ ปากกา</button>
+        <button id="btn-highlight" onclick="setMode('highlight');closeDropdowns()">🖍️ ไฮไลท์</button>
+        <div class="menu-sep"></div>
+        <button onclick="deleteSelected();closeDropdowns()">🗑️ ลบวัตถุ</button>
+        <button onclick="undoLast();closeDropdowns()">↩ Undo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color + stroke -->
+  <div class="color-dot-wrap">
+    <label title="เลือกสี">
+      <input type="color" id="tool-color" value="#ff0000" onchange="updateStyle()" title="สี">
+    </label>
+    <input type="number" id="tool-width" value="2" min="1" max="20" class="stroke-input" onchange="updateStyle()" title="ขนาดเส้น">
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Zoom -->
+  <div class="tool-group">
+    <button class="tb-btn" onclick="changeZoom(-0.2)" id="btn-zoom-out" disabled title="ย่อ">−</button>
+    <div id="zoom-display">100%</div>
+    <button class="tb-btn" onclick="changeZoom(0.2)" id="btn-zoom-in" disabled title="ขยาย">+</button>
+    <button class="tb-btn" onclick="rotatePage()" disabled id="btn-rotate" title="หมุน 90°">↻</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <span id="scale-badge">❌ ยังไม่ตั้งสเกล</span>
+
+  <!-- Panel toggle -->
+  <button id="panel-toggle-btn" class="tb-btn" onclick="togglePanel()" style="margin-left:4px;" title="แสดง/ซ่อน Panel">📋</button>
+
+  <!-- Export PDF -->
+  <button id="btn-export-pdf" class="tb-btn" onclick="exportAnnotatedPDF()" disabled title="บันทึกเป็น PDF พร้อม annotation" style="color:#ffd60a;">💾</button>
+
+  <!-- Mode toggle -->
+  <button id="mode-toggle" onclick="toggleDeviceMode()">🖥️ Desktop</button>
+
+  <!-- Tab switcher -->
+  <div class="sep"></div>
+  <div class="tool-group">
+    <button class="tb-btn active" onclick="switchMainTab(1)" id="tab-btn-1" style="font-size:11px;padding:4px 8px;min-width:auto;">📄 วัดแปลน</button>
+    <button class="tb-btn" onclick="switchMainTab(2)" id="tab-btn-2" style="font-size:11px;padding:4px 8px;min-width:auto;">✏️ Comment</button>
+    <button class="tb-btn" onclick="switchMainTab(3)" id="tab-btn-3" style="font-size:11px;padding:4px 8px;min-width:auto;">📋 ค.1</button>
+  </div>
+</div>
+
+<div id="status-bar">รออัปโหลดไฟล์ PDF...</div>
+<div id="vector-badge" style="display:none;position:fixed;bottom:28px;right:12px;z-index:200;
+  background:rgba(28,28,30,0.88);border:1px solid rgba(255,255,255,0.1);
+  border-radius:8px;padding:3px 9px;font-size:11px;color:#e5e5e7;
+  backdrop-filter:blur(8px);pointer-events:none;letter-spacing:0.2px;">
+  🟢 Vector
+</div>
+
+<!-- Floating Context Bar -->
+<div id="context-bar">
+  <span class="ctx-info" id="ctx-label">—</span>
+  <div class="ctx-sep"></div>
+  <div class="ctx-color-wrap">
+    <span style="font-size:11px;color:var(--text2);">สี</span>
+    <input type="color" id="ctx-color" class="ctx-color" value="#ff0000" onchange="applyContextColor(this.value)">
+  </div>
+  <div class="ctx-sep"></div>
+  <button class="ctx-btn" onclick="bringToFront()">⬆️ หน้าสุด</button>
+  <button class="ctx-btn" onclick="sendToBack()">⬇️ หลังสุด</button>
+  <div class="ctx-sep"></div>
+  <button class="ctx-btn danger" onclick="deleteSelected();hideContextBar()">🗑 ลบ</button>
+</div>
+
+<!-- ═══════════════════════════════════
+     MAIN WORKSPACE
+═══════════════════════════════════ -->
+<div id="workspace">
+
+  <!-- Thumbnail strip -->
+  <div id="thumb-strip">
+    <div id="thumb-resize-handle" title="ลากเพื่อปรับความกว้าง"></div>
+
+    <!-- Page management toolbar -->
+    <div id="page-mgmt-bar">
+      <input type="checkbox" id="page-select-all" title="เลือกทั้งหมด" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--accent);cursor:pointer;">
+      <button class="pmgmt-btn" onclick="duplicateSelectedPages()" title="ทำซ้ำหน้าที่เลือก">⧉ ซ้ำ</button>
+      <button class="pmgmt-btn danger" onclick="deleteSelectedPages()" title="ลบหน้าที่เลือก">🗑️ ลบ</button>
+      <label class="pmgmt-btn" style="cursor:pointer;" title="เพิ่ม PDF">
+        ＋ PDF<input type="file" accept="application/pdf" style="display:none;" onchange="mergePDF(this)">
+      </label>
+      <div style="flex:1;"></div>
+      <!-- Export/Print dropdown -->
+      <div style="position:relative;">
+        <button class="pmgmt-btn" onclick="toggleExpMenu()" id="btn-exp-main">💾▾</button>
+        <div id="exp-menu">
+          <div class="exp-sep">Export PDF</div>
+          <div class="exp-item" onclick="exportPages('all');closeExpMenu()">📄 ทั้งเอกสาร</div>
+          <div class="exp-item" onclick="exportPages('selected');closeExpMenu()">☑️ หน้าที่เลือก</div>
+          <div class="exp-item" onclick="exportPages('current');closeExpMenu()">📌 หน้าปัจจุบัน</div>
+          <div class="exp-sep">Print</div>
+          <div class="exp-item" onclick="printPages('all');closeExpMenu()">🖨️ ปริ้นทั้งเอกสาร</div>
+          <div class="exp-item" onclick="printPages('selected');closeExpMenu()">🖨️ ปริ้นหน้าที่เลือก</div>
+          <div class="exp-item" onclick="printPages('current');closeExpMenu()">🖨️ ปริ้นหน้าปัจจุบัน</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page mgmt toggle button -->
+    <div style="display:flex;align-items:center;padding:4px 8px;border-bottom:1px solid var(--border);gap:6px;flex-shrink:0;">
+      <button class="pmgmt-btn" id="btn-page-mgmt" onclick="togglePageMgmtMode()" style="font-size:10px;">✂️ จัดการหน้า</button>
+    </div>
+
+    <div id="thumb-strip-inner">
+      <div style="color:#555;text-align:center;margin-top:20px;font-size:12px;" id="thumb-placeholder">หน้า PDF</div>
+    </div>
+    <button id="thumb-toggle" onclick="toggleThumbStrip()" title="ซ่อน/แสดงหน้า">◀</button>
+  </div>
+
+  <!-- Context menu (page right-click) -->
+  <div id="page-context-menu">
+    <div class="ctx-item" onclick="ctxDuplicate()">⧉ ทำซ้ำหน้านี้</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="ctxExport()">💾 Export หน้านี้</div>
+    <div class="ctx-item" onclick="ctxPrint()">🖨️ ปริ้นหน้านี้</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item danger" onclick="ctxDelete()">🗑️ ลบหน้านี้</div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-scroll">
+    <div id="canvas-wrapper">
+      <canvas id="drawing-canvas"></canvas>
+    </div>
+
+    <!-- Mini zoom overlay -->
+    <div id="mini-zoom">
+      <button class="mini-btn" onclick="changeZoom(0.2)" title="ขยาย">+</button>
+      <button class="mini-btn" onclick="resetZoom()" title="100%">⊙</button>
+      <button class="mini-btn" onclick="changeZoom(-0.2)" title="ย่อ">−</button>
+    </div>
+  </div>
+
+  <!-- Floating panel (desktop) -->
+  <div id="float-panel">
+    <div id="float-panel-header">
+      <div class="panel-tabs">
+        <button class="panel-tab-btn active" onclick="switchPanelTab(1)" id="ptab-1">📋 ตรวจสอบ</button>
+        <button class="panel-tab-btn" onclick="switchPanelTab(2)" id="ptab-2">✏️ Comment</button>
+        <button class="panel-tab-btn" onclick="switchPanelTab(3)" id="ptab-3">⚖️ กฎหมาย</button>
+      </div>
+      <button id="float-panel-close" onclick="togglePanel()">✕</button>
+    </div>
+    <div id="float-panel-body">
+      <!-- Tab 1 content -->
+      <div id="panel-content-1">
+        <div class="panel-section">
+          <h3>A. ข้อมูลโครงการ</h3>
+          <div class="form-row"><label>ชื่อเจ้าของ:</label><input type="text" id="info-owner" oninput="syncState()"></div>
+          <div class="form-row"><label>เลขที่คำขอ:</label><input type="text" id="info-req" oninput="syncState()"></div>
+          <div class="form-row"><label>ที่ตั้ง:</label><input type="text" id="info-loc" oninput="syncState()"></div>
+          <div class="form-row">
+            <label>ประเภทอาคาร:</label>
+            <select id="info-type" onchange="syncState();runCheckEngine();">
+              <option value="residential">บ้านพักอาศัย</option>
+              <option value="commercial">พาณิชยกรรม</option>
+            </select>
+          </div>
+          <div class="form-row"><label>ความสูง (ม.):</label><input type="number" id="info-height" value="9" oninput="syncState();runCheckEngine();"></div>
+          <div class="form-row"><label>กว้างถนน (ม.):</label><input type="number" id="info-road" value="6" oninput="syncState();runCheckEngine();"></div>
+          <div class="form-row"><label>จำนวนชั้น:</label><input type="number" id="info-floor" value="2" oninput="syncState();runCheckEngine();"></div>
+        </div>
+        <div class="panel-section">
+          <h3>C. นับที่จอดรถ</h3>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div style="background:#1a2a3a;border-radius:8px;padding:8px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:700;color:#7eb8f7;" id="panel-park-normal">0</div>
+              <div style="font-size:11px;color:#888;">🚗 ปกติ</div>
+            </div>
+            <div style="background:#1a2a3a;border-radius:8px;padding:8px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:700;color:#69db7c;" id="panel-park-disabled">0</div>
+              <div style="font-size:11px;color:#888;">♿ คนพิการ</div>
+            </div>
+            <div style="background:#1a2a3a;border-radius:8px;padding:8px 14px;text-align:center;">
+              <div style="font-size:22px;font-weight:700;color:#ffd43b;" id="panel-park-total">0</div>
+              <div style="font-size:11px;color:#888;">รวม</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#888;">กด 🚗 หรือ ♿ ในแถบเครื่องมือ แล้วคลิกบนแบบเพื่อนับ</div>
+        </div>
+          <div id="checklist-auto-container">
+            <div class="check-item check-wait">⏳ รอตั้งสเกลและวัดระยะแปลน</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2 content -->
+      <div id="panel-content-2" class="hide">
+        <div class="panel-section">
+          <h3>เพิ่มรายการทักท้วง</h3>
+          <div style="margin-bottom:10px;">
+            <input type="text" id="custom-comment-input" placeholder="พิมพ์ข้อความทักท้วงเอง..." style="width:100%;margin-bottom:6px;">
+            <button style="width:100%;background:#007bff;color:#fff;border-color:#007bff;padding:7px;" onclick="addCustomComment()">+ เพิ่มลงรายการ</button>
+          </div>
+          <details class="checklist-group">
+            <summary>1. แผนผังบริเวณและแบบแปลน</summary>
+            <div class="content">
+              <div class="std-comment-box"><input type="checkbox" id="chk-1-1" value="แผนผังบริเวณ แบบแปลน และรายการประกอบแบบแปลน ไม่ถูกต้องตามกฎกระทรวงกำหนดหลักเกณฑ์ฯ พ.ศ. 2564 ข้อ 16" onchange="toggleStdComment(this)"><label for="chk-1-1">แบบแปลนไม่ถูกต้องตามกฎกระทรวง พ.ศ. 2564</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-1-2" value="ไม่แสดงขอบนอกของอาคารที่มีอยู่แล้ว และระยะห่างถึงขอบเขตที่ดินทุกด้าน" onchange="toggleStdComment(this)"><label for="chk-1-2">ไม่แสดงขอบนอกอาคารเดิมและระยะห่างเขตที่ดิน</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-1-3" value="ไม่แสดงระดับของพื้นชั้นล่างของอาคาร และความสัมพันธ์กับระดับถนนสาธารณะที่ใกล้ที่สุดและระดับพื้นดิน" onchange="toggleStdComment(this)"><label for="chk-1-3">ไม่แสดงระดับพื้นชั้นล่างเทียบถนน</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-1-4" value="ขนาดขอบเขตที่ดินซึ่งแสดงในแบบ มีขนาดไม่ตรงกับสภาพความเป็นจริง" onchange="toggleStdComment(this)"><label for="chk-1-4">ขนาดที่ดินในแบบไม่ตรงกับความจริง</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-1-5" value="การขออนุญาตดัดแปลงอาคาร ไม่แสดงส่วนที่มีอยู่เดิม และส่วนที่จะดัดแปลงให้ชัดเจน" onchange="toggleStdComment(this)"><label for="chk-1-5">ไม่แสดงส่วนดัดแปลงและส่วนเดิมให้ชัดเจน</label></div>
+            </div>
+          </details>
+          <details class="checklist-group">
+            <summary>2. แนวอาคาร ระยะร่น และที่ว่าง</summary>
+            <div class="content">
+              <div class="std-comment-box"><input type="checkbox" id="chk-2-1" value="อาคารก่อสร้างใกล้ถนนสาธารณะ ร่นแนวอาคารห่างจากกึ่งกลาง/เขตถนนสาธารณะน้อยกว่าที่กฎหมายกำหนด (กฎกระทรวง ฉบับที่ 55 ข้อ 41)" onchange="toggleStdComment(this)"><label for="chk-2-1">ระยะร่นจากถนนสาธารณะไม่ถึงเกณฑ์</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-2-2" value="อาคารมีที่ว่างน้อยกว่าที่กฎหมายกำหนด (ข้อบัญญัติ กทม. พ.ศ. 2544 ข้อ 52)" onchange="toggleStdComment(this)"><label for="chk-2-2">มีพื้นที่ว่าง (Open Space) น้อยกว่าเกณฑ์</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-2-3" value="ด้านชิดที่ดินเอกชน ช่องเปิด ประตู หน้าต่าง ช่องระบายอากาศ หรือริมระเบียง อยู่ห่างเขตที่ดินน้อยกว่าที่กำหนด (กฎกระทรวง ฉบับที่ 55 ข้อ 50)" onchange="toggleStdComment(this)"><label for="chk-2-3">หน้าต่าง/ช่องเปิด/ระเบียง ชิดเขตที่ดินเกินไป</label></div>
+            </div>
+          </details>
+          <details class="checklist-group">
+            <summary>3. บันได ดาดฟ้า และที่จอดรถ</summary>
+            <div class="content">
+              <div class="std-comment-box"><input type="checkbox" id="chk-3-1" value="บันไดมีความกว้างสุทธิ ลูกตั้ง หรือลูกนอน ไม่เป็นไปตามกฎกระทรวง ฉบับที่ 55 ข้อ 24" onchange="toggleStdComment(this)"><label for="chk-3-1">ขนาดบันไดไม่ได้มาตรฐาน</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-3-2" value="อาคารไม่จัดให้มีบันไดหนีไฟที่ทำด้วยวัสดุทนไฟ หรือบันไดหนีไฟมีขนาดไม่ถูกต้อง (กฎกระทรวง ฉบับที่ 55 ข้อ 27-29)" onchange="toggleStdComment(this)"><label for="chk-3-2">บันไดหนีไฟไม่ถูกต้อง / ไม่มีบันไดหนีไฟ</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-3-3" value="ด้านของอาคารที่อยู่ห่างเขตที่ดินน้อยกว่าเกณฑ์ ดาดฟ้าของอาคารด้านนั้นไม่มีผนังทึบสูงไม่น้อยกว่า 1.80 เมตร" onchange="toggleStdComment(this)"><label for="chk-3-3">ดาดฟ้าชิดเขตไม่มีผนังทึบสูง 1.80 ม.</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-3-4" value="อาคารจัดที่จอดรถ และขนาดช่องจอดรถให้ไม่เพียงพอ หรือมีขนาดน้อยกว่าเกณฑ์ (ข้อบัญญัติ กทม. พ.ศ. 2544)" onchange="toggleStdComment(this)"><label for="chk-3-4">ที่จอดรถไม่เพียงพอ / ขนาดช่องจอดไม่ถูกต้อง</label></div>
+            </div>
+          </details>
+          <details class="checklist-group">
+            <summary>4. เอกสารประกอบไม่ครบถ้วน</summary>
+            <div class="content">
+              <div class="std-comment-box"><input type="checkbox" id="chk-4-1" value="ผู้ยื่นขออนุญาตและเจ้าของที่ดินยังไม่ลงนามรับรองเป็นหลักฐาน" onchange="toggleStdComment(this)"><label for="chk-4-1">ผู้ยื่น/เจ้าของที่ดิน ยังไม่ลงนามรับรอง</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-4-2" value="ให้ยื่นสำเนาโฉนดที่ดินให้ครบถ้วนทุกหน้า และเจ้าของที่ดินทุกรายต้องลงนามรับรอง" onchange="toggleStdComment(this)"><label for="chk-4-2">สำเนาโฉนดที่ดินไม่ครบถ้วน / ขาดลงนาม</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-4-3" value="หนังสือรับรองของผู้ประกอบวิชาชีพวิศวกรรม/สถาปัตยกรรม ลงนามพยานไม่ครบถ้วน" onchange="toggleStdComment(this)"><label for="chk-4-3">หนังสือรับรองวิศวกร/สถาปนิก ไม่ครบถ้วน</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-4-4" value="หนังสือมอบอำนาจเจ้าของที่ดิน/ผู้ขออนุญาต ไม่ได้ลงรายละเอียด ไม่ได้ติดอากรแสตมป์" onchange="toggleStdComment(this)"><label for="chk-4-4">หนังสือมอบอำนาจ ไม่ติดอากรแสตมป์/ไม่ครบ</label></div>
+              <div class="std-comment-box"><input type="checkbox" id="chk-4-5" value="ไม่ได้แสดงการตรวจสอบงานออกแบบและคำนวณส่วนต่าง ๆ ของโครงสร้างอาคาร" onchange="toggleStdComment(this)"><label for="chk-4-5">ขาดรายการคำนวณโครงสร้าง</label></div>
+            </div>
+          </details>
+        </div>
+        <div class="panel-section">
+          <h3>รายการทักท้วงทั้งหมด (<span id="comment-count">0</span>)</h3>
+          <ul class="active-comment-list" id="active-comment-list"></ul>
+        </div>
+      </div>
+
+      <!-- Tab 3: ข้อกฎหมาย drag-drop -->
+      <div id="panel-content-3" class="hide">
+        <div class="panel-section" style="padding-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--text2);flex:1;">ลากข้อความไปวางบนแบบ</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <span style="font-size:11px;color:var(--text2);">สี:</span>
+              <input type="color" id="law-color" value="#ff453a" style="width:22px;height:22px;border-radius:50%;padding:1px;cursor:pointer;">
+            </div>
+          </div>
+          <input type="text" id="law-search" placeholder="🔍 ค้นหาข้อกฎหมาย..." style="width:100%;margin-bottom:8px;font-size:12px;" oninput="filterLawItems(this.value)">
+        </div>
+        <div id="law-list" style="overflow-y:auto;max-height:calc(100% - 90px);padding:0 6px 8px;">
+          <!-- สร้างจาก JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel show button (when panel hidden) -->
+  <button id="panel-toggle-btn" class="visible" onclick="togglePanel()">📋 Panel</button>
+
+  <!-- Bottom sheet (iPad mode) -->
+  <div id="bottom-sheet">
+    <div id="bs-handle" onclick="toggleBottomSheet()"></div>
+    <div id="bs-tabs">
+      <button class="bs-tab active" onclick="switchBsTab(1)" id="bstab-1">📋 ตรวจสอบ</button>
+      <button class="bs-tab" onclick="switchBsTab(2)" id="bstab-2">✏️ Comment</button>
+      <button class="bs-tab" onclick="switchBsTab(3)" id="bstab-3">📑 หน้า PDF</button>
+    </div>
+    <div id="bs-body">
+      <div id="bs-content-1"><p style="color:#888;font-size:13px;">เนื้อหา checklist (เหมือน Panel Tab 1)</p></div>
+      <div id="bs-content-2" class="hide"><p style="color:#888;font-size:13px;">เนื้อหา comment (เหมือน Panel Tab 2)</p></div>
+      <div id="bs-content-3" class="hide" id="bs-thumbs"></div>
+    </div>
+  </div>
+</div>
+
+<!-- iPad bottom toolbar -->
+<div id="ipad-bottom-bar">
+  <button class="ipad-tool-btn active" id="ipad-pan" onclick="setMode('pan')"><span>🖐️</span>เลื่อน</button>
+  <button class="ipad-tool-btn" id="ipad-calibrate" onclick="setMode('calibrate')"><span>🎯</span>สเกล</button>
+  <button class="ipad-tool-btn" id="ipad-measure" onclick="setMode('measure-line')"><span>📏</span>ระยะ</button>
+  <button class="ipad-tool-btn" id="ipad-polygon" onclick="openPolyMenu()"><span>📐</span>พื้นที่</button>
+  <button class="ipad-tool-btn" id="ipad-setback" onclick="setMode('setback')"><span>🛣️</span>ร่น</button>
+  <button class="ipad-tool-btn" onclick="toggleBottomSheet()"><span>📋</span>Panel</button>
+</div>
+
+<!-- Doc editor (Tab 3) -->
+<div id="workspace-editor">
+  <div class="doc-tabs">
+    <button class="doc-btn active" id="doc-btn-memo"  onclick="switchDoc('memo')">1. บันทึกข้อความ</button>
+    <button class="doc-btn" id="doc-btn-ko1"   onclick="switchDoc('ko1')">2. แบบ ค.1</button>
+    <button class="doc-btn" id="doc-btn-annex" onclick="switchDoc('annex')">3. รายการแนบ</button>
+    <div style="flex-grow:1;"></div>
+    <button style="background:#ffc107;border-color:#ffc107;padding:8px 14px;font-weight:700;" onclick="generateAllDocs()">🔄 ดึงข้อมูล</button>
+    <button style="background:#28a745;color:#fff;border-color:#28a745;padding:8px 14px;font-weight:700;" onclick="saveAndCopyDoc()">📋 Copy</button>
+  </div>
+  <textarea id="doc-textarea" class="report-box"></textarea>
+  <span id="save-noti" style="color:#28a745;font-weight:700;margin-top:8px;display:none;">✅ บันทึกสำเร็จ และคัดลอกแล้ว</span>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     MEASUREMENT ENGINE  (Snap to Point + Line)
+═══════════════════════════════════════════════════════ -->
+<script>
+const MeasurementEngine = (function () {
+  const SETBACK_GUIDE_COLORS = ['#e91e63','#9c27b0','#ff5722'];
+  const lawColors = {
+    site:'rgba(0,86,179,0.4)', building:'rgba(220,53,69,0.4)', space:'rgba(40,167,69,0.4)',
+    floor:'rgba(255,193,7,0.4)', parking:'rgba(255,120,0,0.4)',
+    stair:'rgba(156,39,176,0.4)', roof:'rgba(150,150,150,0.4)',
+  };
+  const strokeColors = {
+    site:'#0056b3', building:'#dc3545', space:'#28a745',
+    floor:'#e6a800', parking:'#ff7800', stair:'#9c27b0', roof:'#666',
+  };
+  function _polyColor(t){ return lawColors[t]||'rgba(100,100,100,0.35)'; }
+  function _strokeColor(t){ return strokeColors[t]||'#555'; }
+  let SNAP_PT_THRESHOLD = 22, SNAP_LINE_THRESHOLD = 14;
+
+  let _canvas=null,_getZoom=null,_onCalibrated=null,_onMeasured=null;
+  let PIXELS_PER_METER=0;
+  let tempPoints=[],tempLines=[],tempCircles=[],tempLabels=[];
+  let _ghostLine=null,_snapIndicator=null;
+
+  function init(c,gz,cb){ _canvas=c;_getZoom=gz;_onCalibrated=cb&&cb.onCalibrated||function(){};_onMeasured=cb&&cb.onMeasured||function(){}; }
+  function resetCalibration(){ PIXELS_PER_METER=0; }
+  function getPixelsPerMeter(){ return PIXELS_PER_METER; }
+  function isCalibrated(){ return PIXELS_PER_METER>0; }
+  function getTempPointCount(){ return tempPoints.length; }
+  function sw(b){ return b/_getZoom(); }
+
+  function _addDot(x,y,color,label){
+    const r=sw(5);
+    const c=new fabric.Circle({left:x-r,top:y-r,radius:r,fill:color,stroke:'#fff',strokeWidth:sw(1.5),selectable:false,evented:false});
+    _canvas.add(c); tempCircles.push(c);
+    if(label){ const t=new fabric.Text(label,{left:x+sw(8),top:y-sw(12),fontSize:Math.max(10,sw(14)),fill:'#fff',backgroundColor:color,padding:3,selectable:false,evented:false}); _canvas.add(t); tempLabels.push(t); }
+  }
+  function _addGuideLine(x1,y1,x2,y2,color,dashed){
+    const l=new fabric.Line([x1,y1,x2,y2],{stroke:color,strokeWidth:sw(2),strokeDashArray:dashed?[sw(6),sw(4)]:null,selectable:false,evented:false});
+    _canvas.add(l); tempLines.push(l); return l;
+  }
+  function _getAnchors(obj){
+    if(!obj||!obj.customData) return [];
+    if(obj.type==='polygon'&&obj.points) return obj.points;
+    if(obj.type==='line') return [{x:obj.x1,y:obj.y1},{x:obj.x2,y:obj.y2}];
+    return [];
+  }
+  // ── Snap flags (controlled by toolbar) ──
+  const snapFlags = { vector: true, object: true, midpoint: true, ortho: true };
+  function setSnapFlag(key, val){ snapFlags[key] = val; }
+  function getSnapFlags(){ return snapFlags; }
+  function setSnapThreshold(pt, ln){ SNAP_PT_THRESHOLD = pt; SNAP_LINE_THRESHOLD = ln; }
+  function getSnapThreshold(){ return { pt: SNAP_PT_THRESHOLD, ln: SNAP_LINE_THRESHOLD }; }
+
+  function snapPoint(pt, prevPt){
+    // ── Close polygon: firstPt มี priority สูงสุด ──
+    if(tempPoints.length >= 2){
+      const first = tempPoints[0];
+      const closeTol = SNAP_PT_THRESHOLD / _getZoom();
+      if(Math.hypot(pt.x - first.x, pt.y - first.y) < closeTol){
+        return {x: first.x, y: first.y, type: 'close'};
+      }
+    }
+    // ── Orthogonal lock ──
+    let constrained = {x: pt.x, y: pt.y};
+    if(snapFlags.ortho && prevPt){
+      const dx = Math.abs(pt.x - prevPt.x), dy = Math.abs(pt.y - prevPt.y);
+      if(dx > dy) constrained = {x: pt.x, y: prevPt.y};
+      else        constrained = {x: prevPt.x, y: pt.y};
+    }
+    const cp = constrained;
+
+    const ptT = SNAP_PT_THRESHOLD/_getZoom(), lnT = SNAP_LINE_THRESHOLD/_getZoom();
+    let nearest = null, minDist = ptT;
+
+    // ── Vector endpoint snap ──
+    if(snapFlags.vector && typeof VectorEngine !== 'undefined' && typeof pageNum !== 'undefined'){
+      const vcands = VectorEngine.getCandidates(pageNum);
+      if(vcands.length > 0){
+        const vTol = Math.max(ptT, 10/_getZoom());
+        let vNearest = null, vMin = vTol;
+        for(let vi = 0; vi < vcands.length; vi++){
+          const d = Math.hypot(cp.x - vcands[vi].x, cp.y - vcands[vi].y);
+          if(d < vMin){ vMin = d; vNearest = vcands[vi]; }
+        }
+        if(vNearest) return {x: vNearest.x, y: vNearest.y, type: 'point'};
+      }
+    }
+
+    // ── Object snap: endpoint ──
+    if(snapFlags.object){
+      const anchors = [];
+      _canvas.getObjects().forEach(o => _getAnchors(o).forEach(a => anchors.push({x:a.x, y:a.y})));
+      tempPoints.forEach(a => anchors.push({x:a.x, y:a.y}));
+      anchors.forEach(a => {
+        const d = Math.hypot(cp.x-a.x, cp.y-a.y);
+        if(d < minDist){ minDist=d; nearest={x:a.x, y:a.y, type:'point'}; }
+      });
+      if(nearest) return nearest;
+    }
+
+    // ── Midpoint snap ──
+    if(snapFlags.midpoint){
+      minDist = ptT;
+      _canvas.getObjects().forEach(obj => {
+        let segs = [];
+        if(obj.type==='line') segs=[{x1:obj.x1,y1:obj.y1,x2:obj.x2,y2:obj.y2}];
+        else if(obj.type==='polygon'&&obj.points&&obj.points.length>1){
+          for(let i=0;i<obj.points.length;i++){ const j=(i+1)%obj.points.length; segs.push({x1:obj.points[i].x,y1:obj.points[i].y,x2:obj.points[j].x,y2:obj.points[j].y}); }
+        }
+        segs.forEach(seg => {
+          const mx = (seg.x1+seg.x2)/2, my = (seg.y1+seg.y2)/2;
+          const d = Math.hypot(cp.x-mx, cp.y-my);
+          if(d < minDist){ minDist=d; nearest={x:mx, y:my, type:'midpoint'}; }
+        });
+      });
+      if(nearest) return nearest;
+    }
+
+    // ── Line (perpendicular foot) snap ──
+    if(snapFlags.object){
+      minDist = lnT;
+      _canvas.getObjects().forEach(obj => {
+        let segs = [];
+        if(obj.type==='line') segs=[{x1:obj.x1,y1:obj.y1,x2:obj.x2,y2:obj.y2}];
+        else if(obj.type==='polygon'&&obj.points&&obj.points.length>1){
+          for(let i=0;i<obj.points.length;i++){ const j=(i+1)%obj.points.length; segs.push({x1:obj.points[i].x,y1:obj.points[i].y,x2:obj.points[j].x,y2:obj.points[j].y}); }
+        }
+        segs.forEach(seg => {
+          const dx=seg.x2-seg.x1, dy=seg.y2-seg.y1, lenSq=dx*dx+dy*dy;
+          if(!lenSq) return;
+          const t=Math.max(0,Math.min(1,((cp.x-seg.x1)*dx+(cp.y-seg.y1)*dy)/lenSq));
+          const foot={x:seg.x1+t*dx, y:seg.y1+t*dy};
+          const d=Math.hypot(cp.x-foot.x, cp.y-foot.y);
+          if(d < minDist){ minDist=d; nearest={x:foot.x, y:foot.y, type:'line'}; }
+        });
+      });
+    }
+
+    // ถ้าไม่ snap → return constrained point (ortho ยังมีผล)
+    return nearest || {x: cp.x, y: cp.y, type: snapFlags.ortho && prevPt ? 'ortho' : null};
+  }
+  function _showSnapIndicator(s){
+    if(_snapIndicator) _canvas.remove(_snapIndicator); _snapIndicator=null;
+    if(!s||!s.type) return;
+    const r=8/_getZoom(), sw2=2/_getZoom();
+    if(s.type==='point'){
+      _snapIndicator=new fabric.Rect({left:s.x-r,top:s.y-r,width:r*2,height:r*2,fill:'transparent',stroke:'#00e5ff',strokeWidth:sw2,selectable:false,evented:false});
+    } else if(s.type==='midpoint'){
+      // เพชร
+      const pts=[{x:s.x,y:s.y-r},{x:s.x+r,y:s.y},{x:s.x,y:s.y+r},{x:s.x-r,y:s.y}];
+      _snapIndicator=new fabric.Polygon(pts,{fill:'transparent',stroke:'#ffd60a',strokeWidth:sw2,selectable:false,evented:false});
+    } else if(s.type==='ortho'){
+      // กากบาท
+      const h=new fabric.Line([s.x-r,s.y,s.x+r,s.y],{stroke:'#bf5af2',strokeWidth:sw2,selectable:false,evented:false});
+      const v=new fabric.Line([s.x,s.y-r,s.x,s.y+r],{stroke:'#bf5af2',strokeWidth:sw2,selectable:false,evented:false});
+      _canvas.add(h,v);
+      _snapIndicator=h; // เก็บ ref แค่ตัวแรก cleanup ด้วย array ข้างล่าง
+      _snapIndicator._extra=[h,v];
+      _canvas.renderAll(); return;
+    } else {
+      _snapIndicator=new fabric.Circle({left:s.x-r,top:s.y-r,radius:r,fill:'transparent',stroke:'#76ff03',strokeWidth:sw2,selectable:false,evented:false});
+    }
+    _canvas.add(_snapIndicator);
+  }
+  let _closeHint = null;
+  function updateGhostLine(pt){
+    if(!tempPoints.length) return;
+    const prevPt = tempPoints[tempPoints.length-1];
+    const s = snapPoint(pt, prevPt); _showSnapIndicator(s);
+    if(_ghostLine) _canvas.remove(_ghostLine);
+    _ghostLine=new fabric.Line([prevPt.x,prevPt.y,s.x,s.y],{stroke:'#ff9900',strokeWidth:sw(1.5),strokeDashArray:[sw(4),sw(3)],selectable:false,evented:false,opacity:0.7});
+    _canvas.add(_ghostLine);
+
+    // ── Close hint ──
+    if(_closeHint){_canvas.remove(_closeHint);_closeHint=null;}
+    if(s.type==='close'){
+      const first=tempPoints[0]; const r=10/_getZoom();
+      _closeHint=new fabric.Circle({left:first.x-r,top:first.y-r,radius:r,fill:'rgba(48,209,88,0.3)',stroke:'#30d158',strokeWidth:2.5/_getZoom(),selectable:false,evented:false});
+      _canvas.add(_closeHint);
+    }
+    _canvas.renderAll();
+  }
+  function clearTemps(){
+    [...tempLines,...tempCircles,...tempLabels].forEach(o=>_canvas.remove(o));
+    if(_ghostLine){_canvas.remove(_ghostLine);_ghostLine=null;}
+    if(_snapIndicator){
+      if(_snapIndicator._extra) _snapIndicator._extra.forEach(o=>_canvas.remove(o));
+      else _canvas.remove(_snapIndicator);
+      _snapIndicator=null;
+    }
+    if(_closeHint){_canvas.remove(_closeHint);_closeHint=null;}
+    tempPoints=[]; tempLines=[]; tempCircles=[]; tempLabels=[];
+  }
+  function handleCalibrate(pt){
+    tempPoints.push({x:pt.x,y:pt.y}); _addDot(pt.x,pt.y,'#dc3545',`P${tempPoints.length}`);
+    if(tempPoints.length===2){
+      const d=Math.hypot(tempPoints[1].x-tempPoints[0].x,tempPoints[1].y-tempPoints[0].y);
+      _addGuideLine(tempPoints[0].x,tempPoints[0].y,tempPoints[1].x,tempPoints[1].y,'#dc3545',false);
+      _canvas.renderAll();
+      if(d<1){alert('จุดซ้ำกัน');clearTemps();return null;}
+      const real=parseFloat(prompt('เส้นอ้างอิงนี้มีระยะจริงกี่เมตร?','1'));
+      clearTemps();
+      if(!isNaN(real)&&real>0){PIXELS_PER_METER=d/real;_onCalibrated(PIXELS_PER_METER);return PIXELS_PER_METER;}
+    }
+    return null;
+  }
+  function handleMeasureLine(pt){
+    const s=snapPoint(pt); tempPoints.push({x:s.x,y:s.y}); _addDot(s.x,s.y,'#ff9900');
+    if(tempPoints.length===2){
+      const distM=Math.hypot(tempPoints[1].x-tempPoints[0].x,tempPoints[1].y-tempPoints[0].y)/PIXELS_PER_METER;
+      const lineName=prompt('ชื่อระยะนี้ (เว้นว่างถ้าไม่ต้องการ):','') || '';
+      const labelText=lineName ? `${lineName}\n${distM.toFixed(2)} ม.` : `${distM.toFixed(2)} ม.`;
+      const line=new fabric.Line([tempPoints[0].x,tempPoints[0].y,tempPoints[1].x,tempPoints[1].y],{stroke:'#ff9900',strokeWidth:sw(2.5),selectable:true,customData:{isMeasure:true,val:distM,name:lineName}});
+      const mid={x:(tempPoints[0].x+tempPoints[1].x)/2,y:(tempPoints[0].y+tempPoints[1].y)/2};
+      const label=new fabric.Text(labelText,{left:mid.x,top:mid.y-sw(20),fontSize:Math.max(10,sw(15)),fill:'#fff',backgroundColor:'#ff9900',padding:4,originX:'center',selectable:true,textAlign:'center',customData:{isPairedLabel:true}});
+      line.customData.pairedLabel=label;
+      clearTemps(); _canvas.add(line,label); _canvas.renderAll(); _onMeasured({type:'line',value:distM,name:lineName}); return distM;
+    }
+    return null;
+  }
+  function handlePolygonClick(pt,polyType){
+    const s=snapPoint(pt); tempPoints.push({x:s.x,y:s.y});
+    _addDot(s.x,s.y,_strokeColor(polyType));
+    if(tempPoints.length>1){ const p=tempPoints[tempPoints.length-2]; _addGuideLine(p.x,p.y,s.x,s.y,_strokeColor(polyType),true); }
+    _canvas.renderAll(); return tempPoints.length;
+  }
+  function finishPolygon(polyType,polyTypeLabel){
+    if(tempPoints.length<3){alert('ต้องมีอย่างน้อย 3 จุด');return null;}
+    const pts=tempPoints.map(p=>({x:p.x,y:p.y}));
+    let a2=0; for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;a2+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
+    const areaM=Math.abs(a2/2)/Math.pow(PIXELS_PER_METER,2);
+    const lbl=new fabric.Text(`${polyTypeLabel}\n${areaM.toFixed(2)} ตร.ม.`,{left:pts[0].x,top:pts[0].y,fontSize:Math.max(10,sw(16)),fill:'#000',backgroundColor:'rgba(255,255,255,0.85)',padding:5,selectable:true,customData:{isPairedLabel:true}});
+    const poly=new fabric.Polygon(pts,{fill:_polyColor(polyType),stroke:_strokeColor(polyType),strokeWidth:sw(2),selectable:true,customData:{isPolygon:true,type:polyType,area:areaM,pairedLabel:lbl}});
+    clearTemps(); _canvas.add(poly,lbl); _canvas.renderAll(); _onMeasured({type:'polygon',polyType,areaM}); return areaM;
+  }
+  function handleSetback(pt){
+    const s=snapPoint(pt); const idx=tempPoints.length;
+    const color=SETBACK_GUIDE_COLORS[idx]||'#607d8b'; const hints=['ถนน จุด 1','ถนน จุด 2','แนวอาคาร'];
+    tempPoints.push({x:s.x,y:s.y}); _addDot(s.x,s.y,color,hints[idx]);
+    if(tempPoints.length===2) _addGuideLine(tempPoints[0].x,tempPoints[0].y,tempPoints[1].x,tempPoints[1].y,'#9c27b0',false);
+    _canvas.renderAll();
+    if(tempPoints.length===3){
+      if(_ghostLine){_canvas.remove(_ghostLine);_ghostLine=null;}
+      const[A,B,C]=tempPoints;
+      const num=Math.abs((B.x-A.x)*(A.y-C.y)-(A.x-C.x)*(B.y-A.y)),den=Math.hypot(B.x-A.x,B.y-A.y);
+      const distM=(num/den)/PIXELS_PER_METER;
+      const t=((C.x-A.x)*(B.x-A.x)+(C.y-A.y)*(B.y-A.y))/(den*den);
+      const foot={x:A.x+t*(B.x-A.x),y:A.y+t*(B.y-A.y)};
+      const pl=new fabric.Line([C.x,C.y,foot.x,foot.y],{stroke:'#9c27b0',strokeWidth:sw(2.5),strokeDashArray:[sw(5),sw(3)],selectable:true,customData:{isSetback:true,val:distM}});
+      const ll=new fabric.Text(`ร่น ${distM.toFixed(2)} ม.`,{left:(C.x+foot.x)/2,top:(C.y+foot.y)/2-sw(20),fontSize:Math.max(10,sw(16)),fill:'#fff',backgroundColor:'#9c27b0',padding:4,selectable:true,customData:{isPairedLabel:true}});
+      pl.customData.pairedLabel=ll;
+      clearTemps(); _canvas.add(pl,ll); _canvas.renderAll(); _onMeasured({type:'setback',value:distM}); return distM;
+    }
+    return null;
+  }
+  function getFirstPoint(){ return tempPoints.length > 0 ? tempPoints[0] : null; }
+  return { init,resetCalibration,getPixelsPerMeter,isCalibrated,clearTemps,getTempPointCount,updateGhostLine,snapPoint,handleCalibrate,handleMeasureLine,handlePolygonClick,finishPolygon,handleSetback,getFirstPoint,setSnapFlag,getSnapFlags,setSnapThreshold,getSnapThreshold };
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     VECTOR ENGINE  (PDF type detection + snap candidates)
+     ── IIFE แยกอิสระ ไม่แตะ MeasurementEngine / main app ──
+═══════════════════════════════════════════════════════ -->
+<script>
+const VectorEngine = (function () {
+  // ─── PDF.js OPS constants ────────────────────────────
+  const OPS_MOVE_TO  = 13;
+  const OPS_LINE_TO  = 14;
+  const OPS_CURVE_TO = 15;
+
+  // ─── Config ──────────────────────────────────────────
+  const MAX_CANDS    = 1500;  // จุด snap สูงสุดต่อหน้า
+  const CHUNK_SIZE   = 800;   // ops ต่อ chunk — yield ทุกๆ นี้เพื่อไม่ block UI
+  const YIELD_MS     = 0;     // setTimeout(0) = yield กลับ event loop
+
+  // ─── State ───────────────────────────────────────────
+  const _candidates  = {};   // { pageNum: [{x,y},...] }
+  const _typeCache   = {};   // { pageNum: 'vector'|'raster' }
+  const _extracting  = {};   // { pageNum: Promise } — ป้องกัน extract ซ้ำ
+
+  // ─── detectPDFType ───────────────────────────────────
+  // scan แค่ 200 ops แรก — เจอ path op = vector, ไม่เจอ = raster
+  async function detectPDFType(page) {
+    const pn = page.pageNumber;
+    if (_typeCache[pn] !== undefined) return _typeCache[pn];
+    try {
+      const opList = await page.getOperatorList();
+      const fn = opList.fnArray;
+      const scanDepth = Math.min(fn.length, 200); // cap ไว้แค่ 200 ops แรก
+      let type = 'raster';
+      for (let i = 0; i < scanDepth; i++) {
+        const op = fn[i];
+        if (op === OPS_MOVE_TO || op === OPS_LINE_TO || op === OPS_CURVE_TO) {
+          type = 'vector'; break;
+        }
+      }
+      _typeCache[pn] = type;
+      return type;
+    } catch (e) {
+      _typeCache[pn] = 'raster';
+      return 'raster';
+    }
+  }
+
+  // ─── extractSnapCandidates ───────────────────────────
+  // ON-DEMAND เท่านั้น: เรียกเฉพาะเมื่อ user กดปุ่ม measure
+  // chunked processing: yield ทุก CHUNK_SIZE ops ป้องกัน hang
+  function extractSnapCandidates(page, rotation) {
+    const pn = page.pageNumber;
+    if (_candidates[pn]) return Promise.resolve(_candidates[pn]);
+    if (_extracting[pn]) return _extracting[pn]; // กำลัง extract อยู่แล้ว รอ promise เดิม
+
+    const promise = _doExtract(page, rotation).then(result => {
+      delete _extracting[pn];
+      return result;
+    });
+    _extracting[pn] = promise;
+    return promise;
+  }
+
+  async function _doExtract(page, rotation) {
+    const pn  = page.pageNumber;
+    const rot = rotation || 0;
+    const vp  = page.getViewport({ scale: 1.5, rotation: rot });
+    const W = vp.width, H = vp.height;
+    const margin = 20;
+    const [ta, tb, tc, td, te, tf] = vp.transform;
+
+    function toCanvas(px, py) {
+      return { x: ta*px + tc*py + te, y: tb*px + td*py + tf };
+    }
+
+    try {
+      const opList = await page.getOperatorList();
+      const fn  = opList.fnArray;
+      const ar  = opList.argsArray;
+      const total = fn.length;
+      const pts = [];
+
+      // วน loop แบบ chunked — yield ทุก CHUNK_SIZE ops
+      for (let i = 0; i < total && pts.length < MAX_CANDS; i++) {
+        // yield กลับ event loop ทุก chunk เพื่อไม่ block UI
+        if (i > 0 && i % CHUNK_SIZE === 0) {
+          await new Promise(r => setTimeout(r, YIELD_MS));
+        }
+        const op = fn[i];
+        const a  = ar[i];
+        if (!a) continue;
+        if (op === OPS_MOVE_TO || op === OPS_LINE_TO) {
+          if (a.length >= 2) {
+            const p = toCanvas(a[0], a[1]);
+            if (p.x > -margin && p.x < W+margin && p.y > -margin && p.y < H+margin)
+              pts.push(p);
+          }
+        } else if (op === OPS_CURVE_TO) {
+          if (a.length >= 6) {
+            const p = toCanvas(a[4], a[5]);
+            if (p.x > -margin && p.x < W+margin && p.y > -margin && p.y < H+margin)
+              pts.push(p);
+          }
+        }
+      }
+
+      _candidates[pn] = pts;
+      console.log(`[VectorEngine] หน้า ${pn}: extract ${pts.length} pts จาก ${total} ops`);
+      return pts;
+    } catch (e) {
+      console.warn('[VectorEngine] extract error:', e);
+      _candidates[pn] = [];
+      return [];
+    }
+  }
+
+  // ─── getCandidates ───────────────────────────────────
+  // return ทันที (synchronous) — ใช้ใน snapPoint
+  function getCandidates(pn) {
+    return _candidates[pn] || [];
+  }
+
+  function getType(pn) {
+    return _typeCache[pn] || null;
+  }
+
+  function isExtracting(pn) {
+    return !!_extracting[pn];
+  }
+
+  function clearPage(pn) {
+    delete _candidates[pn];
+    delete _typeCache[pn];
+    delete _extracting[pn];
+  }
+
+  function clearAll() {
+    [_candidates, _typeCache, _extracting].forEach(obj =>
+      Object.keys(obj).forEach(k => delete obj[k])
+    );
+  }
+
+  return { detectPDFType, extractSnapCandidates, getCandidates, getType, isExtracting, clearPage, clearAll };
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     LAW PANEL  (ข้อกฎหมาย drag-drop → Fabric canvas)
+═══════════════════════════════════════════════════════ -->
+<script>
+const LAW_DATA = [
+  { group: '๑. แผนผังบริเวณ แบบแปลน และรายการประกอบ', items: [
+    { no:'๑.๑', text:'แสดงขอบนอกของอาคารที่มีอยู่แล้ว (ถ้ามี) และระยะห่างของขอบนอกอาคารที่ขออนุญาตถึงขอบเขตที่ดินทุกด้าน' },
+    { no:'๑.๒', text:'ระยะห่างระหว่างอาคารต่าง ๆ ที่มีอยู่แล้ว และอาคารที่ขออนุญาตในขอบเขตที่ดิน' },
+    { no:'๑.๓', text:'ให้แสดงแนวขอบเขตอาคารเดิมเพื่อประกอบการพิจารณา ทั้งนี้หากอาคารเดิมซ้อนทับอาคารที่ขออนุญาตที่ต้องทำการรื้อถอนให้ระบุในแบบให้ชัดเจน' },
+    { no:'๑.๔', text:'ลักษณะและขอบเขตของที่สาธารณะและอาคารในบริเวณที่ดินที่ติดต่อโดยสังเขป พร้อมด้วยเครื่องหมายทิศ' },
+    { no:'๑.๕', text:'ในกรณีที่ไม่มีทางน้ำสาธารณะ ให้แสดงทางระบายน้ำออกจากอาคารไปสู่ทางระบายน้ำสาธารณะหรือวิธีการระบายน้ำด้วยวิธีอื่น พร้อมทั้งแสดงเครื่องหมายชี้ทิศทางน้ำไหลและส่วนลาดไม่ต่ำกว่า ๑:๒๐๐' },
+    { no:'๑.๖', text:'แสดงระดับของพื้นชั้นล่างของอาคาร และความสัมพันธ์กับระดับถนนสาธารณะที่ใกล้ที่สุดและระดับพื้นดิน' },
+    { no:'๑.๗', text:'แบบแปลนต้องมีรูปรายละเอียดส่วนสำคัญ ขนาด เครื่องหมาย วัสดุ และการใช้สอยต่าง ๆ ของอาคารอย่างชัดเจน เพียงพอที่จะพิจารณาตามกฎกระทรวง ข้อบัญญัติกรุงเทพมหานคร หรือประกาศ ระเบียบ อื่นใด' },
+    { no:'๑.๘', text:'ขนาดขอบเขตที่ดินซึ่งแสดงในแบบ มีขนาดไม่ตรงกับสภาพความเป็นจริง' },
+    { no:'๑.๙', text:'ให้แสดงระยะห่างของส่วนปกคลุมถึงขอบเขตที่ดินทุกด้าน โดยแสดงระยะห่างตั้งฉากกับแนวเขตที่ดิน เพื่อประกอบการพิจารณา' },
+    { no:'๑.๑๐', text:'การขออนุญาตดัดแปลงอาคาร ให้แสดงแบบแปลนสำหรับการดัดแปลงอาคาร ให้แสดงส่วนที่มีอยู่เดิม และส่วนที่จะดัดแปลงให้ชัดเจน' },
+  ]},
+  { group: '๒. แนวอาคารและระยะต่าง ๆ', items: [
+    { no:'๒.๑', text:'ความสูงของอาคารไม่ว่าจากจุดหนึ่งจุดใด ต้องไม่เกิน ๒ เท่าของระยะราบ วัดจากจุดนั้นไปตั้งฉากกับแนวถนนด้านตรงข้ามของถนนสาธารณะที่อยู่ใกล้อาคารนั้นที่สุด ตามกฎกระทรวง ฉบับที่ ๕๕ (พ.ศ.๒๕๔๓) ข้อ ๔๔' },
+    { no:'๒.๒', text:'อาคารหลังเดียวกันซึ่งมีถนนสาธารณะสองสายขนาบอยู่ เมื่อระยะระหว่างถนนสาธารณะสองสายนั้นไม่เกิน ๖๐ เมตร และส่วนกว้างของอาคารไม่เกิน ๖๐ เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ (พ.ศ.๒๕๔๓) ข้อ ๔๕' },
+    { no:'๒.๓', text:'อาคารหลังเดียวกันซึ่งอยู่ที่มุมถนนสาธารณะสองสายขนาดไม่เท่ากัน ความสูงของอาคาร ณ จุดใดต้องไม่เกินสองเท่าของระยะราบที่ใกล้ที่สุด และความยาวของอาคารตามแนวถนนที่แคบกว่าต้องไม่เกิน ๖๐ เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๔๖' },
+    { no:'๒.๔', text:'อาคารก่อสร้างใกล้ถนนสาธารณะต้องร่นแนวอาคารห่างจากกึ่งกลาง/เขตถนนสาธารณะอย่างน้อย ........... เมตร (ถนนสาธารณะกว้าง .......... เมตร) ตามกฎกระทรวง ฉบับที่ ๕๕ (พ.ศ.๒๕๔๓) ข้อ ๔๑' },
+    { no:'๒.๕', text:'ที่ดินอยู่มุมถนนสาธารณะที่กว้าง ๓ เมตรขึ้นไปแต่ไม่เกิน ๘ เมตร และมีมุมหักน้อยกว่า ๑๓๕ องศา รั้วหรือกำแพงกั้นเขตต้องปาดมุมมีระยะไม่น้อยกว่า ๔ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๕๑' },
+    { no:'๒.๖', text:'อาคารต้องมีที่ว่างไม่น้อยกว่า ......... ใน ๑๐๐ ส่วนของพื้นที่ที่ดิน ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๕๒ (๑) (๒)' },
+    { no:'๒.๗', text:'อาคารที่ยื่นขออนุญาตไม่อยู่ริมทางสาธารณะต้องมีที่ว่างด้านหน้าอาคารกว้างไม่น้อยกว่า ๖ หรือ ๑๒ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๕๒ (๖)' },
+    { no:'๒.๘', text:'ต้องมีที่ว่างโดยปราศจากสิ่งปกคลุมเป็นทางเดินหลังอาคารได้ถึงกัน กว้างไม่น้อยกว่า ๒ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๕๒ (๗)' },
+    { no:'๒.๙', text:'แนวอาคารด้านที่ประชิดติดริมทางสาธารณะ ต้องมีความยาวมากกว่า ๑ ใน ๘ ส่วนของความยาวเส้นรอบรูปภายนอกของอาคาร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๕๓' },
+    { no:'๒.๑๐', text:'อาคารสูงไม่เกิน/เกิน ๙ เมตร ด้านชิดที่ดินเอกชน ช่องเปิด ประตู หน้าต่าง ช่องระบายอากาศ หรือริมระเบียงต้องอยู่ห่างเขตที่ดินไม่น้อยกว่า ๒/๓ เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๕๐' },
+    { no:'๒.๑๑', text:'อาคารที่มีความสูงไม่เกิน/เกิน ๑๕ เมตร ต้องมีที่ว่างรอบอาคารไม่น้อยกว่า ๑/๒ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๕๕' },
+    { no:'๒.๑๒', text:'การก่อสร้างอาคารอื่นในที่ดินเจ้าของเดียวกัน สำหรับอาคารที่สูงไม่เกิน/เกิน ๙ เมตร ต้องห่างอาคารอื่นไม่น้อยกว่าที่กำหนด ตามกฎกระทรวง ฉบับที่ ๕๕ แก้ไขเพิ่มเติมโดย ฉบับที่ ๖๑ ข้อ ๔๘' },
+    { no:'๒.๑๓', text:'อาคารที่ก่อสร้างหรือดัดแปลงใกล้แหล่งน้ำสาธารณะ ซึ่งมีความกว้างน้อยกว่า/ตั้งแต่ ๑๐ เมตร ต้องร่นแนวอาคารให้ห่างจากเขตแหล่งน้ำสาธารณะนั้นไม่น้อยกว่า ๓/๖ เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๔๒' },
+  ]},
+  { group: '๓. ส่วนต่าง ๆ ของอาคาร', items: [
+    { no:'๓.๑', text:'อาคารอยู่อาศัยรวมต้องมีพื้นที่ภายในแต่ละหน่วยที่ใช้เพื่อการอยู่อาศัยไม่น้อยกว่า ๒๐ ตารางเมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๑๙' },
+    { no:'๓.๒', text:'ช่องทางเดินในอาคารต้องมีความกว้างไม่น้อยกว่า ๑.๕๐ เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๑' },
+    { no:'๓.๓', text:'ตามแบบระยะดิ่งภายในอาคารมีค่า .......... เมตร ซึ่งน้อยกว่า .......... เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๒' },
+    { no:'๓.๔', text:'ตามแบบพื้นชั้นลอยมีพื้นที่ร้อยละ ............ ของเนื้อที่ห้อง ซึ่งเกินกว่าร้อยละสี่สิบของเนื้อที่ห้อง ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๒' },
+    { no:'๓.๕', text:'ห้องลิฟต์และพื้นที่ว่างหน้าลิฟต์ต้องกว้างไม่น้อยกว่า ๑.๕๐ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๓๐' },
+    { no:'๓.๖', text:'ด้านของอาคารที่อยู่ห่างเขตที่ดินน้อยกว่า ๒/๓ เมตร ดาดฟ้าของอาคารด้านนั้นต้องทำผนังทึบสูงจากดาดฟ้าไม่น้อยกว่า ๑.๘๐ เมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๕๐' },
+  ]},
+  { group: '๔. บันไดและบันไดหนีไฟ', items: [
+    { no:'๔.๑', text:'บันไดต้องมีความกว้างสุทธิไม่น้อยกว่า ๑.๒๐/๑.๕๐ เมตร ลูกตั้งสูงไม่เกิน ๑๘ เซนติเมตร และลูกนอนเมื่อหักส่วนเหลื่อมกันออกแล้วเหลือความกว้างไม่น้อยกว่า ๒๕ เซนติเมตร ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๔' },
+    { no:'๔.๒', text:'ชานพักบันไดและพื้นหน้าบันไดต้องมีความกว้างและความยาวไม่น้อยกว่าความกว้างสุทธิของบันได ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๔' },
+    { no:'๔.๓', text:'อาคารที่สูงตั้งแต่สี่ชั้นขึ้นไป หรืออาคารที่สูงสามชั้นและมีดาดฟ้าเหนือชั้นที่สามที่มีพื้นที่เกิน ๑๖ ตารางเมตร ต้องมีบันไดหนีไฟที่ทำด้วยวัสดุทนไฟอย่างน้อยหนึ่งแห่ง ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๗' },
+    { no:'๔.๔', text:'อาคารต้องมีทางเดินไปยังบันไดหนีไฟได้โดยไม่มีสิ่งกีดขวาง ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๗' },
+    { no:'๔.๕', text:'บันไดหนีไฟต้องมีความกว้างไม่น้อยกว่า ๙๐ เซนติเมตร (ความกว้างสุทธิไม่น้อยกว่า ๘๐ เซนติเมตร) ชานพักกว้างไม่น้อยกว่าความกว้างของบันได มีราวบันไดสูง ๙๐ เซนติเมตร ห้ามสร้างบันไดหนีไฟเป็นบันไดเวียน ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๔๑' },
+    { no:'๔.๖', text:'บันไดต้องมีระยะห่างไม่เกิน ๔๐ เมตร จากจุดที่ไกลสุดบนพื้นชั้นนั้น ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๕' },
+    { no:'๔.๗', text:'บันไดหนีไฟภายในอาคารต้องก่อสร้างด้วยวัสดุทนไฟและถาวรกั้นโดยรอบ โดยแต่ละชั้นต้องมีช่องระบายอากาศสู่ภายนอกได้มีพื้นที่รวมกันไม่น้อยกว่า ๑.๔๐ ตารางเมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๔๒' },
+    { no:'๔.๘', text:'บันไดหนีไฟต้องมีระยะห่างระหว่างประตูห้องสุดท้ายด้านทางเดินเป็นทางตันไม่เกิน ๑๐ เมตร และระยะห่างระหว่างบันไดหนีไฟตามทางเดินต้องไม่เกิน ๖๐ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๔๔' },
+    { no:'๔.๙', text:'บันไดหนีไฟภายนอกอาคารต้องมีความกว้างสุทธิไม่น้อยกว่า ๖๐ เซนติเมตร และต้องมีผนังส่วนที่บันไดหนีไฟพาดผ่านเป็นผนังทึบก่อสร้างด้วยวัสดุถาวรที่เป็นวัสดุทนไฟ ตามกฎกระทรวง ฉบับที่ ๕๕ ข้อ ๒๙' },
+    { no:'๔.๑๐', text:'ประตูของบันไดหนีไฟต้องทำด้วยวัสดุทนไฟมีความกว้างไม่น้อยกว่า ๘๐ เซนติเมตร สูง ๑๙๐ เซนติเมตร ทนไฟได้ไม่น้อยกว่า ๑ ชั่วโมง เป็นบานเปิดผลักเข้าสู่บันไดเท่านั้น ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๔๕' },
+    { no:'๔.๑๑', text:'ต้องมีป้ายเรืองแสงหรือเครื่องหมายไฟแสงสว่างด้วยไฟสำรองฉุกเฉินบอกทางออกสู่บันไดหนีไฟ ติดตั้งเป็นระยะตามทางเดิน ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๔๖' },
+  ]},
+  { group: '๕. การป้องกันอัคคีภัย', items: [
+    { no:'๕.๑', text:'ต้องมีระบบสัญญาณเตือนเพลิงไหม้ทุกชั้นให้ครบถ้วน ตามกฎกระทรวง ฉบับที่ ๓๙ (พ.ศ. ๒๕๓๗) ข้อ ๕ และข้อ ๖' },
+    { no:'๕.๒', text:'ต้องมีป้ายบอกชั้น และป้ายบอกทางหนีไฟทุกชั้นที่มองเห็นช่องทางหนีไฟได้ชัดเจนขณะเพลิงไหม้ ตามกฎกระทรวง ฉบับที่ ๓๙ ข้อ ๗' },
+    { no:'๕.๓', text:'ต้องมีระบบจ่ายพลังงานไฟฟ้าสำรองสำหรับกรณีฉุกเฉิน แยกเป็นอิสระจากระบบที่ใช้อยู่ตามปกติ สามารถทำงานโดยอัตโนมัติเมื่อระบบไฟฟ้าปกติหยุดทำงาน ตามกฎกระทรวง ฉบับที่ ๓๙ ข้อ ๑๗' },
+    { no:'๕.๔', text:'อาคารต้องติดตั้งเครื่องดับเพลิงแบบมือถือจำนวน ชนิด และขนาดบรรจุไม่น้อยกว่าที่ระบุไว้ ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๗๙' },
+    { no:'๕.๕', text:'อาคารขนาดใหญ่ ยกเว้นห้องแถว บ้านแถวและตึกแถว ต้องจัดให้มีระบบท่อยืน สายฉีดน้ำ พร้อมอุปกรณ์หัวรับน้ำดับเพลิงชนิดข้อต่อสวมเร็วขนาดเส้นผ่านศูนย์กลาง ๖๕ มม. ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๐' },
+    { no:'๕.๖', text:'อาคารขนาดใหญ่ต้องจัดให้มีวัสดุทนไฟปิดกั้นช่องท่อต่าง ๆ ระหว่างชั้นทุกชั้นของอาคาร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๑' },
+    { no:'๕.๗', text:'อาคารสูงตั้งแต่ ๖ ชั้นขึ้นไปและมีพื้นที่อาคารเกิน ๒,๐๐๐ ตารางเมตร ต้องมีผนังหรือประตูปิดกั้นมิให้เปลวไฟหรือควันเข้าไปในบริเวณบันไดหลัก สามารถทนไฟได้ไม่น้อยกว่า ๑ ชั่วโมง ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๒' },
+    { no:'๕.๘', text:'โครงสร้างหลักของอาคารต้องก่อสร้างด้วยวัสดุทนไฟและมีคุณลักษณะ ตามกฎกระทรวง ฉบับที่ ๔๘ (พ.ศ. ๒๕๔๐) และกฎกระทรวง ฉบับที่ ๖๐ (พ.ศ. ๒๕๔๙)' },
+  ]},
+  { group: '๖. ที่จอดรถและอาคารจอดรถ', items: [
+    { no:'๖.๑', text:'อาคารต้องจัดที่จอดรถ และขนาดช่องจอดรถให้เพียงพอ และมีขนาดไม่น้อยกว่าตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๓ ข้อ ๘๔ ข้อ ๘๕ และ ข้อ ๘๖' },
+    { no:'๖.๒', text:'ที่จอดรถถ้าอยู่นอกบริเวณของอาคารและอยู่บนโฉนดต่างแปลงที่ไม่ต่อเนื่องกัน ต้องมีทางเดินจากทางเข้าออกบริเวณหรืออาคารที่จอดรถไปสู่เส้นทางเข้าออกอาคารนั้นวัดระยะตามแนวราบไม่เกิน ๒๐๐ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๗' },
+    { no:'๖.๓', text:'ทางเข้าออกมีความกว้างไม่น้อยกว่า ๓/๖ เมตร ทางวิ่งของรถจะต้องกว้างไม่น้อยกว่า ๓.๕/๕.๕/๖.๐ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๘' },
+    { no:'๖.๔', text:'แนวศูนย์กลางทางเข้าออกของรถต้องไม่อยู่ในที่ที่เป็นทางร่วมทางแยก และต้องอยู่ห่างจากจุดเริ่มต้นโค้งหรือหักมุมของขอบทางแยกสาธารณะมีระยะไม่น้อยกว่า ๒๐ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๘๙' },
+    { no:'๖.๕', text:'แนวศูนย์กลางปากทางเข้าออกของรถต้องไม่อยู่บนเชิงลาดสะพานและต้องอยู่ห่างจากจุดสุดเชิงลาดสะพานมีระยะไม่น้อยกว่า ๕๐ เมตร ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๙๑' },
+    { no:'๖.๖', text:'อาคารจอดรถที่อยู่ต่ำกว่าระดับพื้นดินต้องจัดให้มีระบบระบายอากาศซึ่งสามารถเปลี่ยนอากาศภายในชั้นนั้นได้หมดในเวลา ๑๕ นาที ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๙๔' },
+    { no:'๖.๗', text:'อาคารจอดรถเหนือระดับพื้นดินต้องจัดให้มีระบบระบายอากาศ ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๙๕' },
+    { no:'๖.๘', text:'ผนังอาคารที่ห่างเขตที่ดินผู้อื่นหรืออาคารยื่นน้อยกว่า ๓ เมตร ต้องเป็นผนังกันไฟ และห้ามทำช่องเปิดใด ๆ ในผนัง ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๙๖' },
+    { no:'๖.๙', text:'อาคารจอดรถที่มีการใช้สอยประเภทอื่นรวมอยู่ด้วย ส่วนกั้นแยกประเภทการใช้อาคารต้องเป็นผนังกันไฟ ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๙๘' },
+    { no:'๖.๑๐', text:'ทางลาดขึ้นลงสำหรับรอระหว่างชั้น ลาดชันได้ไม่เกินร้อยละ ๑๕ / ทางลาดแบบโค้งหรือเวียนต้องมีรัศมีความโค้งของขอบด้านในไม่น้อยกว่า ๖ เมตร และพื้นทางลาดชันได้ไม่เกินร้อยละ ๑๒ ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๙๙' },
+    { no:'๖.๑๑', text:'พื้นที่ที่ใช้จอดรถจะลาดชันได้ไม่เกินร้อยละ ๕ ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๑๐๐' },
+    { no:'๖.๑๒', text:'ให้มีท่อดันน้ำดับเพลิงตามมาตรฐานที่หน่วยงานดับเพลิงกำหนด ตามข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๑๐๒' },
+    { no:'๖.๑๓', text:'ตามแบบฯ อาคารมีที่จอดรถยนต์ตั้งแต่ ๓๐๐ คันขึ้นไปต้องแนบแผนผังการจราจรและเอกสารที่เกี่ยวข้อง ซึ่งต้องผ่านการพิจารณาปัญหาการจราจรจากสำนักการจราจรและขนส่ง กรุงเทพมหานคร' },
+    { no:'๖.๑๔', text:'อาคารจอดรถซึ่งติดตั้งระบบเคลื่อนย้ายรถด้วยเครื่องจักรกล ต้องมีลักษณะตามกฎกระทรวง ฉบับที่ ๔๑ (พ.ศ. ๒๕๓๗)' },
+  ]},
+  { group: '๗. ห้องน้ำ', items: [
+    { no:'๗', text:'อาคารซึ่งบุคคลเข้าอยู่และใช้สอยได้ต้องมีห้องน้ำและห้องส้วม และระบบระบายอากาศตามที่กำหนดไว้ ตามกฎกระทรวง ฉบับที่ ๓๙ (พ.ศ. ๒๕๓๗) แก้ไขเพิ่มเติมโดยกฎกระทรวง ฉบับที่ ๖๓ (พ.ศ. ๒๕๕๑)' },
+  ]},
+  { group: '๘. ระบบแสงสว่าง การระบายอากาศ การระบายน้ำ และมูลฝอย', items: [
+    { no:'๘.๑', text:'แสงสว่างในส่วนต่าง ๆ ของอาคาร ต้องไม่น้อยกว่าความเข้มของแสงสว่างตามที่กำหนดไว้ ตามกฎกระทรวง ฉบับที่ ๓๙ (พ.ศ. ๒๕๓๗) ข้อ ๑๑' },
+    { no:'๘.๒', text:'อาคารต้องจัดให้มีระบบระบายอากาศโดยวิธีธรรมชาติหรือวิธีกล โดยต้องมีวิธีการและอัตราการระบายอากาศ ตามกฎกระทรวง ฉบับที่ ๓๙ ข้อ ๑๒ ข้อ ๑๓ ข้อ ๑๔' },
+    { no:'๘.๓', text:'อาคารที่มีการปรับภาวะอากาศด้วยระบบการปรับอากาศต้องมีอัตราการระบายอากาศ ตามกฎกระทรวง ฉบับที่ ๓๙ ข้อ ๑๕' },
+    { no:'๘.๔', text:'ต้องแสดงแบบและการคำนวณรายการระบบบำบัดน้ำเสียที่สามารถดำเนินการปรับปรุงน้ำเสียจากอาคารให้มีคุณภาพเป็นน้ำทิ้ง ตามกฎกระทรวง ฉบับที่ ๔๔ ข้อ ๖' },
+    { no:'๘.๕', text:'อาคารต้องจัดให้มีที่พักรวมมูลฝอยและสิ่งปฏิกูลของอาคาร ตามกฎกระทรวง ฉบับที่ ๔๔ (พ.ศ. ๒๕๓๘) ข้อ ๑๐' },
+    { no:'๘.๖', text:'การคิดปริมาณขยะมูลฝอยให้พิจารณาตามกฎกระทรวง ฉบับที่ ๔๔ ข้อ ๑๐ และข้อบัญญัติ กทม. พ.ศ. ๒๕๔๔ ข้อ ๗๓' },
+  ]},
+  { group: '๙. สิ่งอำนวยความสะดวก (ผู้พิการ)', items: [
+    { no:'๙.๑', text:'ตรวจสอบประเภทอาคารที่เข้าข่ายต้องจัดสิ่งอำนวยความสะดวก ตามกฎกระทรวงกำหนดสิ่งอำนวยความสะดวกในอาคารสำหรับผู้พิการหรือทุพพลภาพ และคนชรา พ.ศ. ๒๕๔๘ ข้อ ๓' },
+    { no:'๙.๒', text:'อาคารที่มีระดับพื้นทางเดินต่างระดับกันเกิน ๑.๓ เซนติเมตร ต้องจัดให้มีทางลาด ตามข้อ ๘' },
+    { no:'๙.๓', text:'อาคารที่มีจำนวนตั้งแต่สองชั้นขึ้นไปต้องจัดให้มีลิฟต์ หรือทางลาด ตามข้อ ๙ ถ้าจัดให้มีลิฟต์ให้มีลักษณะตามข้อ ๑๐' },
+    { no:'๙.๔', text:'ลักษณะบันได ตามข้อ ๑๑' },
+    { no:'๙.๕', text:'อาคารต้องจัดให้มีที่จอดรถสำหรับผู้พิการหรือทุพพลภาพ และคนชรา ตามข้อ ๑๒ ข้อ ๑๓ ข้อ ๑๔' },
+    { no:'๙.๖', text:'ทางเข้าอาคาร ทางเดินระหว่างอาคาร และทางเชื่อมระหว่างอาคาร ตามข้อ ๑๕ ข้อ ๑๖ ข้อ ๑๗' },
+    { no:'๙.๗', text:'ประตูของอาคารต้องมีลักษณะตามข้อ ๑๘ (ไม่บังคับกับประตูหนีไฟและประตูเปิดปิดโดยใช้ระบบอัตโนมัติ ตามข้อ ๑๙)' },
+    { no:'๙.๘', text:'ห้องส้วมต้องจัดให้มีลักษณะตามข้อ ๒๐ ข้อ ๒๑ ข้อ ๒๒ ข้อ ๒๓ ข้อ ๒๔' },
+    { no:'๙.๙', text:'อาคารต้องจัดให้มีพื้นผิวต่างสัมผัสชนิดเตือนที่พื้น และชนิดนำทาง ตามข้อ ๒๕' },
+    { no:'๙.๑๐', text:'อาคารประเภทโรงมหรสพ หอประชุม โรงแรม ศาสนสถานหรือฌาปนสถาน อาคารสูงหรืออาคารขนาดใหญ่พิเศษ ต้องจัดให้มีสิ่งอำนวยความสะดวกตามข้อ ๒๖-๒๘/๓' },
+  ]},
+  { group: '๑๐. อาคารสูงและอาคารขนาดใหญ่พิเศษ', items: [
+    { no:'๑๐.๑', text:'อาคารมีพื้นที่อาคารทุกชั้นรวมกันไม่เกิน ๓๐,๐๐๐ ตารางเมตร ต้องมีด้านหนึ่งด้านใดของที่ดินยาวไม่น้อยกว่า ๑๒.๐๐ เมตร ติดถนนสาธารณะที่มีเขตทางกว้างไม่น้อยกว่า ๑๐.๐๐ เมตร ตามกฎกระทรวง ฉบับที่ ๓๓ (พ.ศ. ๒๕๓๕) ข้อ ๒' },
+    { no:'๑๐.๒', text:'อาคารมีพื้นที่อาคารทุกชั้นรวมกันมากกว่า ๓๐,๐๐๐ ตารางเมตร ต้องมีด้านหนึ่งด้านใดของที่ดินยาวไม่น้อยกว่า ๑๒.๐๐ เมตร ติดถนนสาธารณะที่มีเขตทางกว้างไม่น้อยกว่า ๑๘.๐๐ เมตร ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๒' },
+    { no:'๑๐.๓', text:'อาคารต้องจัดให้มีถนนที่มีผิวการจราจรกว้างไม่น้อยกว่า ๖.๐๐ เมตร ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๓' },
+    { no:'๑๐.๔', text:'อาคารต้องมีค่าสูงสุดของอัตราส่วนพื้นที่อาคารรวมกันทุกชั้นต่อพื้นที่ดินที่ใช้เป็นที่ตั้งอาคารไม่เกิน ๑๐ ต่อ ๑ ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๕' },
+    { no:'๑๐.๕', text:'อาคารมีโถงภายในเป็นช่องเปิดทะลุพื้นตั้งแต่ ๒ ชั้นขึ้นไปและไม่มีผนังปิดล้อม ต้องจัดให้มีระบบควบคุมการแพร่กระจายของควันที่สามารถทำงานได้โดยอัตโนมัติเมื่อเกิดเพลิงไหม้ ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๑๐ ทวิ' },
+    { no:'๑๐.๖', text:'อาคารสูงต้องมีระบบป้องกันอันตรายจากฟ้าผ่า โดยระบบป้องกันอันตรายจากฟ้าผ่าให้เป็นไปตามมาตรฐานเพื่อความปลอดภัยทางไฟฟ้าของสำนักงานพลังงานแห่งชาติ ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๑๓' },
+    { no:'๑๐.๗', text:'อาคารต้องมีระบบจ่ายพลังงานไฟฟ้าสำรองกรณีฉุกเฉินแยกเป็นอิสระจากระบบอื่น และสามารถทำงานได้โดยอัตโนมัติเมื่อระบบจ่ายไฟฟ้าปกติหยุดทำงาน ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๑๔' },
+    { no:'๑๐.๘', text:'แบบแปลนระบบไฟฟ้าต้องแสดงแผนผังวงจรไฟฟ้าของแต่ละชั้นของอาคาร โดยแสดงรายละเอียดทั้งหมด ตามกฎกระทรวง ฉบับที่ ๓๓ ข้อ ๑๗' },
+  ]},
+];
+
+// ─── สร้าง DOM ───────────────────────────────────
+function buildLawPanel() {
+  const container = document.getElementById('law-list');
+  if (!container) return;
+  container.innerHTML = '';
+  LAW_DATA.forEach((grp, gi) => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'law-group';
+    groupEl.id = `law-grp-${gi}`;
+
+    const header = document.createElement('div');
+    header.className = 'law-group-header';
+    header.innerHTML = `<span>${grp.group}</span><span class="law-arrow">▼</span>`;
+    header.onclick = () => groupEl.classList.toggle('open');
+
+    const body = document.createElement('div');
+    body.className = 'law-group-body';
+
+    grp.items.forEach((item, ii) => {
+      const el = document.createElement('div');
+      el.className = 'law-item';
+      el.draggable = true;
+      el.dataset.lawNo = item.no;
+      el.dataset.lawText = item.text;
+      el.innerHTML = `<span class="law-no">${item.no}</span>${item.text}`;
+
+      // ── Desktop: HTML5 drag ──
+      el.addEventListener('dragstart', e => {
+        el.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', JSON.stringify({ no: item.no, text: item.text }));
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+
+      body.appendChild(el);
+    });
+
+    groupEl.appendChild(header);
+    groupEl.appendChild(body);
+    container.appendChild(groupEl);
+  });
+}
+
+// ─── Filter ──────────────────────────────────────
+function filterLawItems(q) {
+  const kw = q.trim().toLowerCase();
+  document.querySelectorAll('.law-group').forEach(grp => {
+    let anyVisible = false;
+    grp.querySelectorAll('.law-item').forEach(el => {
+      const match = !kw || el.textContent.toLowerCase().includes(kw);
+      el.style.display = match ? '' : 'none';
+      if (match) anyVisible = true;
+    });
+    grp.style.display = anyVisible ? '' : 'none';
+    if (kw && anyVisible) grp.classList.add('open');
+    else if (!kw) grp.classList.remove('open');
+  });
+}
+
+// ─── Drop zone บน canvas-scroll ─────────────────
+function initLawDrop() {
+  const scroll = document.getElementById('canvas-scroll');
+  if (!scroll) return;
+
+  scroll.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  scroll.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!window.canvas || !window.pdfDoc) return;
+
+    let data;
+    try { data = JSON.parse(e.dataTransfer.getData('text/plain')); }
+    catch { return; }
+
+    // คำนวณพิกัดบน canvas (หัก offset + zoom)
+    const rect = scroll.getBoundingClientRect();
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    const cx = (rawX - (window.canvasOffsetX || 0)) / (window.currentZoom || 1);
+    const cy = (rawY - (window.canvasOffsetY || 0)) / (window.currentZoom || 1);
+
+    _dropLawText(data.no, data.text, cx, cy);
+  });
+}
+
+// ─── วาง law text บน Fabric canvas ─────────────
+function _dropLawText(no, text, cx, cy) {
+  const color = document.getElementById('law-color')?.value || '#ff453a';
+  const zoom  = window.currentZoom || 1;
+  const fs    = Math.max(10, 13 / zoom);
+  const pad   = 8 / zoom;
+  const sw    = 1.5 / zoom;
+
+  const fullText = `${no}\n${text}`;
+
+  // IText ให้แก้ไขได้ + resize + rotate
+  const txt = new fabric.IText(fullText, {
+    left: cx, top: cy,
+    fontSize: fs,
+    fill: '#fff',
+    fontFamily: '-apple-system, "Helvetica Neue", sans-serif',
+    lineHeight: 1.4,
+    editable: true,
+    selectable: true,
+    hasControls: true,
+    hasBorders: true,
+    lockScalingFlip: true,
+    customData: { isLawText: true, lawNo: no },
+    // กรอบ background ผ่าน backgroundColor
+    backgroundColor: color + 'cc',
+    padding: pad,
+  });
+
+  // เพิ่ม border สี
+  txt.set({
+    borderColor: color,
+    cornerColor: color,
+    cornerSize: 8 / zoom,
+  });
+
+  window.canvas.add(txt);
+  window.canvas.setActiveObject(txt);
+  window.canvas.renderAll();
+
+  if (typeof saveCurrentPage === 'function') saveCurrentPage();
+  if (typeof setMode === 'function') setMode('select');
+}
+
+// ─── init ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  buildLawPanel();
+  initLawDrop();
+});
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN APPLICATION
+═══════════════════════════════════════════════════════ -->
+<script>
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+const appState = {
+  projectInfo:{ ownerName:'',requestNo:'',buildingType:'residential',height:9,roadWidth:6,floors:2,address:'' },
+  checkResults:[], comments:[], docs:{ memo:'',ko1:'',annex:'' }, currentDocView:'memo',
+};
+function syncState(){
+  appState.projectInfo.ownerName   = document.getElementById('info-owner').value;
+  appState.projectInfo.requestNo   = document.getElementById('info-req').value;
+  appState.projectInfo.address     = document.getElementById('info-loc').value;
+  appState.projectInfo.buildingType= document.getElementById('info-type').value;
+  appState.projectInfo.height      = parseFloat(document.getElementById('info-height').value)||0;
+  appState.projectInfo.roadWidth   = parseFloat(document.getElementById('info-road').value)||0;
+  appState.projectInfo.floors      = parseInt(document.getElementById('info-floor').value)||1;
+}
+
+// ──────────────────────────────────────────────
+// FABRIC + PDF SETUP
+// ──────────────────────────────────────────────
+const canvas = new fabric.Canvas('drawing-canvas',{selection:false});
+window.canvas = canvas; // expose สำหรับ LawPanel
+let pdfDoc=null, pageNum=1, pageRotations={}, pageDrawings={}, pageLabels={};
+Object.defineProperty(window,'pdfDoc',{get:()=>pdfDoc});
+let pdfArrayBuffer=null, pdfFileName='annotated';
+
+// ── Page Management state ──
+let pageOrder = [];        // [1,2,3,...] index=ตำแหน่ง, value=pageNum จริง
+let selectedPages = new Set(); // multi-select
+// pdfSources: รองรับ merge — {srcId, buffer, numPages}
+// pageOrder entry: {srcId:0, page:1}
+// srcId=0 = ไฟล์หลัก
+let pdfSources = [];       // [{id, buffer, doc}]
+let currentMode='pan', currentZoom=1;
+Object.defineProperty(window,'currentZoom',{get:()=>currentZoom});
+let baseCanvasWidth=0, baseCanvasHeight=0;
+
+// Canvas pan state
+let isPanning=false, panLastX=0, panLastY=0;
+let canvasOffsetX=0, canvasOffsetY=0;
+// expose สำหรับ LawPanel drop handler
+Object.defineProperty(window,'canvasOffsetX',{get:()=>canvasOffsetX});
+Object.defineProperty(window,'canvasOffsetY',{get:()=>canvasOffsetY});
+
+// Device mode
+let deviceMode = window.matchMedia('(pointer:coarse)').matches ? 'ipad' : 'desktop';
+
+MeasurementEngine.init(canvas, ()=>currentZoom, {
+  onCalibrated(ppm){
+    alert(`ตั้งสเกลสำเร็จ! (${ppm.toFixed(2)} px/m)`);
+    enableMeasurementTools(); updateScaleDisplay(); setMode('pan');
+  },
+  onMeasured(){
+    saveCurrentPage(); runCheckEngine(); setMode('pan');
+  },
+});
+
+// Apply initial mode
+applyDeviceMode();
+
+// ──────────────────────────────────────────────
+// DEVICE MODE
+// ──────────────────────────────────────────────
+function toggleDeviceMode(){
+  deviceMode = deviceMode==='desktop' ? 'ipad' : 'desktop';
+  applyDeviceMode();
+}
+function applyDeviceMode(){
+  const btn = document.getElementById('mode-toggle');
+  if(deviceMode==='ipad'){
+    document.body.classList.add('ipad-mode');
+    btn.textContent = '📱 iPad';
+  } else {
+    document.body.classList.remove('ipad-mode');
+    btn.textContent = '🖥️ Desktop';
+  }
+}
+
+// ──────────────────────────────────────────────
+// PDF LOAD  — render 10 หน้าแรก → เปิดใช้งาน
+//             → render ที่เหลือ background เงียบๆ
+// ──────────────────────────────────────────────
+const pageImageCache = {};
+const PRIORITY_COUNT = 10;
+let _bgRenderActive = false;
+
+function showLoading(){ document.getElementById('loading-overlay').classList.remove('hidden'); }
+function hideLoading(){
+  const el=document.getElementById('loading-overlay');
+  el.classList.add('fade-out');
+  setTimeout(()=>el.classList.add('hidden'),450);
+}
+function setLoadingProgress(done, total, msg){
+  const pct=Math.round(done/total*100);
+  document.getElementById('loading-bar').style.width=pct+'%';
+  document.getElementById('loading-pct').textContent=pct+'%';
+  document.getElementById('loading-sub').textContent=msg||`render หน้า ${done}/${total}...`;
+}
+
+async function renderPageToCache(pdf, i, srcId=0){
+  const cacheKey = `${srcId}_${i}`;
+  const page=await pdf.getPage(i);
+  const rot=(page.rotate+(pageRotations[i]||0))%360;
+  const vp=page.getViewport({scale:1.5, rotation:rot});
+  const tmp=document.createElement('canvas');
+  tmp.width=Math.round(vp.width); tmp.height=Math.round(vp.height);
+  await page.render({canvasContext:tmp.getContext('2d',{alpha:false}), viewport:vp}).promise;
+  pageImageCache[cacheKey]=tmp.toDataURL('image/jpeg',0.92);
+  // thumbnail
+  const vpT=page.getViewport({scale:0.25, rotation:rot});
+  const tc=document.getElementById(`thumb-canvas-${cacheKey}`);
+  if(tc){ tc.width=vpT.width; tc.height=vpT.height; await page.render({canvasContext:tc.getContext('2d'),viewport:vpT}).promise; }
+}
+
+async function renderBackground(pdf, startFrom){
+  _bgRenderActive=true;
+  const total=pdf.numPages;
+  for(let i=startFrom;i<=total;i++){
+    if(!_bgRenderActive) break;
+    const cacheKey = `0_${i}`;
+    if(!pageImageCache[cacheKey]){
+      await renderPageToCache(pdf, i, 0);
+      const th=document.getElementById(`thumb-0_${i}`);
+      if(th) th.classList.remove('thumb-loading');
+    }
+  }
+  _bgRenderActive=false;
+}
+
+document.getElementById('pdf-upload').addEventListener('change', function(e){
+  const file=e.target.files[0];
+  if(!file||file.type!=='application/pdf') return alert('กรุณาอัพโหลดไฟล์ PDF');
+  _bgRenderActive=false;
+  pdfFileName=file.name.replace(/\.pdf$/i,'');
+  showLoading();
+  setLoadingProgress(0,1,'กำลังอ่านไฟล์...');
+  const reader=new FileReader();
+  reader.onload=async function(){
+    pdfArrayBuffer=this.result.slice(0); // เก็บ copy ไว้ใช้ตอน export
+    const pdf=await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
+    pdfDoc=pdf; pageNum=1; pageRotations={}; pageDrawings={};
+    currentZoom=1; canvasOffsetX=0; canvasOffsetY=0;
+    Object.keys(pageImageCache).forEach(k=>delete pageImageCache[k]);
+    MeasurementEngine.resetCalibration();
+    VectorEngine.clearAll();
+    selectedPages.clear();
+    _initPageOrder(); // สร้าง pageOrder + pdfSources
+    document.getElementById('thumb-placeholder').style.display='none';
+    renderThumbnails();
+    // ── Auto-detect V/R ทุกหน้า (background, lightweight) ──
+    setTimeout(()=>autoDetectAllPages(), 500);
+
+    // ── Priority: render 10 หน้าแรก ──
+    const priority=Math.min(PRIORITY_COUNT, pdf.numPages);
+    for(let i=1;i<=priority;i++){
+      setLoadingProgress(i-1, priority, `render หน้า ${i}/${priority}...`);
+      await renderPageToCache(pdf, i, 0);
+      setLoadingProgress(i, priority, `หน้า ${i} เสร็จแล้ว`);
+    }
+    // fill thumbnails ที่ render แล้ว
+    _fillThumbCanvases();
+
+    // ── เปิดใช้งานได้เลย ──
+    hideLoading();
+    updateScaleDisplay(); renderPage(pageNum, 0);
+    enableAllButtons(); disableMeasurementTools();
+
+    // ── Background: render หน้าที่เหลือเงียบๆ ──
+    if(pdf.numPages>priority){
+      renderBackground(pdf, priority+1);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function enableAllButtons(){
+  document.querySelectorAll('#top-bar button:not(#btn-finish), #ipad-bottom-bar button').forEach(el=>el.disabled=false);
+  document.getElementById('btn-export-pdf').disabled=false;
+}
+
+// ──────────────────────────────────────────────
+// THUMBNAILS  (สร้าง DOM เท่านั้น canvas จะถูก fill ตอน preRender)
+// ──────────────────────────────────────────────
+// ── pageTypes: เก็บผล detect ทุกหน้า ──
+const pageTypes = {};  // {1:'vector', 2:'raster', ...}
+
+// ── auto-detect ทุกหน้า lightweight หลัง PDF โหลด ──
+async function autoDetectAllPages(){
+  if(!pdfDoc) return;
+  const total = pdfDoc.numPages;
+  // รัน parallel batch ละ 4 หน้า — เร็วกว่า sequential มาก
+  const BATCH = 4;
+  for(let start=1; start<=total; start+=BATCH){
+    const batch = [];
+    for(let i=start; i<start+BATCH && i<=total; i++) batch.push(i);
+    await Promise.all(batch.map(async i => {
+      try {
+        const page = await pdfDoc.getPage(i);
+        const type = await VectorEngine.detectPDFType(page);
+        pageTypes[i] = type;
+      } catch(e){ pageTypes[i]='raster'; }
+      _updateThumbVRBadge(i);
+    }));
+  }
+}
+
+function _updateThumbVRBadge(i){
+  const wrap = document.getElementById(`thumb-${i}`);
+  if(!wrap) return;
+  let badge = wrap.querySelector('.vr-badge');
+  if(!badge){ badge=document.createElement('span'); badge.className='vr-badge'; wrap.appendChild(badge); }
+  const type = pageTypes[i];
+  const cands = VectorEngine.getCandidates(i);
+  if(!type){ badge.textContent=''; return; }
+  if(VectorEngine.isExtracting(i)){
+    badge.textContent='⏳'; badge.className='vr-badge vr-extracting';
+  } else if(cands.length > 0){
+    badge.textContent=`V ${cands.length}`; badge.className='vr-badge vr-vector-done';
+  } else if(type==='vector'){
+    badge.textContent='V'; badge.className='vr-badge vr-vector';
+  } else {
+    badge.textContent='R'; badge.className='vr-badge vr-raster';
+  }
+}
+
+function renderThumbnails(){
+  const inner = document.getElementById('thumb-strip-inner');
+  inner.innerHTML = '';
+  pageOrder.forEach((entry, pos) => {
+    const {srcId, page: pn} = entry;
+    const uid = `${srcId}_${pn}`;
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-wrap';
+    wrap.id = `thumb-${uid}`;
+    wrap.dataset.pos = pos;
+
+    wrap.onclick = (e) => {
+      if(e.target.tagName==='SELECT'||e.target.tagName==='INPUT') return;
+      if(e.shiftKey && pageTypes[pn]==='vector'){ e.preventDefault(); _forceExtract(pn); return; }
+      changePageTo(pos);
+    };
+    wrap.addEventListener('contextmenu', e => {
+      e.preventDefault(); _ctxTargetPos = pos; showContextMenu(e.clientX, e.clientY);
+    });
+
+    const chk = document.createElement('input');
+    chk.type='checkbox'; chk.className='thumb-chk'; chk.id=`chk-${uid}`;
+    chk.checked = selectedPages.has(uid);
+    chk.onchange = () => {
+      if(chk.checked) selectedPages.add(uid); else selectedPages.delete(uid);
+      wrap.classList.toggle('pg-selected', chk.checked);
+    };
+
+    const dh = document.createElement('span');
+    dh.className='thumb-drag-handle'; dh.textContent='≡'; dh.title='ลากเพื่อเรียง';
+
+    const tc = document.createElement('canvas');
+    tc.className='thumb-canvas'; tc.id=`thumb-canvas-${uid}`;
+
+    const lbl = document.createElement('div');
+    lbl.className='thumb-label';
+    lbl.textContent = srcId===0 ? `หน้า ${pn}` : `[${srcId+1}] หน้า ${pn}`;
+
+    const sel = document.createElement('select');
+    sel.className='page-tag-select'; sel.id=`page-tag-${uid}`;
+    [{value:'',label:'— ระบุประเภท —'},{value:'site',label:'📍 ผังบริเวณ'},
+     {value:'floor_1',label:'🏠 ชั้น 1'},{value:'floor_2',label:'🏠 ชั้น 2'},
+     {value:'floor_3',label:'🏠 ชั้น 3'},{value:'floor_4',label:'🏠 ชั้น 4'},
+     {value:'floor_5',label:'🏠 ชั้น 5'},{value:'roof',label:'🏗️ ดาดฟ้า'},
+     {value:'elevation',label:'📐 รูปด้าน/ตัด'},{value:'other',label:'📄 อื่นๆ'}
+    ].forEach(opt=>{ const o=document.createElement('option'); o.value=opt.value; o.textContent=opt.label; sel.appendChild(o); });
+    sel.value = pageLabels[uid]||'';
+    sel.onchange = (e) => {
+      pageLabels[uid] = e.target.value;
+      updateThumbTagBadge(uid);
+      if(e.target.value && e.target.value!=='other' && srcId===0) _triggerExtract(pn);
+    };
+
+    wrap.appendChild(chk); wrap.appendChild(dh);
+    wrap.appendChild(tc); wrap.appendChild(lbl); wrap.appendChild(sel);
+    inner.appendChild(wrap);
+    _updateThumbVRBadge(pn);
+    _initThumbDrag(wrap, pos);
+  });
+  // render thumbnails จาก cache
+  _fillThumbCanvases();
+}
+
+// force extract (Shift+click thumbnail)
+async function _forceExtract(i){
+  if(!pdfDoc) return;
+  VectorEngine.clearPage(i);
+  pageTypes[i] = 'vector';
+  _updateThumbVRBadge(i);
+  const page = await pdfDoc.getPage(i);
+  const rot = (page.rotate + (pageRotations[i]||0)) % 360;
+  updateStatus(`⏳ Force extract หน้า ${i}...`);
+  await VectorEngine.extractSnapCandidates(page, rot);
+  _updateThumbVRBadge(i);
+  if(i===pageNum){ updateVectorBadge(i); updateStatus(`✅ Extract เสร็จ — ${VectorEngine.getCandidates(i).length} pts`); setTimeout(()=>handleStatusUpdate(),2000); }
+}
+
+function updateThumbTagBadge(uid){
+  const wrap=document.getElementById(`thumb-${uid}`);
+  if(!wrap) return;
+  const tag=pageLabels[uid]||'';
+  const colors={'site':'#0056b3','floor_1':'#28a745','floor_2':'#28a745','floor_3':'#28a745','floor_4':'#28a745','floor_5':'#28a745','roof':'#6c757d','elevation':'#fd7e14','other':'#6c757d'};
+  wrap.style.borderLeft=tag ? `3px solid ${colors[tag]||'#888'}` : '';
+}
+
+// ──────────────────────────────────────────────
+// PAGE RENDER  — ดึงจาก cache / render on-demand ถ้ายังไม่มี
+// ──────────────────────────────────────────────
+async function renderPage(num, srcId=0){
+  const cacheKey = `${srcId}_${num}`;
+  const src = pdfSources.find(s=>s.id===srcId) || {doc:pdfDoc, id:0};
+  if(!pageImageCache[cacheKey]){
+    updateStatus(`⏳ กำลัง render หน้า ${num}...`);
+    await renderPageToCache(src.doc, num, srcId);
+  }
+  const dataURL=pageImageCache[cacheKey];
+  if(!dataURL){ updateStatus('❌ โหลดหน้าไม่ได้'); return; }
+  updateStatus('กำลังแสดงหน้า...');
+  fabric.Image.fromURL(dataURL, function(img){
+    baseCanvasWidth=img.width; baseCanvasHeight=img.height;
+    canvas.setWidth(baseCanvasWidth*currentZoom);
+    canvas.setHeight(baseCanvasHeight*currentZoom);
+    canvas.setZoom(currentZoom); canvas.clear();
+    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas),{originX:'left',originY:'top'});
+    document.getElementById('page-info').textContent=`${num}/${pageOrder.length}`;
+    _markActivePage();
+    applyCanvasOffset();
+    updateVectorBadge(num);
+    if(pageDrawings[num]){
+      canvas.loadFromJSON(JSON.parse(pageDrawings[num]),()=>{
+        restorePairedLabels();
+        canvas.renderAll(); runCheckEngine(); updateParkingCount();
+      });
+    } else { runCheckEngine(); updateParkingCount(); }
+    updateStyle();
+    updateStatus('🖐️ Pan — Scroll=Zoom | MiddleMouse/Space+Drag=Pan');
+  });
+}
+
+function applyCanvasOffset(){
+  const wrapper=document.getElementById('canvas-wrapper');
+  wrapper.style.transform=`translate(${canvasOffsetX}px,${canvasOffsetY}px)`;
+}
+
+function saveCurrentPage(){ if(pdfDoc) pageDrawings[pageNum]=JSON.stringify(canvas.toJSON(['customData'])); }
+function changePageTo(pos){
+  if(!pdfDoc || !pageOrder[pos]) return;
+  saveCurrentPage();
+  const {srcId, page:pn} = pageOrder[pos];
+  pageNum = pn;
+  renderPage(pn, srcId);
+}
+function changePage(offset){ if(!pdfDoc)return; const n=pageNum+offset; if(n>=1&&n<=pdfDoc.numPages) changePageTo(n); }
+async function rotatePage(){
+  if(!pdfDoc)return;
+  const objs=canvas.getObjects();
+  if(objs.length>0){
+    alert('ไม่สามารถหมุนได้ เนื่องจากมีการวาดแล้วในหน้านี้\nกรุณาลบ annotation ก่อนหมุน');
+    return;
+  }
+  pageRotations[pageNum]=((pageRotations[pageNum]||0)+90)%360;
+  const cacheKey=`0_${pageNum}`;
+  delete pageImageCache[cacheKey];
+  delete pageDrawings[pageNum];
+  VectorEngine.clearPage(pageNum);
+  await renderPageToCache(pdfDoc, pageNum, 0);
+  renderPage(pageNum, 0);
+}
+
+// ──────────────────────────────────────────────
+// ZOOM  (scroll wheel + button)
+// ──────────────────────────────────────────────
+function changeZoom(delta, focalX, focalY){
+  if(!pdfDoc) return;
+  const oldZoom=currentZoom;
+  currentZoom=Math.min(5,Math.max(0.1,currentZoom+delta));
+
+  // focal point pan compensation
+  if(focalX!==undefined && focalY!==undefined){
+    const scale=currentZoom/oldZoom;
+    canvasOffsetX=focalX-(focalX-canvasOffsetX)*scale;
+    canvasOffsetY=focalY-(focalY-canvasOffsetY)*scale;
+  }
+
+  canvas.setWidth(baseCanvasWidth*currentZoom);
+  canvas.setHeight(baseCanvasHeight*currentZoom);
+  canvas.setZoom(currentZoom);
+  document.getElementById('zoom-display').textContent=Math.round(currentZoom*100)+'%';
+  applyCanvasOffset();
+}
+
+function resetZoom(){
+  currentZoom=1; canvasOffsetX=0; canvasOffsetY=0;
+  if(!pdfDoc) return;
+  canvas.setWidth(baseCanvasWidth); canvas.setHeight(baseCanvasHeight);
+  canvas.setZoom(1);
+  document.getElementById('zoom-display').textContent='100%';
+  applyCanvasOffset();
+}
+
+// Scroll wheel zoom
+document.getElementById('canvas-scroll').addEventListener('wheel', function(e){
+  if(!pdfDoc) return;
+  e.preventDefault();
+  const rect=this.getBoundingClientRect();
+  const focalX=e.clientX-rect.left;
+  const focalY=e.clientY-rect.top;
+  const delta=e.deltaY>0 ? -0.15 : 0.15;
+  changeZoom(delta, focalX, focalY);
+},{ passive:false });
+
+// ──────────────────────────────────────────────
+// PAN  (middle mouse + space+drag + 2-finger drag iPad)
+// ──────────────────────────────────────────────
+let spaceDown=false, middleDown=false, shiftOrthoActive=false;
+
+document.addEventListener('keydown', e=>{
+  if(e.code==='Space'&&!e.repeat){ spaceDown=true; if(currentMode==='pan'||spaceDown) document.getElementById('canvas-scroll').style.cursor='grab'; }
+  // Ctrl+Z = undo
+  if((e.ctrlKey||e.metaKey) && e.key==='z' && !e.target.matches('input,textarea')){
+    e.preventDefault(); undoLast(); return;
+  }
+  // Shift ค้าง = ortho ชั่วคราว (เฉพาะตอนวาด)
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight'){
+    const drawModes=['polygon','measure-line','setback','calibrate'];
+    if(drawModes.includes(currentMode) && !MeasurementEngine.getSnapFlags().ortho){
+      shiftOrthoActive=true;
+      MeasurementEngine.setSnapFlag('ortho', true);
+    }
+  }
+  // DEL / Backspace — ลบ object ที่เลือก (ไม่ลบถ้ากำลังพิมพ์ข้อความ)
+  if((e.key==='Delete'||e.key==='Backspace') && !e.target.matches('input,textarea')){
+    const active=canvas.getActiveObjects();
+    if(active.length){ e.preventDefault(); deleteSelected(); }
+  }
+});
+document.addEventListener('keyup', e=>{
+  if(e.code==='Space'){ spaceDown=false; document.getElementById('canvas-scroll').style.cursor=''; }
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight'){
+    if(shiftOrthoActive){
+      shiftOrthoActive=false;
+      MeasurementEngine.setSnapFlag('ortho', false);
+    }
+  }
+});
+
+const scrollEl=document.getElementById('canvas-scroll');
+
+scrollEl.addEventListener('mousedown',e=>{
+  if(e.button===1||spaceDown){  // middle mouse or space
+    e.preventDefault(); isPanning=true; panLastX=e.clientX; panLastY=e.clientY;
+    scrollEl.style.cursor='grabbing';
+  }
+});
+document.addEventListener('mousemove',e=>{
+  if(!isPanning) return;
+  canvasOffsetX+=e.clientX-panLastX;
+  canvasOffsetY+=e.clientY-panLastY;
+  panLastX=e.clientX; panLastY=e.clientY;
+  applyCanvasOffset();
+});
+document.addEventListener('mouseup',e=>{
+  if(e.button===1||isPanning){ isPanning=false; scrollEl.style.cursor=''; }
+});
+
+// Touch: 2-finger pan + pinch zoom
+let touches={}, lastPinchDist=null, lastTouchMid=null;
+scrollEl.addEventListener('touchstart',e=>{
+  Array.from(e.changedTouches).forEach(t=>touches[t.identifier]={x:t.clientX,y:t.clientY});
+  if(Object.keys(touches).length===2){
+    const ts=Object.values(touches);
+    lastPinchDist=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
+    lastTouchMid={x:(ts[0].x+ts[1].x)/2,y:(ts[0].y+ts[1].y)/2};
+  }
+},{passive:false});
+
+scrollEl.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  Array.from(e.changedTouches).forEach(t=>touches[t.identifier]={x:t.clientX,y:t.clientY});
+  const ts=Object.values(touches);
+  if(ts.length===2){
+    // pinch zoom
+    const dist=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
+    const mid={x:(ts[0].x+ts[1].x)/2,y:(ts[0].y+ts[1].y)/2};
+    if(lastPinchDist){
+      const rect=scrollEl.getBoundingClientRect();
+      const delta=(dist-lastPinchDist)*0.01;
+      changeZoom(delta,mid.x-rect.left,mid.y-rect.top);
+    }
+    // 2-finger pan
+    if(lastTouchMid){
+      canvasOffsetX+=mid.x-lastTouchMid.x;
+      canvasOffsetY+=mid.y-lastTouchMid.y;
+      applyCanvasOffset();
+    }
+    lastPinchDist=dist; lastTouchMid=mid;
+  }
+},{passive:false});
+
+scrollEl.addEventListener('touchend',e=>{
+  Array.from(e.changedTouches).forEach(t=>delete touches[t.identifier]);
+  if(Object.keys(touches).length<2){ lastPinchDist=null; lastTouchMid=null; }
+},{passive:false});
+
+// ──────────────────────────────────────────────
+// FABRIC PAN (mode=pan, 1 finger/left drag)
+// ──────────────────────────────────────────────
+let fabricPanning=false, fabricPanLast={x:0,y:0};
+canvas.on('mouse:down',function(o){
+  if(currentMode==='pan'){
+    fabricPanning=true;
+    fabricPanLast={x:o.e.clientX||o.e.touches?.[0]?.clientX,y:o.e.clientY||o.e.touches?.[0]?.clientY};
+  }
+});
+canvas.on('mouse:move',function(o){
+  // ghost line for measurement modes
+  if(['setback','polygon','measure-line','calibrate'].includes(currentMode)){
+    const pt=canvas.getPointer(o.e);
+    MeasurementEngine.updateGhostLine(pt);
+  }
+  // fabric pan
+  if(fabricPanning&&currentMode==='pan'){
+    const cx=o.e.clientX||o.e.touches?.[0]?.clientX;
+    const cy=o.e.clientY||o.e.touches?.[0]?.clientY;
+    if(cx===undefined) return;
+    canvasOffsetX+=cx-fabricPanLast.x;
+    canvasOffsetY+=cy-fabricPanLast.y;
+    fabricPanLast={x:cx,y:cy};
+    applyCanvasOffset();
+  }
+});
+canvas.on('mouse:up',function(){ fabricPanning=false; });
+
+// ── Paired label: ขยับตาม object ──
+canvas.on('mouse:down', function(e){
+  const obj = canvas.getActiveObject();
+  if(!obj||!obj.customData||!obj.customData.pairedLabel) return;
+  obj._dragStartLeft = obj.left;
+  obj._dragStartTop  = obj.top;
+  obj._dragStartLblLeft = obj.customData.pairedLabel.left;
+  obj._dragStartLblTop  = obj.customData.pairedLabel.top;
+});
+canvas.on('object:moving', function(e){
+  const obj = e.target;
+  if(!obj||!obj.customData||!obj.customData.pairedLabel) return;
+  if(obj._dragStartLeft===undefined) return;
+  const lbl = obj.customData.pairedLabel;
+  const dx = obj.left - obj._dragStartLeft;
+  const dy = obj.top  - obj._dragStartTop;
+  lbl.set({ left: obj._dragStartLblLeft+dx, top: obj._dragStartLblTop+dy });
+  lbl.setCoords();
+  canvas.requestRenderAll();
+});
+
+// ──────────────────────────────────────────────
+// EXPORT ANNOTATED PDF
+// ──────────────────────────────────────────────
+// exportAnnotatedPDF เดิม → delegate ไป exportPages('all')
+async function exportAnnotatedPDF(){
+  if(!pdfArrayBuffer){ alert('กรุณาเปิดไฟล์ PDF ก่อน'); return; }
+  const btn=document.getElementById('btn-export-pdf');
+  btn.disabled=true; btn.textContent='⏳';
+  await exportPages('all');
+  btn.disabled=false; btn.textContent='💾';
+}
+
+async function renderAnnotationLayer(num, srcId=0){
+  const cacheKey = `${srcId}_${num}`;
+  const imgData=pageImageCache[cacheKey];
+  if(!imgData) return null;
+  return new Promise(resolve=>{
+    fabric.Image.fromURL(imgData, function(bgImg){
+      const w=bgImg.width, h=bgImg.height;
+      const el=document.createElement('canvas');
+      el.width=w; el.height=h;
+      const tempCanvas=new fabric.Canvas(el,{width:w,height:h,enableRetinaScaling:false});
+      tempCanvas.setBackgroundImage(bgImg, ()=>{});
+      const drawingData=pageDrawings[num];
+      if(drawingData && JSON.parse(drawingData).objects?.length>0){
+        tempCanvas.loadFromJSON(JSON.parse(drawingData),()=>{
+          tempCanvas.backgroundImage=bgImg;
+          tempCanvas.renderAll();
+          const dataURL=tempCanvas.toDataURL({format:'jpeg',quality:0.92,multiplier:1});
+          tempCanvas.dispose();
+          resolve(dataURL);
+        });
+      } else {
+        // ไม่มี annotation — ใช้ JPEG เดิม
+        resolve(imgData);
+      }
+    });
+  });
+}
+
+
+function restorePairedLabels(){
+  // หลัง loadFromJSON — pairedLabel reference หาย ต้อง re-link
+  // แต่ละ polygon/line จะมี label อยู่ถัดไปใน objects array
+  const objs = canvas.getObjects();
+  for(let i=0;i<objs.length-1;i++){
+    const obj=objs[i];
+    const next=objs[i+1];
+    if(!obj.customData) continue;
+    if((obj.customData.isPolygon||obj.customData.isMeasure||obj.customData.isSetback) && next.customData&&next.customData.isPairedLabel){
+      obj.customData.pairedLabel = next;
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
+// TOOL CLICKS ON CANVAS
+// ──────────────────────────────────────────────
+let isDrawingShape=false, origX, origY, activeShape=null;
+let currentPolyType='site';
+
+// ── Hatch pattern สำหรับ zone ──────────────────────
+function _makeHatchPattern(color, spacing=12, opacity=0.45){
+  // SVG diagonal lines pattern
+  const c = color || '#7c3aed';
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${spacing}' height='${spacing}'>
+    <line x1='0' y1='${spacing}' x2='${spacing}' y2='0' stroke='${c}' stroke-width='1.5' stroke-opacity='${opacity}'/>
+  </svg>`;
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  return new Promise(resolve => {
+    fabric.util.loadImage(url, img => {
+      resolve(new fabric.Pattern({ source: img, repeat: 'repeat' }));
+    });
+  });
+}
+
+// zone preview rect (ยังไม่ใช่ pattern เพราะ async)
+let _zonePreview = null;
+
+async function _finalizeZone(x, y, w, h, color){
+  if(w < 5 || h < 5) return;
+  const pattern = await _makeHatchPattern(color);
+  const zone = new fabric.Rect({
+    left: x, top: y, width: w, height: h,
+    fill: pattern,
+    stroke: color, strokeWidth: 1.5 / currentZoom,
+    opacity: 1,
+    selectable: true, evented: true,
+    customData: { isZone: true, color }
+  });
+  // label กลาง zone
+  const label = new fabric.IText('', {
+    left: x + w/2, top: y + h/2,
+    fontSize: Math.max(12, Math.min(w, h) * 0.08),
+    fill: color, fontFamily: 'sans-serif',
+    originX: 'center', originY: 'center',
+    textAlign: 'center', selectable: true,
+    customData: { isZoneLabel: true, pairedZone: zone }
+  });
+  zone.customData.pairedLabel = label;
+  canvas.add(zone, label);
+  // double-click zone → edit label
+  zone.on('mousedblclick', () => {
+    canvas.setActiveObject(label);
+    label.enterEditing();
+    label.selectAll();
+    canvas.renderAll();
+  });
+  canvas.renderAll();
+  saveCurrentPage();
+  setMode('select');
+}
+
+canvas.on('mouse:down',function(o){
+  if(['none','pan','select'].includes(currentMode)||canvas.isDrawingMode) return;
+  if(fabricPanning) return;
+  const pt=canvas.getPointer(o.e);
+  const color=document.getElementById('tool-color').value;
+  const sw2=parseInt(document.getElementById('tool-width').value);
+
+  if(currentMode==='text'){
+    const txt=new fabric.IText('คลิกพิมพ์...',{left:pt.x,top:pt.y,fontFamily:'sans-serif',fill:color,fontSize:18*(sw2/2)});
+    canvas.add(txt); canvas.setActiveObject(txt); txt.enterEditing(); txt.selectAll(); setMode('select'); return;
+  }
+  if(currentMode==='rect'||currentMode==='circle'||currentMode==='zone'){
+    isDrawingShape=true; origX=pt.x; origY=pt.y;
+    if(currentMode==='zone'){
+      // preview rect โปร่งใส ก่อน pattern จะ load
+      activeShape=new fabric.Rect({left:origX,top:origY,width:0,height:0,
+        fill:'rgba(124,58,237,0.15)',stroke:color||'#7c3aed',
+        strokeWidth:1.5/currentZoom,strokeDashArray:[4/currentZoom,3/currentZoom],
+        selectable:false});
+    } else {
+      activeShape=currentMode==='rect'
+        ?new fabric.Rect({left:origX,top:origY,width:0,height:0,fill:'transparent',stroke:color,strokeWidth:sw2/currentZoom,selectable:false})
+        :new fabric.Ellipse({left:origX,top:origY,rx:0,ry:0,fill:'transparent',stroke:color,strokeWidth:sw2/currentZoom,selectable:false});
+    }
+    canvas.add(activeShape); return;
+  }
+  if(currentMode==='calibrate'){    MeasurementEngine.handleCalibrate(pt);    handleStatusUpdate(); return; }
+  if(currentMode==='measure-line'){ MeasurementEngine.handleMeasureLine(pt);  handleStatusUpdate(); return; }
+  if(currentMode==='polygon'){
+    // ── Auto-close: ถ้า ≥3 จุดแล้ว และคลิกใกล้จุดแรก → ปิด polygon อัตโนมัติ
+    if(MeasurementEngine.getTempPointCount() >= 2){
+      const firstPt = MeasurementEngine.getFirstPoint();
+      if(firstPt){
+        const closeTol = MeasurementEngine.getSnapThreshold().pt / currentZoom;
+        if(Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y) < closeTol){
+          // trigger finish
+          const labels={site:'ที่ดิน',building:'อาคาร',space:'ที่ว่าง',floor:'พื้นที่ใช้สอย',parking:'ที่จอดรถ',stair:'บันได',roof:'ดาดฟ้า'};
+          const label = currentPolyType.startsWith('custom_') ? currentPolyType.replace('custom_','') : (labels[currentPolyType]||currentPolyType);
+          MeasurementEngine.finishPolygon(currentPolyType, label);
+          const objs=canvas.getObjects('polygon');
+          if(objs.length>0){ const last=objs[objs.length-1]; if(last.customData) last.customData.pageLabel=pageLabels[pageNum]||''; }
+          setMode('select'); saveCurrentPage(); handleStatusUpdate();
+          return;
+        }
+      }
+    }
+    MeasurementEngine.handlePolygonClick(pt,currentPolyType); handleStatusUpdate(); return;
+  }
+  if(currentMode==='setback'){      MeasurementEngine.handleSetback(pt);       handleStatusUpdate(); return; }
+  if(currentMode==='park-normal'||currentMode==='park-disabled'){ handleParkingPin(pt,currentMode); return; }
+});
+canvas.on('mouse:move',function(o){
+  if(!isDrawingShape) return;
+  const pt=canvas.getPointer(o.e);
+  if(currentMode==='rect'||currentMode==='zone') activeShape.set({width:Math.abs(origX-pt.x),height:Math.abs(origY-pt.y),left:Math.min(pt.x,origX),top:Math.min(pt.y,origY)});
+  else if(currentMode==='circle') activeShape.set({rx:Math.abs(origX-pt.x)/2,ry:Math.abs(origY-pt.y)/2,left:Math.min(pt.x,origX),top:Math.min(pt.y,origY)});
+  canvas.renderAll();
+});
+canvas.on('mouse:up',function(){
+  if(!isDrawingShape) return;
+  isDrawingShape=false;
+  if(currentMode==='zone' && activeShape){
+    const x=activeShape.left, y=activeShape.top;
+    const w=activeShape.width, h=activeShape.height;
+    const color=document.getElementById('tool-color').value||'#7c3aed';
+    canvas.remove(activeShape); activeShape=null;
+    _finalizeZone(x, y, w, h, color);
+  } else {
+    activeShape&&activeShape.setCoords(); activeShape=null; setMode('select');
+  }
+});
+
+// ──────────────────────────────────────────────
+// MODE / TOOL MANAGEMENT
+// ──────────────────────────────────────────────
+function updateStatus(msg){ document.getElementById('status-bar').textContent=msg; }
+function updateScaleDisplay(){
+  const el=document.getElementById('scale-badge');
+  if(MeasurementEngine.isCalibrated()){
+    el.textContent=`✅ ${MeasurementEngine.getPixelsPerMeter().toFixed(1)} px/m`;
+    el.classList.add('ok');
+  } else {
+    el.textContent='❌ ยังไม่ตั้งสเกล';
+    el.classList.remove('ok');
+  }
+}
+
+function updateVectorBadge(num){
+  const el = document.getElementById('vector-badge');
+  if (!el) return;
+  const type = VectorEngine.getType(num);
+  if (!type) { el.style.display = 'none'; return; }
+  if (type === 'vector') {
+    const count = VectorEngine.getCandidates(num).length;
+    if (count > 0) {
+      el.textContent = `🟢 Vector snap (${count} pts)`;
+      el.style.borderColor = 'rgba(48,209,88,0.4)';
+    } else {
+      // กำลัง extract อยู่
+      el.textContent = `⏳ กำลังโหลด snap...`;
+      el.style.borderColor = 'rgba(255,214,10,0.4)';
+    }
+  } else {
+    el.textContent = '🟡 Scan — ไม่มี snap เส้น';
+    el.style.borderColor = 'rgba(255,214,10,0.4)';
+  }
+  el.style.display = 'block';
+}
+
+// ── trigger extract สำหรับหน้าที่ระบุ ──
+async function _triggerExtract(i) {
+  if (!pdfDoc) return;
+  const page = await pdfDoc.getPage(i);
+  const rot  = (page.rotate + (pageRotations[i] || 0)) % 360;
+
+  const type = await VectorEngine.detectPDFType(page);
+  pageTypes[i] = type;
+  _updateThumbVRBadge(i);
+  if (i === pageNum) updateVectorBadge(i);
+
+  if (type !== 'vector') return;
+
+  updateStatus(`⏳ กำลังโหลด snap points หน้า ${i}...`);
+  _updateThumbVRBadge(i); // แสดง ⏳
+  await VectorEngine.extractSnapCandidates(page, rot);
+  _updateThumbVRBadge(i); // แสดง V + count
+
+  if (i === pageNum) {
+    updateVectorBadge(i);
+    updateStatus('✅ Snap พร้อมใช้งาน — คลิกบนเส้น PDF เพื่อ snap');
+    setTimeout(() => handleStatusUpdate(), 2500);
+  }
+}
+function handleStatusUpdate(){
+  const n=MeasurementEngine.getTempPointCount();
+
+  // ── hint: ถ้าอยู่ใน measure mode แต่หน้ายังไม่ tag ──
+  const measureModes = ['measure-line','polygon','setback','calibrate'];
+  if (measureModes.includes(currentMode)) {
+    const tag = pageLabels[pageNum] || '';
+    const hasSnap = VectorEngine.getCandidates(pageNum).length > 0;
+    if (!tag || tag === 'other') {
+      // แสดง hint แทรกท้าย status (จะถูก override ด้วย msg ปกติ ถ้ามี)
+    }
+  }
+
+  const msgs={
+    calibrate: ['🎯 คลิกจุดที่ 1 บนเส้นอ้างอิง','🎯 คลิกจุดที่ 2 → กรอกระยะจริง'],
+    'measure-line': ['📏 คลิกจุดเริ่มต้น','📏 คลิกจุดสิ้นสุด'],
+    setback: ['🛣️ คลิกจุดที่ 1 บนเส้นถนน (ชมพู)','🛣️ คลิกจุดที่ 2 บนเส้นถนน (ม่วง)','🛣️ คลิกจุดบนแนวอาคาร (ส้ม)'],
+  };
+
+  // สร้าง suffix hint snap
+  const snapHint = (() => {
+    if (!pdfDoc) return '';
+    const tag = pageLabels[pageNum] || '';
+    const hasSnap = VectorEngine.getCandidates(pageNum).length > 0;
+    if (hasSnap) return '';  // snap พร้อมแล้ว ไม่ต้อง hint
+    if (!tag || tag === 'other') return '  💡 ระบุประเภทหน้าเพื่อเปิด snap เส้น PDF';
+    return '';  // tag แล้วแต่กำลัง extract (มี badge แสดงอยู่แล้ว)
+  })();
+
+  if(msgs[currentMode]) { updateStatus(msgs[currentMode][Math.min(n,msgs[currentMode].length-1)] + snapHint); return; }
+  if(currentMode==='polygon'){
+    const typeLabels={site:'ที่ดิน',building:'อาคาร',space:'ที่ว่าง',floor:'พื้นที่ใช้สอย',parking:'ที่จอดรถ',stair:'บันได',roof:'ดาดฟ้า'};
+    const typeLabel=currentPolyType.startsWith('custom_')?currentPolyType.replace('custom_',''):(typeLabels[currentPolyType]||currentPolyType);
+    const closeHint = n >= 3 ? ' — คลิกจุดแรก 🟢 เพื่อปิด' : '';
+    updateStatus(`📐 วัดพื้นที่ (${typeLabel}): [${n} จุด]${closeHint}` + snapHint); return;
+  }
+  if(currentMode==='park-normal')   { updateStatus('🚗 คลิกบนแบบเพื่อนับที่จอดรถปกติ'); return; }
+  if(currentMode==='park-disabled') { updateStatus('♿ คลิกบนแบบเพื่อนับที่จอดรถคนพิการ'); return; }
+  if(currentMode==='zone')   { updateStatus('🟪 ลาก drag เพื่อสร้าง Zone ไฮไลท์ — ดับเบิลคลิกเพื่อพิมพ์ label'); return; }
+  if(currentMode==='pan')    { updateStatus('🖐️ Pan — Scroll=Zoom, MiddleMouse/Space+Drag=Pan, Pinch=Zoom(iPad)'); return; }
+  if(currentMode==='select') { updateStatus('↖️ เลือก/ย้าย'); return; }
+  updateStatus('โหมด: '+currentMode);
+}
+function updateStyle(){
+  const color=document.getElementById('tool-color').value, width=parseInt(document.getElementById('tool-width').value);
+  if(canvas.freeDrawingBrush){ canvas.freeDrawingBrush.color=currentMode==='highlight'?color+'66':color; canvas.freeDrawingBrush.width=currentMode==='highlight'?width*5:width; }
+}
+function toggleSnap(key){
+  const flags = MeasurementEngine.getSnapFlags();
+  const newVal = !flags[key];
+  MeasurementEngine.setSnapFlag(key, newVal);
+  const chk = document.getElementById('snapchk-'+key);
+  if(chk) chk.classList.toggle('off', !newVal);
+  // อัพเดต 🧲 button — dim ถ้า snap ทั้งหมดปิด
+  const allOff = !Object.values(MeasurementEngine.getSnapFlags()).some(v=>v);
+  const btn = document.getElementById('btn-snap');
+  if(btn) btn.style.opacity = allOff ? '0.4' : '1';
+}
+function updateSnapThreshold(){
+  const pt = parseInt(document.getElementById('snap-thresh-pt').value);
+  const ln = parseInt(document.getElementById('snap-thresh-ln').value);
+  document.getElementById('snap-thresh-pt-val').textContent = pt;
+  document.getElementById('snap-thresh-ln-val').textContent = ln;
+  MeasurementEngine.setSnapThreshold(pt, ln);
+}
+function setMode(mode){
+  currentMode=mode; MeasurementEngine.clearTemps();
+  canvas.isDrawingMode=(mode==='pen'||mode==='highlight');
+  updateStyle();
+  document.querySelectorAll('#top-bar .tb-btn, #ipad-bottom-bar .ipad-tool-btn').forEach(b=>b.classList.remove('active','btn-active'));
+  if(document.getElementById('btn-'+mode)) document.getElementById('btn-'+mode).classList.add('active');
+  if(document.getElementById('ipad-'+mode)) document.getElementById('ipad-'+mode).classList.add('active');
+  document.getElementById('btn-finish').classList.toggle('hide',mode!=='polygon');
+  if(mode==='select'){ canvas.selection=true; canvas.defaultCursor='default'; canvas.forEachObject(o=>o.set('selectable',true)); }
+  else { canvas.selection=false; canvas.defaultCursor=mode==='pan'?'grab':'crosshair'; canvas.discardActiveObject(); canvas.forEachObject(o=>o.set('selectable',false)); }
+  canvas.requestRenderAll(); handleStatusUpdate(); closeDropdowns();
+}
+function handleParkingPin(pt, mode){
+  const isDisabled = mode==='park-disabled';
+  const color = isDisabled ? '#28a745' : '#0056b3';
+  const icon  = isDisabled ? '♿' : '🚗';
+  const r = 12/currentZoom;
+  const circle = new fabric.Circle({
+    left:pt.x-r, top:pt.y-r, radius:r,
+    fill:color, stroke:'#fff', strokeWidth:2/currentZoom,
+    selectable:true, evented:true,
+    customData:{ isParking:true, parkType: isDisabled?'disabled':'normal' }
+  });
+  const label = new fabric.Text(icon, {
+    left:pt.x, top:pt.y-r*2.5,
+    fontSize:Math.max(10, 14/currentZoom),
+    originX:'center', selectable:false, evented:false,
+  });
+  canvas.add(circle, label);
+  canvas.renderAll();
+  saveCurrentPage();
+  updateParkingCount();
+}
+
+function updateParkingCount(){
+  let normal=0, disabled=0;
+  canvas.getObjects().forEach(o=>{
+    if(o.customData&&o.customData.isParking){
+      if(o.customData.parkType==='disabled') disabled++;
+      else normal++;
+    }
+  });
+  document.getElementById('panel-park-normal').textContent=normal;
+  document.getElementById('panel-park-disabled').textContent=disabled;
+  document.getElementById('panel-park-total').textContent=normal+disabled;
+  document.getElementById('park-normal-count').textContent=normal;
+  document.getElementById('park-disabled-count').textContent=disabled;
+  const counter=document.getElementById('park-counter');
+  counter.style.display=(normal+disabled>0)?'block':'none';
+}
+function setPolyType(type){ currentPolyType = type; }
+function setPolyTypeCustom(){
+  const name=prompt('ชื่อพื้นที่ที่ต้องการวัด:','');
+  if(!name) return;
+  currentPolyType='custom_'+name;
+  setMode('polygon');
+  closeDropdowns();
+}
+function openPolyMenu(){ toggleDropdown('poly-dropdown'); }
+function disableMeasurementTools(){
+  ['btn-measure-line','btn-polygon','btn-setback','ipad-measure','ipad-polygon','ipad-setback'].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; });
+}
+function enableMeasurementTools(){
+  ['btn-measure-line','btn-polygon','btn-setback',
+   'btn-park-normal','btn-park-disabled',
+   'ipad-measure','ipad-polygon','ipad-setback']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=false; });
+  const cal=document.getElementById('btn-calibrate');
+  if(cal) cal.classList.remove('danger');
+}
+function deleteSelected(){ canvas.getActiveObjects().forEach(o=>canvas.remove(o)); canvas.discardActiveObject(); saveCurrentPage(); runCheckEngine(); hideContextBar(); }
+function undoLast(){
+  const objs=canvas.getObjects();
+  if(!objs.length) return;
+  const last=objs[objs.length-1];
+  // ถ้า last เป็น label ที่มี pairedZone → ลบ zone ด้วย
+  if(last.customData?.isZoneLabel && last.customData.pairedZone){
+    canvas.remove(last.customData.pairedZone);
+  }
+  // ถ้า last เป็น zone/polygon ที่มี pairedLabel → ลบ label ด้วย
+  if(last.customData?.pairedLabel){
+    canvas.remove(last.customData.pairedLabel);
+  }
+  canvas.remove(last);
+  canvas.renderAll();
+  saveCurrentPage(); runCheckEngine();
+}
+
+// ── Context Bar ──
+function showContextBar(obj){
+  const bar=document.getElementById('context-bar');
+  const lbl=document.getElementById('ctx-label');
+  const colorInput=document.getElementById('ctx-color');
+  // label
+  let info='วัตถุ';
+  if(obj.customData){
+    if(obj.customData.isPolygon){ const t={site:'ที่ดิน',building:'อาคาร',space:'ที่ว่าง',floor:'พื้นที่',parking:'จอดรถ',stair:'บันได',roof:'ดาดฟ้า'}; info=(t[obj.customData.type]||obj.customData.type||'พื้นที่')+` — ${(obj.customData.area||0).toFixed(2)} ตร.ม.`; }
+    else if(obj.customData.isMeasure){ info=`ระยะ ${(obj.customData.val||0).toFixed(2)} ม.`; }
+    else if(obj.customData.isSetback){ info=`ระยะร่น ${(obj.customData.val||0).toFixed(2)} ม.`; }
+    else if(obj.customData.isPairedLabel){ info='ป้ายชื่อ'; }
+  }
+  lbl.textContent=info;
+  // สีปัจจุบัน
+  const c=obj.fill||obj.stroke||'#ffffff';
+  if(typeof c==='string'&&c.startsWith('#')) colorInput.value=c;
+  // position — ลอยเหนือ object
+  const canvasEl=document.getElementById('drawing-canvas');
+  const rect=canvasEl.getBoundingClientRect();
+  const objBound=obj.getBoundingRect();
+  const x=rect.left + (objBound.left+objBound.width/2)*currentZoom + window.scrollX;
+  const y=rect.top  + objBound.top*currentZoom + window.scrollY - 52;
+  bar.style.left=Math.max(8, Math.min(x-160, window.innerWidth-340))+'px';
+  bar.style.top=Math.max(56, y)+'px';
+  bar.classList.add('visible');
+}
+function hideContextBar(){
+  document.getElementById('context-bar').classList.remove('visible');
+}
+function applyContextColor(color){
+  const objs=canvas.getActiveObjects();
+  objs.forEach(o=>{
+    if(o.fill&&o.fill!=='transparent') o.set('fill', hexToRgba(color,0.4));
+    if(o.stroke) o.set('stroke', color);
+  });
+  canvas.requestRenderAll(); saveCurrentPage();
+}
+function hexToRgba(hex,alpha){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function bringToFront(){ const o=canvas.getActiveObject(); if(o){ canvas.bringToFront(o); saveCurrentPage(); } }
+function sendToBack(){ const o=canvas.getActiveObject(); if(o){ canvas.sendToBack(o); saveCurrentPage(); } }
+
+// wire canvas selection → context bar
+canvas.on('selection:created', e=>{ if(e.selected&&e.selected.length===1) showContextBar(e.selected[0]); else hideContextBar(); });
+canvas.on('selection:updated', e=>{ if(e.selected&&e.selected.length===1) showContextBar(e.selected[0]); else hideContextBar(); });
+canvas.on('selection:cleared', ()=>hideContextBar());
+canvas.on('object:moving', e=>{ if(e.target) showContextBar(e.target); });
+canvas.on('object:modified', e=>{
+  const obj = e.target;
+  if(obj&&obj.customData){
+    delete obj._dragStartLeft; delete obj._dragStartTop;
+    delete obj._dragStartLblLeft; delete obj._dragStartLblTop;
+  }
+  saveCurrentPage();
+});
+function finishCurrentTool(){
+  if(currentMode!=='polygon') return;
+  const labels={
+    site:'ที่ดิน', building:'อาคาร', space:'ที่ว่าง',
+    floor:'พื้นที่ใช้สอย', parking:'ที่จอดรถ',
+    stair:'บันได', roof:'ดาดฟ้า',
+  };
+  const label = currentPolyType.startsWith('custom_')
+    ? currentPolyType.replace('custom_','')
+    : (labels[currentPolyType]||currentPolyType);
+  MeasurementEngine.finishPolygon(currentPolyType, label);
+  // patch pageLabel เข้า polygon ล่าสุด
+  const objs=canvas.getObjects('polygon');
+  if(objs.length>0){
+    const last=objs[objs.length-1];
+    if(last.customData) last.customData.pageLabel=pageLabels[pageNum]||'';
+  }
+  saveCurrentPage(); runCheckEngine();
+  setMode('select');
+}
+
+// ──────────────────────────────────────────────
+// DROPDOWN / PANEL / UI HELPERS
+// ──────────────────────────────────────────────
+function toggleDropdown(id){ const el=document.getElementById(id); el.classList.toggle('open'); }
+function closeDropdowns(){ document.querySelectorAll('.tb-dropdown.open').forEach(el=>el.classList.remove('open')); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.tb-dropdown')) closeDropdowns(); });
+
+let panelVisible=true;
+function togglePanel(){
+  panelVisible=!panelVisible;
+  document.getElementById('float-panel').classList.toggle('hidden',!panelVisible);
+  document.getElementById('panel-toggle-btn').classList.toggle('visible',!panelVisible);
+}
+
+function switchPanelTab(n){
+  document.querySelectorAll('.panel-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('ptab-'+n).classList.add('active');
+  document.getElementById('panel-content-1').classList.toggle('hide',n!==1);
+  document.getElementById('panel-content-2').classList.toggle('hide',n!==2);
+  document.getElementById('panel-content-3').classList.toggle('hide',n!==3);
+}
+
+// Floating panel drag
+(function(){
+  const panel=document.getElementById('float-panel');
+  const header=document.getElementById('float-panel-header');
+  let dragging=false,ox=0,oy=0,startRight=0,startTop=0;
+  header.addEventListener('mousedown',e=>{
+    if(e.target.closest('button')) return;
+    dragging=true;
+    const rect=panel.getBoundingClientRect();
+    ox=e.clientX; oy=e.clientY;
+    startRight=window.innerWidth-rect.right;
+    startTop=rect.top;
+    panel.style.transition='none';
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging) return;
+    const dx=e.clientX-ox, dy=e.clientY-oy;
+    panel.style.right=(startRight-dx)+'px';
+    panel.style.top=Math.max(0,startTop+dy)+'px';
+  });
+  document.addEventListener('mouseup',()=>{ dragging=false; panel.style.transition=''; });
+})();
+
+// Bottom sheet (iPad)
+let bsOpen=false;
+function toggleBottomSheet(){ bsOpen=!bsOpen; document.getElementById('bottom-sheet').classList.toggle('open',bsOpen); }
+function switchBsTab(n){
+  document.querySelectorAll('.bs-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('bstab-'+n).classList.add('active');
+  ['bs-content-1','bs-content-2','bs-content-3'].forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.classList.toggle('hide',i+1!==n); });
+}
+
+// ══════════════════════════════════════════════════
+// PAGE MANAGEMENT
+// ══════════════════════════════════════════════════
+let _pageMgmtMode = false;
+let _ctxTargetPos = -1;
+let _dragSrcPos   = -1;
+
+function _initPageOrder(){
+  pageOrder = [];
+  pdfSources = [{id:0, buffer: pdfArrayBuffer, doc: pdfDoc}];
+  for(let i=1; i<=pdfDoc.numPages; i++) pageOrder.push({srcId:0, page:i});
+}
+
+function _fillThumbCanvases(){
+  pageOrder.forEach((entry, pos) => {
+    const {srcId, page:pn} = entry;
+    const uid = `${srcId}_${pn}`;
+    const cacheKey = uid;
+    const tc = document.getElementById(`thumb-canvas-${uid}`);
+    if(!tc) return;
+    const src = pdfSources.find(s=>s.id===srcId);
+    if(!src) return;
+    if(pageImageCache[cacheKey]){
+      const img = new Image();
+      img.onload = () => { tc.width=img.naturalWidth; tc.height=img.naturalHeight; tc.getContext('2d').drawImage(img,0,0); };
+      img.src = pageImageCache[cacheKey];
+    } else {
+      // render thumbnail on-demand
+      src.doc.getPage(pn).then(page => {
+        const vp = page.getViewport({scale:0.25, rotation:(page.rotate+(pageRotations[pn]||0))%360});
+        tc.width=Math.round(vp.width); tc.height=Math.round(vp.height);
+        page.render({canvasContext:tc.getContext('2d'), viewport:vp}).promise;
+      }).catch(()=>{});
+    }
+  });
+}
+
+// ── Drag reorder ────────────────────────────────
+function _initThumbDrag(wrap, pos){
+  wrap.setAttribute('draggable','true');
+  wrap.addEventListener('dragstart', e => {
+    _dragSrcPos = parseInt(wrap.dataset.pos);
+    wrap.classList.add('dragging-page');
+    e.dataTransfer.effectAllowed='move';
+  });
+  wrap.addEventListener('dragend', () => {
+    wrap.classList.remove('dragging-page');
+    document.querySelectorAll('.thumb-wrap').forEach(w=>w.classList.remove('drag-over-top','drag-over-bottom'));
+  });
+  wrap.addEventListener('dragover', e => {
+    e.preventDefault();
+    const tPos = parseInt(wrap.dataset.pos);
+    document.querySelectorAll('.thumb-wrap').forEach(w=>w.classList.remove('drag-over-top','drag-over-bottom'));
+    wrap.classList.add(tPos < _dragSrcPos ? 'drag-over-top' : 'drag-over-bottom');
+  });
+  wrap.addEventListener('drop', e => {
+    e.preventDefault();
+    const tPos = parseInt(wrap.dataset.pos);
+    if(_dragSrcPos < 0 || _dragSrcPos===tPos) return;
+    const [moved] = pageOrder.splice(_dragSrcPos, 1);
+    const insertAt = tPos > _dragSrcPos ? tPos : tPos;
+    pageOrder.splice(insertAt, 0, moved);
+    _dragSrcPos = -1;
+    renderThumbnails();
+    // ถ้า currentPos เปลี่ยน ให้แสดงหน้าใหม่
+    const newPos = pageOrder.findIndex(e=>e.srcId===0 && e.page===pageNum);
+    if(newPos>=0) currentDisplayPos = newPos;
+    _markActivePage();
+  });
+}
+
+// ── Toggle page management mode ─────────────────
+function togglePageMgmtMode(){
+  _pageMgmtMode = !_pageMgmtMode;
+  const bar = document.getElementById('page-mgmt-bar');
+  const btn = document.getElementById('btn-page-mgmt');
+  const strip = document.getElementById('thumb-strip-inner');
+  bar.classList.toggle('visible', _pageMgmtMode);
+  strip.classList.toggle('page-mgmt-mode', _pageMgmtMode);
+  btn.style.background = _pageMgmtMode ? 'rgba(10,132,255,0.2)' : '';
+  if(!_pageMgmtMode){ selectedPages.clear(); renderThumbnails(); }
+}
+
+function toggleSelectAll(checked){
+  pageOrder.forEach(entry => {
+    const uid = `${entry.srcId}_${entry.page}`;
+    if(checked) selectedPages.add(uid); else selectedPages.delete(uid);
+    const chk = document.getElementById(`chk-${uid}`);
+    const wrap = document.getElementById(`thumb-${uid}`);
+    if(chk) chk.checked = checked;
+    if(wrap) wrap.classList.toggle('pg-selected', checked);
+  });
+}
+
+// ── Delete pages ────────────────────────────────
+function deleteSelectedPages(){
+  if(selectedPages.size===0){ alert('เลือกหน้าที่ต้องการลบก่อน'); return; }
+  if(pageOrder.length - selectedPages.size < 1){ alert('ไม่สามารถลบได้ — ต้องมีอย่างน้อย 1 หน้า'); return; }
+  if(!confirm(`ลบ ${selectedPages.size} หน้า?`)) return;
+  pageOrder = pageOrder.filter(e => !selectedPages.has(`${e.srcId}_${e.page}`));
+  selectedPages.clear();
+  renderThumbnails();
+  // ถ้าหน้าปัจจุบันถูกลบ → ไปหน้าแรก
+  const pos = pageOrder.findIndex(e=>e.srcId===0&&e.page===pageNum);
+  changePageTo(pos>=0 ? pos : 0);
+}
+
+function deletePageAt(pos){
+  if(pageOrder.length<=1){ alert('ต้องมีอย่างน้อย 1 หน้า'); return; }
+  pageOrder.splice(pos, 1);
+  renderThumbnails();
+  const newPos = Math.min(pos, pageOrder.length-1);
+  changePageTo(newPos);
+}
+
+// ── Duplicate pages ─────────────────────────────
+function duplicateSelectedPages(){
+  if(selectedPages.size===0){ alert('เลือกหน้าที่ต้องการทำซ้ำก่อน'); return; }
+  const inserts = [];
+  pageOrder.forEach((entry, pos) => {
+    if(selectedPages.has(`${entry.srcId}_${entry.page}`))
+      inserts.push({pos, entry: {...entry}});
+  });
+  // insert จากท้ายเพื่อไม่ให้ index เลื่อน
+  inserts.reverse().forEach(({pos, entry}) => pageOrder.splice(pos+1, 0, entry));
+  selectedPages.clear();
+  renderThumbnails();
+}
+
+function duplicatePageAt(pos){
+  const entry = pageOrder[pos];
+  if(!entry) return;
+  pageOrder.splice(pos+1, 0, {...entry});
+  renderThumbnails();
+}
+
+// ── Merge PDF ───────────────────────────────────
+async function mergePDF(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value='';
+  updateStatus('⏳ กำลังโหลด PDF ที่จะ merge...');
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument(new Uint8Array(buf.slice(0))).promise;
+  const newId = pdfSources.length;
+  pdfSources.push({id:newId, buffer:buf, doc});
+  for(let i=1; i<=doc.numPages; i++) pageOrder.push({srcId:newId, page:i});
+  renderThumbnails();
+  setTimeout(()=>autoDetectAllPages(),300);
+  updateStatus(`✅ Merge สำเร็จ — เพิ่ม ${doc.numPages} หน้า`);
+}
+
+// ── Context menu ─────────────────────────────────
+function showContextMenu(x, y){
+  const menu = document.getElementById('page-context-menu');
+  menu.style.left = Math.min(x, window.innerWidth-170) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight-160) + 'px';
+  menu.classList.add('visible');
+}
+function hideContextMenu(){ document.getElementById('page-context-menu').classList.remove('visible'); }
+function ctxDuplicate(){ hideContextMenu(); duplicatePageAt(_ctxTargetPos); }
+function ctxDelete(){ hideContextMenu(); deletePageAt(_ctxTargetPos); }
+function ctxExport(){ hideContextMenu(); _exportByPos([_ctxTargetPos]); }
+function ctxPrint(){ hideContextMenu(); _printByPos([_ctxTargetPos]); }
+document.addEventListener('click', e => { if(!e.target.closest('#page-context-menu')) hideContextMenu(); });
+
+// ── Export/Print dropdown ────────────────────────
+function toggleExpMenu(){
+  document.getElementById('exp-menu').classList.toggle('open');
+}
+function closeExpMenu(){ document.getElementById('exp-menu').classList.remove('open'); }
+document.addEventListener('click', e=>{ if(!e.target.closest('#btn-exp-main')&&!e.target.closest('#exp-menu')) closeExpMenu(); });
+
+function _getExportPositions(scope){
+  if(scope==='all') return pageOrder.map((_,i)=>i);
+  if(scope==='current'){
+    const pos = pageOrder.findIndex(e=>e.srcId===0&&e.page===pageNum);
+    return pos>=0 ? [pos] : [0];
+  }
+  if(scope==='selected'){
+    const positions=[];
+    pageOrder.forEach((e,i)=>{ if(selectedPages.has(`${e.srcId}_${e.page}`)) positions.push(i); });
+    return positions.length>0 ? positions : _getExportPositions('current');
+  }
+  return [];
+}
+
+async function exportPages(scope){
+  saveCurrentPage();
+  const positions = _getExportPositions(scope);
+  if(!positions.length){ alert('ไม่มีหน้าที่เลือก'); return; }
+  await _exportByPos(positions);
+}
+
+async function _exportByPos(positions){
+  if(typeof PDFLib==='undefined'){ alert('โหลด pdf-lib ไม่สำเร็จ'); return; }
+  updateStatus(`⏳ กำลัง export ${positions.length} หน้า...`);
+  const {PDFDocument} = PDFLib;
+  const newDoc = await PDFDocument.create();
+  for(const pos of positions){
+    const {srcId, page:pn} = pageOrder[pos];
+    const cacheKey = `${srcId}_${pn}`;
+    const src = pdfSources.find(s=>s.id===srcId);
+    if(!src) continue;
+    if(!pageImageCache[cacheKey]) await renderPageToCache(src.doc, pn, srcId);
+    const dataURL = srcId===0 ? await renderAnnotationLayer(pn) : pageImageCache[cacheKey];
+    if(!dataURL) continue;
+    const base64 = dataURL.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for(let b=0;b<binary.length;b++) bytes[b]=binary.charCodeAt(b);
+    const jpgImg = await newDoc.embedJpg(bytes);
+    const {width,height} = jpgImg.scale(1);
+    const pg = newDoc.addPage([width,height]);
+    pg.drawImage(jpgImg,{x:0,y:0,width,height});
+  }
+  const pdfBytes = await newDoc.save();
+  const blob = new Blob([pdfBytes],{type:'application/pdf'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`${pdfFileName}_export.pdf`; a.click();
+  URL.revokeObjectURL(url);
+  updateStatus(`✅ Export สำเร็จ — ${positions.length} หน้า`);
+}
+
+async function printPages(scope){
+  saveCurrentPage();
+  const positions = _getExportPositions(scope);
+  if(!positions.length){ alert('ไม่มีหน้าที่เลือก'); return; }
+  await _printByPos(positions);
+}
+
+async function _printByPos(positions){
+  if(typeof PDFLib==='undefined'){ alert('โหลด pdf-lib ไม่สำเร็จ'); return; }
+  updateStatus(`⏳ กำลังเตรียมปริ้น ${positions.length} หน้า...`);
+  const {PDFDocument} = PDFLib;
+  const newDoc = await PDFDocument.create();
+  for(const pos of positions){
+    const {srcId, page:pn} = pageOrder[pos];
+    const cacheKey = `${srcId}_${pn}`;
+    const src = pdfSources.find(s=>s.id===srcId);
+    if(!src) continue;
+    if(!pageImageCache[cacheKey]) await renderPageToCache(src.doc, pn, srcId);
+    const dataURL = srcId===0 ? await renderAnnotationLayer(pn) : pageImageCache[cacheKey];
+    if(!dataURL) continue;
+    const base64=dataURL.split(',')[1];
+    const binary=atob(base64);
+    const bytes=new Uint8Array(binary.length);
+    for(let b=0;b<binary.length;b++) bytes[b]=binary.charCodeAt(b);
+    const jpgImg=await newDoc.embedJpg(bytes);
+    const {width,height}=jpgImg.scale(1);
+    const pg=newDoc.addPage([width,height]);
+    pg.drawImage(jpgImg,{x:0,y:0,width,height});
+  }
+  const pdfBytes=await newDoc.save();
+  const blob=new Blob([pdfBytes],{type:'application/pdf'});
+  const url=URL.createObjectURL(blob);
+  // print via hidden iframe
+  const iframe=document.createElement('iframe');
+  iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;';
+  iframe.src=url;
+  document.body.appendChild(iframe);
+  iframe.onload=()=>{
+    setTimeout(()=>{
+      iframe.contentWindow.print();
+      setTimeout(()=>{ document.body.removeChild(iframe); URL.revokeObjectURL(url); },2000);
+    },500);
+  };
+  updateStatus(`✅ เปิด print dialog — ${positions.length} หน้า`);
+}
+
+function _markActivePage(){
+  document.querySelectorAll('.thumb-wrap').forEach(el=>el.classList.remove('active'));
+  const entry = pageOrder.find(e=>e.srcId===0&&e.page===pageNum);
+  if(entry){
+    const uid=`0_${pageNum}`;
+    const th=document.getElementById(`thumb-${uid}`);
+    if(th) th.classList.add('active');
+  }
+}
+
+// ── toggleThumbStrip
+let _thumbCollapsed = false;
+let _thumbWidth = 140; // px — saved width ก่อน collapse
+
+function toggleThumbStrip(){
+  const strip = document.getElementById('thumb-strip');
+  const btn   = document.getElementById('thumb-toggle');
+  _thumbCollapsed = !_thumbCollapsed;
+  if(_thumbCollapsed){
+    _thumbWidth = strip.offsetWidth || _thumbWidth; // save ก่อน collapse
+    strip.classList.add('collapsed');
+    btn.textContent = '▶';
+  } else {
+    strip.classList.remove('collapsed');
+    strip.style.width = _thumbWidth + 'px';
+    btn.textContent = '◀';
+  }
+}
+
+// ── Resize handle drag ──
+(function(){
+  const handle = document.getElementById('thumb-resize-handle');
+  const strip  = document.getElementById('thumb-strip');
+  if(!handle || !strip) return;
+
+  let dragging = false, startX = 0, startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startW = strip.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if(!dragging) return;
+    const delta = e.clientX - startX;
+    const newW  = Math.max(80, Math.min(320, startW + delta));
+    strip.style.width = newW + 'px';
+    _thumbWidth = newW;
+    // อัพเดต inner width ให้ thumbnail ปรับตาม
+    const inner = document.getElementById('thumb-strip-inner');
+    if(inner) inner.style.minWidth = Math.max(70, newW - 16) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if(!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+
+  // touch support (iPad)
+  handle.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startW = strip.offsetWidth;
+    dragging = true;
+  }, {passive:true});
+  document.addEventListener('touchmove', e => {
+    if(!dragging) return;
+    const delta = e.touches[0].clientX - startX;
+    const newW  = Math.max(80, Math.min(320, startW + delta));
+    strip.style.width = newW + 'px';
+    _thumbWidth = newW;
+  }, {passive:true});
+  document.addEventListener('touchend', () => { dragging = false; });
+})();
+
+// Tab switching (main)
+function switchMainTab(n){
+  ['tab-btn-1','tab-btn-2','tab-btn-3'].forEach((id,i)=>{
+    document.getElementById(id).style.background=i+1===n?'#0056b3':'transparent';
+    document.getElementById(id).style.color=i+1===n?'#fff':'#ccc';
+    document.getElementById(id).style.borderColor=i+1===n?'#0056b3':'transparent';
+  });
+  const ws=document.getElementById('workspace'), we=document.getElementById('workspace-editor');
+  const ib=document.getElementById('ipad-bottom-bar');
+  if(n===3){ ws.style.display='none'; we.style.display='flex'; ib.style.display='none'; generateAllDocs(); switchDoc(appState.currentDocView); }
+  else { ws.style.display='flex'; we.style.display='none'; if(deviceMode==='ipad') ib.style.display='flex'; switchPanelTab(n); setMode('pan'); }
+}
+
+// ──────────────────────────────────────────────
+// COMMENT SYSTEM
+// ──────────────────────────────────────────────
+function toggleStdComment(cb){
+  const text=cb.value;
+  if(cb.checked){ if(!appState.comments.includes(text)) appState.comments.push(text); }
+  else { appState.comments=appState.comments.filter(c=>c!==text); }
+  renderCommentList();
+}
+function addCustomComment(){
+  const inp=document.getElementById('custom-comment-input'), text=inp.value.trim();
+  if(text){ appState.comments.push(text); inp.value=''; renderCommentList(); }
+}
+function deleteComment(i){ const removed=appState.comments.splice(i,1)[0]; document.querySelectorAll('input[type="checkbox"]').forEach(c=>{ if(c.value===removed) c.checked=false; }); renderCommentList(); }
+function renderCommentList(){
+  const list=document.getElementById('active-comment-list');
+  document.getElementById('comment-count').textContent=appState.comments.length;
+  list.innerHTML='';
+  appState.comments.forEach((c,i)=>{ const li=document.createElement('li'); li.innerHTML=`<span>${i+1}. ${c}</span><button class="btn-del" onclick="deleteComment(${i})">✖</button>`; list.appendChild(li); });
+}
+
+// ──────────────────────────────────────────────
+// CHECKLIST ENGINE
+// ──────────────────────────────────────────────
+function runCheckEngine(){
+  if(!MeasurementEngine.isCalibrated()) return;
+  const pi=appState.projectInfo;
+  const reqSB=pi.roadWidth>=20?6:pi.roadWidth>=10?5:3;
+  const maxBcr=pi.buildingType==='residential'?50:70;
+  const maxFar=pi.buildingType==='residential'?2.0:5.0;
+  let siteArea=0,bldgArea=0,spaceArea=0,actSB=Infinity;
+  appState.checkResults=[];
+  const allObj=[...canvas.getObjects()];
+  Object.keys(pageDrawings).forEach(p=>{ if(parseInt(p)!==pageNum&&pageDrawings[p]){ const parsed=JSON.parse(pageDrawings[p]); if(parsed.objects) allObj.push(...parsed.objects); } });
+  allObj.forEach(obj=>{ if(!obj.customData)return; if(obj.customData.isPolygon){ if(obj.customData.type==='site')siteArea+=obj.customData.area; if(obj.customData.type==='building')bldgArea+=obj.customData.area; if(obj.customData.type==='space')spaceArea+=obj.customData.area; } if(obj.customData.isSetback) actSB=Math.min(actSB,obj.customData.val); });
+  let html='';
+  if(actSB!==Infinity){ const pass=actSB>=reqSB; const text=`${pass?'✅':'❌'} ระยะร่นถนน: ${actSB.toFixed(2)}ม. (≥${reqSB}ม.)`; appState.checkResults.push(text); html+=`<div class="check-item ${pass?'check-pass':'check-fail'}"><b>${text}</b></div>`; }
+  else html+='<div class="check-item check-wait">⏳ ระยะร่นจากถนน: ยังไม่ได้วัด</div>';
+  if(siteArea>0&&bldgArea>0){
+    const bcr=(bldgArea/siteArea)*100, bcrP=bcr<=maxBcr;
+    let bt=`${bcrP?'✅':'❌'} BCR: ${bcr.toFixed(1)}% (≤${maxBcr}%)`; if(!bcrP) bt+=`<br><small style="color:#dc3545">ลดพื้นที่ ${(bldgArea-siteArea*maxBcr/100).toFixed(2)} ตร.ม.</small>`;
+    appState.checkResults.push(bt); html+=`<div class="check-item ${bcrP?'check-pass':'check-fail'}"><b>${bt}</b></div>`;
+    const far=(bldgArea*pi.floors)/siteArea, farP=far<=maxFar;
+    const ft=`${farP?'✅':'❌'} FAR: ${far.toFixed(2)} (≤${maxFar})`; appState.checkResults.push(ft); html+=`<div class="check-item ${farP?'check-pass':'check-fail'}"><b>${ft}</b></div>`;
+  } else html+='<div class="check-item check-wait">⏳ BCR & FAR: รอวัดที่ดิน+อาคาร</div>';
+  if(siteArea>0){ const sp=spaceArea>0?spaceArea:siteArea-bldgArea, sr=(sp/siteArea)*100, spP=sr>=30; const st=`${spP?'✅':'❌'} ที่ว่าง: ${sr.toFixed(1)}% (≥30%)`; appState.checkResults.push(st); html+=`<div class="check-item ${spP?'check-pass':'check-fail'}"><b>${st}</b></div>`; }
+  else html+='<div class="check-item check-wait">⏳ ที่ว่าง: รอขอบเขตที่ดิน</div>';
+  document.getElementById('checklist-auto-container').innerHTML=html;
+}
+
+// ──────────────────────────────────────────────
+// DOC GENERATOR
+// ──────────────────────────────────────────────
+function switchDoc(t){ appState.currentDocView=t; document.querySelectorAll('.doc-btn').forEach(b=>b.classList.remove('active')); document.getElementById('doc-btn-'+t).classList.add('active'); document.getElementById('doc-textarea').value=appState.docs[t]; }
+function generateAllDocs(){
+  const pi=appState.projectInfo, d=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  const fails=appState.checkResults.filter(r=>r.includes('❌')).map(r=>r.replace('❌ ',''));
+  const issues=[...fails,...appState.comments].map((c,i)=>`${i+1}. ${c}`).join('\n    ');
+  appState.docs.memo=`บันทึกข้อความ\nส่วนราชการ: สำนักงานควบคุมอาคาร สำนักการโยธา\nที่ กท ................/.............. วันที่ ${d}\nเรื่อง การขออนุญาต ราย ${pi.ownerName||'[ระบุชื่อเจ้าของ]'}\n\nเรียน ผู้อำนวยการสำนักการโยธา\n\n    ต้นเรื่อง: ${pi.ownerName||'[ชื่อ]'} ยื่นขออนุญาต เลขที่ ${pi.requestNo||'________'} ณ ${pi.address||'________'}\n\n    ข้อเท็จจริง: ตรวจสอบแบบแปลนแล้ว ปรากฏข้อขัดข้องดังนี้\n    ${issues||'- ผ่านเกณฑ์ -'}\n\n    เห็นควรออกหนังสือคำสั่งให้แก้ไข (แบบ ค.1)`;
+  const c1=fails.length>0||appState.comments.some(c=>c.includes('แบบแปลน'))?'☑':'☐';
+  const c2=appState.comments.some(c=>c.includes('เอกสาร')||c.includes('หนังสือ')||c.includes('ลงนาม'))?'☑':'☐';
+  appState.docs.ko1=`แบบ ค.๑\nคำสั่งให้แก้ไขเปลี่ยนแปลงแผนผัง แบบแปลน หรือรายการคำนวณ\n\nที่ กท ........./.........  สำนักการโยธา  วันที่ ${d}\n\nแจ้งมายัง: ${pi.ownerName||'[ชื่อ]'}  ที่ตั้ง: ${pi.address||'________'}\nคำขอเลขที่ ${pi.requestNo||'________'}\n\n${c1} (๑) แผนผังบริเวณ แบบแปลน ยังไม่ถูกต้องตามกฎกระทรวง\n${c2} (๒) เอกสารประกอบยังขาดหรือไม่ถูกต้อง\n\n(รายละเอียดตามเอกสารแนบ)`;
+  appState.docs.annex=`รายการแนบท้ายคำสั่ง แบบ ค.๑\nราย ${pi.ownerName||'[ชื่อ]'}  คำขอเลขที่ ${pi.requestNo||'________'}\n\nข้อทักท้วง:\n${issues||'- ไม่มีรายการทักท้วง -'}\n\nลงชื่อ....................................................\n(........................................)\nวิศวกร/สถาปนิกปฏิบัติการ`;
+  document.getElementById('doc-textarea').value=appState.docs[appState.currentDocView];
+}
+function saveAndCopyDoc(){
+  appState.docs[appState.currentDocView]=document.getElementById('doc-textarea').value;
+  document.getElementById('doc-textarea').select(); document.execCommand('copy');
+  const payload={ requestNo:appState.projectInfo.requestNo||'N/A', ownerName:appState.projectInfo.ownerName||'N/A', checkSummary:appState.checkResults.filter(r=>r.includes('❌')).length===0?'ผ่าน':'ทักท้วง', comments:appState.comments, fullReport:appState.docs.memo+'\n\n=====\n\n'+appState.docs.ko1 };
+  if(typeof google!=='undefined'&&google.script){ google.script.run.withSuccessHandler(()=>{ const n=document.getElementById('save-noti'); n.style.display='inline'; setTimeout(()=>n.style.display='none',4000); }).saveDraftToSheet(payload); }
+  else { const n=document.getElementById('save-noti'); n.style.display='inline'; setTimeout(()=>n.style.display='none',3000); }
+}
+
+// init
+updateStatus('รออัปโหลดไฟล์ PDF...');
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+function doGet() {
+    return HtmlService.createHtmlOutputFromFile('Index')
+        .setTitle('ระบบตรวจแบบและร่างเอกสาร ค.1 (V4)')
+        .setSandboxMode(HtmlService.SandboxMode.IFRAME)
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+ บันทึกร่างเอกสารลง Google Sheets
+function saveDraftToSheet(data) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+     สร้างหัวตารางถ้ายังไม่มี
+    if (sheet.getLastRow() === 0) {
+        sheet.appendRow(['Timestamp', 'เลขที่คำขอ', 'ชื่อเจ้าของ', 'ผลตรวจ', 'รายการทักท้วง', 'เนื้อหารายงานแบบ ค.1']);
+        sheet.getRange(1, 1, 1, 6).setBackground(#4CAF50).setFontColor(white).setFontWeight(bold);
+    }
+    
+    sheet.appendRow([
+        new Date(),
+        data.requestNo,
+        data.ownerName,
+        data.checkSummary,
+        data.comments.join(' n'),
+        data.fullReport
+    ]);
+    
+     จัด format column ให้ห่อข้อความ
+    sheet.setColumnWidth(5, 300);
+    sheet.setColumnWidth(6, 400);
+    sheet.getRange(sheet.getLastRow(), 1, 1, 6).setWrap(true);
+    
+    return 'บันทึกข้อมูลลง Google Sheets สำเร็จ!';
+}

@@ -1,0 +1,1355 @@
+# BMA-Plan Phase 1 — Context Handoff
+
+> ไฟล์นี้สรุปบริบทจากการคุยทั้งหมดเกี่ยวกับโปรแกรม BMA-Plan เพื่อใช้ต่อในแชทอื่น / Codex / Claude / Agent
+> สถานะล่าสุด: โฟกัสเฉพาะ Phase 1 = เครื่องมือวัดพื้นที่จาก PDF แบบก่อสร้าง
+> ตัดออกทั้งหมดใน Phase 1: กฎหมาย, AI/OCR, Rule Engine, ค.1, ระบบตรวจผ่าน/ไม่ผ่าน
+
+---
+
+## 0. สรุปสั้นที่สุด
+
+Phase 1 ไม่ใช่โปรแกรมตรวจแบบตามกฎหมาย แต่เป็นเครื่องมือวัดพื้นที่จาก PDF แบบก่อสร้างให้ใช้งานจริงได้ก่อน
+
+```text
+PDF แบบก่อสร้าง → ตั้ง Scale → วาดพื้นที่ → วาดช่องว่าง/หักออก → คำนวณ Gross / Opening / Net → จัดการพื้นที่ซ้อนกัน → Save/Load → Export XLSX/JSON
+```
+
+เป้าหมายหลัก:
+
+```text
+วัดพื้นที่จาก PDF ภาพให้เร็ว แม่น จัดการง่าย ตรวจซ้ำได้ และส่งออกใช้ทำงานจริงได้
+```
+
+---
+
+## 1. ข้อสรุปสำคัญ
+
+### 1.1 หยุดกฎหมายไว้ก่อน
+
+สิ่งที่ตัดออกจาก Phase 1:
+
+```text
+- กฎหมายควบคุมอาคาร
+- กฎกระทรวง
+- ข้อบัญญัติ กทม.
+- การตรวจ pass/fail
+- Rule Engine
+- AI วิเคราะห์แบบ
+- OCR อ่านแบบ
+- Generate ค.1
+- FAR/OSR ตามกฎหมาย
+- ระยะร่นตามกฎหมาย
+- ที่จอดรถตามกฎหมาย
+```
+
+เหตุผล: ถ้าเอากฎหมายเข้ามาตอนนี้ scope จะบาน และโปรแกรมจะไม่จบ
+
+---
+
+### 1.2 Phase 1 เหลือแค่คิดพื้นที่
+
+ขอบเขต Phase 1:
+
+```text
+1. เปิด PDF
+2. เลือกหน้า/ชั้น
+3. ตั้ง Scale
+4. วาดพื้นที่
+5. วาด Opening / Void / ช่องว่าง
+6. คำนวณ Gross / Opening / Net Area
+7. จัดการพื้นที่ซ้อนกัน
+8. Save / Load .bmaplan
+9. Export JSON / XLSX
+```
+
+---
+
+### 1.3 ไฟล์จริงส่วนใหญ่เป็น Raster / Scanned PDF
+
+บริบทล่าสุดระบุว่า PDF ที่ใช้จริงไม่มี vector geometry เป็นภาพสแกนหรือ image-based PDF
+
+ดังนั้นสิ่งเหล่านี้ไม่ควรเป็นแกนหลัก:
+
+```text
+- ดึงเส้น CAD จาก PDF
+- Snap endpoint / midpoint จาก vector PDF
+- Auto room detection จากเส้น PDF
+- Magic trace จาก vector line
+- อ่าน title block จาก embedded text
+- อ่าน scale จาก text layer
+```
+
+แนวทางที่ถูกต้องคือ:
+
+```text
+Raster PDF Measurement Assistant
+```
+
+หรือ:
+
+```text
+Image-based PDF → ผู้ใช้วัดเอง → โปรแกรมช่วยให้แม่น เร็ว ตรวจซ้ำได้ และ export ดี
+```
+
+---
+
+## 2. สถานะโปรเจกต์เดิม
+
+ใน Google Drive มีโปรเจกต์ `bma-plan/proto` อยู่แล้ว ไม่ต้องเริ่มใหม่
+
+ไฟล์หลักที่พบ:
+
+```text
+proto/
+server.py
+ui.html
+e2e_ui_test.py
+STATUS.md
+requirements.txt
+server.out.log
+server.err.log
+BMA-Plan.spec
+build.bat
+launch.py
+proto.rar
+```
+
+ของเดิมมีแล้วระดับหนึ่ง:
+
+```text
+- เปิด PDF
+- render หน้า PDF
+- วัดพื้นที่ polygon
+- วาด opening / void
+- ตั้ง scale
+- snap บางส่วน
+- reference line
+- เส้นด้านหน้า/ด้านหลังอาคาร
+- save/load .bmaplan
+- export XLSX / JSON / PDF annotation
+- E2E smoke/full test
+```
+
+คำสั่งที่ถูกต้องไม่ใช่ “สร้างใหม่” แต่คือ:
+
+```text
+Audit + Stabilize + Simplify ให้เป็น Phase 1 ที่ใช้ง่ายและนิ่ง
+```
+
+---
+
+## 3. แนวคิด UI หลัก
+
+โปรแกรมควรเป็น:
+
+```text
+Mini-CAD for Area Measurement
+```
+
+ไม่ใช่ PDF measurement toy
+
+แนวคิดที่เหมาะ:
+
+```text
+CAD core + Foxit measurement behavior + Excel-style summary
+```
+
+แปลว่า:
+
+```text
+- CAD: layer / lock / object tree / properties / selection filter
+- Foxit: measurement object / movable label / annotation-style object
+- Excel: summary / table / export / report
+```
+
+---
+
+## 4. Layout ที่ควรเป็น
+
+```text
+┌───────────────────────────────────────────────────────────────┐
+│ Top Bar: File | Page | Scale | Active Layer | Total Net | Save │
+├───────────────┬───────────────────────────────┬───────────────┤
+│ Left Panel │ Canvas / PDF Viewer │ Right Panel │
+│ Pages │ PDF + overlays │ Properties │
+│ Layers │ Area / Opening / Labels │ Objects │
+│ │ │ Summary │
+├───────────────┴───────────────────────────────┴───────────────┤
+│ Command / Instruction Bar │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Main Toolbar Phase 1
+
+Toolbar หลักควรมี:
+
+```text
+[Pan] [Select] [Set Scale] [Area] [Opening] [Reference] [Label] [Undo] [Delete] [Save] [Export]
+```
+
+Advanced tools ให้ซ่อน ไม่ใช่ลบทิ้ง
+
+ซ่อนใน Advanced:
+
+```text
+- setback
+- legal check
+- land edge tagging ขั้นสูง
+- parking legal tools
+- snap debug
+- rule/check panel
+```
+
+---
+
+## 6. Layer System
+
+### 6.1 Layer ที่ควรมี
+
+```text
+pdf_background
+gfa_area
+room_area
+parking_area
+open_space
+opening_void
+excluded_area
+reference_geometry
+labels
+dimensions
+```
+
+แต่ละ layer ต้องมี:
+
+```json
+{
+"visible": true,
+"locked": false,
+"selectable": true,
+"color": "#2563eb",
+"opacity": 0.18,
+"draw_order": 10
+}
+```
+
+### 6.2 Layer ต้องทำอะไรได้
+
+```text
+- แสดง / ซ่อน
+- ล็อก / ปลดล็อก
+- selectable / not selectable
+- active layer
+- กำหนดสี/opacity
+```
+
+สำคัญ:
+
+```text
+Locked layer = ยังมองเห็น แต่คลิกเลือกไม่ได้
+```
+
+เพื่อแก้ปัญหา polygon ใหญ่บัง polygon เล็ก
+
+---
+
+## 7. Active Layer
+
+เมื่อเลือก Active Layer แล้ว วัตถุใหม่ต้องไปอยู่ layer นั้นอัตโนมัติ
+
+ตัวอย่าง:
+
+```text
+Active Layer: room_area
+Tool: Area
+→ วาด polygon ใหม่
+→ object เข้า layer room_area ทันที
+```
+
+Opening tool ต้องสร้าง object ใน:
+
+```text
+opening_void
+```
+
+---
+
+## 8. Overlapping Polygon UX
+
+### 8.1 ปัญหาจริง
+
+พื้นที่จะทับกันหลายชั้น เช่น:
+
+```text
+- GFA ครอบทั้งชั้น
+- ห้องย่อยอยู่ใน GFA
+- Opening / Void อยู่ใน GFA
+- Shaft / Stair / Excluded อยู่ทับในพื้นที่หลัก
+```
+
+ดังนั้นห้ามคิดแบบ polygon ชั้นเดียว
+
+### 8.2 Hit Priority
+
+เวลาคลิกตำแหน่งที่มีหลาย object ซ้อนกัน ให้ใช้ priority:
+
+```text
+1. selected object vertex / edge
+2. opening_void / deduction objects
+3. room / sub area
+4. base / gfa area
+```
+
+เหตุผล:
+
+```text
+opening เล็กมักอยู่ใน GFA ใหญ่ ถ้า GFA กิน click ก่อน ผู้ใช้เลือก opening ไม่ได้
+```
+
+### 8.3 Object Picker
+
+ถ้าคลิกแล้วเจอหลาย object ให้แสดง picker:
+
+```text
+เลือกวัตถุ
+- A-01 พื้นที่อาคารหลัก — 508.00 ตร.ม.
+- R-03 ห้องสำนักงาน — 42.50 ตร.ม.
+- O-01 ช่องลิฟต์ — -6.00 ตร.ม.
+```
+
+บน desktop เป็น popup ได้ บน iPad ควรเป็น bottom sheet
+
+---
+
+## 9. Object Tree
+
+Right Panel ต้องมี Object Tree
+
+ตัวอย่าง:
+
+```text
+ชั้น 1
+GFA Area
+A-01 พื้นที่อาคารหลัก — Gross 520.00 / Net 508.00
+O-01 ช่องลิฟต์ — -6.00
+O-02 ช่องบันได — -6.00
+
+Room Area
+R-01 ห้องสำนักงาน — 42.50
+R-02 ห้องประชุม — 38.20
+
+Reference
+REF-01 แนวหน้าอาคาร
+REF-02 แนวหลังอาคาร
+```
+
+คลิก object ใน tree ต้อง:
+
+```text
+- select object
+- highlight object
+- pan/zoom ไปหา object ถ้าทำได้
+- เปิด Properties Panel
+```
+
+---
+
+## 10. Properties Panel
+
+เมื่อเลือก object หนึ่งอัน ให้แสดง:
+
+```text
+Object: A-01
+Name: พื้นที่อาคารหลัก
+Layer: gfa_area
+Type: GFA
+Page/Floor: ชั้น 1
+
+Geometry:
+Gross Area: 520.00 ตร.ม.
+Opening Area: 12.00 ตร.ม.
+Net Area: 508.00 ตร.ม.
+
+Display:
+Color: Blue
+Opacity: 18%
+Label Mode: Auto
+Locked: No
+```
+
+แก้ไขได้:
+
+```text
+- name
+- layer
+- area type
+- color
+- opacity
+- label visibility/mode
+```
+
+---
+
+## 11. Label / Annotation
+
+### 11.1 Label ไม่ควร fix ที่ centroid อย่างเดียว
+
+Label ต้องมี mode:
+
+```text
+auto
+manual
+hidden
+```
+
+Normal label:
+
+```text
+A-01
+508.00 ตร.ม.
+```
+
+Selected label:
+
+```text
+A-01 พื้นที่อาคารหลัก
+Gross 520.00
+Opening 12.00
+Net 508.00
+```
+
+ถ้า manual label อยู่นอก polygon ควรมี leader line ชี้กลับไปหา object
+
+### 11.2 Label ควรเป็น annotation object
+
+Data model ที่ควรมี:
+
+```json
+{
+"label": {
+"mode": "auto",
+"text": "A-01\n508.00 ตร.ม.",
+"position": null,
+"leader_line": true,
+"visible": true
+}
+}
+```
+
+ถ้าลาก label:
+
+```json
+{
+"label": {
+"mode": "manual",
+"position": [1200, 800],
+"leader_line": true,
+"visible": true
+}
+}
+```
+
+---
+
+## 12. Reference Geometry สำคัญมาก
+
+จากโปรแกรมเดิมมี Reference Line และเส้นด้านหน้า/ด้านหลังอาคารแล้ว นี่คือแกนสำคัญ ไม่ใช่ของเสริม
+
+โปรแกรมนี้ควรคิดว่า:
+
+```text
+Reference Geometry → Assisted Drawing → Area Object → QA → Export
+```
+
+### 12.1 Reference Object ที่ควรมี
+
+```text
+reference_line
+reference_arc
+reference_circle
+reference_axis
+```
+
+ชนิดการใช้งาน:
+
+```text
+- แนวผนัง
+- แนวแกน
+- แนวเขตที่ดิน
+- แนวอาคารด้านหน้า
+- แนวอาคารด้านหลัง
+- แนวอาคารด้านซ้าย
+- แนวอาคารด้านขวา
+- แนวถนน
+- แนวคลอง/ลำราง
+- เส้นช่วยวัด
+```
+
+### 12.2 Reference Line ต้องเป็น first-class object
+
+ต้อง:
+
+```text
+- อยู่ใน object tree
+- เลือกได้
+- lock ได้
+- hide/show ได้
+- ใช้เป็น snap source ได้
+- export/save/load ได้
+```
+
+### 12.3 Snap จาก User Geometry
+
+เพราะ PDF จริงเป็นภาพ ไม่มี vector ดังนั้น snap หลักต้องมาจากสิ่งที่ผู้ใช้สร้างเอง:
+
+```text
+- polygon vertex
+- polygon edge
+- reference line endpoint
+- reference line midpoint
+- perpendicular to reference line
+- intersection of user-created lines
+- nearest point on user line
+```
+
+---
+
+## 13. เส้นโค้ง / อาคารวงกลม / พื้นที่โค้ง
+
+### 13.1 ต้องรองรับมากกว่า polygon เส้นตรง
+
+อาคารจริงมี:
+
+```text
+- ผนังโค้ง
+- อาคารวงกลม
+- โถงวงกลม
+- ทางลาดโค้ง
+- ระเบียงโค้ง
+- façade โค้ง
+- boundary โค้ง
+```
+
+ดังนั้นต้องคิดเรื่อง:
+
+```text
+Line + Arc + Bézier + Circle
+```
+
+### 13.2 วิธีวาดเส้นโค้งควรยืมจาก Adobe Illustrator
+
+แนวคิด:
+
+```text
+Area = Path ปิดรูป
+Path = Line Segment + Curve Segment
+Curve = Bézier / Arc
+```
+
+พฤติกรรม:
+
+```text
+คลิก = จุดเส้นตรง
+คลิกแล้วลาก = เส้นโค้ง
+handle = ปรับโค้ง
+convert point = เปลี่ยนมุม/โค้ง
+Enter / Double click = ปิดรูป
+Esc = ยกเลิก
+Backspace = ลบจุดล่าสุด
+```
+
+### 13.3 สำหรับผู้ใช้ทั่วไป ควรเริ่มจาก Arc by 3 Points ก่อน
+
+ลำดับพัฒนา:
+
+```text
+Step 1: Path foundation
+Step 2: Arc by 3 points
+Step 3: Circle by 3 points / center+radius
+Step 4: Bézier handle แบบ Illustrator
+```
+
+### 13.4 Data Model สำหรับ Curved Area
+
+ควรมี path segments:
+
+```json
+{
+"id": "A-01",
+"type": "area_path",
+"name": "พื้นที่อาคารโค้ง",
+"segments": [
+{
+"type": "line",
+"from": [100, 100],
+"to": [300, 100]
+},
+{
+"type": "arc_3pt",
+"from": [300, 100],
+"through": [350, 150],
+"to": [300, 200]
+},
+{
+"type": "line",
+"from": [300, 200],
+"to": [100, 200]
+}
+],
+"closed": true,
+"area_method": "flattened_curve",
+"flatten_tolerance": 0.02
+}
+```
+
+### 13.5 คำนวณพื้นที่โค้ง
+
+Phase แรกให้ใช้วิธี flatten curve:
+
+```text
+Arc / Bézier → แปลงเป็น polyline ย่อย → คำนวณพื้นที่แบบ polygon
+```
+
+Export ต้องระบุ:
+
+```text
+area_method = flattened_curve
+flatten_tolerance = ...
+note = พื้นที่คำนวณจากเส้นโค้งแบบประมาณค่า
+```
+
+---
+
+## 14. Raster-friendly Drawing UX
+
+เพราะไฟล์จริงเป็นภาพ ต้องทำเครื่องมือช่วยวัดมือให้ดี
+
+สิ่งที่ควรมี:
+
+```text
+- magnifier / loupe พร้อม crosshair
+- bigger vertex handles
+- live preview line
+- live distance display
+- angle lock 0/45/90
+- orthogonal mode
+- visible Finish / Cancel / Undo Point buttons
+- reference line snap
+```
+
+### 14.1 Magnifier / Loupe
+
+ตอนวางจุดควรมีแว่นขยายใกล้ cursor:
+
+```text
+- zoom 3x / 5x
+- crosshair
+- เห็นจุดที่กำลังคลิก
+- เห็นระยะจากจุดก่อนหน้า
+```
+
+### 14.2 Orthogonal Mode
+
+สำหรับอาคารมุมฉาก:
+
+```text
+- ล็อก 0° / 90°
+- กด Shift หรือ toggle “ล็อกมุม”
+- ใช้กับ iPad ผ่านปุ่ม floating
+```
+
+---
+
+## 15. QA Engine สำหรับพื้นที่
+
+ยังทำได้เต็มแม้ PDF เป็นภาพ
+
+ตรวจได้:
+
+```text
+- page ไม่มี scale
+- polygon มีจุดน้อยกว่า 3 จุด
+- polygon self-intersection
+- area เป็น 0 หรือค่าติดลบ
+- object ไม่มีชื่อ
+- object ไม่มี type/layer
+- opening ไม่มี parent
+- opening ใหญ่กว่า parent
+- opening ไม่อยู่ใน parent
+- ไม่มีพื้นที่ export ได้
+```
+
+Warning model:
+
+```json
+{
+"id": "W-001",
+"severity": "warning",
+"page_index": 1,
+"object_id": "O-01",
+"message": "ช่องว่างนี้ยังไม่ได้ผูกกับพื้นที่หลัก",
+"suggested_action": "เลือก parent area สำหรับช่องว่างนี้"
+}
+```
+
+---
+
+## 16. Parent–Child Opening
+
+Opening / Void ต้องผูกกับพื้นที่หลัก
+
+ตัวอย่าง:
+
+```text
+A-01 พื้นที่อาคารหลัก
+- O-01 ช่องลิฟต์
+- O-02 ช่องบันได
+
+Net = Gross - O-01 - O-02
+```
+
+Auto-link:
+
+```text
+ถ้า opening อยู่ใน area เดียว → link อัตโนมัติ
+ถ้าอยู่ในหลาย area → ambiguous warning
+ถ้าไม่อยู่ใน area ใด → unlinked warning
+```
+
+---
+
+## 17. Scale System
+
+### 17.1 Scale ต้องเป็น first-class data
+
+Scale record ควรมี:
+
+```json
+{
+"page_index": 1,
+"scale_type": "manual",
+"real_distance": 10.0,
+"unit": "m",
+"point1": [100, 200],
+"point2": [500, 200],
+"pixels_per_meter": 40,
+"status": "manual_verified"
+}
+```
+
+### 17.2 Scale Recheck
+
+เครื่องมือวัดเส้นที่รู้ระยะอีกเส้น แล้วระบบบอก error:
+
+```text
+ค่าที่ควรเป็น: 5.00 ม.
+ค่าที่วัดได้: 5.08 ม.
+คลาดเคลื่อน: 1.6%
+```
+
+ถ้าเกิน tolerance ให้เตือน
+
+---
+
+## 18. Export ที่ต้องใช้งานจริง
+
+XLSX ไม่ควรเป็น dump data ธรรมดา
+
+ควรมี sheet:
+
+```text
+1. Cover
+2. Summary by Page
+3. Summary by Area Type
+4. Areas
+5. Openings
+6. Reference Geometry
+7. Page Scales
+8. Warnings
+9. Audit Log
+```
+
+Cover มี:
+
+```text
+- ชื่อไฟล์ PDF
+- ชื่อ project
+- วันที่วัด
+- จำนวนหน้า
+- พื้นที่รวมสุทธิ
+- หมายเหตุ
+```
+
+ต้อง format ดี:
+
+```text
+- header row
+- freeze panes
+- filters
+- number format ตร.ม.
+- totals
+```
+
+---
+
+## 19. Audit Log / Measurement Replay
+
+ควรเก็บ event:
+
+```text
+- ตั้ง scale
+- วาด area
+- แก้ชื่อ
+- เปลี่ยน layer
+- วาด opening
+- link opening
+- export
+```
+
+ไม่ต้องทำ replay UI ตอนนี้ แต่ควรเก็บ log ไว้
+
+---
+
+## 20. iPad Support
+
+ควรรองรับ iPad ผ่าน browser ไม่ใช่ native app
+
+แนวทาง:
+
+```text
+PC / server รัน BMA-Plan
+iPad เปิดผ่าน browser / Cloudflare Tunnel
+Apple Pencil ใช้วาดพื้นที่
+```
+
+UI บน iPad:
+
+```text
+- toolbar ปุ่มใหญ่ 44–48px
+- floating tool palette
+- bottom sheet properties
+- object picker เป็น bottom sheet
+- long press menu แทน right click
+- two finger pinch zoom
+- one finger pan ใน Pan mode
+- Apple Pencil / touch วาดจุด
+```
+
+---
+
+## 21. Stack / Deployment
+
+### 21.1 Local ใช้ดีที่สุดสำหรับ PDF ใหญ่
+
+```text
+server.py รันในเครื่อง
+browser เปิด localhost
+PDF อยู่ในเครื่อง
+เร็วกว่า online
+ปลอดภัยกว่า
+```
+
+### 21.2 Online ทำได้แต่ต้องระวัง
+
+ถ้า deploy online:
+
+```text
+- upload PDF ใหญ่จะช้า
+- server RAM ต้องพอ
+- ต้องมี persistent storage
+- ต้องมี cleanup
+- ต้องมี password
+```
+
+### 21.3 แนวทางที่เหมาะสุดตอนนี้
+
+```text
+Local Python engine + Web UI + optional Cloudflare Tunnel
+```
+
+ถ้าจะใช้ iPad:
+
+```text
+เครื่อง PC รัน server.py
+เปิดผ่าน Cloudflare Tunnel / LAN
+iPad เปิด URL
+```
+
+### 21.4 GAS เดิมควรถอยเป็น storage layer
+
+เพราะโปรเจกต์เคยเริ่มจาก GAS แต่ GAS ไม่เหมาะเป็น PDF measurement engine
+
+GAS เหมาะกับ:
+
+```text
+- project list
+- save/load .bmaplan ไป Google Drive
+- backup metadata
+- export summary ไป Sheet
+```
+
+Python เหมาะกับ:
+
+```text
+- PDF render
+- geometry
+- export XLSX
+- QA
+```
+
+Architecture:
+
+```text
+Browser/iPad = UI
+Python = measurement engine
+GAS/Drive = storage/backup
+```
+
+---
+
+## 22. Codex CLI ใช้งาน
+
+ผู้ใช้ใช้ `codex --yolo` หรือ:
+
+```bash
+codex --dangerously-bypass-approvals-and-sandbox
+```
+
+ถ้าจะใช้เครื่องเต็ม ๆ ให้ commit backup ก่อน:
+
+```bash
+cd "G:\drive\01 project\ai\bma-plan\proto"
+git status
+git add .
+git commit -m "backup before codex phase1"
+```
+
+---
+
+## 23. Prompt หลักสำหรับ Codex — Phase 1 Stabilization
+
+```text
+Audit and stabilize this existing bma-plan/proto project as Phase 1 Mini-CAD Area Measurement Tool.
+
+Do not rewrite the app.
+Do not add law checking.
+Do not add AI/OCR.
+Do not add rule engine.
+Do not add K.1 generation.
+Do not add login/cloud sync.
+
+Focus only on area measurement from raster/image-based PDF drawings.
+
+Important context:
+Real input PDFs are scanned/image-based, not vector PDFs.
+Do not rely on PDF vector geometry, embedded text, automatic boundary detection, or magic trace from PDF lines.
+
+First read:
+- STATUS.md
+- server.py
+- ui.html
+- e2e_ui_test.py
+- requirements.txt
+- server.out.log
+- server.err.log
+
+Create or update PHASE1_AUDIT.md first.
+
+Then implement the smallest safe changes for Phase 1:
+
+1. Mini-CAD layer system
+- layers: pdf_background, gfa_area, room_area, parking_area, open_space, opening_void, excluded_area, reference_geometry, labels, dimensions
+- each layer has visible, locked, selectable, color, opacity, draw_order
+- locked layers remain visible but cannot be selected
+- new objects go to active layer
+- opening tool creates objects on opening_void
+
+2. Overlapping polygon UX
+- large base polygons must not block openings or smaller polygons
+- hit priority:
+1) selected object vertex/edge
+2) opening_void
+3) room/sub area
+4) base/gfa area
+- if multiple objects are hit, show object picker near cursor
+
+3. Object tree
+- group objects by page/floor and layer
+- show parent-child relation between area and openings
+- clicking object selects it, highlights it, and pans/zooms to it if supported
+
+4. Properties panel
+- show selected object code, name, layer, area type, page/floor, gross area, opening area, net area, color, opacity, label mode, locked status
+- allow editing name, layer, area type, color, opacity, label visibility/mode
+
+5. Labels
+- support label modes: auto, manual, hidden if feasible
+- normal label: object code + net area
+- selected label: object code + name + gross/opening/net
+- if full movable labels are too big, implement auto/hidden first and document remaining work in PHASE1_AUDIT.md
+
+6. Raster-friendly drawing UX
+- larger vertex handles
+- clear preview line from last point to cursor
+- live distance display while drawing
+- angle lock / orthogonal mode for 0/90/45 degree drawing if feasible
+- visible Finish / Cancel / Undo Point buttons
+
+7. Reference geometry
+- keep and improve existing reference line features
+- reference objects appear in object tree
+- reference lines can be visible/hidden/locked/selectable
+- reference geometry can be used as snap source if existing snap system supports it
+
+8. Opening parent-child and QA
+- auto-link opening to parent area using polygon containment if feasible
+- warnings for unlinked opening, missing scale, unnamed object, missing area type, no exportable areas
+- warning model: id, severity, page_index, object_id, message, suggested_action
+
+9. Save/load/export
+- preserve page names, scales, layers, layer visibility/lock, active layer if reasonable, polygons, openings, parent-child links, reference lines, object names, area types, colors/opacities, label mode
+- keep JSON and XLSX export working
+- XLSX should include Summary, Areas, Openings, Reference Geometry, Page Scales, Warnings if possible
+
+10. Tests
+- do not remove existing tests
+- add/update smoke test for set scale, draw area, draw opening, verify net area, object tree, locked layer not selectable, save/load, export XLSX
+
+Run:
+python -m py_compile server.py e2e_ui_test.py
+python e2e_ui_test.py smoke
+
+If full test exists and is not too slow, run:
+python e2e_ui_test.py full
+
+Document test results and unfinished work in PHASE1_AUDIT.md.
+```
+
+---
+
+## 24. Prompt เฉพาะเรื่อง Curved Path / Illustrator-style Drawing
+
+```text
+Enhance the existing bma-plan/proto area measurement tool with Illustrator-style curved path foundation.
+
+Important:
+Real PDFs are raster/image-based.
+Do not rely on PDF vector geometry.
+Do not add law checking, AI/OCR, rule engine, or K.1.
+Do not rewrite the app.
+
+Goal:
+Support area measurement for curved buildings and circular/arc-shaped areas by allowing area objects to be path-based, not only straight polygon points.
+
+Tasks:
+
+1. Audit current polygon data model and area calculation.
+Document findings in PHASE1_AUDIT.md.
+
+2. Add path geometry foundation.
+Support area objects with path segments:
+- line
+- arc_3pt
+- cubic_bezier if feasible
+
+Each path object should support:
+- closed path
+- convert to polyline
+- calculate area from flattened polyline
+- hit testing using flattened polyline
+- export/save/load
+
+3. Add flattening utilities.
+Implement:
+- flatten 3-point arc to points
+- flatten cubic Bézier to points if feasible
+- path_to_polyline(path)
+
+If cubic Bézier is too large for this sprint, implement arc_3pt first and document Bézier as next step.
+
+4. UI drawing behavior.
+If feasible:
+- click = line segment
+- click/drag = curve segment
+- show anchor points
+- show handles for selected curve
+- allow editing curve handles
+
+If full Illustrator-style Pen Tool is too large:
+- add minimal Arc Segment mode:
+- while drawing area path, user can switch segment type Line/Arc
+- Arc uses start point, through point, end point
+- finish path same as polygon
+
+5. Selection/editing.
+Selected curved path should show:
+- anchor points
+- curve control/through point if available
+- bounding box
+- area value
+
+6. Export.
+XLSX/JSON should include:
+- area_method: polygon | flattened_arc | flattened_bezier
+- flatten tolerance or segment count
+- warning/note that curved area is approximated
+
+7. Tests.
+Add tests for:
+- arc flattening
+- Bézier flattening if implemented
+- curved path area calculation
+- save/load curved area
+- export curved area method
+
+8. Keep existing features working.
+Existing polygon area and opening workflows must still work.
+
+Acceptance:
+- Existing tests pass.
+- Existing polygon area workflow still works.
+- User can create or at least load/test a curved area path.
+- Area is calculated from flattened curve.
+- Save/load/export preserves curved geometry.
+- PHASE1_AUDIT.md documents limitations and next steps.
+```
+
+---
+
+## 25. Prompt เฉพาะเรื่อง Easy Launch / Stack เปิดง่าย
+
+```text
+Add simple local launcher support for this bma-plan/proto project.
+
+Do not rewrite the app.
+Do not change the main UI.
+Do not add law, AI, OCR, rule engine, or K.1.
+
+Goal:
+Make the app easy to open on Windows.
+
+Tasks:
+1. Inspect current server.py, requirements.txt, BMA-Plan.spec, build.bat, launch.py, dist/dist2 if present.
+2. Create or update install_once.bat:
+- create .venv
+- activate .venv
+- upgrade pip
+- install requirements.txt
+3. Create or update start_bma_plan.bat:
+- cd to script folder
+- activate .venv if exists
+- start browser at http://localhost:8000
+- run python server.py
+4. Create or update build_exe.bat:
+- activate .venv if exists
+- install pyinstaller if missing
+- build using existing BMA-Plan.spec if valid
+5. If launch.py exists, check whether it can start the server and open browser.
+6. Add LAUNCH_GUIDE.md explaining:
+- first time install
+- normal start
+- build exe
+- common errors
+7. Do not break existing tests.
+8. Run:
+python -m py_compile server.py
+9. Document what was changed in PHASE1_AUDIT.md or LAUNCH_GUIDE.md.
+```
+
+---
+
+## 26. Prompt เฉพาะ iPad Support
+
+```text
+Add iPad/tablet support to the existing bma-plan/proto area measurement UI.
+
+Do not rewrite the app.
+Do not create a native iOS app.
+Do not add law checking, AI/OCR, rule engine, K.1, login, or cloud sync.
+
+Goal:
+Make the existing PDF area measurement tool usable on iPad Safari/Chrome with touch and Apple Pencil.
+
+Tasks:
+1. Detect touch/tablet viewport and enable tablet UI mode.
+2. Increase touch targets:
+- toolbar buttons at least 44px
+- polygon vertices 12-16px on touch devices
+- snap radius larger on touch devices
+3. Add touch-friendly tool modes:
+- Pan
+- Select
+- Set Scale
+- Area
+- Opening
+- Label
+4. Ensure gestures:
+- one finger pan in Pan mode
+- two finger pinch zoom
+- Apple Pencil/touch draws points in Area/Opening mode
+- Esc alternatives via visible Cancel button
+- Enter alternatives via visible Finish button
+- Backspace alternative via visible Undo Point button
+5. Add floating tool palette for tablet mode.
+6. Convert right-click/context menu actions to long-press menu:
+- rename
+- change type
+- move label
+- delete
+- focus
+7. If multiple overlapping polygons are tapped, show object picker as a bottom sheet, not a tiny popup.
+8. Show selected object properties as bottom sheet on tablet:
+- name
+- type
+- gross area
+- opening area
+- net area
+- label mode
+- color/opacity if already supported
+9. Ensure save/load/export still works.
+10. Add documentation section in PHASE1_AUDIT.md:
+- iPad supported workflow
+- known limitations
+- tested browser assumptions
+
+Acceptance:
+- Existing desktop tests still pass.
+- iPad/tablet viewport has usable controls.
+- User can pan/zoom PDF.
+- User can set scale using touch.
+- User can draw area polygon using touch/Apple Pencil.
+- User can draw opening polygon.
+- User can select overlapping polygons through bottom-sheet picker.
+- User can finish/cancel polygon without keyboard.
+```
+
+---
+
+## 27. สิ่งที่ไม่ควรทำตอนนี้
+
+ห้ามเพิ่มใน Phase 1:
+
+```text
+- กฎหมาย
+- AI
+- OCR
+- Chatbot
+- Rule Engine
+- K.1
+- FAR/OSR ตามกฎหมาย
+- ระยะร่นตามกฎหมาย
+- Multi-user
+- SaaS
+- Login ซับซ้อน
+- Cloud sync ซับซ้อน
+- Rewrite เป็น Electron/Tauri
+- Native iOS App
+```
+
+---
+
+## 28. ลำดับพัฒนาที่แนะนำ
+
+### Sprint 1: Phase 1 Stabilization
+
+```text
+- audit ของเดิม
+- hide advanced
+- layer lock
+- object tree
+- properties panel
+- overlapping picker
+```
+
+### Sprint 2: Raster Measurement UX
+
+```text
+- loupe
+- bigger vertex
+- angle lock
+- orthogonal mode
+- reference line snap
+```
+
+### Sprint 3: QA + Export
+
+```text
+- parent-child opening
+- warnings
+- smart XLSX export
+- scale records
+```
+
+### Sprint 4: Reference Geometry
+
+```text
+- reference line first-class object
+- reference arc/circle foundation
+- snap from user reference geometry
+```
+
+### Sprint 5: Curved Path
+
+```text
+- path data model
+- arc by 3 points
+- flatten curve
+- curved area export
+```
+
+### Sprint 6: iPad Support
+
+```text
+- touch UI
+- bottom sheet
+- Apple Pencil-friendly drawing
+```
+
+---
+
+## 29. คำจำกัดความของความสำเร็จ Phase 1
+
+Phase 1 ถือว่าสำเร็จเมื่อ:
+
+```text
+1. เปิด PDF แบบจริงได้
+2. ตั้ง Scale ได้
+3. วาดพื้นที่ได้
+4. วาด Opening ได้
+5. Gross / Opening / Net ถูกต้อง
+6. พื้นที่ซ้อนกันเลือก/จัดการได้
+7. Reference Line ใช้งานเป็นโครงช่วยวัดได้
+8. Save / Load กลับมาแก้ได้
+9. Export XLSX ใช้ประกอบงานจริงได้
+10. ไม่มีการเพิ่มกฎหมาย/AI/OCR/Rule Engine
+```
+
+---
+
+## 30. ประโยคล็อกกรอบ
+
+```text
+Phase 1 ไม่ใช่โปรแกรมตรวจแบบตามกฎหมาย
+Phase 1 คือเครื่องมือวัดพื้นที่จาก PDF ภาพให้เร็ว แม่น จัดการง่าย และส่งออกได้
+```
+
+```text
+PDF เป็นภาพ → อย่าหวังดึง vector
+ให้ผู้ใช้วัดเอง แต่ให้ระบบช่วยวัดแบบมืออาชีพ
+```
+
+```text
+Reference Line สำคัญเท่ากับ Polygon
+เพราะมันคือโครงกระดูกของการวัดใน PDF ภาพ
+```
+
+```text
+เส้นโค้งต้องรองรับ
+เพราะอาคารจริงไม่ได้มีแต่สี่เหลี่ยม
+```
+
+```text
+สิ่งที่ควรชนะตอนนี้ไม่ใช่ AI
+แต่คือวัดพื้นที่แล้วไม่มั่ว เลือก object ไม่พลาด และ export ใช้งานจริงได้
+```

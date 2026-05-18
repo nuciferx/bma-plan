@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show:*)",
+      "Bash(find 'F:/other computers/my laptop/ai' -name *.pdf)",
+      "Bash(python pdf_scale.py \"../../mr66-70e.pdf\" 1)",
+      "Bash(python pdf_scale.py \"../../b-law/pdf/mr64-68b.pdf\" 1)",
+      "Bash(python pdf_scale.py \"../../b-law/pdf/hotel_2566.pdf\" 1)",
+      "Bash(python make_test_pdf.py)",
+      "Bash(python pdf_scale.py test_plan_A1.pdf 1)",
+      "Bash(python pdf_scale.py \"../20250616_RAMA4 APARTMENT PERMIT rev 1.pdf\" 1)",
+      "Bash(python -:*)",
+      "Bash(python pdf_scale.py \"../20250616_RAMA4 APARTMENT PERMIT rev 1.pdf\" 5)",
+      "Bash(python pdf_scale.py \"../20250616_RAMA4 APARTMENT PERMIT rev 1.pdf\" 10)",
+      "Bash(python scale_validator.py \"../20250616_RAMA4 APARTMENT PERMIT rev 1.pdf\" 5 100 841)",
+      "Bash(python scale_bar_detect.py \"../20250616_RAMA4 APARTMENT PERMIT rev 1.pdf\" 5 6 7 8)",
+      "Bash(pip install:*)",
+      "Bash(grep -n 'HTML = \\\\|^\"\"\"\"\"\"\"\"\"\"\"\"$\\\\|^HTML\"\"\"\"\"\"\"\"\"\"\"\"' \"F:/other computers/my laptop/ai/bma-plan/proto/server.py\")",
+      "Bash(grep:*)",
+      "Bash(python \"F:/other computers/my laptop/ai/bma-plan/proto/patch_html.py\")",
+      "Bash(python patch_html.py)",
+      "Bash(netstat -ano)",
+      "Bash(cmd /c \"taskkill /PID 1192 /F\")",
+      "Bash(cmd /c \"taskkill /PID 1192 /F 2>&1\")",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 8000 -State Listen | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_-Force }\")",
+      "WebSearch",
+      "Bash(ls:*)"
+    ]
+  }
+}

@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Mockup — Ribbon Redesign (HT-8) — BMA-Plan</title>
+<style>
+  /* Mirror BMA-Plan's actual color palette so the mockup looks like the real app */
+  :root {
+    --bg: #1a1c20;
+    --surface: #23262c;
+    --surface2: #2a2e35;
+    --surface3: #353a42;
+    --border: #3a3f47;
+    --text: #e8ebef;
+    --text2: #aab1bb;
+    --text3: #6a737d;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --cyan: #5ac8fa;
+    --magenta: #bf5af2;
+    --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+
+  /* ── MENU BAR ── */
+  .menu-bar { display: flex; align-items: center; height: 28px; padding: 0 10px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 12px; gap: 4px; }
+  .menu-item { padding: 4px 10px; cursor: pointer; border-radius: 3px; color: var(--text2); }
+  .menu-item:hover { background: var(--surface3); color: var(--text); }
+  .menu-item.dead { color: var(--text3); cursor: not-allowed; text-decoration: line-through; opacity: 0.5; }
+
+  /* ── TAB STRIP — NEW ── */
+  .tab-strip { display: flex; align-items: stretch; height: 32px; background: var(--surface); border-bottom: 1px solid var(--border); padding-left: 10px; gap: 2px; }
+  .tab { display: flex; align-items: center; padding: 0 18px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text2); border-radius: 4px 4px 0 0; border: 1px solid transparent; border-bottom: none; }
+  .tab:hover { background: var(--surface2); color: var(--text); }
+  .tab.active { background: var(--surface3); color: #fff; border-color: var(--border); position: relative; top: 1px; padding-bottom: 1px; }
+  .tab.disabled { color: var(--text3); opacity: 0.45; cursor: not-allowed; }
+  .tab .tab-dot { display: inline-block; width: 6px; height: 6px; background: var(--green); border-radius: 50%; margin-right: 6px; opacity: 0; }
+  .tab.active .tab-dot { opacity: 1; }
+
+  /* ── RIBBON ── */
+  .ribbon { display: flex; align-items: stretch; min-height: 64px; background: var(--surface3); border-bottom: 1px solid var(--border); padding: 6px 4px; gap: 0; }
+  .rsection { display: flex; flex-direction: column; align-items: stretch; padding: 0 10px; gap: 4px; min-width: 0; }
+  .rsection-label { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 2px; white-space: nowrap; }
+  .rsection-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .rsection-divider { width: 1px; background: var(--border); margin: 4px 2px; }
+  .rbtn { display: flex; align-items: center; gap: 4px; padding: 6px 9px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; min-height: 28px; user-select: none; }
+  .rbtn:hover { background: var(--surface3); border-color: var(--text3); }
+  .rbtn.active { background: var(--accent); border-color: var(--blue); color: #fff; }
+  .rbtn .rbtn-icon { font-size: 14px; line-height: 1; }
+  .rbtn .rbtn-lbl { font-size: 11px; }
+  .rbtn.icon-only { padding: 6px 8px; }
+  .rbtn.dropdown::after { content: "▾"; font-size: 9px; margin-left: 4px; opacity: 0.7; }
+  .rbtn.danger { color: var(--red); border-color: rgba(220,38,38,0.3); }
+  .rbtn.danger:hover { background: rgba(220,38,38,0.15); }
+  .rbtn .sub-badge { display: inline-block; padding: 0 4px; background: var(--magenta); color: #fff; font-size: 9px; border-radius: 6px; margin-left: 4px; font-weight: 700; }
+  .rbtn .kb { padding: 1px 5px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; font-family: ui-monospace, monospace; font-size: 9px; color: var(--text2); margin-left: 4px; }
+
+  /* ── POLYGON DROPDOWN — sub-modes panel ── */
+  .poly-dropdown { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 0; min-width: 290px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 100; font-size: 12px; display: none; }
+  .poly-dropdown.open { display: block; }
+  .poly-dropdown .pd-row { padding: 7px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .poly-dropdown .pd-row:hover { background: var(--surface3); }
+  .poly-dropdown .pd-row.checked::before { content: "✓"; color: var(--green); font-weight: 700; width: 12px; }
+  .poly-dropdown .pd-row:not(.checked)::before { content: ""; width: 12px; }
+  .poly-dropdown .pd-divider { height: 1px; background: var(--border); margin: 4px 8px; }
+  .poly-dropdown .pd-section { padding: 6px 12px 2px; font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; }
+  .poly-dropdown .pd-sub { padding: 4px 12px 4px 32px; font-size: 11px; color: var(--text2); }
+  .poly-dropdown .pd-sub .kb { padding: 1px 5px; background: var(--surface3); border: 1px solid var(--border); border-radius: 3px; font-family: ui-monospace, monospace; font-size: 9px; color: var(--text2); margin-right: 4px; }
+  .poly-dropdown .pd-hint { padding: 6px 12px; font-size: 10px; color: var(--text3); background: var(--surface2); border-top: 1px solid var(--border); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+
+  /* ── CANVAS AREA (placeholder) ── */
+  .canvas-area { flex: 1; background: #f6f7f9; color: #555; display: flex; align-items: center; justify-content: center; font-size: 14px; position: relative; }
+  .canvas-area::after { content: "CANVAS (mockup placeholder)"; opacity: 0.4; }
+  .canvas-top-bar { position: absolute; top: 8px; left: 8px; right: 8px; padding: 4px 10px; background: rgba(20,20,25,0.78); color: #fff; border-radius: 5px; display: flex; gap: 14px; font-size: 11px; }
+  .canvas-top-bar span { white-space: nowrap; }
+
+  /* ── STATUS BAR ── */
+  .status-bar { display: flex; align-items: center; height: 26px; padding: 0 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; gap: 14px; color: var(--text2); }
+  .status-bar .lbl-mode-prefix { padding: 1px 6px; background: var(--accent); color: #fff; border-radius: 3px; font-weight: 700; font-size: 10px; }
+  .status-bar .lbl-mode-prefix.annot { background: var(--magenta); }
+  .status-bar .sep { color: var(--text3); }
+
+  /* ── LEGEND ── */
+  .legend { position: fixed; bottom: 30px; right: 14px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 50; }
+  .legend h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; color: var(--text3); letter-spacing: 0.06em; }
+  .legend ul { margin: 0; padding-left: 16px; line-height: 1.6; }
+  .legend kbd { padding: 1px 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; font-family: ui-monospace, monospace; font-size: 9px; }
+  .legend .demo-control { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .legend button { padding: 4px 10px; background: var(--blue); color: #fff; border: 0; border-radius: 4px; font-size: 11px; cursor: pointer; }
+  .legend button + button { margin-left: 6px; }
+
+  /* ── TOOLTIP ── */
+  .has-tooltip { position: relative; }
+  .has-tooltip[data-tip]::after {
+    content: attr(data-tip); position: absolute; bottom: -36px; left: 50%; transform: translateX(-50%);
+    background: #000; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px; white-space: pre;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 200;
+  }
+  .has-tooltip:hover[data-tip]::after { opacity: 1; transition-delay: 0.4s; }
+
+  /* layout */
+  body { display: flex; flex-direction: column; }
+  main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ MENU BAR ═══════════════════ -->
+<div class="menu-bar">
+  <span class="menu-item dead" title="ตอนนี้ไม่มี dropdown — placeholder">File</span>
+  <span class="menu-item dead">Edit</span>
+  <span class="menu-item dead">View</span>
+  <span class="menu-item">Project</span>
+  <span class="menu-item">Scale</span>
+  <span class="menu-item">Page</span>
+  <span class="menu-item">Measure</span>
+  <span class="menu-item">Object</span>
+  <span class="menu-item">Layer</span>
+  <span class="menu-item">Annotate</span>
+  <span class="menu-item dead">Review</span>
+  <span class="menu-item dead">Export</span>
+  <span class="menu-item dead">Workspace</span>
+  <span class="menu-item dead">Help</span>
+</div>
+
+<!-- ═══════════════════ TAB STRIP (NEW) ═══════════════════ -->
+<div class="tab-strip">
+  <div class="tab active" data-tab="measure" onclick="switchTab('measure')"><span class="tab-dot"></span>📐 วัด</div>
+  <div class="tab" data-tab="annotate" onclick="switchTab('annotate')"><span class="tab-dot"></span>📝 Annotate</div>
+  <div class="tab disabled" data-tab="site" onclick="switchTab('site')" title="Tag หน้าเป็น 'site' ก่อนเพื่อเปิด tab นี้"><span class="tab-dot"></span>📍 Site Plan</div>
+  <div class="tab" data-tab="workspace" onclick="switchTab('workspace')"><span class="tab-dot"></span>⚙ Workspace</div>
+</div>
+
+<!-- ═══════════════════ RIBBON — MEASURE TAB ═══════════════════ -->
+<div class="ribbon" id="ribbon-measure">
+  <div class="rsection">
+    <div class="rsection-label">🔍 Select</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="Pan&#10;H" onclick="setTool(this)">✋</button>
+      <button class="rbtn icon-only active has-tooltip" data-tip="Select object&#10;V" onclick="setTool(this)">↖</button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">🟩 พื้นที่ (Area)</div>
+    <div class="rsection-row">
+      <button class="rbtn dropdown has-tooltip" data-tip="Polygon — click vertices&#10;A&#10;กด A ระหว่างวาด=Arc&#10;Alt+drag=Freeform" onclick="togglePolyDropdown(event)">
+        <span class="rbtn-icon">⬡</span><span class="rbtn-lbl">Polygon</span><span class="kb">A</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Opening (deduction)&#10;O" onclick="setTool(this)">
+        <span class="rbtn-icon">□</span><span class="rbtn-lbl">Opening</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Land / Site Boundary&#10;L" onclick="setTool(this)">
+        <span class="rbtn-icon">▱</span><span class="rbtn-lbl">Land</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Building Footprint&#10;B" onclick="setTool(this)">
+        <span class="rbtn-icon">🏛</span><span class="rbtn-lbl">Building</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">⭕ Shape</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Quick Rectangle&#10;Shift+R&#10;คลิก 2 มุม" onclick="setTool(this)">
+        <span class="rbtn-icon">▭</span><span class="rbtn-lbl">Rect</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Circle&#10;Shift+C&#10;คลิกศูนย์กลาง+ขอบ" onclick="setTool(this)">
+        <span class="rbtn-icon">⭕</span><span class="rbtn-lbl">Circle</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Ellipse&#10;Shift+E&#10;คลิกมุม bounding box" onclick="setTool(this)">
+        <span class="rbtn-icon">⬭</span><span class="rbtn-lbl">Ellipse</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📏 Lines</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Dimension (2-point)&#10;D" onclick="setTool(this)">
+        <span class="rbtn-icon">↔</span><span class="rbtn-lbl">Dist</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Continuous Path&#10;Shift+D" onclick="setTool(this)">
+        <span class="rbtn-icon">〽</span><span class="rbtn-lbl">Path</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Reference Line&#10;R" onclick="setTool(this)">
+        <span class="rbtn-icon">⌁</span><span class="rbtn-lbl">Ref</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📍 Marker</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="North Arrow&#10;N" onclick="setTool(this)">
+        <span class="rbtn-icon">↑N</span><span class="rbtn-lbl">North</span>
+      </button>
+      <button class="rbtn has-tooltip" data-tip="Parking marker&#10;P" onclick="setTool(this)">
+        <span class="rbtn-icon">🚗</span><span class="rbtn-lbl">Parking</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📐 Helpers</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="Calibrate Scale" onclick="setTool(this)">∕</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Loupe (magnifier)&#10;Shift+L" onclick="setTool(this)">🔍</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Ortho lock&#10;Shift+O" onclick="setTool(this)">⊖</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Perpendicular snap&#10;Ctrl+P" onclick="setTool(this)">⊥</button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">↩ Edit</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="Undo&#10;Ctrl+Z" onclick="setTool(this)">↶</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Redo&#10;Ctrl+Y" onclick="setTool(this)">↷</button>
+      <button class="rbtn icon-only danger has-tooltip" data-tip="Delete selected&#10;Del" onclick="setTool(this)">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- Polygon dropdown — popover -->
+<div class="poly-dropdown" id="poly-dropdown" style="top: 130px; left: 280px;">
+  <div class="pd-section">Polygon mode</div>
+  <div class="pd-row checked">⬡ Click vertices (default) <span class="kb" style="margin-left:auto">A</span></div>
+  <div class="pd-divider"></div>
+  <div class="pd-section">Sub-modes ระหว่างวาด</div>
+  <div class="pd-sub">✶ <kbd class="kb">A</kbd> = Arc edge (กด A หลัง vertex แรก → click through-point → click next vertex)</div>
+  <div class="pd-sub">✎ <kbd class="kb">Alt</kbd>+drag = Freeform / Lasso (กด Alt ค้าง+ลาก → ปล่อยเมาส์ = commit)</div>
+  <div class="pd-sub">📐 <kbd class="kb">Shift</kbd> = Ortho lock (มุม 0°/90°)</div>
+  <div class="pd-sub">🕳 <kbd class="kb">O</kbd> = สลับเป็น Opening (deduction)</div>
+  <div class="pd-divider"></div>
+  <div class="pd-section">Sub-type (areaType)</div>
+  <div class="pd-row">▱ Land / Site Boundary <span class="kb" style="margin-left:auto">L</span></div>
+  <div class="pd-row">🏛 Building Footprint <span class="kb" style="margin-left:auto">B</span></div>
+  <div class="pd-row">⬡ Room (default)</div>
+  <div class="pd-hint">💡 Sub-modes แสดงใน status bar เมื่อกดคีย์ระหว่างวาด</div>
+</div>
+
+<!-- ═══════════════════ RIBBON — ANNOTATE TAB ═══════════════════ -->
+<div class="ribbon" id="ribbon-annotate" style="display:none">
+  <div class="rsection">
+    <div class="rsection-label">✏ Text</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Comment marker&#10;คลิกแล้วพิมพ์ข้อความ" onclick="setTool(this)"><span class="rbtn-icon">💬</span><span class="rbtn-lbl">Comment</span></button>
+      <button class="rbtn has-tooltip" data-tip="Free Text Label&#10;คลิกแล้วพิมพ์ข้อความ" onclick="setTool(this)"><span class="rbtn-icon">𝕋</span><span class="rbtn-lbl">Text</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">🖍 Highlight</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Highlight rectangle&#10;คลิก 2 มุม" onclick="setTool(this)"><span class="rbtn-icon">🖍</span><span class="rbtn-lbl">Highlight</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">▭ Frames</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Rectangle frame" onclick="setTool(this)"><span class="rbtn-icon">▭</span><span class="rbtn-lbl">Rect</span></button>
+      <button class="rbtn has-tooltip" data-tip="Circle frame" onclick="setTool(this)"><span class="rbtn-icon">◯</span><span class="rbtn-lbl">Circle</span></button>
+      <button class="rbtn has-tooltip" data-tip="Cloud frame (multi-click + Enter)" onclick="setTool(this)"><span class="rbtn-icon">☁</span><span class="rbtn-lbl">Cloud</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">➜ Pointer</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Arrow pointer&#10;คลิกหาง+หัวลูกศร" onclick="setTool(this)"><span class="rbtn-icon">➜</span><span class="rbtn-lbl">Arrow</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">⚠ Manage</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only danger has-tooltip" data-tip="Clear ALL annotations on this page&#10;⚠ ลบเดี่ยวยังไม่ได้ — รอ comment-redesign sprint" onclick="alert('ลบทั้งหน้าเท่านั้น — ลบเดี่ยวยังไม่มี (ดู /idea comment-redesign)')">🗑</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="📋 Markups List Panel&#10;(ยังไม่มี — รอ comment-redesign)" style="opacity:0.5" onclick="alert('Markups List Panel ยังไม่ได้สร้าง — เป็นส่วนของ comment-redesign /idea')">📋</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ RIBBON — SITE PLAN TAB ═══════════════════ -->
+<div class="ribbon" id="ribbon-site" style="display:none">
+  <div class="rsection">
+    <div class="rsection-label">🟩 พื้นที่ตาม semanticTag (7)</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="ปกคลุมอาคาร" onclick="setTool(this)"><span class="rbtn-icon">▦</span><span class="rbtn-lbl">ปกคลุม</span></button>
+      <button class="rbtn has-tooltip" data-tip="ที่ว่าง" onclick="setTool(this)"><span class="rbtn-icon">▢</span><span class="rbtn-lbl">ที่ว่าง</span></button>
+      <button class="rbtn has-tooltip" data-tip="พื้นที่ซึมน้ำ" onclick="setTool(this)"><span class="rbtn-icon">💧</span><span class="rbtn-lbl">ซึมน้ำ</span></button>
+      <button class="rbtn has-tooltip" data-tip="Hardscape" onclick="setTool(this)"><span class="rbtn-icon">▨</span><span class="rbtn-lbl">Hard</span></button>
+      <button class="rbtn has-tooltip" data-tip="Softscape" onclick="setTool(this)"><span class="rbtn-icon">🌿</span><span class="rbtn-lbl">Soft</span></button>
+      <button class="rbtn has-tooltip" data-tip="พื้นที่จอดรถนอกอาคาร" onclick="setTool(this)"><span class="rbtn-icon">🅿</span><span class="rbtn-lbl">จอด(พท)</span></button>
+      <button class="rbtn has-tooltip" data-tip="ถนนภายใน" onclick="setTool(this)"><span class="rbtn-icon">🛣</span><span class="rbtn-lbl">ถนนใน</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📍 Markers (8)</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="จอดผู้พิการ" onclick="setTool(this)">♿</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="จอดรถดับเพลิง" onclick="setTool(this)">🚒</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="จอดรถพยาบาล" onclick="setTool(this)">🚑</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="ทางเข้า-ออก" onclick="setTool(this)">🚪</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="เครื่อง AED" onclick="setTool(this)">➕</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="ป้าย" onclick="setTool(this)">📍</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="ทางหนีไฟ" onclick="setTool(this)">🪜</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="ลิฟต์ดับเพลิง" onclick="setTool(this)">🛗</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ RIBBON — WORKSPACE TAB ═══════════════════ -->
+<div class="ribbon" id="ribbon-workspace" style="display:none">
+  <div class="rsection">
+    <div class="rsection-label">📂 File</div>
+    <div class="rsection-row">
+      <button class="rbtn has-tooltip" data-tip="Open PDF"><span class="rbtn-icon">📂</span><span class="rbtn-lbl">PDF</span></button>
+      <button class="rbtn has-tooltip" data-tip="Open Project (.bmaplan)"><span class="rbtn-icon">📁</span><span class="rbtn-lbl">Project</span></button>
+      <button class="rbtn has-tooltip" data-tip="Sample PDF"><span class="rbtn-icon">📄</span><span class="rbtn-lbl">Sample</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📑 Page Nav</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="Previous page&#10;PgUp">◀</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Next page&#10;PgDn">▶</button>
+      <button class="rbtn has-tooltip" data-tip="Page Setup"><span class="rbtn-icon">⚙</span><span class="rbtn-lbl">Page Setup</span></button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">🔎 Zoom</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="Zoom in">+</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Zoom out">−</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Fit to window&#10;F">⊡</button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">🔄 Rotate</div>
+    <div class="rsection-row">
+      <button class="rbtn icon-only has-tooltip" data-tip="Rotate -90°">↺</button>
+      <button class="rbtn icon-only has-tooltip" data-tip="Rotate +90°">↻</button>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📚 Active Layer</div>
+    <div class="rsection-row">
+      <select class="rbtn" style="min-width: 140px">
+        <option>พื้นที่ย่อย</option>
+        <option>พื้นที่หลัก</option>
+        <option>ที่ดิน/แนวเขต</option>
+        <option>เส้นอ้างอิง</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="rsection-divider"></div>
+
+  <div class="rsection">
+    <div class="rsection-label">📊 Review</div>
+    <div class="rsection-row">
+      <button class="rbtn"><span class="rbtn-icon">📊</span><span class="rbtn-lbl">Review</span></button>
+      <button class="rbtn"><span class="rbtn-icon">⬇</span><span class="rbtn-lbl">Export</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN AREA ═══════════════════ -->
+<main>
+  <div class="canvas-area">
+    <div class="canvas-top-bar">
+      <span>Page 1 / 1</span>
+      <span>Zoom: 100%</span>
+      <span>Scale: 1:100 ★</span>
+      <span id="canvas-tool-display">Tool: Select</span>
+      <span>Layer: พื้นที่ย่อย</span>
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════════ STATUS BAR ═══════════════════ -->
+<div class="status-bar">
+  <span class="lbl-mode-prefix" id="lbl-mode-prefix">📐 วัด</span>
+  <span id="lbl-mode">↖ เลือก</span>
+  <span class="sep">│</span>
+  <span>Scale: <b style="color:var(--text)">1:100 ★</b></span>
+  <span class="sep">│</span>
+  <span>Objects: <b style="color:var(--text)">0</b></span>
+  <span class="sep">│</span>
+  <span>Layer: พื้นที่ย่อย</span>
+  <span class="sep">│</span>
+  <span>Save: ✓ saved</span>
+</div>
+
+<!-- ═══════════════════ LEGEND (mockup-only) ═══════════════════ -->
+<div class="legend">
+  <h3>Mockup — HT-8 Ribbon Redesign</h3>
+  <ul style="font-size: 11px; color: var(--text2)">
+    <li><b style="color:#fff">Tab strip</b> ใหม่ที่บน ribbon — สลับ Measure/Annotate/Site/Workspace</li>
+    <li><b style="color:#fff">Sections + labels</b> ใน ribbon — แยกกลุ่มชัด</li>
+    <li><b style="color:#fff">⬡ Polygon = dropdown ▾</b> — คลิกดู sub-modes (Arc, Freeform)</li>
+    <li><b style="color:#fff">Status bar prefix</b> <span style="color:#fff;background:var(--accent);padding:0 4px;border-radius:2px;font-weight:700">📐 วัด</span> หรือ <span style="color:#fff;background:var(--magenta);padding:0 4px;border-radius:2px;font-weight:700">📝 Annot</span></li>
+    <li>📋 Markups List = follow-up (comment-redesign)</li>
+    <li><kbd>Hover</kbd> ปุ่ม = tooltip มี shortcut</li>
+  </ul>
+  <div class="demo-control">
+    <button onclick="togglePolyDropdown()">⬡ ดู Polygon dropdown</button>
+  </div>
+</div>
+
+<script>
+// ── Tab switching ──
+function switchTab(name) {
+  if (document.querySelector(`.tab[data-tab="${name}"]`)?.classList.contains('disabled')) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  ['measure','annotate','site','workspace'].forEach(t => {
+    const el = document.getElementById('ribbon-' + t);
+    if (el) el.style.display = (t === name) ? 'flex' : 'none';
+  });
+  // status bar prefix
+  const prefix = document.getElementById('lbl-mode-prefix');
+  if (name === 'annotate') {
+    prefix.textContent = '📝 Annot';
+    prefix.classList.add('annot');
+  } else {
+    prefix.textContent = name === 'site' ? '📍 Site' : (name === 'workspace' ? '⚙ Ws' : '📐 วัด');
+    prefix.classList.remove('annot');
+  }
+  hidePolyDropdown();
+}
+
+// ── Tool selection (visual only) ──
+function setTool(btn) {
+  // Highlight active tool
+  btn.closest('.ribbon').querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Update status bar
+  const lbl = btn.querySelector('.rbtn-lbl')?.textContent || btn.textContent.trim();
+  document.getElementById('lbl-mode').textContent = (btn.querySelector('.rbtn-icon')?.textContent || '') + ' ' + lbl;
+  document.getElementById('canvas-tool-display').textContent = 'Tool: ' + lbl;
+  hidePolyDropdown();
+}
+
+// ── Polygon dropdown ──
+function togglePolyDropdown(e) {
+  const dd = document.getElementById('poly-dropdown');
+  if (dd.classList.contains('open')) {
+    hidePolyDropdown();
+  } else {
+    dd.classList.add('open');
+    // position below the Polygon button if click event
+    if (e) {
+      const btn = e.currentTarget;
+      const r = btn.getBoundingClientRect();
+      dd.style.top = (r.bottom + 4) + 'px';
+      dd.style.left = r.left + 'px';
+    }
+  }
+  if (e) e.stopPropagation();
+}
+function hidePolyDropdown() {
+  document.getElementById('poly-dropdown').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#poly-dropdown') && !e.target.closest('.rbtn.dropdown')) hidePolyDropdown();
+});
+
+// ── Click "site" tab — show enable hint ──
+document.querySelector('.tab[data-tab="site"]').addEventListener('dblclick', () => {
+  document.querySelector('.tab[data-tab="site"]').classList.remove('disabled');
+  switchTab('site');
+});
+</script>
+
+</body>
+</html>

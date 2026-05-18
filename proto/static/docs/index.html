@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BMA-Plan Dev Site</title>
+<style>
+  :root { --fg:#1b1f23; --bg:#fdfdfd; --muted:#6a737d; --link:#0366d6; --code:#f6f8fa; --border:#e1e4e8; --sidebar:#f6f8fa; --hover:#e7ebef; --active:#ddebff; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; padding:0; font-family: -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif; color: var(--fg); background: var(--bg); -webkit-text-size-adjust: 100%; }
+  body { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+  nav { background: var(--sidebar); border-right: 1px solid var(--border); padding: 18px 14px; overflow-y: auto; position: sticky; top: 0; max-height: 100vh; }
+  nav .brand { font-size: 14px; font-weight: 700; margin: 0 0 4px 0; }
+  nav .brand small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  nav h2 { font-size: 11px; margin: 18px 0 6px 0; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; font-weight: 600; }
+  nav a { display:block; padding: 5px 8px; color: var(--fg); text-decoration: none; border-radius: 4px; font-size: 13px; line-height: 1.35; }
+  nav a:hover { background: var(--hover); }
+  nav a.active { background: var(--active); color: var(--link); font-weight: 600; }
+  nav .search { width:100%; padding:7px 9px; margin: 10px 0; border:1px solid var(--border); border-radius:5px; font-size:13px; font-family: inherit; }
+  nav .search:focus { outline: 2px solid var(--link); outline-offset: -1px; }
+  main { padding: 28px 50px 80px; max-width: 920px; }
+  main h1 { font-size: 28px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-top: 0; margin-bottom: 12px; }
+  main h2 { margin-top: 28px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 20px; }
+  main h3 { margin-top: 22px; font-size: 16px; }
+  main p { line-height: 1.65; }
+  main ul, main ol { line-height: 1.65; }
+  main code { background: var(--code); padding: 2px 6px; border-radius: 3px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 88%; }
+  main pre { background: var(--code); padding: 12px 14px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+  main pre code { background: none; padding: 0; font-size: 12px; }
+  main blockquote { border-left: 4px solid #dfe2e5; padding: 0 1em; color: var(--muted); margin: 0 0 16px 0; }
+  main table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+  main table th, main table td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; }
+  main table th { background: var(--code); font-weight: 600; }
+  main a { color: var(--link); text-decoration: none; }
+  main a:hover { text-decoration: underline; }
+  .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .footer { margin-top: 50px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .loading { padding: 20px; color: var(--muted); text-align: center; }
+  .error-box { background: #ffefef; border-left: 4px solid #d73a49; padding: 12px 16px; border-radius: 4px; color: #86181d; margin: 16px 0; font-size: 13px; }
+  @media (max-width: 760px) {
+    body { grid-template-columns: 1fr; }
+    nav { position: relative; max-height: none; }
+    main { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <h1 class="brand">BMA-Plan Dev <small>คู่มือ + dev log + sprint cards</small></h1>
+  <input class="search" id="search" placeholder="🔍 ค้นหา…" autocomplete="off"/>
+  <div id="nav-list"><div class="loading">กำลังโหลด…</div></div>
+</nav>
+<main id="main">
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <article id="article"><div class="loading">เลือกหน้าจากเมนูซ้าย หรือกำลังโหลด content bundle…</div></article>
+  <div class="footer" id="footer"></div>
+</main>
+
+<script>
+// ─── content bundle loader (server-fetched JSON; falls back to inline if present) ───
+let BUNDLE = null;
+let PAGES = {};
+const DEFAULT_SLUG = 'manual/getting-started';
+
+async function loadBundle() {
+  // 1) Try inline embedded bundle (for offline / file:// open)
+  const inline = document.getElementById('content-bundle');
+  if (inline && inline.textContent.trim()) {
+    try { return JSON.parse(inline.textContent); } catch(e){}
+  }
+  // 2) Fetch content.json next to index.html
+  try {
+    const r = await fetch('content.json', {cache: 'no-cache'});
+    if (!r.ok) throw new Error('content.json HTTP ' + r.status);
+    return await r.json();
+  } catch (err) {
+    return {
+      site: {title: 'BMA-Plan Dev Site', subtitle: 'content.json not built', generated: '—'},
+      groups: [{title: 'Error', pages: [{
+        slug: 'error/no-content',
+        title: 'No content bundle',
+        body: '# ยังไม่ได้สร้าง content bundle\n\nรัน:\n\n```\npython scripts/build_docs.py\n```\n\nเพื่อสร้าง `proto/static/docs/content.json` จาก `proto/manual/`, `log.md`, และ `sprints/completed/**`.'
+      }]}]
+    };
+  }
+}
+
+// ─── minimal markdown renderer (covers BMA-Plan docs primitives) ───
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function renderInline(text) {
+  text = esc(text);
+  text = text.replace(/`([^`]+)`/g, (m,c) => `<code>${c}</code>`);
+  text = text.replace(/\*\*([^*]+)\*\*/g, (m,c) => `<strong>${c}</strong>`);
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, href) => {
+    if (href.startsWith('#')) return `<a href="${href}">${label}</a>`;
+    if (href.startsWith('http')) return `<a href="${href}" target="_blank" rel="noopener">${label}</a>`;
+    return `<a href="#${href}">${label}</a>`;
+  });
+  return text;
+}
+function renderMd(md) {
+  const lines = String(md||'').split('\n');
+  let out = [], i = 0;
+  while (i < lines.length) {
+    const ln = lines[i];
+    if (ln.startsWith('```')) {
+      const lang = ln.slice(3).trim();
+      const buf = []; i++;
+      while (i < lines.length && !lines[i].startsWith('```')) { buf.push(lines[i]); i++; }
+      i++;
+      out.push(`<pre><code class="lang-${esc(lang)}">${esc(buf.join('\n'))}</code></pre>`);
+      continue;
+    }
+    if (ln.startsWith('|') && i+1 < lines.length && /^\|[\s:|\-]+\|$/.test(lines[i+1])) {
+      const header = ln.split('|').slice(1,-1).map(s=>s.trim());
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].startsWith('|')) {
+        rows.push(lines[i].split('|').slice(1,-1).map(s=>s.trim()));
+        i++;
+      }
+      out.push('<table><thead><tr>' + header.map(h=>`<th>${renderInline(h)}</th>`).join('') + '</tr></thead><tbody>' +
+        rows.map(r => '<tr>' + r.map(c=>`<td>${renderInline(c)}</td>`).join('') + '</tr>').join('') +
+        '</tbody></table>');
+      continue;
+    }
+    let m;
+    if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) {
+      const lvl = m[1].length;
+      out.push(`<h${lvl}>${renderInline(m[2])}</h${lvl}>`);
+      i++; continue;
+    }
+    if (ln.startsWith('> ')) {
+      const buf = [];
+      while (i < lines.length && lines[i].startsWith('> ')) { buf.push(lines[i].slice(2)); i++; }
+      out.push(`<blockquote>${renderInline(buf.join(' '))}</blockquote>`);
+      continue;
+    }
+    if (/^[-*]\s+/.test(ln)) {
+      const items = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+        items.push(`<li>${renderInline(lines[i].replace(/^[-*]\s+/, ''))}</li>`);
+        i++;
+      }
+      out.push(`<ul>${items.join('')}</ul>`);
+      continue;
+    }
+    if (/^\d+\.\s+/.test(ln)) {
+      const items = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+        items.push(`<li>${renderInline(lines[i].replace(/^\d+\.\s+/, ''))}</li>`);
+        i++;
+      }
+      out.push(`<ol>${items.join('')}</ol>`);
+      continue;
+    }
+    if (ln.trim() === '') { i++; continue; }
+    const buf = [ln]; i++;
+    while (i < lines.length && lines[i].trim() !== '' &&
+           !lines[i].startsWith('#') && !lines[i].startsWith('```') &&
+           !lines[i].startsWith('|') && !lines[i].startsWith('> ') &&
+           !/^[-*]\s+/.test(lines[i]) && !/^\d+\.\s+/.test(lines[i])) {
+      buf.push(lines[i]); i++;
+    }
+    out.push(`<p>${renderInline(buf.join(' '))}</p>`);
+  }
+  return out.join('\n');
+}
+
+// ─── rendering ───
+function renderNav(filter) {
+  filter = (filter || '').toLowerCase().trim();
+  const root = document.getElementById('nav-list');
+  root.innerHTML = '';
+  const cur = location.hash.replace(/^#/, '');
+  if (!BUNDLE || !BUNDLE.groups) { root.textContent = '—'; return; }
+  let total = 0;
+  for (const g of BUNDLE.groups) {
+    const matches = g.pages.filter(p =>
+      !filter || (p.title||'').toLowerCase().includes(filter) || (p.body||'').toLowerCase().includes(filter));
+    if (matches.length === 0) continue;
+    const h = document.createElement('h2');
+    h.textContent = g.title;
+    root.appendChild(h);
+    for (const p of matches) {
+      const a = document.createElement('a');
+      a.href = '#' + p.slug;
+      a.textContent = p.title;
+      if (p.slug === cur) a.className = 'active';
+      root.appendChild(a);
+      total++;
+    }
+  }
+  if (total === 0) {
+    const e = document.createElement('div');
+    e.style.cssText = 'padding:10px;color:var(--muted);font-size:12px';
+    e.textContent = filter ? `ไม่พบหน้าที่ตรงกับ "${filter}"` : 'ไม่มีหน้า';
+    root.appendChild(e);
+  }
+}
+
+function renderPage() {
+  const slug = location.hash.replace(/^#/, '') || DEFAULT_SLUG;
+  const page = PAGES[slug];
+  const art = document.getElementById('article');
+  const bc = document.getElementById('breadcrumb');
+  const ft = document.getElementById('footer');
+  if (!page) {
+    art.innerHTML = `<div class="error-box"><strong>Not found</strong><br>No page with slug <code>${esc(slug)}</code>. กลับไป <a href="#${DEFAULT_SLUG}">หน้าแรก</a></div>`;
+    bc.textContent = '';
+  } else {
+    art.innerHTML = renderMd(page.body);
+    bc.textContent = `${page.group} ›`;
+  }
+  ft.innerHTML = `${esc(BUNDLE?.site?.title || 'BMA-Plan Dev Site')} · generated ${esc(BUNDLE?.site?.generated || '—')}`;
+  renderNav(document.getElementById('search').value);
+  window.scrollTo(0,0);
+}
+
+// ─── init ───
+(async function init() {
+  BUNDLE = await loadBundle();
+  PAGES = {};
+  for (const g of (BUNDLE.groups || [])) {
+    for (const p of g.pages) PAGES[p.slug] = { ...p, group: g.title };
+  }
+  document.title = BUNDLE.site?.title || 'BMA-Plan Dev Site';
+  // expose for tests
+  window.__bmaDocs = { BUNDLE, PAGES, renderMd, renderNav, renderPage };
+  renderPage();
+})();
+
+window.addEventListener('hashchange', renderPage);
+document.getElementById('search').addEventListener('input', e => renderNav(e.target.value));
+</script>
+</body>
+</html>
