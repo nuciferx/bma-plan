@@ -4134,6 +4134,86 @@ def _test_inv_page_setup_a(page):
     return {**checks, "all": True, "tl_count": probe.get("tlCount"), "cell_count": probe.get("cellCount")}
 
 
+def _test_inv_page_setup_b(page):
+    """INV-2026-05-18-001b: Token-based template engine + floor sub-types.
+
+    7 sub-checks:
+    A. pageFloorKind / pageFloorNum state vars exist as objects
+    B. setPageFloorKind / setPageFloorNum helper functions exist
+    C. basement kind + floorNum produces "ชั้นใต้ดิน N"
+    D. normal kind + floorNum produces "ชั้น N"
+    E. mechanical kind produces fixed "ชั้นห้องเครื่อง" (no number)
+    F. rooftop kind produces fixed "ชั้นดาดฟ้า" (no number)
+    G. custom kind keeps user-typed name (does NOT overwrite)
+    H. save/load round-trip preserves pageFloorKind+pageFloorNum
+    """
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.locator("#file-input").set_input_files(str(VECTOR_PDF))
+    page.locator("#setup-overlay").wait_for(state="visible")
+    page.locator(".tag-cell").nth(0).wait_for()
+    probe = page.evaluate("""() => {
+        const stateExists = typeof pageFloorKind === 'object' && typeof pageFloorNum === 'object';
+        const helpersExist = (typeof setPageFloorKind === 'function') && (typeof setPageFloorNum === 'function');
+        // Make page 1 a plan
+        pageTags[1] = 'plan';
+        // Basement 2
+        setPageFloorKind(1, 'basement');
+        setPageFloorNum(1, 2);
+        const basementName = pageNames[1];
+        // Normal 5
+        setPageFloorKind(1, 'normal');
+        setPageFloorNum(1, 5);
+        const normalName = pageNames[1];
+        // Mechanical
+        setPageFloorKind(1, 'mechanical');
+        const mechName = pageNames[1];
+        // Rooftop
+        setPageFloorKind(1, 'rooftop');
+        const rooftopName = pageNames[1];
+        // Custom — should not overwrite
+        pageNames[1] = 'ห้องผู้บริหาร';
+        setPageFloorKind(1, 'custom');
+        const customName = pageNames[1];
+        // Save/load round-trip
+        const projBlob = _makeProjBlob ? _makeProjBlob() : null;
+        return new Promise(async resolve => {
+            const text = await projBlob.text();
+            const proj = JSON.parse(text);
+            const hasFloorFields = ('pageFloorKind' in proj) && ('pageFloorNum' in proj);
+            const persistedKind = proj.pageFloorKind && proj.pageFloorKind['1'] === 'custom';
+            // Reset and reload
+            pageFloorKind = {}; pageFloorNum = {};
+            pageFloorKind = proj.pageFloorKind || {};
+            pageFloorNum = proj.pageFloorNum || {};
+            const reloadedKind = pageFloorKind[1];
+            // setPageTag to non-plan should clear floor fields
+            setPageTag(1, 'elev');
+            const clearedAfterTagChange = !pageFloorKind[1] && !pageFloorNum[1];
+            resolve({
+                stateExists, helpersExist,
+                basementName, normalName, mechName, rooftopName, customName,
+                hasFloorFields, persistedKind, reloadedKind, clearedAfterTagChange
+            });
+        });
+    }""")
+    checks = {
+        "stateVarsExist": probe.get("stateExists") is True,
+        "helperFunctionsExist": probe.get("helpersExist") is True,
+        "basementProducesNumberedName": "ใต้ดิน" in (probe.get("basementName") or "") and "2" in (probe.get("basementName") or ""),
+        "normalProducesNumberedName": probe.get("normalName") == "ชั้น 5",
+        "mechanicalProducesFixedName": probe.get("mechName") == "ชั้นห้องเครื่อง",
+        "rooftopProducesFixedName": probe.get("rooftopName") == "ชั้นดาดฟ้า",
+        "customDoesNotOverwriteName": probe.get("customName") == "ห้องผู้บริหาร",
+        "saveLoadRoundTripPreservesFloor": probe.get("hasFloorFields") and probe.get("persistedKind") and probe.get("reloadedKind") == "custom",
+        "tagChangeAwayFromPlanClears": probe.get("clearedAfterTagChange") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_ht8d4_warning_navigate(page):
     """HT-8d-4: warning rows in summary are clickable → jump to page + select object.
 
@@ -6159,6 +6239,7 @@ def main():
             ht16_restore_tab = _test_ht16_restore_tab(page)
             ht17_enter_area = _test_ht17_enter_finishes_area(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
+            inv_page_setup_b = _test_inv_page_setup_b(page)
             ht11_ann_edit = _test_ht11_annotation_edit_delete(page)
             ht8d5a_layers = _test_ht8d5a_layers_wave1(page)
             ht8d5b_layers = _test_ht8d5b_layers_wave2(page)
@@ -6237,6 +6318,7 @@ def main():
         print("PHASE_HT16_OK", ht16_restore_tab)
         print("PHASE_HT17_OK", ht17_enter_area)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
+        print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_HT11_OK", ht11_ann_edit)
         print("PHASE_HT8D5A_OK", ht8d5a_layers)
         print("PHASE_HT8D5B_OK", ht8d5b_layers)
