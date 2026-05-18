@@ -1013,8 +1013,8 @@ function computeAllBuildingPairs(){const out=[];for(const pgStr of Object.keys(p
 function updateCanvasCompass(){
   const wrap=document.getElementById("canvas-compass");if(!wrap)return;
   const hasPdf=!!totalPages&&!!currentCaseId;
-  const onSite=(pageTags?.[curPage]||"")==="site";
-  if(!hasPdf||!onSite){wrap.style.display="none";return;}
+  // 2026-05-19: compass shows on ALL pages (was site-tagged only) — useful regardless of page tag
+  if(!hasPdf){wrap.style.display="none";return;}
   const north=getPageNorth(curPage);
   const angleDeg=(north&&typeof north.angleDeg==="number")?north.angleDeg:0;
   const isSet=!!north;
@@ -2082,12 +2082,15 @@ function cancelCalib(){calibPts=[];calibPanel.style.display="none";setMode("pan"
 // ══════════════════════════════════════════════════════
 // Mouse move
 // ══════════════════════════════════════════════════════
-let loupeR=80,loupeEnabled=false;const loupeEl=document.getElementById("loupe");const loupeCtx=loupeEl.getContext("2d");
+let loupeR=80,loupeEnabled=false,loupeZoomFactor=4;const loupeEl=document.getElementById("loupe");const loupeCtx=loupeEl.getContext("2d");
 function _loupeSizeApply(){loupeEl.width=loupeR*2;loupeEl.height=loupeR*2;loupeEl.style.width=(loupeR*2)+"px";loupeEl.style.height=(loupeR*2)+"px";}
 _loupeSizeApply();
 function toggleLoupe(){loupeEnabled=!loupeEnabled;document.getElementById("btn-loupe").classList.toggle("active",loupeEnabled);if(!loupeEnabled)loupeEl.style.display="none";setStatus(loupeEnabled?"🔍 แว่นขยาย: เปิด":"🔍 แว่นขยาย: ปิด");}
 function resizeLoupe(delta){loupeR=Math.max(50,Math.min(160,loupeR+delta));_loupeSizeApply();document.getElementById("lbl-loupe-r").textContent=loupeR*2+"px";}
-function updateLoupe(e){const drawingMode=["dist","path","ref","area","calib","parking","north"].includes(mode);if(!loupeEnabled||!drawingMode||!bgImg){loupeEl.style.display="none";return;}const{x:cx,y:cy}=cXY(e);const SW=Math.max(40,Math.min(180,60/Math.max(zoom,0.2)));const sx=cx-SW/2,sy=cy-SW/2;loupeCtx.clearRect(0,0,loupeR*2,loupeR*2);loupeCtx.save();loupeCtx.beginPath();loupeCtx.arc(loupeR,loupeR,loupeR,0,Math.PI*2);loupeCtx.clip();loupeCtx.drawImage(canvas,sx,sy,SW,SW,0,0,loupeR*2,loupeR*2);loupeCtx.restore();loupeCtx.save();loupeCtx.setLineDash([]);loupeCtx.strokeStyle="rgba(255,255,255,0.9)";loupeCtx.lineWidth=3;loupeCtx.beginPath();loupeCtx.moveTo(loupeR,loupeR-16);loupeCtx.lineTo(loupeR,loupeR+16);loupeCtx.moveTo(loupeR-16,loupeR);loupeCtx.lineTo(loupeR+16,loupeR);loupeCtx.stroke();loupeCtx.strokeStyle="rgba(0,0,0,0.85)";loupeCtx.lineWidth=1.5;loupeCtx.beginPath();loupeCtx.moveTo(loupeR,loupeR-16);loupeCtx.lineTo(loupeR,loupeR+16);loupeCtx.moveTo(loupeR-16,loupeR);loupeCtx.lineTo(loupeR+16,loupeR);loupeCtx.stroke();if(snapTarget?.t){const col=SNAP_COLORS[snapTarget.t]||"#fff";const mag=loupeR*2/SW;const lx=(snapTarget.x-sx)*mag;const ly=(snapTarget.y-sy)*mag;loupeCtx.beginPath();loupeCtx.arc(lx,ly,4,0,Math.PI*2);loupeCtx.fillStyle=col;loupeCtx.globalAlpha=0.9;loupeCtx.fill();}loupeCtx.restore();const wsR=ws.getBoundingClientRect();const scx=cx*zoom+panX+wsR.left;const scy=cy*zoom+panY+wsR.top;let lLeft=scx+20,lTop=scy-loupeR*2-10;if(lLeft+loupeR*2>window.innerWidth-10)lLeft=scx-loupeR*2-20;if(lTop<10)lTop=scy+20;loupeEl.style.left=lLeft+"px";loupeEl.style.top=lTop+"px";loupeEl.style.display="block";}
+function updateLoupe(e){const drawingMode=["dist","path","ref","area","calib","parking","north"].includes(mode);if(!loupeEnabled||!drawingMode||!bgImg){loupeEl.style.display="none";return;}const{x:cx,y:cy}=cXY(e);
+  // INV-2026-05-18-002 — loupe.zoomFactor pref overrides legacy zoom-aware SW. SW = display/zoomFactor → constant magnification = zoomFactor.
+  const _zf=Math.max(2,Math.min(8,loupeZoomFactor||4));
+  const SW=Math.max(20,Math.min(200,(loupeR*2)/_zf));const sx=cx-SW/2,sy=cy-SW/2;loupeCtx.clearRect(0,0,loupeR*2,loupeR*2);loupeCtx.save();loupeCtx.beginPath();loupeCtx.arc(loupeR,loupeR,loupeR,0,Math.PI*2);loupeCtx.clip();loupeCtx.drawImage(canvas,sx,sy,SW,SW,0,0,loupeR*2,loupeR*2);loupeCtx.restore();loupeCtx.save();loupeCtx.setLineDash([]);loupeCtx.strokeStyle="rgba(255,255,255,0.9)";loupeCtx.lineWidth=3;loupeCtx.beginPath();loupeCtx.moveTo(loupeR,loupeR-16);loupeCtx.lineTo(loupeR,loupeR+16);loupeCtx.moveTo(loupeR-16,loupeR);loupeCtx.lineTo(loupeR+16,loupeR);loupeCtx.stroke();loupeCtx.strokeStyle="rgba(0,0,0,0.85)";loupeCtx.lineWidth=1.5;loupeCtx.beginPath();loupeCtx.moveTo(loupeR,loupeR-16);loupeCtx.lineTo(loupeR,loupeR+16);loupeCtx.moveTo(loupeR-16,loupeR);loupeCtx.lineTo(loupeR+16,loupeR);loupeCtx.stroke();if(snapTarget?.t){const col=SNAP_COLORS[snapTarget.t]||"#fff";const mag=loupeR*2/SW;const lx=(snapTarget.x-sx)*mag;const ly=(snapTarget.y-sy)*mag;loupeCtx.beginPath();loupeCtx.arc(lx,ly,4,0,Math.PI*2);loupeCtx.fillStyle=col;loupeCtx.globalAlpha=0.9;loupeCtx.fill();}loupeCtx.restore();const wsR=ws.getBoundingClientRect();const scx=cx*zoom+panX+wsR.left;const scy=cy*zoom+panY+wsR.top;let lLeft=scx+20,lTop=scy-loupeR*2-10;if(lLeft+loupeR*2>window.innerWidth-10)lLeft=scx-loupeR*2-20;if(lTop<10)lTop=scy+20;loupeEl.style.left=lLeft+"px";loupeEl.style.top=lTop+"px";loupeEl.style.display="block";}
 let rafId=null;
 function handleMouseMove(e){const pos=cXY(e);lastCanvasCoord=pos;updateCanvasTopBar();if(isPan){panX+=e.clientX-lastMx;panY+=e.clientY-lastMy;lastMx=e.clientX;lastMy=e.clientY;applyT();return;}/* INV-2026-05-17-001: freehand distance-bin sampling — bypass snap entirely during the burst per carry-over risk note. */if(mFreehandActive&&mode==="area"){const{x:cx2,y:cy2}=pos;if(mFreehandLastSampled){const d=Math.hypot(cx2-mFreehandLastSampled.x,cy2-mFreehandLastSampled.y);if(d<freehandSampleStepPx){return;}}mFreehandRaw.push({x:cx2,y:cy2});mFreehandLastSampled={x:cx2,y:cy2};mFreehandSamplesTotal++;snapTarget=null;guidePoint=null;snapCur.style.display="none";snapLbl.style.display="none";redraw();return;}if(mode==="sel"){const{x:cx,y:cy}=pos;if(dragState){const cur=cToPdf(cx,cy);const dx=cur.x-dragState.startPdf.x,dy=cur.y-dragState.startPdf.y;const obj=selectedObj(dragState);if(obj){if(dragState.type==="line"||dragState.type==="ref"){obj.pts=dragState.origData.map(p=>({...p}));if(dragState.vertex!=null)obj.pts[dragState.vertex]={x:cur.x,y:cur.y};else obj.pts=dragState.origData.map(p=>({x:p.x+dx,y:p.y+dy}));obj.x0=obj.pts[0].x;obj.y0=obj.pts[0].y;obj.x1=obj.pts[obj.pts.length-1].x;obj.y1=obj.pts[obj.pts.length-1].y;}else if(dragState.type==="parking"){obj.x=dragState.origData.x+dx;obj.y=dragState.origData.y+dy;}else{obj.pts=dragState.origData.map(p=>({...p}));if(dragState.vertex!=null)obj.pts[dragState.vertex]={x:cur.x,y:cur.y};else obj.pts=dragState.origData.map(p=>({x:p.x+dx,y:p.y+dy}));}}updatePageSummary(curPage);redraw();}else{const vh=hitVertex(cx,cy);ws.style.cursor=vh?"crosshair":hitTest(cx,cy)?"move":"default";}return;}if(mode==="pan"||!pageData){snapCur.style.display="none";snapLbl.style.display="none";snapTarget=null;guidePoint=null;return;}const{x,y}=pos;const s=snap(x,y);let constrainedSnap=s;if((shiftDown||orthoMode)&&mPts.length>0&&["dist","path","ref","area"].includes(mode)){const last=mPts[mPts.length-1];const lastC=pdfToC(last.x,last.y);const cdx=s.x-lastC.x,cdy=s.y-lastC.y;if(Math.abs(cdx)>=Math.abs(cdy))constrainedSnap={x:s.x,y:lastC.y,t:s.t};else constrainedSnap={x:lastC.x,y:s.y,t:s.t};}snapTarget=constrainedSnap;guidePoint=((mPts.length&&(mode==="dist"||mode==="path"||mode==="ref"||mode==="area"||mode==="north"||mode==="rect"||mode==="circle"||mode==="ellipse"||mode==="ann_rect"||mode==="ann_highlight"||mode==="ann_circle"||mode==="ann_arrow"||mode==="ann_cloud"))||(calibPts.length===1&&mode==="calib"))?{x:constrainedSnap.x,y:constrainedSnap.y,t:constrainedSnap.t}:null;const wsR=ws.getBoundingClientRect();const scx=s.x*zoom+panX+wsR.left;const scy=s.y*zoom+panY+wsR.top;snapCur.style.left=scx+"px";snapCur.style.top=scy+"px";snapCur.style.display="block";const col=s.t?SNAP_COLORS[s.t]:"#aaa";snapCur.style.borderColor=col;snapCur.style.boxShadow=`0 0 6px ${col}66`;if(s.t){snapLbl.textContent=SNAP_LABELS[s.t];snapLbl.style.color=col;snapLbl.style.left=(scx+10)+"px";snapLbl.style.top=(scy-8)+"px";snapLbl.style.display="block";}else{snapLbl.style.display="none";}redraw();updateLoupe(e);}
 ws.addEventListener("mousemove",e=>{if(rafId)return;rafId=requestAnimationFrame(()=>{rafId=null;handleMouseMove(e);});});
@@ -2774,9 +2777,14 @@ function exportJSON(){
 function exportCSV(){
   const rows=buildRows();
   if(!rows.length){alert("\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25");return;}
+  // INV-2026-05-18-002 \u2014 Settings v2 export prefs (csvSeparator, includeLawBasis)
+  const sep=(typeof getPref==='function')?getPref('export.csvSeparator',','):',';
+  const includeLaw=(typeof getPref==='function')?getPref('export.includeLawBasis',true):true;
   const cols=[COL_PAGE,"object_id","parent_id",COL_TYPE,COL_NAME,COL_VALUE,COL_UNIT,COL_RNW,"scale","scale_source","scale_verified","area_type","ref_type","object_type","point_role","parking_type","segments","label_mode","semanticTag","useCategory"];
-  const esc=v=>{const s=String(v??"").replace(/"/g,'""');return/[,"\r\n]/.test(s)?`"${s}"`:s;};
-  const csv="\uFEFF"+[cols.join(","),...rows.map(r=>cols.map(c=>esc(r[c])).join(","))].join("\r\n");
+  if(includeLaw)cols.push("lawBasis");
+  const sepRe=new RegExp(`[${sep.replace(/[\t]/g,'\\t').replace(/[-[\]{}()*+?.,\\^$|#\s]/g,'\\$&')}"\r\n]`);
+  const esc=v=>{const s=String(v??"").replace(/"/g,'""');return sepRe.test(s)?`"${s}"`:s;};
+  const csv="\uFEFF"+[cols.join(sep),...rows.map(r=>cols.map(c=>esc(r[c])).join(sep))].join("\r\n");
   dlBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),"measurements.csv");
 }
 // ─── Sprint U2: 1-Page Excel Summary ───
@@ -3180,7 +3188,10 @@ const PREF_DEFAULTS={
   tool:{default:"pan"},
   unit:{area:"sqm",decimals:2},
   layout:{preset:"current-stable",density:"comfortable",hideLeftPanel:false,hideRightPanel:false},
-  widgets:{visible:{}}
+  widgets:{visible:{}},
+  // INV-2026-05-18-002 — Settings v2 export defaults + loupe prefs (additive)
+  export:{csvSeparator:",",includeLawBasis:true},
+  loupe:{radius:80,zoomFactor:4}
 };
 let PREFS=null;
 function _settingsClone(o){return JSON.parse(JSON.stringify(o));}
@@ -3384,12 +3395,26 @@ function switchSettingsTab(tab){
   const body=document.getElementById("settings-body");if(!body)return;
   let html="";
   if(tab==="draw"){
+    if(!SETTINGS_DRAFT.loupe)SETTINGS_DRAFT.loupe={radius:80,zoomFactor:4};
+    const lpR=SETTINGS_DRAFT.loupe.radius||80;
+    const lpZ=SETTINGS_DRAFT.loupe.zoomFactor||4;
     html=`<label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Snap enabled</span><input type="checkbox" ${SETTINGS_DRAFT.snap.enabled?"checked":""} onchange="SETTINGS_DRAFT.snap.enabled=this.checked"></label>
     <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Snap threshold (px)</span><input type="number" min="1" max="50" value="${SETTINGS_DRAFT.snap.threshold}" onchange="SETTINGS_DRAFT.snap.threshold=parseInt(this.value)||10" style="width:80px"></label>
-    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Default tool on open</span><select onchange="SETTINGS_DRAFT.tool.default=this.value" style="width:120px"><option value="pan" ${SETTINGS_DRAFT.tool.default==="pan"?"selected":""}>Pan</option><option value="sel" ${SETTINGS_DRAFT.tool.default==="sel"?"selected":""}>Select</option><option value="area" ${SETTINGS_DRAFT.tool.default==="area"?"selected":""}>Area</option><option value="dist" ${SETTINGS_DRAFT.tool.default==="dist"?"selected":""}>Distance</option></select></label>`;
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Default tool on open</span><select onchange="SETTINGS_DRAFT.tool.default=this.value" style="width:120px"><option value="pan" ${SETTINGS_DRAFT.tool.default==="pan"?"selected":""}>Pan</option><option value="sel" ${SETTINGS_DRAFT.tool.default==="sel"?"selected":""}>Select</option><option value="area" ${SETTINGS_DRAFT.tool.default==="area"?"selected":""}>Area</option><option value="dist" ${SETTINGS_DRAFT.tool.default==="dist"?"selected":""}>Distance</option></select></label>
+    <hr style="border:0;border-top:1px solid var(--border);margin:8px 0">
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:6px">INV-002 v2 ▾ Loupe (แว่นขยาย)</div>
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>รัศมีแว่นขยาย (50–160 px)</span><input id="settings-loupe-r" type="number" min="50" max="160" step="5" value="${lpR}" onchange="SETTINGS_DRAFT.loupe.radius=Math.max(50,Math.min(160,parseInt(this.value)||80))" style="width:80px"></label>
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>ระดับซูม (2–8×)</span><input id="settings-loupe-z" type="number" min="2" max="8" step="1" value="${lpZ}" onchange="SETTINGS_DRAFT.loupe.zoomFactor=Math.max(2,Math.min(8,parseInt(this.value)||4))" style="width:80px"></label>`;
   } else if(tab==="unit"){
+    if(!SETTINGS_DRAFT.export)SETTINGS_DRAFT.export={csvSeparator:",",includeLawBasis:true};
+    const xSep=SETTINGS_DRAFT.export.csvSeparator||",";
+    const xLaw=SETTINGS_DRAFT.export.includeLawBasis!==false;
     html=`<label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Area unit</span><select onchange="SETTINGS_DRAFT.unit.area=this.value" style="width:120px"><option value="sqm" ${SETTINGS_DRAFT.unit.area==="sqm"?"selected":""}>ตร.ม.</option><option value="sqft" ${SETTINGS_DRAFT.unit.area==="sqft"?"selected":""}>ตร.ฟ.</option><option value="rnw" ${SETTINGS_DRAFT.unit.area==="rnw"?"selected":""}>R/N/W</option></select></label>
-    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Decimals</span><input type="number" min="0" max="4" value="${SETTINGS_DRAFT.unit.decimals}" onchange="SETTINGS_DRAFT.unit.decimals=Math.max(0,Math.min(4,parseInt(this.value)||2))" style="width:80px"></label>`;
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Decimals</span><input type="number" min="0" max="4" value="${SETTINGS_DRAFT.unit.decimals}" onchange="SETTINGS_DRAFT.unit.decimals=Math.max(0,Math.min(4,parseInt(this.value)||2))" style="width:80px"></label>
+    <hr style="border:0;border-top:1px solid var(--border);margin:8px 0">
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:6px">INV-002 v2 ▾ Export defaults</div>
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>CSV separator</span><select id="settings-csv-sep" onchange="SETTINGS_DRAFT.export.csvSeparator=this.value" style="width:160px"><option value="," ${xSep===","?"selected":""}>, (comma)</option><option value=";" ${xSep===";"?"selected":""}>; (semicolon — Excel TH default)</option><option value="\t" ${xSep==="\t"?"selected":""}>↹ (tab)</option></select></label>
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span>Include lawBasis column</span><input id="settings-include-law" type="checkbox" ${xLaw?"checked":""} onchange="SETTINGS_DRAFT.export.includeLawBasis=this.checked"></label>`;
   } else if(tab==="layout"){
     if(!SETTINGS_DRAFT.layout.density)SETTINGS_DRAFT.layout.density="comfortable";
     const dens=SETTINGS_DRAFT.layout.density;
@@ -3424,12 +3449,26 @@ function applySettingsDraft(){
   PREFS=_settingsClone(SETTINGS_DRAFT);
   savePrefs();
   applyLayoutPrefs();
+  _applyLoupePrefs(); // INV-2026-05-18-002 — sync loupe state vars from PREFS
   closeSettings();
   setStatus("บันทึก settings แล้ว");
+}
+// INV-2026-05-18-002 — apply loupe prefs to live state (radius clamp 50-160, zoomFactor clamp 2-8)
+function _applyLoupePrefs(){
+  if(typeof getPref!=='function')return;
+  // Clamp BEFORE fallback so 0 → 2 (not 4), 999 → 160 (not 80). NaN falls back to default.
+  const rRaw=parseInt(getPref('loupe.radius',80),10);
+  loupeR=isNaN(rRaw)?80:Math.max(50,Math.min(160,rRaw));
+  const zRaw=parseInt(getPref('loupe.zoomFactor',4),10);
+  loupeZoomFactor=isNaN(zRaw)?4:Math.max(2,Math.min(8,zRaw));
+  if(typeof _loupeSizeApply==='function')_loupeSizeApply();
+  const lbl=document.getElementById('lbl-loupe-r');
+  if(lbl)lbl.textContent=loupeR*2+"px";
 }
 // Initialise on load + bind Ctrl+,
 loadPrefs();
 applyLayoutPrefs();
+_applyLoupePrefs();
 document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key===","){e.preventDefault();openSettings();}
 });

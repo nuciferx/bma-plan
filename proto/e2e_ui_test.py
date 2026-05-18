@@ -4300,6 +4300,85 @@ def _test_inv_page_setup_c(page):
     return {**checks, "all": True}
 
 
+def _test_inv_settings_v2(page):
+    """INV-2026-05-18-002: Settings v2 — Export defaults + Loupe prefs.
+
+    6 sub-checks per sprint card:
+    A. PREF_DEFAULTS has new sub-objects (export, loupe) with documented defaults
+    B. New prefs affect behavior (loupeR + loupeZoomFactor + exportCSV separator)
+    C. Schema additive — no v1 fields renamed
+    D. UI fields exist in existing modal tabs (≤2-click reach: open modal → draw/unit tab)
+    E. _applyLoupePrefs syncs from PREFS to live state vars
+    F. v1-save (legacy) → v2 default injection on next load (shallow-merge inserts defaults)
+    """
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.locator("#file-input").set_input_files(str(VECTOR_PDF))
+    page.locator("#setup-overlay").wait_for(state="visible")
+    page.locator("#setup-start-btn").click()
+    page.locator("#setup-overlay").wait_for(state="hidden")
+    probe = page.evaluate("""() => {
+        // A. defaults exist
+        const hasExport = PREF_DEFAULTS.export && PREF_DEFAULTS.export.csvSeparator === ',' && PREF_DEFAULTS.export.includeLawBasis === true;
+        const hasLoupe = PREF_DEFAULTS.loupe && PREF_DEFAULTS.loupe.radius === 80 && PREF_DEFAULTS.loupe.zoomFactor === 4;
+        // C. schema additive — v1 fields intact
+        const v1Intact = !!(PREF_DEFAULTS.snap && PREF_DEFAULTS.tool && PREF_DEFAULTS.unit && PREF_DEFAULTS.layout && PREF_DEFAULTS.widgets);
+        // F. v1-save + missing export/loupe → shallow-merge injects defaults
+        localStorage.setItem('bmaPlan.settings.v1', JSON.stringify({version:1, snap:{enabled:true,threshold:10}, tool:{default:'pan'}, unit:{area:'sqm',decimals:2}, layout:{}, widgets:{visible:{}}}));
+        const oldPREFS = PREFS;
+        loadPrefs();
+        const v1MergeOk = PREFS.export && PREFS.export.csvSeparator === ',' && PREFS.loupe && PREFS.loupe.radius === 80;
+        // B. behavior: set prefs to non-default + apply + verify state changed
+        PREFS.loupe.radius = 120;
+        PREFS.loupe.zoomFactor = 6;
+        PREFS.export.csvSeparator = ';';
+        PREFS.export.includeLawBasis = false;
+        savePrefs();
+        _applyLoupePrefs();
+        const loupeRadiusApplied = loupeR === 120;
+        const loupeZoomApplied = loupeZoomFactor === 6;
+        // exportCSV separator: shim to check getPref returns the right value
+        const sepFromPref = getPref('export.csvSeparator', ',');
+        const lawFromPref = getPref('export.includeLawBasis', true);
+        const sepBehavior = sepFromPref === ';' && lawFromPref === false;
+        // E. _applyLoupePrefs clamps out-of-range
+        PREFS.loupe.radius = 999; // out of range high
+        PREFS.loupe.zoomFactor = 0; // out of range low
+        _applyLoupePrefs();
+        const clampHigh = loupeR === 160; // max
+        const clampLow = loupeZoomFactor === 2; // min
+        // Reset for safety + cleanup
+        localStorage.removeItem('bmaPlan.settings.v1');
+        return { hasExport, hasLoupe, v1Intact, v1MergeOk, loupeRadiusApplied, loupeZoomApplied, sepBehavior, clampHigh, clampLow };
+    }""")
+    # D. UI reachability: open settings modal and find new fields
+    ui_check = page.evaluate("""() => {
+        try {
+            openSettings();
+            switchSettingsTab('draw');
+            const drawHasLoupeR = !!document.getElementById('settings-loupe-r');
+            const drawHasLoupeZ = !!document.getElementById('settings-loupe-z');
+            switchSettingsTab('unit');
+            const unitHasCsvSep = !!document.getElementById('settings-csv-sep');
+            const unitHasIncludeLaw = !!document.getElementById('settings-include-law');
+            closeSettings();
+            return { drawHasLoupeR, drawHasLoupeZ, unitHasCsvSep, unitHasIncludeLaw };
+        } catch(e) { return { error: e.message }; }
+    }""")
+    checks = {
+        "defaultsHaveExportLoupe": probe.get("hasExport") and probe.get("hasLoupe"),
+        "v1FieldsStillIntact": probe.get("v1Intact") is True,
+        "v1SaveGetsV2DefaultsInjected": probe.get("v1MergeOk") is True,
+        "newPrefsAffectBehavior": probe.get("loupeRadiusApplied") and probe.get("loupeZoomApplied") and probe.get("sepBehavior"),
+        "applyLoupePrefsClampsOutOfRange": probe.get("clampHigh") and probe.get("clampLow"),
+        "uiFieldsReachableInModal": ui_check.get("drawHasLoupeR") and ui_check.get("drawHasLoupeZ") and ui_check.get("unitHasCsvSep") and ui_check.get("unitHasIncludeLaw"),
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe, "ui_check": ui_check}
+    return {**checks, "all": True}
+
+
 def _test_ht8d4_warning_navigate(page):
     """HT-8d-4: warning rows in summary are clickable → jump to page + select object.
 
@@ -6327,6 +6406,7 @@ def main():
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
+            inv_settings_v2 = _test_inv_settings_v2(page)
             ht11_ann_edit = _test_ht11_annotation_edit_delete(page)
             ht8d5a_layers = _test_ht8d5a_layers_wave1(page)
             ht8d5b_layers = _test_ht8d5b_layers_wave2(page)
@@ -6407,6 +6487,7 @@ def main():
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)
+        print("SETTINGS_V2_OK", inv_settings_v2)
         print("PHASE_HT11_OK", ht11_ann_edit)
         print("PHASE_HT8D5A_OK", ht8d5a_layers)
         print("PHASE_HT8D5B_OK", ht8d5b_layers)
