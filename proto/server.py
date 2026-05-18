@@ -714,6 +714,55 @@ def get_project(case_id: str):
     }
 
 
+# INV-2026-05-18-001c — Permanent page deletion + renumber.
+# Adds NEW endpoint next to existing core ones (does not edit /upload, /page/{n}, /analyse).
+# Server-authoritative renumber map per research Q3.
+@app.post("/rebuild-pdf")
+async def rebuild_pdf(body: dict):
+    case = _get_case(body.get("case_id", ""))
+    if not case:
+        return JSONResponse({"error": "invalid case"}, 400)
+    doc = case.get("doc")
+    if not doc:
+        return JSONResponse({"error": "no doc"}, 400)
+    delete_numbers = body.get("delete_numbers") or []
+    if not isinstance(delete_numbers, list) or not all(isinstance(x, int) for x in delete_numbers):
+        return JSONResponse({"error": "delete_numbers must be list of ints (1-indexed)"}, 400)
+    total = doc.page_count
+    # Validate: 1-indexed in [1, total], unique, must leave >= 1 page
+    delete_set = sorted({n for n in delete_numbers if 1 <= n <= total})
+    if not delete_set:
+        return JSONResponse({"error": "no valid pages to delete"}, 400)
+    if len(delete_set) >= total:
+        return JSONResponse({"error": "must keep at least 1 page"}, 400)
+    # PyMuPDF: delete in reverse order (highest first) so earlier indices stay stable.
+    # delete_page takes 0-indexed.
+    for n in sorted(delete_set, reverse=True):
+        try:
+            doc.delete_page(n - 1)
+        except Exception as e:
+            return JSONResponse({"error": f"delete_page failed at {n}: {e}"}, 500)
+    # Flush caches — page_cache + image_cache are keyed by old page numbers, all invalid now.
+    case["page_cache"] = {}
+    case["image_cache"] = {}
+    # Rebuild renumber_map: old_n -> new_n (1-indexed) for surviving pages
+    new_total = doc.page_count
+    renumber_map: dict[str, int] = {}
+    new_idx = 0
+    for old_n in range(1, total + 1):
+        if old_n in delete_set:
+            continue
+        new_idx += 1
+        renumber_map[str(old_n)] = new_idx
+    case["last_access"] = time.time()
+    return {
+        "ok": True,
+        "totalPages": new_total,
+        "renumberMap": renumber_map,
+        "deletedNumbers": list(delete_set),
+    }
+
+
 TAG_LABELS = {
     "site": "ผังบริเวณ",
     "plan": "ชั้น",

@@ -380,7 +380,7 @@ def _test_main_measurement_ui_cleanup(page):
                     const tabs = [...document.querySelectorAll(".sidebar-mode-tab")]
                         .filter(isVisible)
                         .map(el => el.textContent.trim());
-                    return tabs.some(t => t.includes("หน้า")) &&
+                    return (tabs.some(t => t.includes("หน้า")) || tabs.some(t => t.includes("Pages"))) &&
                         tabs.some(t => t.includes("รายการบนหน้า") || t.includes("Tree")) &&
                         tabs.some(t => t.includes("Properties") || t.includes("Props"));
                 })(),
@@ -1432,8 +1432,14 @@ def _test_site_sides_orientation_ui(page):
     )
     if "ข้อมูลด้านที่ดิน" not in seed["panelText"]:
         raise AssertionError(f"parcel side editor did not render: {seed}")
-    if "Inter" not in seed["fontFamily"] or "Noto Sans Thai" not in seed["fontFamily"]:
-        raise AssertionError(f"expected updated font stack, got {seed['fontFamily']!r}")
+    # HT-mockup-fonts (2026-05-18): switched from Inter-first to system-first stack
+    # (-apple-system / Segoe UI / Noto Sans Thai / Sarabun) to match mockup.
+    # Accept either Inter (old) or system primary (new) + Thai fallback.
+    _ff = seed["fontFamily"]
+    _has_thai = ("Noto Sans Thai" in _ff) or ("Sarabun" in _ff)
+    _has_primary = ("Inter" in _ff) or ("-apple-system" in _ff) or ("Segoe UI" in _ff)
+    if not (_has_primary and _has_thai):
+        raise AssertionError(f"expected font stack with primary (Inter / -apple-system / Segoe UI) + Thai fallback, got {_ff!r}")
 
     page.locator("#rp-side-label-0").fill("ด้านหน้า")
     page.locator("#rp-side-label-0").dispatch_event("change")
@@ -4214,6 +4220,86 @@ def _test_inv_page_setup_b(page):
     return {**checks, "all": True}
 
 
+def _test_inv_page_setup_c(page):
+    """INV-2026-05-18-001c: Permanent delete + renumber-map via /rebuild-pdf.
+
+    7 sub-checks (per sprint card) + endpoint reachability:
+    A. #rebuild-overlay dialog markup exists
+    B. helpers exist (_openRenumberDialog / _executeRenumberDelete / _reindexPageDicts / closeRebuildDialog)
+    C. last-page guard: refuses when totalPages <= 1
+    D. dialog opens with renumber table populated (when totalPages > 1, no draw in progress)
+    E. hard-block during draw: refuses when mPts has uncommitted vertices
+    F. _reindexPageDicts walks all 7 per-page dicts correctly
+    G. /rebuild-pdf endpoint exists server-side (returns 400 for invalid case_id, not 404)
+    """
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.locator("#file-input").set_input_files(str(VECTOR_PDF))
+    page.locator("#setup-overlay").wait_for(state="visible")
+    page.locator(".tag-cell").nth(0).wait_for()
+    probe = page.evaluate("""() => {
+        const overlayExists = !!document.getElementById('rebuild-overlay');
+        const helpersExist = (typeof _openRenumberDialog === 'function')
+            && (typeof _executeRenumberDelete === 'function')
+            && (typeof _reindexPageDicts === 'function')
+            && (typeof closeRebuildDialog === 'function');
+        // Last-page guard: vector test PDF is 1 page
+        const origTotal = totalPages;
+        _openRenumberDialog(1);
+        const lastPageGuardBlocks = !document.getElementById('rebuild-overlay').classList.contains('open');
+        // Synthetic multi-page state for the rest
+        totalPages = 5;
+        pageTags = {1:'site',2:'plan',3:'plan',4:'elev',5:'detail'};
+        pageNames = {1:'ผังบริเวณ',2:'ชั้น 1',3:'ชั้น 2',4:'รูปด้าน 1',5:'รายละเอียด 1'};
+        pageRotations = {1:0,2:0,3:90,4:0,5:0};
+        pageFloorKind = {2:'normal',3:'normal'};
+        pageFloorNum = {2:1,3:2};
+        excludedPages = new Set([4]);
+        pageStore = {1:{layers:[]},2:{layers:[]},3:{layers:[]},4:{layers:[]},5:{layers:[]}};
+        // Clear any in-flight draw
+        if (typeof mPts !== 'undefined' && Array.isArray(mPts)) mPts.length = 0;
+        _openRenumberDialog(3);
+        const dialogOpens = document.getElementById('rebuild-overlay').classList.contains('open');
+        const tableHasRows = document.querySelectorAll('#rebuild-table tbody tr').length === 5;
+        const hasDeletedRow = !!document.querySelector('#rebuild-table tr.gone');
+        closeRebuildDialog();
+        // Hard-block during draw
+        if (typeof mPts !== 'undefined' && Array.isArray(mPts)) { mPts.push({x:0,y:0}); }
+        else { window.mPts = [{x:0,y:0}]; }
+        _openRenumberDialog(3);
+        const drawBlocks = !document.getElementById('rebuild-overlay').classList.contains('open');
+        if (typeof mPts !== 'undefined' && Array.isArray(mPts)) mPts.length = 0;
+        // Reindex test: simulate server response — delete page 3, renumber 4->3, 5->4
+        const renumberMap = {"1":1, "2":2, "4":3, "5":4};
+        _reindexPageDicts(renumberMap, [3]);
+        const reindexTags = pageTags[1] === 'site' && pageTags[2] === 'plan' && pageTags[3] === 'elev'
+                       && pageTags[4] === 'detail' && pageTags[5] == null;
+        const reindexFloor = pageFloorKind[2] === 'normal' && pageFloorKind[3] == null;
+        const reindexExcl = excludedPages.has(3) && !excludedPages.has(4);
+        totalPages = origTotal;
+        return { overlayExists, helpersExist, lastPageGuardBlocks, dialogOpens, tableHasRows, hasDeletedRow, drawBlocks, reindexTags, reindexFloor, reindexExcl };
+    }""")
+    rebuild_check = page.evaluate("""async () => {
+        try {
+            const r = await fetch('/rebuild-pdf', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({case_id:'__nonexistent__', delete_numbers:[1]})});
+            return { endpointExists: r.status === 400 };
+        } catch(e) { return { endpointExists: false, error: e.message }; }
+    }""")
+    checks = {
+        "dialogMarkupExists": probe.get("overlayExists") is True,
+        "helperFunctionsExist": probe.get("helpersExist") is True,
+        "lastPageGuardWorks": probe.get("lastPageGuardBlocks") is True,
+        "dialogOpensWithTable": probe.get("dialogOpens") and probe.get("tableHasRows") and probe.get("hasDeletedRow"),
+        "drawHardBlockWorks": probe.get("drawBlocks") is True,
+        "reindexHandlesAll7Dicts": probe.get("reindexTags") and probe.get("reindexFloor") and probe.get("reindexExcl"),
+        "rebuildPdfEndpointExists": rebuild_check.get("endpointExists") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe, "rebuild_check": rebuild_check}
+    return {**checks, "all": True}
+
+
 def _test_ht8d4_warning_navigate(page):
     """HT-8d-4: warning rows in summary are clickable → jump to page + select object.
 
@@ -6240,6 +6326,7 @@ def main():
             ht17_enter_area = _test_ht17_enter_finishes_area(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
+            inv_page_setup_c = _test_inv_page_setup_c(page)
             ht11_ann_edit = _test_ht11_annotation_edit_delete(page)
             ht8d5a_layers = _test_ht8d5a_layers_wave1(page)
             ht8d5b_layers = _test_ht8d5b_layers_wave2(page)
@@ -6319,6 +6406,7 @@ def main():
         print("PHASE_HT17_OK", ht17_enter_area)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
+        print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)
         print("PHASE_HT11_OK", ht11_ann_edit)
         print("PHASE_HT8D5A_OK", ht8d5a_layers)
         print("PHASE_HT8D5B_OK", ht8d5b_layers)

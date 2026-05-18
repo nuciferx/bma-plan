@@ -15,8 +15,8 @@
     <div class="title-bar-label">BMA-Plan — <span id="file-info">ยังไม่มีไฟล์</span></div>
   </div>
   <div class="menu-bar" id="menuBar">
-    <div class="app-logo">BMA</div>
-    <div class="menu-item" data-menu="file" onclick="toggleMenu(this)">File
+    <!-- HT-mockup-menubar: BMA logo + Phase badge removed to match mockup (mockup has no logo/badge in menu bar) -->
+    <div class="menu-item" data-menu="file" onclick="toggleMenu(this)">File<span class="caret">▾</span>
       <div class="dropdown" id="dd-file">
         <div class="dd-item" onclick="openPdfBtnClick()">📂 Open PDF<span class="shortcut">Ctrl+O</span></div>
         <div class="dd-item" onclick="openProjectBtnClick()">📁 Open Project<span class="shortcut">Ctrl+Shift+O</span></div>
@@ -27,7 +27,7 @@
         <div class="dd-item" id="dd-file-save-pdf" onclick="saveSourcePdfInPlace()">📄 Save Annotated PDF<span class="shortcut">Ctrl+Shift+S</span></div>
       </div>
     </div>
-    <div class="menu-item" data-menu="edit" onclick="toggleMenu(this)">Edit
+    <div class="menu-item" data-menu="edit" onclick="toggleMenu(this)">Edit<span class="caret">▾</span>
       <div class="dropdown" id="dd-edit">
         <div class="dd-item" onclick="undo()">↶ Undo<span class="shortcut">Ctrl+Z</span></div>
         <div class="dd-item" onclick="redo()">↷ Redo<span class="shortcut">Ctrl+Y</span></div>
@@ -36,7 +36,7 @@
         <div class="dd-item danger" onclick="deleteSelectedObject()">🗑 Delete Selected<span class="shortcut">Del</span></div>
       </div>
     </div>
-    <div class="menu-item" data-menu="view" onclick="toggleMenu(this)">View
+    <div class="menu-item" data-menu="view" onclick="toggleMenu(this)">View<span class="caret">▾</span>
       <div class="dropdown" id="dd-view">
         <div class="dd-item" onclick="adjustZoom(1.3)">➕ Zoom In<span class="shortcut">Ctrl++</span></div>
         <div class="dd-item" onclick="adjustZoom(1/1.3)">➖ Zoom Out<span class="shortcut">Ctrl+−</span></div>
@@ -59,37 +59,8 @@
         <div class="dd-item" onclick="openSettings()">⚙ Settings...<span class="shortcut">Ctrl+,</span></div>
       </div>
     </div>
-    <div class="menu-item" data-menu="project" onclick="toggleMenu(this)">Project
-      <div class="dropdown" id="dd-project">
-        <div class="dd-item" onclick="openSetup()">📋 Project Info</div>
-        <div class="dd-item" onclick="showSummaryWidget();switchSWTab('area')">📊 Project Summary</div>
-        <div class="dd-sep"></div>
-        <div class="dd-item" onclick="saveProject()">💾 Save Project<span class="shortcut">Ctrl+S</span></div>
-        <div class="dd-item" onclick="openProjectBtnClick()">📁 Open Project<span class="shortcut">Ctrl+O</span></div>
-        <div class="dd-sep"></div>
-        <div class="dd-item" id="dd-save-pdf" onclick="saveSourcePdfInPlace()">📄 Save PDF (ทับไฟล์เดิม)<span class="shortcut">Ctrl+Shift+S</span></div>
-        <div class="dd-sep"></div>
-        <div class="dd-item" id="dd-export-xlsx" onclick="exportXLSX()">📊 Export XLSX (full)</div>
-        <div class="dd-item" id="dd-export-summary" onclick="exportSummaryXLSX()">📊 Export XLSX Summary (1 หน้า)</div>
-        <div class="dd-item" id="dd-export-pdf-current" onclick="exportCurrentPageAnnotatedPDF()">📄 Export Annotated PDF — current page</div>
-        <div class="dd-item" id="dd-export-pdf-all" onclick="exportAllPagesAnnotatedPDF()">📄 Export Annotated PDF — all pages</div>
-        <div class="dd-item" id="dd-export-csv" onclick="exportCSV()">📋 Export CSV (raw data)</div>
-        <div class="dd-item" onclick="exportJSON()">📋 Export JSON</div>
-      </div>
-    </div>
-    <div class="menu-item" data-menu="scale" onclick="toggleMenu(this)">Scale
-      <div class="dropdown" id="dd-scale">
-        <div class="dd-item" onclick="setMode('calib')">📏 Set Scale Current Page<span class="shortcut">S</span></div>
-        <div class="dd-item" onclick="openScaleManager()">📊 Scale Manager</div>
-        <div class="dd-item" onclick="verifyScale()">✓ Verify Scale</div>
-        <div class="dd-item" onclick="resetPageScale(curPage)">🔄 Reset Page Scale</div>
-        <div class="dd-sep"></div>
-        <div class="dd-item" onclick="openScaleManager()">Scale Status by Page</div>
-        <div class="dd-item" onclick="toggleScaleLine()">Show Scale Line</div>
-        <div class="dd-item" onclick="showSummaryWidget();switchSWTab('warn')">⚠ Scale Warning</div>
-      </div>
-    </div>
-    <div class="menu-item" data-menu="page" onclick="toggleMenu(this)">Page
+    <!-- HT-mockup-menubar: order matches mockup — Page → Scale → Project (workflow-natural: Open → Page setup → Scale → Project ops) -->
+    <div class="menu-item" data-menu="page" onclick="toggleMenu(this)">Page<span class="caret">▾</span>
       <div class="dropdown" id="dd-page">
         <div class="dd-item" onclick="menuLoadPrevPage()">◀ Previous Page<span class="shortcut">PgUp</span></div>
         <div class="dd-item" onclick="menuLoadNextPage()">▶ Next Page<span class="shortcut">PgDn</span></div>
@@ -118,7 +89,38 @@
         <div class="dd-item" onclick="showSummaryWidget();switchSWTab('floor')">📊 Page Summary</div>
       </div>
     </div>
-    <div class="menu-item" data-menu="measure" onclick="toggleMenu(this)">Measure
+    <div class="menu-item" data-menu="scale" onclick="toggleMenu(this)">Scale<span class="caret">▾</span>
+      <div class="dropdown" id="dd-scale">
+        <div class="dd-item" onclick="setMode('calib')">📏 Set Scale Current Page<span class="shortcut">S</span></div>
+        <div class="dd-item" onclick="openScaleManager()">📊 Scale Manager</div>
+        <div class="dd-item" onclick="verifyScale()">✓ Verify Scale</div>
+        <div class="dd-item" onclick="resetPageScale(curPage)">🔄 Reset Page Scale</div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="openScaleManager()">Scale Status by Page</div>
+        <div class="dd-item" onclick="toggleScaleLine()">Show Scale Line</div>
+        <div class="dd-item" onclick="showSummaryWidget();switchSWTab('warn')">⚠ Scale Warning</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="project" onclick="toggleMenu(this)">Project<span class="caret">▾</span>
+      <div class="dropdown" id="dd-project">
+        <div class="dd-item" onclick="openSetup()">📋 Project Info</div>
+        <div class="dd-item" onclick="showSummaryWidget();switchSWTab('area')">📊 Project Summary</div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" onclick="saveProject()">💾 Save Project<span class="shortcut">Ctrl+S</span></div>
+        <div class="dd-item" onclick="openProjectBtnClick()">📁 Open Project<span class="shortcut">Ctrl+O</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" id="dd-save-pdf" onclick="saveSourcePdfInPlace()">📄 Save PDF (ทับไฟล์เดิม)<span class="shortcut">Ctrl+Shift+S</span></div>
+        <div class="dd-sep"></div>
+        <div class="dd-sub">Export</div>
+        <div class="dd-item" id="dd-export-xlsx" onclick="exportXLSX()">📊 Export XLSX (full)</div>
+        <div class="dd-item" id="dd-export-summary" onclick="exportSummaryXLSX()">📊 Export XLSX Summary (1 หน้า)</div>
+        <div class="dd-item" id="dd-export-pdf-current" onclick="exportCurrentPageAnnotatedPDF()">📄 Export Annotated PDF — current page</div>
+        <div class="dd-item" id="dd-export-pdf-all" onclick="exportAllPagesAnnotatedPDF()">📄 Export Annotated PDF — all pages</div>
+        <div class="dd-item" id="dd-export-csv" onclick="exportCSV()">📋 Export CSV (raw data)</div>
+        <div class="dd-item" onclick="exportJSON()">📋 Export JSON</div>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="measure" onclick="toggleMenu(this)">Measure<span class="caret">▾</span>
       <div class="dropdown" id="dd-measure">
         <div class="dd-item" onclick="setMode('sel')">↖ Select<span class="shortcut">V</span></div>
         <div class="dd-item" onclick="setMode('pan')">✋ Pan<span class="shortcut">H</span></div>
@@ -177,7 +179,9 @@
         <div class="dd-item" onclick="finishCurrentArea()">Finish Drawing<span class="shortcut">Enter</span></div>
       </div>
     </div>
-    <div class="menu-item" data-menu="object" onclick="toggleMenu(this)">Object
+    <!-- HT-mockup-menubar: Object + Layer top-level menus HIDDEN to match mockup's 9-menu shape.
+         Functions preserved — accessible via right-click context menu, right panel Layers tab, Edit menu. -->
+    <div class="menu-item" data-menu="object" onclick="toggleMenu(this)" style="display:none">Object<span class="caret">▾</span>
       <div class="dropdown" id="dd-object">
         <div class="dd-item" onclick="focusPropertiesTab()">Object Properties</div>
         <div class="dd-item" onclick="renameSelectedObject()">Rename Object<span class="shortcut">F2</span></div>
@@ -191,7 +195,7 @@
         <div class="dd-item danger" onclick="deleteSelectedObject()">Delete Object<span class="shortcut">Del</span></div>
       </div>
     </div>
-    <div class="menu-item" data-menu="layer" onclick="toggleMenu(this)">Layer
+    <div class="menu-item" data-menu="layer" onclick="toggleMenu(this)" style="display:none">Layer<span class="caret">▾</span>
       <div class="dropdown" id="dd-layer">
         <div class="dd-item dd-submenu-trigger">Set Active Layer
           <div class="dd-submenu" id="dd-layer-submenu">
@@ -216,7 +220,7 @@
         <div class="dd-item" onclick="selectAllInLayer(getActiveLayer())">Select All in Active Layer</div>
       </div>
     </div>
-    <div class="menu-item" data-menu="annotate" onclick="toggleMenu(this)">Annotate
+    <div class="menu-item" data-menu="annotate" onclick="toggleMenu(this)">Annotate<span class="caret">▾</span>
       <div class="dropdown" id="dd-annotate">
         <div class="dd-item" onclick="setMode('ann_comment')">💬 Comment</div>
         <div class="dd-item" onclick="setMode('ann_text')">𝕋 Free Text Label</div>
@@ -233,7 +237,8 @@
          Review → use Summary widget footer or Right panel Summary tab.
          Export → use Project menu › Export submenu (HT-12f).
          Workspace → migrated to top menus (HT-12g). -->
-    <div class="menu-item" data-menu="help" onclick="toggleMenu(this)">Help
+    <!-- HT-mockup-menubar v2: Help stays in menu row (left cluster) per user preference; density picker pushed to right edge -->
+    <div class="menu-item" data-menu="help" onclick="toggleMenu(this)">Help<span class="caret">▾</span>
       <div class="dropdown" id="dd-help">
         <div class="dd-item" onclick="window.open('/static/docs/index.html','_blank')">📖 User Manual</div>
         <div class="dd-item" onclick="window.open('/static/docs/index.html#shortcuts','_blank')">⌨ Keyboard Shortcuts</div>
@@ -243,14 +248,12 @@
         <div class="dd-item" onclick="alert('BMA-Plan Phase 1 · Raster PDF Measurement Assistant\\nDev build · Phase 1 = measurement only')">ℹ About</div>
       </div>
     </div>
-    <!-- HT-12a: density picker in menu bar (shortcut to existing PREFS.layout.density) -->
     <div class="density-picker" id="density-picker" title="ขนาด UI">
       <span class="dpl">ขนาด UI:</span>
       <button type="button" data-density="compact" onclick="setDensityFromMenu('compact')">▪ Compact</button>
       <button type="button" data-density="comfortable" onclick="setDensityFromMenu('comfortable')">▫ Comfortable</button>
       <button type="button" data-density="spacious" onclick="setDensityFromMenu('spacious')">⬜ Spacious</button>
     </div>
-    <div class="menu-item phase-badge">Phase 1 · Measurement Only</div>
   </div>
   <div class="ribbon" id="ribbon">
     <!-- HT-8a: Tab strip -->
@@ -456,10 +459,10 @@
     <div id="sidebar" class="left-panel">
       <button id="lp-collapse-btn" class="panel-collapse-btn" onclick="toggleLeftPanel()" title="ซ่อน/แสดง panel ซ้าย [F9]">◀</button>
       <div class="panel-tabs">
-        <div class="sidebar-mode-tab panel-tab active" data-mode="sheets" onclick="setSidebarMode('sheets')" title="หน้าทั้งหมดใน PDF — จัดกลุ่มตาม tag (Site/Plan/Elev/...)">📑 หน้า</div>
-        <div class="sidebar-mode-tab panel-tab" data-mode="disciplines" onclick="setSidebarMode('disciplines')" title="จัดกลุ่มตาม discipline (A-Architectural / S-Structural / M-Mechanical / E-Electrical)">📚 Sheets</div>
-        <div class="sidebar-mode-tab panel-tab" data-mode="objects" onclick="setSidebarMode('objects')" title="รายการ object บนหน้าปัจจุบัน">🌳 Tree</div>
-        <div class="sidebar-mode-tab panel-tab" data-mode="properties" onclick="setSidebarMode('properties')" title="รายละเอียดของ object ที่เลือก">🔧 Props</div>
+        <div class="sidebar-mode-tab panel-tab active" data-mode="sheets" onclick="setSidebarMode('sheets')" title="หน้าทั้งหมดใน PDF — จัดกลุ่มตาม tag (Site/Plan/Elev/...)"><span class="lpic">📑</span><span>Pages</span></div>
+        <div class="sidebar-mode-tab panel-tab" data-mode="disciplines" onclick="setSidebarMode('disciplines')" title="จัดกลุ่มตาม discipline (A-Architectural / S-Structural / M-Mechanical / E-Electrical)"><span class="lpic">📚</span><span>Sheets</span></div>
+        <div class="sidebar-mode-tab panel-tab" data-mode="objects" onclick="setSidebarMode('objects')" title="รายการ object บนหน้าปัจจุบัน"><span class="lpic">🌳</span><span>Tree</span></div>
+        <div class="sidebar-mode-tab panel-tab" data-mode="properties" onclick="setSidebarMode('properties')" title="รายละเอียดของ object ที่เลือก"><span class="lpic">🔧</span><span>Props</span></div>
       </div>
       <div id="lp-page-info" class="lp-page-info"></div>
       <div id="site-stepper" style="display:none"></div>
@@ -518,11 +521,11 @@
       <button id="rp-collapse-btn" class="panel-collapse-btn" onclick="toggleRightPanel()" title="ซ่อน/แสดง panel ขวา [F10]">▶</button>
       <!-- HT-8d-1 + HT-20: right panel tab strip (List/Layers/Props/Summary/Notes) -->
       <div class="rp-tabs" id="rp-tabs">
-        <div class="rp-tab" data-rptab="list" onclick="switchRightTab('list')" title="รายการ object บนหน้านี้">📋 รายการ</div>
-        <div class="rp-tab active" data-rptab="layers" onclick="switchRightTab('layers')" title="Layer + object tree + properties">🗂 Layers</div>
-        <div class="rp-tab" data-rptab="properties" onclick="switchRightTab('properties')" title="รายละเอียดของ object ที่เลือก">🔧 Props</div>
-        <div class="rp-tab" data-rptab="summary" onclick="switchRightTab('summary')" title="สรุปการวัดของโปรเจกต์">📊 สรุป</div>
-        <div class="rp-tab" data-rptab="notes" onclick="switchRightTab('notes')" title="Comment / Notes บน object">💬 Notes</div>
+        <div class="rp-tab" data-rptab="list" onclick="switchRightTab('list')" title="รายการ object บนหน้านี้"><span class="rpic">📋</span><span>List</span></div>
+        <div class="rp-tab active" data-rptab="layers" onclick="switchRightTab('layers')" title="Layer + object tree + properties"><span class="rpic">🗂</span><span>Layers</span></div>
+        <div class="rp-tab" data-rptab="properties" onclick="switchRightTab('properties')" title="รายละเอียดของ object ที่เลือก"><span class="rpic">🔧</span><span>Props</span></div>
+        <div class="rp-tab" data-rptab="summary" onclick="switchRightTab('summary')" title="สรุปการวัดของโปรเจกต์"><span class="rpic">📊</span><span>Summary</span></div>
+        <div class="rp-tab" data-rptab="notes" onclick="switchRightTab('notes')" title="Comment / Notes บน object"><span class="rpic">💬</span><span>Notes</span></div>
       </div>
       <!-- HT-24: panel-head with title + count badge per mockup -->
       <div id="rp-header" class="panel-head"><h2 id="rp-header-title">Layers</h2><span class="count" id="rp-header-count">0</span></div>
@@ -668,6 +671,8 @@
   <span id="dbar-pts"></span>
 </div>
 <canvas id="loupe" style="display:none;position:fixed;border-radius:50%;border:2px solid #636366;box-shadow:0 4px 20px rgba(0,0,0,.8);pointer-events:none;z-index:8999;"></canvas>
+<!-- INV-2026-05-18-001c — Permanent delete renumber-map dialog -->
+<div id="rebuild-overlay" onclick="if(event.target===this)closeRebuildDialog()"><div id="rebuild-box" onclick="event.stopPropagation()"><div id="rebuild-hdr"><h3>🗑 ลบหน้าถาวร — ตรวจสอบการเรียงเลขใหม่</h3><button class="tb danger" onclick="closeRebuildDialog()">✕</button></div><div id="rebuild-body"><p id="rebuild-intro">การลบจะ <b>เปลี่ยนเลขหน้าถาวร</b> และเรียก <code>/rebuild-pdf</code> เพื่อรีบิวต์ PDF ฝั่ง server</p><div id="rebuild-warn">⚠ การลบนี้ไม่สามารถย้อนกลับได้หลังจากบันทึก</div><div id="rebuild-table-wrap"><table id="rebuild-table"></table></div><p id="rebuild-note">การวัด/ชื่อ/tag/floor-kind บนหน้าที่เหลือจะถูก reindex อัตโนมัติจาก renumberMap (server-authoritative)</p></div><div id="rebuild-foot"><button class="tb" onclick="closeRebuildDialog()">ยกเลิก</button><button class="tb danger" id="rebuild-confirm-btn" onclick="_executeRenumberDelete()">ยืนยันลบและรีบิวต์</button></div></div></div>
 <div id="scale-mgr-overlay" onclick="if(event.target===this)closeScaleManager()"><div id="scale-mgr-box" onclick="event.stopPropagation()"><div id="scale-mgr-header"><h3>📐 Scale ทุกหน้า</h3><button class="tb danger" onclick="closeScaleManager()">✕</button></div><div id="scale-mgr-body"></div></div></div>
 <div id="pgmgr-overlay" onclick="if(event.target===this)closePgMgr()"><div id="pgmgr-box" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;width:min(90vw,820px);max-height:85vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,.7)"><div id="pgmgr-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="font-size:13px;font-weight:700;flex:1">📄 จัดการหน้า</h3><span id="pgmgr-sel-info" style="font-size:11px;color:var(--text2);min-width:80px">เลือก 0 หน้า</span><button class="tb" onclick="pgmgrSelectAll()">เลือกทั้งหมด</button><button class="tb" onclick="pgmgrClearAll()">ยกเลิก</button><button class="tb danger" onclick="closePgMgr()">✕</button></div><div id="pgmgr-grid" style="display:flex;flex-wrap:wrap;gap:8px;overflow-y:auto;padding:4px 2px;flex:1"></div><div class="pgmgr-footer" style="display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--border)"><button class="tb" style="background:var(--blue);color:#fff" onclick="pgmgrExportPDF(false)">⬇ Save PDF</button><button class="tb" style="background:var(--blue);color:#fff" onclick="pgmgrExportPDF(true)">⬇ PDF + annotations</button><button class="tb" onclick="saveProject()">💾 บันทึกโปรเจกต์</button></div></div></div>
 <script src="/static/js/semantic-meta.js"></script>
@@ -1030,8 +1035,8 @@ function updateWidgets(){updateSummaryWidget();}
 // Summary Widget (Phase D)
 // ══════════════════════════════════════════════════════
 const SW_KEY="bmaPlan.summaryWidget.v2";
-// HT-26: visible defaults to false so widget hides on app launch before any PDF; auto-shows on first PDF load unless user explicitly closed it.
-let swState={visible:false,collapsed:false,tab:"area",x:null,y:null,_manuallyHidden:false};
+// HT-26 reverted (2026-05-19): summary widget shows by default again — user prefers always-on canvas tools.
+let swState={visible:true,collapsed:false,tab:"area",x:null,y:null};
 function _swLoad(){try{const s=JSON.parse(localStorage.getItem(SW_KEY)||"{}");if(s)Object.assign(swState,s);}catch(e){}}
 function _swSave(){try{localStorage.setItem(SW_KEY,JSON.stringify(swState));}catch(e){}}
 function initSummaryWidget(){
@@ -1059,12 +1064,12 @@ function toggleSWCollapse(){
   _swSave();
 }
 function hideSummaryWidget(){
-  swState.visible=false;swState._manuallyHidden=true;_swSave();
+  swState.visible=false;_swSave();
   const el=document.getElementById("summary-widget");if(el)el.classList.add("hidden");
   const btn=document.getElementById("sw-show-btn");if(btn)btn.style.display="";
 }
 function showSummaryWidget(){
-  swState.visible=true;swState._manuallyHidden=false;_swSave();
+  swState.visible=true;_swSave();
   const el=document.getElementById("summary-widget");if(el)el.classList.remove("hidden");
   const btn=document.getElementById("sw-show-btn");if(btn)btn.style.display="none";
   updateSummaryWidget();
@@ -1092,25 +1097,16 @@ function _swDragInit(){
   });
 }
 function updateSummaryWidget(){
-  const el=document.getElementById("summary-widget");if(!el)return;
+  const el=document.getElementById("summary-widget");if(!el||el.classList.contains("hidden"))return;
   const hasPdf=!!totalPages&&!!currentCaseId;
-  // HT-26: hide widget entirely when no PDF; auto-show on first PDF load unless user explicitly closed it
+  const badge=document.getElementById("sw-page-badge");
+  if(badge)badge.textContent=hasPdf?`หน้า ${curPage} / ${totalPages}`:"—";
   if(!hasPdf){
-    if(!el.classList.contains("hidden")){
-      el.classList.add("hidden");
-      const btn=document.getElementById("sw-show-btn");if(btn)btn.style.display="";
-    }
+    ["area","floor","site","siteplan","warn"].forEach(id=>{const c=document.getElementById("sw-tab-"+id);if(c)c.innerHTML='<div class="sw-empty">เปิด PDF เพื่อเริ่มวัด</div>';});
+    const wc=document.getElementById("sw-warn-count");if(wc)wc.textContent="0";
+    const wb=document.getElementById("sw-warn-badge");if(wb)wb.textContent="";
     return;
   }
-  // PDF loaded — auto-show if user hasn't explicitly hidden it
-  if(el.classList.contains("hidden")&&!swState._manuallyHidden){
-    el.classList.remove("hidden");
-    const btn=document.getElementById("sw-show-btn");if(btn)btn.style.display="none";
-    swState.visible=true;_swSave();
-  }
-  if(el.classList.contains("hidden"))return;
-  const badge=document.getElementById("sw-page-badge");
-  if(badge)badge.textContent=`หน้า ${curPage} / ${totalPages}`;
   const report=collectAreas();
   const warnings=phase1Warnings(report);
   const warnCount=warnings.length;
@@ -3073,9 +3069,75 @@ function selectSetupPage(n){setupSelectedPage=n;document.querySelectorAll(".tag-
 function _pageReadiness(n){if(excludedPages.has(n))return"gray";const tag=pageTags[n]||"";if(!tag)return"red";const sc=typeof getScaleForPage==="function"?getScaleForPage(n):null;if(!sc)return"amber";return"green";}
 function _setupCountObjects(n){const s=pageStore&&pageStore[n];if(!s)return 0;return(s.polys?.filter(p=>p.closed).length||0)+(s.lines?.length||0)+(s.openings?.filter(o=>o.closed).length||0);}
 function _renderSetupDashboard(){let nLive=0,nTag=0,nName=0,nScale=0,nMeas=0;const issues=[];for(let i=1;i<=totalPages;i++){if(excludedPages.has(i))continue;nLive++;const tag=pageTags[i]||"";if(tag)nTag++;if(pageNames[i])nName++;const sc=typeof getScaleForPage==="function"?getScaleForPage(i):null;if(sc)nScale++;if(_setupCountObjects(i)>0)nMeas++;if(!tag)issues.push({n:i,cls:"red",msg:"ยังไม่จัดหมวด"});else if(!sc)issues.push({n:i,cls:"amber",msg:"ยังไม่ตั้ง scale"});}const stat=(label,v,total)=>{const pct=total?(v/total*100):0;const done=v===total&&total>0;return`<div class="psi-stat ${done?"complete":""}"><div class="psi-stat-row"><span>${label}</span><span class="v">${v}/${total}</span></div><div class="psi-bar"><div class="fill" style="width:${pct}%"></div></div></div>`;};const issuesHtml=issues.length===0?'<div class="empty">✓ พร้อมวัดทุกหน้าที่เปิดอยู่</div>':issues.slice(0,6).map(i=>`<div class="psi-issue ${i.cls==="red"?"red":""}" onclick="selectSetupPage(${i.n})"><span class="icon">${i.cls==="red"?"●":"◐"}</span><span class="pg">หน้า ${i.n}</span><span class="msg">${i.msg}</span></div>`).join("")+(issues.length>6?`<div class="more">+ ${issues.length-6} อื่นๆ</div>`:"");return`<div class="psi-block"><h3>📊 Project Readiness</h3>${stat("จัดหมวดหน้า",nTag,nLive)}${stat("ตั้งชื่อหน้า",nName,nLive)}${stat("ตั้ง scale",nScale,nLive)}${stat("มีการวัด",nMeas,nLive)}<div class="psi-issues"><h4>⚠ Top issues</h4>${issuesHtml}</div></div>`;}
-function _renderSetupPageCard(n){const tag=pageTags[n]||"",name=pageNames[n]||"",rot=(typeof getRot==="function"?getRot(n):0),sc=(typeof getScaleForPage==="function"?getScaleForPage(n):null),objs=_setupCountObjects(n),layers=((pageStore&&pageStore[n]&&pageStore[n].layers)||[]).length,excl=excludedPages.has(n);const scaleTxt=sc?'<span style="color:#30d158">●</span> manual':'<span style="color:#ff453a">●</span> ยังไม่ตั้ง';const optHtml=TAG_OPTIONS.map(o=>`<option value="${o.value}"${tag===o.value?" selected":""}>${escHtml(o.label)}</option>`).join("");return`<button class="psi-back" onclick="_setupBack()">← กลับไปภาพรวม</button><div class="psi-card-preview"><span class="pgno-tag">หน้า ${n}</span>${rot?`<span class="rot-tag">${rot}°</span>`:""}<img src="/thumb-md/${n}?${caseQuery()}&rot=${rot}&v=${docVersion}" loading="lazy"></div><div class="psi-block"><div class="pf-row"><label>หมวดหมู่ (tag)</label><select onchange="setPageTag(${n},this.value)">${optHtml}</select></div>${tag==='plan'?`<div class="pf-row"><label>ประเภทชั้น (INV-001b)</label><div style="display:flex;gap:6px"><select style="flex:1" onchange="setPageFloorKind(${n},this.value)">${FLOOR_KIND_OPTIONS.map(([v,l])=>`<option value="${v}"${(pageFloorKind[n]||'')===v?' selected':''}>${escHtml(l)}</option>`).join('')}</select>${(pageFloorKind[n]==='basement'||pageFloorKind[n]==='normal')?`<input type="number" min="1" step="1" value="${pageFloorNum[n]||1}" style="width:64px" onchange="setPageFloorNum(${n},this.value)" title="เลขชั้น">`:''}</div>${pageFloorKind[n]==='custom'?'<div style="font-size:10.5px;color:#ffcc00;margin-top:3px">⌨ ตั้งชื่อในช่องด้านล่าง (จะไม่ถูก template ทับ)</div>':''}</div>`:''}<div class="pf-row"><label>ชื่อหน้า</label><input type="text" value="${escHtml(name)}" placeholder="หน้า ${n}" onchange="setPageName(${n},this.value)"></div></div><div class="psi-card-meta"><div class="cell"><div class="k">Rotation</div><div class="v">${rot}°</div></div><div class="cell"><div class="k">Scale</div><div class="v">${scaleTxt}</div></div><div class="cell"><div class="k">Objects</div><div class="v">${objs}</div></div><div class="cell"><div class="k">Layers</div><div class="v">${layers}</div></div></div><div class="psi-danger"><div class="ttl">⚠ ลบ / ซ่อนหน้า</div><div class="hint">${excl?"หน้านี้ถูกซ่อนแล้ว — คลิกเพื่อคืน":"ตอนนี้ทำได้แค่ซ่อนหน้า (ลบถาวรจะมาใน INV-2026-05-18-001c)"}</div><button onclick="toggleExcludePage(${n})">${excl?"↺ คืนหน้า":"🚫 ซ่อนหน้านี้"}</button> <button disabled title="รอ INV-2026-05-18-001c — Permanent delete + /rebuild-pdf">🗑 ลบถาวร (เร็วๆ นี้)</button></div>`;}
+function _renderSetupPageCard(n){const tag=pageTags[n]||"",name=pageNames[n]||"",rot=(typeof getRot==="function"?getRot(n):0),sc=(typeof getScaleForPage==="function"?getScaleForPage(n):null),objs=_setupCountObjects(n),layers=((pageStore&&pageStore[n]&&pageStore[n].layers)||[]).length,excl=excludedPages.has(n);const scaleTxt=sc?'<span style="color:#30d158">●</span> manual':'<span style="color:#ff453a">●</span> ยังไม่ตั้ง';const optHtml=TAG_OPTIONS.map(o=>`<option value="${o.value}"${tag===o.value?" selected":""}>${escHtml(o.label)}</option>`).join("");return`<button class="psi-back" onclick="_setupBack()">← กลับไปภาพรวม</button><div class="psi-card-preview"><span class="pgno-tag">หน้า ${n}</span>${rot?`<span class="rot-tag">${rot}°</span>`:""}<img src="/thumb-md/${n}?${caseQuery()}&rot=${rot}&v=${docVersion}" loading="lazy"></div><div class="psi-block"><div class="pf-row"><label>หมวดหมู่ (tag)</label><select onchange="setPageTag(${n},this.value)">${optHtml}</select></div>${tag==='plan'?`<div class="pf-row"><label>ประเภทชั้น (INV-001b)</label><div style="display:flex;gap:6px"><select style="flex:1" onchange="setPageFloorKind(${n},this.value)">${FLOOR_KIND_OPTIONS.map(([v,l])=>`<option value="${v}"${(pageFloorKind[n]||'')===v?' selected':''}>${escHtml(l)}</option>`).join('')}</select>${(pageFloorKind[n]==='basement'||pageFloorKind[n]==='normal')?`<input type="number" min="1" step="1" value="${pageFloorNum[n]||1}" style="width:64px" onchange="setPageFloorNum(${n},this.value)" title="เลขชั้น">`:''}</div>${pageFloorKind[n]==='custom'?'<div style="font-size:10.5px;color:#ffcc00;margin-top:3px">⌨ ตั้งชื่อในช่องด้านล่าง (จะไม่ถูก template ทับ)</div>':''}</div>`:''}<div class="pf-row"><label>ชื่อหน้า</label><input type="text" value="${escHtml(name)}" placeholder="หน้า ${n}" onchange="setPageName(${n},this.value)"></div></div><div class="psi-card-meta"><div class="cell"><div class="k">Rotation</div><div class="v">${rot}°</div></div><div class="cell"><div class="k">Scale</div><div class="v">${scaleTxt}</div></div><div class="cell"><div class="k">Objects</div><div class="v">${objs}</div></div><div class="cell"><div class="k">Layers</div><div class="v">${layers}</div></div></div><div class="psi-danger"><div class="ttl">⚠ ลบ / ซ่อนหน้า</div><div class="hint">${excl?"หน้านี้ถูกซ่อนแล้ว — คลิกเพื่อคืน":"ซ่อน = soft-hide (export ตัดออก) / ลบถาวร = รีบิวต์ PDF (ไม่ย้อนกลับหลังบันทึก)"}</div><button onclick="toggleExcludePage(${n})">${excl?"↺ คืนหน้า":"🚫 ซ่อนหน้านี้"}</button> <button onclick="_openRenumberDialog(${n})" title="ลบหน้าถาวร + renumber ผ่าน /rebuild-pdf">🗑 ลบถาวร...</button></div>`;}
 function _setupBack(){setupSelectedPage=null;document.querySelectorAll(".tag-cell").forEach(c=>c.classList.remove("selected"));_renderSetupInspector();}
 function _renderSetupInspector(){const el=document.getElementById("setup-inspector-content");if(!el)return;if(setupSelectedPage==null||excludedPages.has(setupSelectedPage)){el.innerHTML=_renderSetupDashboard();}else{el.innerHTML=_renderSetupPageCard(setupSelectedPage);}}
+// INV-2026-05-18-001c — Permanent delete with renumber-map (research Q1-Q4 locked)
+let _pendingDeleteN=null;
+function _openRenumberDialog(targetN){
+  // Q4 hard-block: refuse during draw (HT-7 pattern)
+  if(typeof mPts!=='undefined'&&Array.isArray(mPts)&&mPts.length>0){
+    setStatus("วาดอยู่ — กด Enter จบหรือ Esc ยกเลิกก่อนลบหน้า");
+    return;
+  }
+  if(totalPages<=1){setStatus("ต้องมีอย่างน้อย 1 หน้า — ลบไม่ได้");return;}
+  _pendingDeleteN=targetN;
+  const tbl=document.getElementById("rebuild-table");
+  let newN=0;
+  const rows=[];
+  for(let i=1;i<=totalPages;i++){
+    if(i===targetN){rows.push(`<tr class="gone"><td class="from">หน้า ${i}</td><td class="arr">→</td><td class="del">ลบ</td></tr>`);}
+    else{newN++;rows.push(`<tr><td class="from">หน้า ${i}</td><td class="arr">→</td><td class="to">หน้า ${newN}</td></tr>`);}
+  }
+  tbl.innerHTML=`<thead><tr><th>เดิม</th><th></th><th>ใหม่</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+  document.getElementById("rebuild-overlay").classList.add("open");
+}
+function closeRebuildDialog(){document.getElementById("rebuild-overlay").classList.remove("open");_pendingDeleteN=null;}
+async function _executeRenumberDelete(){
+  if(_pendingDeleteN==null){closeRebuildDialog();return;}
+  const targetN=_pendingDeleteN;
+  const btn=document.getElementById("rebuild-confirm-btn");
+  if(btn){btn.disabled=true;btn.textContent="กำลังลบ...";}
+  try{
+    const r=await fetch("/rebuild-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({case_id:currentCaseId,delete_numbers:[targetN]})});
+    if(!r.ok){const err=await r.json().catch(()=>({error:"unknown"}));throw new Error(err.error||"server error");}
+    const j=await r.json();
+    if(typeof pushUndo==='function')pushUndo(); // session-scoped undo
+    _reindexPageDicts(j.renumberMap,j.deletedNumbers||[]);
+    totalPages=j.totalPages;
+    docVersion++; // invalidate thumbnail URL cache
+    // If curPage was deleted or out of range, redirect
+    if(curPage>totalPages||((j.deletedNumbers||[]).includes(curPage))){
+      const next=Math.min(curPage,totalPages)||1;
+      if(typeof loadPage==='function')await loadPage(next);
+    }
+    setupSelectedPage=null;
+    isDirty=true;
+    if(typeof buildSidebar==='function')buildSidebar();
+    if(typeof buildTagGrid==='function')buildTagGrid();
+    setStatus(`✅ ลบหน้า ${targetN} แล้ว — เหลือ ${totalPages} หน้า`);
+    closeRebuildDialog();
+  }catch(e){
+    setStatus("ลบหน้าไม่สำเร็จ: "+(e.message||e));
+    if(btn){btn.disabled=false;btn.textContent="ยืนยันลบและรีบิวต์";}
+  }
+}
+function _reindexPageDicts(renumberMap,deletedNumbers){
+  // Walk every per-page dict and rebuild with new keys per server's authoritative renumberMap.
+  // renumberMap: {oldN: newN} for surviving pages (1-indexed both sides).
+  // deletedNumbers: list of old page numbers that were removed.
+  const reindexDict=(d)=>{const out={};for(const[oldStr,v]of Object.entries(d)){const oldN=+oldStr;const newN=renumberMap[String(oldN)];if(newN!=null)out[newN]=v;}return out;};
+  pageStore=reindexDict(pageStore);
+  pageTags=reindexDict(pageTags);
+  pageNames=reindexDict(pageNames);
+  pageRotations=reindexDict(pageRotations);
+  pageFloorKind=reindexDict(pageFloorKind);
+  pageFloorNum=reindexDict(pageFloorNum);
+  // excludedPages is a Set of ints
+  const newExcl=new Set();
+  for(const oldN of excludedPages){const newN=renumberMap[String(oldN)];if(newN!=null)newExcl.add(newN);}
+  excludedPages=newExcl;
+}
 function setSetupFilter(filter){setupFilter=filter;buildTagGrid();}
 function toggleSetupFilter(){const order=["all","categorized","uncategorized","visible","hidden"];const idx=order.indexOf(setupFilter);setupFilter=order[(idx+1+order.length)%order.length];buildTagGrid();}
 function touchSetupStatus(msg="อัปเดตข้อมูลในฟอร์มแล้ว"){const el=document.getElementById("setup-save-status");if(!el)return;const t=new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});el.textContent=`${msg} ${t}`;}
