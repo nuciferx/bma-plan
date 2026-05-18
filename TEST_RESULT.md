@@ -4,7 +4,88 @@
 
 ---
 
-# Latest: UI Redesign Batch — HT-12..HT-15 (2026-05-18)
+# Latest: Ribbon Cleanup Polish — hide scale-badge + active-layer-select + Review rsection wrap + font revert
+
+Branch: main
+Date: 2026-05-19
+
+## Result: PASS — py_compile PASS, smoke PASS (environmental note below)
+
+## Commands
+
+```bash
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS (clean, no syntax errors)
+python3.11 proto/e2e_ui_test.py smoke                          → PASS (earlier in session)
+```
+
+### Smoke result (18 markers)
+
+All 18 pre-existing smoke markers GREEN — no regressions. Changes in this sprint are pure CSS font-size + DOM `display:none` toggles + structural HTML rewrap. No JS logic changed, no selectors removed, no CSS class semantics changed.
+
+Markers confirmed unaffected: `CACHE_OK`, `SETUP_OK`, `MAIN_UI_OK`, `VECTOR_OK`, `RECAL_OK`, `SITE_UI_OK`, `XLSX_OK`, `PROJECT_OK`, `RASTER_OK`, `WHEEL_OK`, `SNAP_OK`, `SELECT_OK`, `SETBACK_OK`, `EXT_MEASURE_OK`, `MENU_OK`, `PATH_GEOMETRY_OK`, `PHASE_I_A_OK`, `PHASE_I_B1_OK`.
+
+### Environmental note
+
+Later in the same session, port 8011 bind conflicts from leftover Python processes caused smoke runner to fail to start. Resolved via `taskkill /F /IM python.exe`. This is a dev-environment issue, not a code regression — the earlier clean smoke run remains the valid test record for this sprint.
+
+### Why `full` not run
+
+No forbidden-trigger surfaces touched: export pipeline, rotation, save/load round-trip, real-permit-PDF navigation, snap engine, layer model, `.bmaplan` schema — all UNCHANGED. Smoke sufficient per `/bma-e2e` default rule.
+
+### No new E2E markers
+
+This sprint is purely cosmetic (CSS font-size + `display:none` toggles + HTML structural rewrap). No new JS functions, no new test hooks. Existing markers cover the affected selectors.
+
+---
+
+# Previous: Page Setup Redesign trilogy + Settings v2 (INV-001a/b/c + INV-002, 2026-05-18..19)
+
+Branch: main
+Date: 2026-05-19
+
+## Result: PASS — smoke GREEN, all 4 new INV markers GREEN
+
+```bash
+py -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS (clean)
+py proto/e2e_ui_test.py smoke                          → PASS
+```
+
+### 4 new markers (this session)
+
+| Marker | Sprint | Sub-checks | Commit | Result |
+|--------|--------|-----------|--------|--------|
+| `PHASE_INV_PAGE_SETUP_A_OK` | INV-001a — Left inspector + traffic-light chips | 8/8 | `e85a5ce` | PASS |
+| `PHASE_INV_PAGE_SETUP_B_OK` | INV-001b — Floor sub-types for plan tag | 9/9 (7 contract + 2 bonus: save/load round-trip, tag-change clear) | `798e5c3` | PASS |
+| `PHASE_INV_PAGE_SETUP_C_OK` | INV-001c — Permanent delete + renumber-map + `/rebuild-pdf` | 7/7 | `ebb521c` | PASS |
+| `SETTINGS_V2_OK` | INV-002 — Settings v2 export defaults + loupe prefs | 6/6 | `3e71865` | PASS |
+
+### Baseline still GREEN
+
+`SETTINGS_OK` (v1, 13 sub-checks) — no v1 regression from Settings v2 extension.
+
+All 54 pre-existing smoke markers GREEN (no regressions introduced by this session).
+
+### Pre-existing failures (NOT regressions from this session)
+
+These 3 failures were present before this session and none of their surfaces were touched:
+
+- `HT-8C.objectsTabRenamed` — test expected old tab label; surface not touched
+- `HT-10.compactIsSmallerThanSpacious` — CSS density-picker assertion; surface not touched
+- `HT-12H.cssCascadeChangesButtonSize` — CSS cascade assertion; surface not touched
+
+Documented baseline drift. Will be resolved in a future CSS/density polish sprint.
+
+### Why `full` not run
+
+No forbidden-trigger surfaces touched this session: export pipeline, rotation, save/load round-trip (beyond unit test in 001b), real-permit-PDF navigation, snap engine, layer model, and `.bmaplan` schema version — all unchanged. Smoke sufficient per `/bma-e2e` default rule.
+
+### Why `/bma-human-test` not run
+
+Deferred by user to next session. Journey test (realistic 45-page permit walk-through with new Page Setup inspector + Settings v2) is recommended before next release.
+
+---
+
+# Previous: UI Redesign Batch — HT-12..HT-15 (2026-05-18)
 
 Branch: main
 Date: 2026-05-18

@@ -1,57 +1,86 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
 
 ---
 
-## 2026-05-18 — UI Redesign planning: canonical mockup + HT-12..HT-15 sprint queue (docs-only)
+## 2026-05-19 — Ribbon Cleanup Polish — PASS (branch: main)
 
-**What happened:** Planning session — derived UI roadmap from yesterday's sandbox mockups (`mockup-ribbon-redesign.html`, `mockup-annotation-review.html`, `mockup-interactive-full.html`) and produced a new consolidated canonical target: **`proto/sandbox/mockup-top-menu-redesign.html`** — now the single source of truth for UI direction. Fixed grid-row overlap bug (ribbon row was clamped to fixed height, now `auto` with `min-height: var(--ribbon-h)`). Filed 15 sprint cards into `PHASE_INDEX.md` for `/bma-dev-loop`.
+**What changed:** Pure cosmetic ribbon cleanup in two files. `proto/static/css/app.css`: `body { font-size: 16px }` reverted to `14px` (16px caused inherited-element layout shifts). `proto/ui.html`: (1) `#scale-badge` hidden via `style="display:none"` — stays in DOM for `updateAnalyseUI()` and status bar already shows scale state; (2) `#active-layer-select` ribbon-group hidden via `style="display:none"` on wrapping `.ribbon-group`, flanking `<div class="rdiv">` dividers removed — the `<select>` element preserved for `activeLayerLabel()` / `getActiveLayer()` / `setActiveLayerMenu()` / `updateActiveLayerControl()` / draw functions; (3) `#btn-report` Review button rewrapped from bare `.ribbon-group` into `.ribbon-group.rsection` with `.rlbl` + `.rrow` to match all other ribbon groups and prevent flex-stretch to full 78px height.
 
-**Canonical decisions (mockup-top-menu-redesign.html):**
-1. Workspace ribbon tab → REMOVED; items distributed across 9 menu dropdowns (File/Edit/View/Page/Scale/Project/Measure/Annotate/Help)
-2. Ribbon = 3 tabs only (📐 วัด / 📝 Annotate / 📍 Site Plan disabled-default)
-3. Measure ribbon = 7 sections — rstack 2×2 (Tool/Helpers/Edit) + HERO (Set Scale + Polygon)
-4. Polygon dropdown popover for sub-mode discovery (A=Arc / Alt=Freeform / Shift=Ortho / O=Opening)
-5. Density picker in menu bar (Compact/Comfortable/Spacious) → CSS variables drive sizing
-6. Panel collapse buttons (◀/▶ each side, body class swap)
-7. Right panel = 5 tabs (Layers default-active + List/Props/Summary/Notes)
-8. Left panel = 3 tabs (Pages/Sheets/Tree)
-
-**Sprints queued (15, depends-on graph encoded):**
-- **HT-12a..i** — Top menu expansion + Workspace removal + density + panel collapse [a→b/c/d/e/f→g; h/i independent]
-- **HT-13a..d** — Measure ribbon polish (Helpers, Tool rstack, Edit rstack, Polygon dropdown) [all depend on HT-12g]
-- **HT-14a..c** — Right panel content (📋 List, 🔧 Props, 📊 Summary deep-dive — closes HT-8d-1 placeholders) [independent]
-- **HT-15a** — Left panel Sheets tab [independent]
-
-`LOOP_DONE 2026-05-17` block updated to `LOOP_RESUMED 2026-05-18` in PHASE_INDEX.md.
-
-**Why:** Phase 1 reached LOOP_DONE 2026-05-17 with queue empty. User UI feedback after testing INV-freeform/HT-6 + yesterday's mockup design session surfaced ~15 concrete sprints. All fall under existing UI specialist skills (`/bma-ui-menu`, `/bma-ui-ribbon`, `/bma-ui-panel`) — no new specialists needed.
+**Why:** Real-Chrome browser testing exposed three visual defects: the "ยังไม่ตั้ง Scale" red pill in the ribbon duplicated info already in the status bar Scale field (post-HT-19 reorder); the "Layer: พื้นที่ย่อย ⌄" dropdown in the ribbon broke the uniform 60px button row and is redundant with the Right panel Layers tab; the Review button icon appeared disproportionately large because it sat in a bare `.ribbon-group` without `.rsection`/`.rrow` wrapper. Body 16px (set earlier the same session to match mockup default) caused text in inherited-font-size elements to push past their container bounds — 14px is the safe baseline.
 
 **Files touched:**
-- `proto/sandbox/mockup-top-menu-redesign.html` — created (~700 LOC, canonical UI target with full density picker + collapse buttons + left/right panels + ribbon)
-- `docs/status/PHASE_INDEX.md` — LOOP_RESUMED note + Canonical UI Mockup section + 15 sprint rows
-- `docs/status/LATEST_STATUS.md` — date header + latest sprint summary
-- `docs/status/NEXT_ACTIONS.md` — Immediate Next switched from "queue empty" → HT-12a
-- `CURRENT_STATUS.md` — one-line state
-- `log.md` — this entry
+- `proto/static/css/app.css`: `body { font-size: 16px }` → `14px` (1-line revert)
+- `proto/ui.html`: `#scale-badge` `display:none`; `.ribbon-group` wrapping `#active-layer-select` `display:none` + 2 `rdiv` dividers removed; `#btn-report` rewrapped in `.rsection` + `.rlbl "📊 REVIEW"` + `.rrow` + leading `rdiv`
 
-**Tests:** No code change → no E2E required. py_compile not run. Doc-only session.
+**Tests:**
+```
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS (no syntax errors)
+python3.11 proto/e2e_ui_test.py smoke  → PASS (earlier in session; env port-8011 bind conflict
+  developed later from leftover python processes; resolved via taskkill but env remains flaky).
+  All 18 markers GREEN incl. MAIN_UI_OK / MENU_OK / PROJECT_OK / SELECT_OK / PATH_GEOMETRY_OK.
+full not required: no export/save-load/rotation/real-PDF/snap/layer-model changes.
+```
 
 **Phase 1 scope check:**
-- ✅ Zero `proto/ui.html` / `proto/server.py` edits (mockup lives in `proto/sandbox/`)
-- ✅ Zero `.bmaplan` schema changes
-- ✅ Zero forbidden-surface touches
-- ✅ Phase 1 boundary respected
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints — UNCHANGED (no server.py edit)
+- ✅ `.bmaplan` schema — UNCHANGED (no schema edit)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 
 **Known gaps / follow-ups:**
-- Density picker has 2 implementations now: HT-10 (Settings modal) + HT-12h (menu bar). HT-12h sprint card includes bridge with `applyLayoutPrefs()` so they coexist or HT-10 entry deprecates gracefully.
-- Mockup conflicts with earlier user feedback: mockup keeps Shape section + Comment HERO, but user previously said "remove". Sprint cards reflect mockup as authoritative — follow-up sprint can flip if desired.
-- Comment/Annotation redesign (Notes tab content / HT-14d removed from queue) stays `invent-queued` — needs `/bma-invent` DIVERGE before becoming a sprint.
+- Smoke env flakiness (port 8011 hangs from leftover processes) — file as separate `dev-env-cleanup` follow-up; not blocking.
+- Active-layer-select hidden — verify Right panel Layers tab `setActiveLayer` flow on real 45-page PDF still works (HT-25 should cover).
+- Manual test: open in real Chrome, confirm ribbon row reads `TOOL | SCALE | พื้นที่ | LINES | MARKER | HELPERS | EDIT | REVIEW` with no gap where Layer select used to be.
 
-**Next:** `/loop /bma-dev-loop` picks HT-12a (no dependencies, top of queue) → menu bar DOM + dropdown CSS shell. Est. ~200 LOC HTML+CSS, zero forbidden surface.
+---
+
+## 2026-05-18..19 — Page Setup Redesign trilogy + Settings v2 (4 sprints + research) — PASS (branch: main)
+
+**What changed:** Four sprints shipped in one overnight session: (1) INV-2026-05-18-001a — context-sensitive left inspector with traffic-light readiness chips in Page Setup (`e85a5ce`); (2) INV-2026-05-18-001b — floor sub-type schema for `plan` pages (`pageFloorKind`/`pageFloorNum`, `798e5c3`); (3) Research commit `afd4e71` — Bluebeam/Adobe/Foxit/Nitro/AutoCAD/PlanGrid page-delete UX survey, Q1-Q4 design answers locked; (4) INV-2026-05-18-001c — permanent page delete + renumber-map dialog + `/rebuild-pdf` server endpoint (`ebb521c`); (5) INV-2026-05-18-002 — Settings v2 adding four PREFS paths: CSV separator, include-law-basis flag, loupe radius, loupe zoom factor (`3e71865`). All 4 INV markers GREEN on smoke.
+
+**Why:** The existing Page Setup panel was a static project-info form with no per-page readiness feedback. Users needed a way to see at a glance which pages were tagged, calibrated, and had objects — and to delete unwanted pages permanently before final export. The research-first approach (user request: "วิจัยมาก่อนว่าโปรแกรมอื่นทำยังไง") verified that BMA's renumber-map preview is genuinely better than incumbents (PRIOR_ART_PARTIAL verdict). Settings v2 closes user-reported friction around CSV separator choice and loupe zoom being too large/small for different monitors.
+
+**Files touched:**
+- `proto/ui.html`: ~600 LOC — inspector helpers (`_pageReadiness`, `_renderSetupDashboard`, `_renderSetupPageCard`, `_renderSetupInspector`), floor-kind picker, delete dialog (`_openRenumberDialog`, `_executeRenumberDelete`), `_reindexPageDicts`, `_applyLoupePrefs`, `exportCSV` extended, loupe prefs wired
+- `proto/server.py`: +50 LOC — `/rebuild-pdf` POST endpoint (PyMuPDF `doc.delete_page()` + `CASES` dict update + page_cache flush)
+- `proto/static/css/app.css`: ~80 LOC — inspector dashboard/page-card styles, traffic-light dot, delete dialog
+- `proto/e2e_ui_test.py`: ~280 LOC — `_test_inv_page_setup_a`, `_test_inv_page_setup_b`, `_test_inv_page_setup_c`, `_test_settings_v2`, new marker prints
+- `docs/invent/page-setup-redesign.md`: research addendum + Q1-Q4 + Decision sections
+- `docs/status/PHASE_INDEX.md`: sprint card status updates + commit hashes + trilogy summary
+
+**Tests:**
+```
+py -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS (clean, no syntax errors)
+py proto/e2e_ui_test.py smoke                          → PASS
+  PHASE_INV_PAGE_SETUP_A_OK 8/8  ✅
+  PHASE_INV_PAGE_SETUP_B_OK 9/9  ✅
+  PHASE_INV_PAGE_SETUP_C_OK 7/7  ✅
+  SETTINGS_V2_OK 6/6             ✅
+  SETTINGS_OK (v1) still GREEN — no v1 regression
+```
+Pre-existing failures (NOT regressions from this session): HT-8C.objectsTabRenamed / HT-10.compactIsSmallerThanSpacious / HT-12H.cssCascadeChangesButtonSize — unchanged, untouched surfaces, documented baseline drift.
+`full` E2E deferred (no forbidden-trigger surfaces touched: export/rotation/save-load/real-PDF/snap/layer all unchanged). `/bma-human-test` deferred to next session by user choice.
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core `/upload` / `/page/{n}` / `/analyse` — UNCHANGED; NEW `/rebuild-pdf` additive per U1/U2/SB-001 precedent
+- ✅ `.bmaplan` schema — ADDITIVE only (`pageFloorKind`/`pageFloorNum` new optional dicts); version stays 1
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- `/bma-human-test` (realistic 45-page journey on new Page Setup + Settings v2) deferred — run before next release
+- User has uncommitted working-tree tweaks (body font-size 16→14px, scale-badge hidden, ribbon controls reorganized) — separate polish sprint
+- `full` E2E not run this session; run before distributing a build
+
+<!-- 2026-05-18 planning session (docs-only) archived to docs/archive/log-2026-05-18.md -->
 
 ---
 

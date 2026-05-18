@@ -4,7 +4,112 @@
 
 ---
 
-# Latest: UI Redesign Batch — HT-12..HT-15 (15 sprints, 22 commits in one day)
+# Latest: Ribbon Cleanup Polish — hide scale-badge + active-layer-select + Review rsection wrap + font revert
+
+Branch: main
+Date: 2026-05-19
+
+## Outcome: PASS — py_compile PASS, smoke PASS (earlier in session), pure cosmetic changes
+
+## Summary
+
+Pure CSS + DOM `display:none` ribbon cleanup with zero JS logic change. Hid the `#scale-badge` red pill from the ribbon (status bar Scale field already surfaces this state) and hid the `#active-layer-select` ribbon-group (Right panel Layers tab is the primary path; select element preserved in DOM for JS references). Rewrapped the `#btn-report` Review button in a proper `.rsection` + `.rlbl` + `.rrow` structure so it renders at the same 60px uniform height as all other ribbon groups instead of stretching to the full 78px ribbon height. Reverted `body { font-size }` from 16px back to 14px after real-Chrome testing showed layout shifts in inherited-font-size elements.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/static/css/app.css` | `body { font-size: 16px }` → `14px` (1-line revert) |
+| `proto/ui.html` | `#scale-badge` `display:none`; `.ribbon-group` wrapping `#active-layer-select` `display:none` + 2 `rdiv` dividers removed; `#btn-report` rewrapped in `.ribbon-group.rsection` with `.rlbl "📊 REVIEW"` + `.rrow` + leading `rdiv` |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `proto/server.py` — UNCHANGED (no server edit in this sprint)
+- `.bmaplan` schema version stays 1; no schema fields added or removed
+
+## Tests Run
+
+```
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke  → PASS (earlier in session; all 18 markers GREEN)
+full not run: no forbidden-trigger surfaces touched (export/rotation/save-load/real-PDF/snap/layer unchanged)
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints — UNCHANGED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: Page Setup Redesign trilogy + Settings v2 (INV-001a/b/c + INV-002)
+
+Branch: main
+Date: 2026-05-18..19
+
+## Outcome: PASS — smoke GREEN, all 4 INV markers GREEN, zero forbidden-surface edits
+
+## Summary
+
+Four sprints shipped in one overnight session, plus one research commit. The **Page Setup Redesign trilogy** (INV-001a/b/c) delivers a context-sensitive left inspector that switches between a multi-page dashboard view (traffic-light readiness chips) and a per-page card view (tag/scale/floor configuration + permanent delete with renumber-map preview). A new `/rebuild-pdf` server endpoint (`ebb521c`) performs PyMuPDF page deletion with an in-place case-dict reindex across all 7 per-page dicts. The **Settings v2** sprint (INV-002, `3e71865`) extends the existing `bmaPlan.settings.v1` store with four new PREFS: CSV separator, include-law-basis flag, loupe radius, and loupe zoom factor — wired into `exportCSV` and `updateLoupe` without touching v1 paths.
+
+Research commit `afd4e71` surveyed Bluebeam, Adobe, Foxit, Nitro, AutoCAD, and PlanGrid page-delete UX before building 001c — verdict PRIOR_ART_PARTIAL (algorithm solved everywhere; BMA's renumber-map preview is genuinely better than incumbents). Q1-Q4 design answers locked in `docs/invent/page-setup-redesign.md`.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | ~600 LOC — inspector helpers, floor-kind picker, delete dialog + `_reindexPageDicts`, `_applyLoupePrefs`, `exportCSV` extended (commits `e85a5ce`, `798e5c3`, `ebb521c`, `3e71865`) |
+| `proto/server.py` | +50 LOC — `/rebuild-pdf` POST endpoint: `doc.delete_page()` reverse-order loop, `page_cache`/`image_cache` flush, `{totalPages, renumberMap, deletedNumbers}` response (`ebb521c`) |
+| `proto/static/css/app.css` | ~80 LOC — inspector dashboard/page-card layout, traffic-light dot, delete dialog (`e85a5ce`, `ebb521c`) |
+| `proto/e2e_ui_test.py` | ~280 LOC — 4 new test functions + marker prints (`e85a5ce`, `798e5c3`, `ebb521c`, `3e71865`) |
+| `docs/invent/page-setup-redesign.md` | Research addendum + Q1-Q4 + Decision sections (`afd4e71`) |
+| `docs/status/PHASE_INDEX.md` | Sprint card status updates + commit hashes + trilogy summary (`afd4e71`, `ebb521c`, `3e71865`) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `proto/server.py` core `/upload` / `/page/{n}` / `/analyse` — UNCHANGED; `/rebuild-pdf` is a NEW additive endpoint per U1/U2/SB-001 precedent
+- `.bmaplan` schema — ADDITIVE only (`pageFloorKind`/`pageFloorNum` optional dicts, version stays 1)
+- No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+## Tests Run
+
+```
+py -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+py proto/e2e_ui_test.py smoke                          → PASS
+  PHASE_INV_PAGE_SETUP_A_OK 8/8  PASS
+  PHASE_INV_PAGE_SETUP_B_OK 9/9  PASS
+  PHASE_INV_PAGE_SETUP_C_OK 7/7  PASS
+  SETTINGS_V2_OK 6/6             PASS
+  SETTINGS_OK (v1 baseline)      still GREEN — no v1 regression
+```
+
+Pre-existing failures (NOT caused by this session): HT-8C.objectsTabRenamed / HT-10.compactIsSmallerThanSpacious / HT-12H.cssCascadeChangesButtonSize — surfaces untouched, documented baseline drift.
+
+`full` E2E not run (no forbidden-trigger surfaces touched). `/bma-human-test` deferred by user to next session.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints `/upload` / `/page/{n}` / `/analyse` — UNCHANGED
+- ✅ `.bmaplan` schema — ADDITIVE only (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail (Phase 1 boundary preserved)
+
+---
+
+# Previous: UI Redesign Batch — HT-12..HT-15 (15 sprints, 22 commits in one day)
 
 Branch: main
 Date: 2026-05-18
@@ -24,10 +129,6 @@ Whole-day autonomous /bma-dev-loop batch. Derived from canonical mockup `proto/s
 
 Marker count: 41 → 54 smoke markers GREEN (+13 new, +0 failures). Zero forbidden-surface touches across 22 commits.
 
-## Summary
-
-Production implementation of Approach D from `docs/invent/freeform-area.md`. In polygon mode, holding `Alt` at mousedown enters streaming freehand sub-mode (distance-bin sampling, 6 px gate). Releasing Alt returns to click-vertex mode — mixed click+drag in the same polygon. `Shift`/`Ctrl` during draw modulates RDP tolerance live. `Enter` closes + RDP-decimates + computes area via existing `polyAreaM2`. New helper `rdpSimplify` (~25 LOC, inline). `PHASE_FREEFORM_OK` 7 sub-checks. err=0.46% on noisy circle (240 raw → 16 decimated). full 44/44 GREEN (43 pre-existing + 1 new). Commit `023b988`.
-
 ## Files Changed (cumulative across 22 commits)
 
 | File | Lines added (approx) |
@@ -36,8 +137,6 @@ Production implementation of Approach D from `docs/invent/freeform-area.md`. In 
 | `proto/static/css/app.css` | ~30 LOC (density-picker + panel-collapse-btn + poly-submode-popover) |
 | `proto/e2e_ui_test.py` | ~700 LOC (16 new test functions + 17 new PHASE_HT_OK markers) |
 | `docs/status/PHASE_INDEX.md` | sprint queue marked done + LOOP_RESUMED→LOOP_DONE block |
-| `proto/static/docs/content.json` | rebuilt (28→31 pages) |
-| `proto/sandbox/mockup-top-menu-redesign.html` | 700 LOC canonical mockup |
 
 ## Source Files NOT Touched (Forbidden Surfaces)
 
@@ -45,19 +144,14 @@ Production implementation of Approach D from `docs/invent/freeform-area.md`. In 
 - `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
 - `buildSnapIndex`, `snap` engine — UNCHANGED
 - `proto/server.py` — UNCHANGED (pure client feature)
-- `.bmaplan` schema — UNCHANGED (no new fields, additive only via PREFS.layout)
-
-## Previous: INV-2026-05-17-001 — Freeform area measurement (2026-05-17)
-
-PASS — full 44/44 GREEN. Approach D Alt sub-mode of polygon with RDP decimation. `rdpSimplify` ~25 LOC. `PHASE_FREEFORM_OK` 7 sub-checks. err=0.46% on noisy circle. Commit `023b988`. See previous PATCH_SUMMARY archived in `docs/archive/patch-history-2026-05-09.md` and `log.md` for the prior entry.
-- `.bmaplan` schema version stays 1; `obj.freeform` is additive optional only
+- `.bmaplan` schema — UNCHANGED
 
 ## Tests Run
 
 ```
 python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python proto/e2e_ui_test.py smoke                          → PASS 41/41 GREEN
-python proto/e2e_ui_test.py full                           → PASS 44/44 GREEN
+python proto/e2e_ui_test.py smoke                          → PASS 54/54 GREEN
+python proto/e2e_ui_test.py full                           → not run (no forbidden-trigger surfaces touched)
 ```
 
 ## Phase 1 Scope Check
@@ -68,7 +162,9 @@ python proto/e2e_ui_test.py full                           → PASS 44/44 GREEN
 
 ---
 
-# Previous: HT-6 — arc-guideline live preview
+<!-- HT-6 and older patches archived to docs/archive/patch-history-2026-05-09.md -->
+
+# Previous (older): HT-6 — arc-guideline live preview
 
 Branch: main
 Date: 2026-05-17

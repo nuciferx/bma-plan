@@ -1,24 +1,30 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-18
+Date: 2026-05-19
 
 ## Immediate Next
 
-**LOOP_RESUMED 2026-05-18** — Active queue ขณะนี้มี **15 sprints** จาก mockup canonical `proto/sandbox/mockup-top-menu-redesign.html`:
+**Ribbon Cleanup Polish PASS — ready to commit. Three follow-up steps:**
 
-1. **HT-12a** (no deps, top of queue) — Top menu expansion (9-item menu bar + dropdown CSS shell + density picker DOM). Est ~200 LOC HTML+CSS. Zero forbidden-surface. → `/loop /bma-dev-loop` picks this first
-2. **HT-12b..f** — File/View/Page/Scale/Project menu wiring (depend on HT-12a)
-3. **HT-12g** — Workspace ribbon REMOVAL (depends on HT-12b..f all done)
-4. **HT-12h** — Density picker behavior + CSS vars (depends on HT-12a + HT-10)
-5. **HT-12i** — Panel collapse buttons (depends on HT-10)
-6. **HT-13a..d** — Measure ribbon polish: Helpers section / Tool rstack / Edit rstack / Polygon dropdown popover (depend on HT-12g)
-7. **HT-14a..c** — Right panel content: 📋 List / 🔧 Props / 📊 Summary deep-dive (independent — close HT-8d-1 placeholders)
-8. **HT-15a** — Left panel Sheets tab grouped A/S/M/E/P (independent)
+1. **Commit this sprint** (user decision) — `git add proto/static/css/app.css proto/ui.html` and commit. All 7 mandatory doc files updated by this sprint writer run.
 
-Run `/loop /bma-dev-loop` to start.
+2. **Test in real Chrome on a 45-page PDF** — open browser (not headless), confirm ribbon row reads `TOOL | SCALE | พื้นที่ | LINES | MARKER | HELPERS | EDIT | REVIEW` with no gap where Layer select used to be. Verify Review button renders at the same height as other ribbon groups.
+
+3. **Verify Right panel Layers tab can still change active layer via row click** — `<select id="active-layer-select">` is hidden but preserved in DOM; `setActiveLayerMenu()`, `getActiveLayer()`, `updateActiveLayerControl()` all still reference it. Quick open-PDF + draw polygon + change layer via Right panel row click confirms JS refs remain wired.
+
+After commit, active queue is empty. Eligible next work:
+- `/bma-human-test` — realistic 45-page permit journey on new Page Setup inspector + Settings v2 (recommended before release; deferred from overnight session by user choice)
+- `/bma-invent` on Comment/Annotation system redesign (filed `invent-queued` 2026-05-17)
+- Pre-existing failure cleanup — 3 baseline-drift failures (HT-8C.objectsTabRenamed / HT-10.compactIsSmallerThanSpacious / HT-12H.cssCascadeChangesButtonSize) as small CSS/density polish sprint
 
 ## Recently Done
 
+- **Ribbon Cleanup Polish** — 2026-05-19. `body { font-size }` 16px → 14px (revert after Chrome layout shift). `#scale-badge` hidden from ribbon. `#active-layer-select` ribbon-group hidden (preserved in DOM). `#btn-report` rewrapped in `.rsection` + `.rlbl` + `.rrow` (uniform 60px height). py_compile PASS, smoke PASS (all pre-existing markers GREEN). Zero forbidden-surface edits.
+- **INV-2026-05-18-002 — Settings v2: export defaults + loupe prefs** — 2026-05-19. 4 new PREFS additive in settings.v1: csvSeparator / includeLawBasis / loupe.radius / loupe.zoomFactor. exportCSV separator-aware; updateLoupe zoom-factor-driven. SETTINGS_V2_OK 6/6; SETTINGS_OK (v1) still GREEN. Commit `3e71865`.
+- **INV-2026-05-18-001c — Page delete + renumber-map + /rebuild-pdf** — 2026-05-19. NEW /rebuild-pdf endpoint. PyMuPDF doc.delete_page() reverse-order. _reindexPageDicts across 7 per-page dicts. Hard-block during draw, last-page guard, pushUndo(), Foxit-style warning. PHASE_INV_PAGE_SETUP_C_OK 7/7. Commit `ebb521c`. Research: `afd4e71` Q1-Q4 locked in `docs/invent/page-setup-redesign.md`.
+- **INV-2026-05-18-001b — Floor sub-types for plan pages** — 2026-05-19. pageFloorKind/pageFloorNum additive schema. autoNamePage floor-aware. Save/load round-trip. PHASE_INV_PAGE_SETUP_B_OK 9/9. Commit `798e5c3`.
+- **INV-2026-05-18-001a — Page Setup left inspector + traffic-light chips** — 2026-05-18. Dashboard ⇄ page-card switch. Traffic-light dot (green/amber/red). Object-count chip. PHASE_INV_PAGE_SETUP_A_OK 8/8. Commit `e85a5ce` (initial repo commit).
+- **UI Redesign Batch HT-12..HT-15** — 2026-05-18. 15 sprints, 22 commits, smoke 54/54 GREEN. Top menu absorbs Workspace ribbon. Polygon dropdown popover. Right panel renderers. Density picker. Panel collapse buttons.
 - **INV-2026-05-17-001 — Freeform area measurement** — 2026-05-17. Alt-at-mousedown enters streaming freehand sub-mode (distance-bin sampling 6 px gate). Mixed click+drag in one polygon. Shift/Ctrl live tolerance modulation. rdpSimplify RDP helper (~25 LOC, inline). obj.freeform additive metadata. PHASE_FREEFORM_OK 7 sub-checks (errPct=0.46%, 240 raw → 16 decimated). polyAreaM2/snap/server all untouched. full 44/44 GREEN. Commit 023b988. TEST-H skipped (Alt-mousedown not exercised by bma-human-journey-tester).
 - **HT-6 — arc-guideline live preview** — 2026-05-17. Live arc preview in `redraw()` draft block: dashed arc from last vertex curving through through-point to cursor when `guidePoint` set + `mArcDraft.pending`. `computeArcEdge` reused. `PHASE_HT6_OK` 4 sub-checks. full 42/42 GREEN. Zero forbidden-surface edits. Source: user-test 2026-05-17 "ขาดเส้น guideline เหมือนของเส้นตรง". Commit `ecb44d4`. TEST-H skipped (render-only branch; journey tester does not exercise arc-mode interactively).
 - **CIRCLE_RENDER — Analytic circle/ellipse render** — 2026-05-17. `_renderPolyEdges` short-circuit branches: `ctx.arc` for circle, `ctx.ellipse` for ellipse; else legacy flow unchanged. Storage/snap/area math untouched. `CIRCLE_RENDER_OK` 7 sub-checks. full 41/41 GREEN. Last pre-loop leftover cleared. Refs: `docs/status/PHASE_H_PATH_GEOMETRY_VISUAL_AUDIT.md`. Commit `1bf61ca`.

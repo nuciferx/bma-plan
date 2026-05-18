@@ -283,7 +283,8 @@
         <div class="rrow">
           <button class="rbtn rbtn-hero" id="btn-scale-current" onclick="if(totalPages)setMode('calib');else alert('เปิด PDF ก่อน')">∕<span class="rbtn-lbl">Set Scale</span></button>
           <button class="rbtn" id="btn-scale-mgr" onclick="if(totalPages)openScaleManager();else alert('เปิด PDF ก่อน')">📐<span class="rbtn-lbl">Scale Mgr</span></button>
-          <span id="scale-badge">ยังไม่ตั้ง Scale</span>
+          <!-- 2026-05-19: scale-badge hidden — redundant with status bar Scale field. Keep in DOM (JS reads/writes it). -->
+          <span id="scale-badge" style="display:none">ยังไม่ตั้ง Scale</span>
         </div>
       </div>
       <div class="rdiv"></div>
@@ -347,8 +348,8 @@
           </div>
         </div>
       </div>
-      <div class="rdiv"></div>
-      <div class="ribbon-group">
+      <!-- 2026-05-19: active-layer-select hidden from ribbon per user — control via right panel Layers tab. Keep select in DOM (many JS funcs reference it: activeLayerLabel/getActiveLayer/updateActiveLayerControl/setActiveLayerMenu/etc). -->
+      <div class="ribbon-group" style="display:none">
         <select id="active-layer-select" class="rbtn" style="min-width:110px;padding:2px 6px;height:auto" onchange="setActiveLayer(this.value)">
           <option value="sub_area">Layer: พื้นที่ย่อย</option>
           <option value="base_area">Layer: พื้นที่หลัก</option>
@@ -356,7 +357,6 @@
           <option value="reference_geometry">Layer: อ้างอิง</option>
         </select>
       </div>
-      <div class="rdiv"></div>
       <div class="ribbon-group rsection">
         <div class="rlbl">↩ EDIT</div>
         <div class="rrow">
@@ -365,8 +365,12 @@
           <button class="rbtn danger" id="btn-delete-selected" onclick="deleteSelectedObject()">⌫<span class="rbtn-lbl">ลบ</span></button>
         </div>
       </div>
-      <div class="ribbon-group">
-        <button class="rbtn" id="btn-report" onclick="openCheckPanel()">📊<span class="rbtn-lbl">Review</span></button>
+      <div class="rdiv"></div>
+      <div class="ribbon-group rsection">
+        <div class="rlbl">📊 REVIEW</div>
+        <div class="rrow">
+          <button class="rbtn" id="btn-report" onclick="openCheckPanel()">📊<span class="rbtn-lbl">Review</span></button>
+        </div>
       </div>
     </div>
 

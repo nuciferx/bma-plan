@@ -172,6 +172,16 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 | HT-7 | FRICTION | per-page scale not enforced before measurement — **✅ done `a3e45c5` 2026-05-17**. Hybrid (a+b) implemented: hard-block + auto-redirect to calib + bounce-back. `_SCALE_REQUIRED_MODES` set + `_scaleGateBeforeMode()`. `PHASE_HT7_OK` 6 sub-checks. full 44/44 GREEN. | user-test 2026-05-17 | `/bma-measure-ux` |
 | HT-6 | FRICTION | arc draft missing live guideline preview — **✅ done `ecb44d4` 2026-05-17**. Added dashed arc preview in `redraw()` draft block: `computeArcEdge(lastVertex, mousePos, throughPt, centroid)` → `ctx.arc(...)` with `setLineDash`. `PHASE_HT6_OK` 4 sub-checks. full 42/42 GREEN. | user-test 2026-05-17 | `/bma-measure-ux` |
 
+### ideas 2026-05-19
+
+- [ ] **Mobile port — entire program** — `invent-queued` — from /idea 2026-05-19 (user wants all of BMA-Plan available on mobile)
+    - Source: user 2026-05-19, "พัฒนาโปรแกรมทั้งหมดลง mobile"
+    - Tags: bma-plan, mobile, ui, architecture, p-med
+    - Direction: (unframed — pending /bma-invent FRAME phase)
+    - Open questions: (pending /bma-invent)
+    - Scope skill: pending (`/bma-invent` decides after research)
+    - Forbidden-surface profile: unknown — `/bma-invent` checks during RESEARCH
+
 ### ideas 2026-05-18
 
 - [x] **Settings/Preferences panel — v2 extension** — `invent-done-go (→ INV-2026-05-18-002)` 2026-05-18. Approach A (Narrow-Deep: Export + Loupe) 26/30. Spike PASS 8/8 (6 acceptance + 2 robustness bonuses). User GO 2026-05-18. Sprint card written. See `docs/invent/settings-panel-v2.md` + `proto/sandbox/invent-settings-panel-v2.html` + `artifacts/invent/settings-panel-v2/verify-spike.mjs`.

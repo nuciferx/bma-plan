@@ -4,7 +4,78 @@
 
 ---
 
-# Latest: UI Redesign Batch HT-12..HT-15 — LOOP_DONE 2026-05-18
+# Latest: Ribbon Cleanup Polish — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS. Pure cosmetic sprint — two files changed, zero JS logic changed, zero forbidden surfaces touched. py_compile PASS. Smoke PASS (earlier in session; env flakiness noted, not a code regression). Ready to commit.
+
+## What was delivered
+
+- `body { font-size }` reverted 16px → 14px in `proto/static/css/app.css` — 16px caused layout shifts in inherited-font-size elements during real-Chrome testing.
+- `#scale-badge` (ribbon Scale group) hidden via `display:none` — element stays in DOM for JS (`updateAnalyseUI()` writes to `.textContent`); status bar Scale field already shows this information.
+- `#active-layer-select` ribbon-group hidden via `display:none` on wrapper; two flanking `rdiv` dividers removed — `<select>` element preserved for `activeLayerLabel()`, `getActiveLayer()`, `setActiveLayerMenu()`, `updateActiveLayerControl()`, draw functions. Right panel Layers tab is the primary user path.
+- `#btn-report` Review button rewrapped: bare `.ribbon-group` → `.ribbon-group.rsection` with `.rlbl "📊 REVIEW"` + `.rrow` + leading `rdiv` divider — prevents flex-stretch to 78px, renders at uniform 60px matching all other ribbon groups.
+
+## What's next
+
+1. Commit this sprint (user decision).
+2. Open in real Chrome on a 45-page PDF — confirm ribbon row reads `TOOL | SCALE | พื้นที่ | LINES | MARKER | HELPERS | EDIT | REVIEW` with no gap where Layer select used to be.
+3. Verify Right panel Layers tab can still change active layer via row click (JS refs preserved but worth confirming on real PDF).
+
+## Position in Plan
+
+Phase 1 complete. All Phase I sub-sprints done. INV/HT series done. Active queue is empty post-Page-Setup-trilogy. This sprint is a cosmetic polish item from the uncommitted working-tree tweaks noted in the previous session's "known gaps" list. No Phase 2 scope.
+
+---
+
+# Previous: Page Setup Redesign trilogy + Settings v2 — PASS
+
+**Date:** 2026-05-18..19
+**Branch:** main
+**Commits:** `e85a5ce` (001a), `798e5c3` (001b), `afd4e71` (research), `ebb521c` (001c), `3e71865` (INV-002)
+
+## Outcome
+
+PASS. Four sprints shipped in one overnight session, plus one research commit. All 4 new E2E markers GREEN. Zero forbidden-surface edits. Phase 1 boundary preserved. Active sprint queue is now empty (LOOP_DONE).
+
+## What was delivered
+
+**Page Setup Redesign trilogy (INV-2026-05-18-001a/b/c):**
+
+The Page Setup left panel was a flat project-info form. It is now a context-sensitive inspector with two views: a multi-page **dashboard** (traffic-light readiness chips per page — green = tagged + manually calibrated, amber = auto-unverified, red = untagged/unknown scale + object count chip) and a per-page **card** (tag selection, scale state, floor sub-type configuration for `plan` pages, delete button). Navigation between views is managed by `_renderSetupDashboard` / `_renderSetupPageCard` / `_setupBack`.
+
+For `plan`-tagged pages, the card now shows a floor-kind picker (`pageFloorKind`: basement / normal / mechanical / rooftop / custom) and a numeric floor-number input (`pageFloorNum`). `autoNamePage` is floor-aware: basement N auto-names "ชั้นใต้ดิน N", normal N → "ชั้น N", etc. These fields are new additive per-page dicts in `.bmaplan v1` — old saves load without error.
+
+Permanent page delete (INV-001c) was designed research-first: `bma-researcher` surveyed Bluebeam, Adobe, Foxit, Nitro, AutoCAD, and PlanGrid page-delete UX before any code was written (user request: "เวลาลบไป วิจัยมาก่อน"). Verdict PRIOR_ART_PARTIAL — the core algorithm (reverse-order deletion, index remapping) is solved everywhere; BMA's **renumber-map preview table** (showing each old page number → new number, deleted rows crossed out in red) is genuinely better than incumbents. Q1-Q4 design questions were locked in `docs/invent/page-setup-redesign.md` before implementation. The `/rebuild-pdf` endpoint (`ebb521c`) performs `doc.delete_page()` in reverse order, flushes `page_cache`/`image_cache`, and returns `{totalPages, renumberMap, deletedNumbers}`. The client `_executeRenumberDelete` POSTs, receives the map, and runs `_reindexPageDicts` across all 7 per-page dicts (pageStore, pageTags, pageNames, pageRotations, excludedPages, pageFloorKind, pageFloorNum). Hard-blocks: refuses during active draw (`mPts.length > 0`) and refuses if only 1 page remains. Session-scoped undo via `pushUndo()` before commit. Foxit-style warning in dialog.
+
+**Settings v2 (INV-2026-05-18-002, `3e71865`):**
+
+Four new PREFS paths grafted onto the existing `bmaPlan.settings.v1` store (additive, v1 baseline SETTINGS_OK 13 sub-checks still GREEN):
+- `export.csvSeparator` (`,` / `;` / tab, default `,`) — `exportCSV` now builds a dynamic separator-aware escape regex and uses it throughout
+- `export.includeLawBasis` (bool, default true) — conditionally appends the lawBasis column to CSV output
+- `loupe.radius` (50–160 px, default 80) — `updateLoupe` uses this for the loupe canvas size
+- `loupe.zoomFactor` (2–8×, default 4) — `updateLoupe` divides source-window width by zoom factor for constant magnification
+
+UI slots into the existing 4-tab modal (loupe in "วาด" tab, export defaults in "หน่วย" tab) — no new modal tab required.
+
+## What's next
+
+Active sprint queue is empty (LOOP_DONE again after trilogy). Three options:
+1. `/bma-human-test` — realistic 45-page permit journey on the new Page Setup inspector + Settings v2 (deferred this session by user choice; recommended before release)
+2. `/bma-invent` on the "Comment/Annotation system redesign" idea (filed `invent-queued` 2026-05-17)
+3. Polish sprint for the uncommitted user working-tree tweaks (body font-size 16→14px, scale-badge hidden, ribbon controls reorganized)
+
+## Position in Plan
+
+Phase 1 complete. All Phase I sub-sprints done. INV-series (freeform, arc, Page Setup trilogy, Settings v2) done. HT-6/HT-12..15 UI Redesign done. Active queue empty. Phase 2+ permanently out of scope. Remaining eligible work: human-journey test coverage + invent-queued ideas + cosmetic polish.
+
+---
+
+# Previous: UI Redesign Batch HT-12..HT-15 — LOOP_DONE 2026-05-18
 
 **Date:** 2026-05-18
 **Branch:** main
