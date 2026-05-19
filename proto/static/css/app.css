@@ -759,31 +759,41 @@ body.overview .zen-hud{display:none !important}
 .ov-title{font-size:18px;font-weight:600;color:var(--text)}
 .ov-meta{font-size:11px;color:var(--text3)}
 .ov-meta .kbd{background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--text2);font-family:'SF Mono',Consolas,monospace;margin:0 2px}
-.ov-groups{display:flex;flex-direction:column;gap:28px}
-.ov-group{display:flex;flex-direction:column;gap:10px}
+/* INV-2026-05-19-002c: F12 Overview mockup port. Mockup = white cards on dark
+   grid bg, 180px wide / 124px thumb, chip-with-label overlay, 16px gap, 54px
+   between groups, scale-1.04 hover. */
+.ov-groups{display:flex;flex-direction:column;gap:54px}
+.ov-group{display:flex;flex-direction:column;gap:14px}
 .ov-group-label{display:flex;align-items:baseline;gap:12px;font-size:13.5px;font-weight:600;color:var(--text)}
 .ov-group-count{font-size:10px;color:var(--text3);font-weight:400;background:var(--surface3);padding:2px 8px;border-radius:10px}
-.ov-group-grid{display:grid;grid-template-columns:repeat(auto-fill,170px);gap:12px}
-.ov-card{width:170px;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;transition:transform .1s,border-color .1s,box-shadow .15s}
-.ov-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 18px rgba(10,132,255,.25);z-index:5}
-.ov-card.active{border-color:var(--green);box-shadow:0 0 0 2px rgba(34,197,94,.35)}
-.ov-thumb{width:100%;height:108px;background:#0a0c10;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:10.5px;position:relative;overflow:hidden}
+.ov-group-grid{display:grid;grid-template-columns:repeat(auto-fill,180px);gap:16px}
+.ov-card{width:180px;background:#fff;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .2s}
+.ov-card:hover{transform:translateY(-4px) scale(1.04);box-shadow:0 12px 28px rgba(59,130,246,.35);z-index:5}
+.ov-card.active{box-shadow:0 0 0 2px #3b82f6,0 8px 20px rgba(59,130,246,.4)}
+.ov-thumb{width:100%;height:124px;background:#f6f7f9;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:10.5px;position:relative;overflow:hidden}
 .ov-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.ov-thumb .ov-dot{position:absolute;top:5px;left:5px;width:8px;height:8px;border-radius:50%;border:1px solid rgba(0,0,0,.4)}
-.ov-thumb .ov-dot.green{background:var(--green)}
-.ov-thumb .ov-dot.amber{background:var(--orange)}
-.ov-thumb .ov-dot.red{background:var(--red)}
-.ov-thumb .ov-obj{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:9.5px;padding:1px 5px;border-radius:8px;font-family:'SF Mono',Consolas,monospace}
-.ov-meta-row{padding:5px 8px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px}
-.ov-num{font-weight:600;color:var(--text3);font-size:10px;background:var(--surface3);padding:1px 5px;border-radius:3px;font-family:'SF Mono',Consolas,monospace}
-.ov-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-/* Group label colors — match site (green), plan (blue), elev (amber), section (purple), detail (cyan), none (gray) */
+/* Chip with text label (5 states: พร้อม / ตรวจ scale / ยังไม่วัด / auto scale / ยกเว้น) */
+.ov-thumb .ov-chip{position:absolute;top:6px;left:6px;background:rgba(255,255,255,0.96);color:#374151;font-size:10px;font-weight:500;padding:3px 7px;border-radius:10px;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ov-thumb .ov-chip.excluded{background:rgba(220,220,220,0.95);color:#6b7280}
+.ov-thumb .ov-chip-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ov-thumb .ov-chip-dot.green{background:#22c55e}
+.ov-thumb .ov-chip-dot.amber{background:#f59e0b}
+.ov-thumb .ov-chip-dot.red{background:#ef4444}
+.ov-thumb .ov-obj{position:absolute;top:6px;right:6px;background:rgba(15,23,42,0.82);color:#fff;font-size:10px;padding:2px 6px;border-radius:9px;font-family:'SF Mono',Consolas,monospace;font-weight:500}
+.ov-meta-row{padding:8px 10px;background:#fff;font-size:11.5px;color:#374151;display:flex;align-items:center;gap:6px}
+.ov-num{font-weight:600;color:#6b7280;font-size:10px;background:#f3f4f6;padding:1px 5px;border-radius:3px;font-family:'SF Mono',Consolas,monospace}
+.ov-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#374151}
+/* Banner above grid (mockup port) */
+.ov-banner{background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.28);color:var(--text);padding:10px 14px;border-radius:8px;font-size:12px;margin:0 0 24px 0;text-align:center;line-height:1.5}
+.ov-banner b{color:var(--accent);font-weight:600}
+/* Group label colors — 7 disciplines per mockup */
 .ov-group.gb-site .ov-group-label{color:#22c55e}
+.ov-group.gb-title .ov-group-label{color:#9ca3af}
 .ov-group.gb-plan .ov-group-label{color:#3b82f6}
 .ov-group.gb-elev .ov-group-label{color:#f59e0b}
 .ov-group.gb-section .ov-group-label{color:#a855f7}
 .ov-group.gb-detail .ov-group-label{color:#06b6d4}
-.ov-group.gb-none .ov-group-label{color:#9ca3af}
+.ov-group.gb-sys .ov-group-label{color:#ef4444}
 /* ── INV-2026-05-19-001b · ⌘K Command Palette (fast page jump) ── */
 .cmd-palette{display:none;position:fixed;top:90px;left:50%;transform:translateX(-50%);width:520px;max-width:92vw;background:var(--surface);border:1px solid var(--accent);border-radius:10px;box-shadow:0 28px 70px rgba(0,0,0,.65),0 0 0 4px rgba(10,132,255,.18);z-index:9500;overflow:hidden;font-family:inherit}
 .cmd-palette.show{display:block}

@@ -256,26 +256,9 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 
 
 
-#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `queued`
+> **Note 2026-05-19:** A duplicate INV-2026-05-19-002c entry was filed here with HT-18's scope content (misfile). Cleaned up. The authoritative INV-002c card is the next entry below.
 
-- **scope skill:** `/bma-check-forbidden` first (touches `.bmaplan` schema area — forbidden surface; additive-only)
-- **depends-on:** none — placed at top of queue
-- **est LOC:** ~50–150 (audit-driven; if audit reveals >200 LOC → SPLIT_REQUIRED → halt loop and ask for HT-18a/b split)
-- **success markers needed:** `PHASE_HT18_OK` with per-object-type round-trip sub-checks — at least 12: poly / opening / line / ref / parking / annotation / pageTags / pageRotations / pageNames / pageFloorKind / pageFloorNum / wallEdgeType / landEdgeRole / northAngle / buildingHeight_m / markerType / excludedPages / projectInfo
-- **suspected categories (audit must enumerate which apply):**
-  - Recently-added object fields (since 001a/002a/002b) missing from `_makeProjBlob` or `applyLoadedProject` symmetrically
-  - `isDirty` / `pushUndo()` not triggered on certain mutations (layer add/rename/color, scale recalibration, north-angle change, page tag/floor-kind change, exclude toggle)
-  - Deep-clone aliasing in nested arrays on save (mutating saved snapshot through ref)
-- **scope plan:**
-  - **Phase A — audit (read-only):** delegate to `bma-explorer` to enumerate every field in `_makeProjBlob` vs `applyLoadedProject` vs object-literal definitions; tabulate save/load drift; list every `pushUndo()` call vs every mutation site (mismatch = isDirty leak)
-  - **Phase B — fix:** additively add missing fields to save+load symmetrically; add missing `pushUndo()` calls; **NEVER rename/remove existing `.bmaplan` fields** (backward compat with user files mandatory)
-  - **Phase C — test:** write `_test_ht18_save_load_round_trip` comparing pre-save vs post-load object trees field-by-field for every object type listed above
-- **forbidden surfaces:** `.bmaplan` schema field renames/removals — additive-only allowed; polyAreaM2 / pdfToC / RS / snap / server.py / `/page/{n}` should NOT need touching
-- **manual UI test required:** save → reload → diff (every changed sprint that touches save/load surface)
-- **risks:** highest user-data-sensitivity surface in the project; any regression silently loses customer measurements on reload
-- **link:** user-reported 2026-05-19 16:08 in IDEAS.md; supersedes the brief backlog entry above
-
-#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `queued` (depends-on 002b ✅ — replaces in-place) — now QUEUE POSITION 2 (after HT-18)
+#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `done` (depends-on 002b ✅ — replaces in-place)
 
 - **scope skill:** `/bma-ui-scope` (UI region: canvas-ui standalone mode — same surface as 002b)
 - **depends-on:** **002b** (in-place replacement of `_OV_GROUPS`, `_ovBuildGrid` chip logic, `.ov-*` CSS; F12 hotkey + body.overview class kept)

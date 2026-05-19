@@ -692,6 +692,8 @@
       <div class="ov-title">🐦 Overview — <span id="ov-total">0</span> หน้าทั้งโครงการ</div>
       <div class="ov-meta"><span id="ov-loaded">0</span>/<span id="ov-loaded-total">0</span> thumbs loaded (lazy) · คลิก card → กลับ Zen บนหน้านั้น · กด <span class="kbd">Esc</span>/<span class="kbd">F12</span> ออก</div>
     </div>
+    <!-- INV-2026-05-19-002c: banner per mockup spatial-sheet-map.html -->
+    <div class="ov-banner" id="ov-banner">💡 <b>Spatial Sheet Map</b> · <span id="ov-banner-count">0</span> หน้าทั้งโครงการบน infinite canvas เดียว · คลิก sheet ใดก็ได้เพื่อ zoom เข้า · กด <span class="kbd">⌘K</span> เพื่อค้นหา</div>
     <div class="ov-groups" id="ov-groups"></div>
   </div>
   <!-- INV-2026-05-19-001b · ⌘K Command Palette — fuzzy page search.
@@ -3650,13 +3652,16 @@ function _zenToggleMinimap(){
 // INV-2026-05-19-002b · F12 Overview mode — spatial sheet map standalone.
 // body.overview replaces canvas with 45-page grid grouped by pageTags discipline.
 // Click card → atomic exit + loadPage(n). Shares topbar with body.zen.
+/* INV-2026-05-19-002c: 6 → 7 groups per mockup spatial-sheet-map.html. Drop
+   "none" — untagged + excluded pages funnel into "title" group (mockup spec). */
 const _OV_GROUPS=[
   {key:"site",label:"🌳 ผังบริเวณ",cls:"gb-site"},
+  {key:"title",label:"📋 ปก / สารบัญ",cls:"gb-title"},
   {key:"plan",label:"📐 ผังพื้น",cls:"gb-plan"},
   {key:"elev",label:"🏢 รูปด้าน",cls:"gb-elev"},
   {key:"section",label:"✂ รูปตัด",cls:"gb-section"},
-  {key:"detail",label:"🔧 รายละเอียด",cls:"gb-detail"},
-  {key:"none",label:"📄 ยังไม่จัดกลุ่ม",cls:"gb-none"}
+  {key:"detail",label:"🔧 รายละเอียดสถาปัตย์",cls:"gb-detail"},
+  {key:"sys",label:"⚡ งานระบบ",cls:"gb-sys"}
 ];
 let _ovIO=null;
 let _ovLoadedCount=0;
@@ -3683,13 +3688,16 @@ function _ovBuildGrid(){
   root.innerHTML="";
   _ovLoadedCount=0;
   if(_ovIO){_ovIO.disconnect();_ovIO=null;}
-  // Compute group → pages
+  // Compute group → pages. INV-002c: excluded pages no longer filtered — they
+  // flow into the "title" group per mockup (chip="ยกเว้น" makes them visible
+  // but distinct). Untagged also defaults to "title" (drop "none" fallback).
   const grouped={};
   _OV_GROUPS.forEach(g=>grouped[g.key]=[]);
   for(let i=1;i<=totalPages;i++){
-    if(excludedPages&&excludedPages.has&&excludedPages.has(i))continue;
-    const tag=(pageTags && pageTags[i])||"none";
-    const key=grouped[tag]?tag:"none";
+    const isExcluded=excludedPages&&excludedPages.has&&excludedPages.has(i);
+    const tag=(pageTags && pageTags[i])||"";
+    let key=grouped[tag]?tag:"title";
+    if(isExcluded)key="title";
     grouped[key].push(i);
   }
   // Lazy thumb IntersectionObserver (reuses 001a pattern; uses /thumb endpoint)
@@ -3703,10 +3711,20 @@ function _ovBuildGrid(){
         img.onload=()=>{_ovLoadedCount++;const lbl=document.getElementById("ov-loaded");if(lbl)lbl.textContent=_ovLoadedCount;};
         img.onerror=()=>{_ovLoadedCount++;const lbl=document.getElementById("ov-loaded");if(lbl)lbl.textContent=_ovLoadedCount;};
         en.target.innerHTML="";en.target.appendChild(img);
-        // Re-add chips on top of img
+        // INV-002c: chip-with-label (replaces 002b dot-only). 5 states per mockup:
+        // พร้อม (manual scale) / ตรวจ scale (auto-unverified) / ยังไม่วัด (no scale)
+        // / auto scale (auto-detected raw) / ยกเว้น (excludedPages).
+        const isExcluded=excludedPages&&excludedPages.has&&excludedPages.has(n);
         const sc=typeof getScaleForPage==="function"?getScaleForPage(n):null;
-        const dotCls=sc?(sc.state==="manual"?"green":"amber"):"red";
-        const dot=document.createElement("span");dot.className=`ov-dot ${dotCls}`;en.target.appendChild(dot);
+        let chipLabel="ยังไม่วัด",chipDotCls="red",chipMod="";
+        if(isExcluded){chipLabel="ยกเว้น";chipDotCls="red";chipMod="excluded";}
+        else if(sc?.state==="manual"||sc?.calibrated){chipLabel="พร้อม";chipDotCls="green";}
+        else if(sc?.state==="auto-unverified"||sc?.source==="auto"){chipLabel="auto scale";chipDotCls="amber";}
+        else if(sc){chipLabel="ตรวจ scale";chipDotCls="amber";}
+        const chip=document.createElement("div");
+        chip.className=`ov-chip${chipMod?" "+chipMod:""}`;
+        chip.innerHTML=`<span class="ov-chip-dot ${chipDotCls}"></span>${chipLabel}`;
+        en.target.appendChild(chip);
         const objCnt=_ovCountObjects(n);
         if(objCnt>0){const oc=document.createElement("span");oc.className="ov-obj";oc.textContent=objCnt;en.target.appendChild(oc);}
       }
@@ -3734,6 +3752,8 @@ function _ovBuildGrid(){
   const t=document.getElementById("ov-total");if(t)t.textContent=totalRendered;
   const lt=document.getElementById("ov-loaded-total");if(lt)lt.textContent=totalRendered;
   const ll=document.getElementById("ov-loaded");if(ll)ll.textContent="0";
+  /* INV-002c: banner count = totalPages (including excluded — they're visible in title group) */
+  const bn=document.getElementById("ov-banner-count");if(bn)bn.textContent=totalPages;
 }
 function _ovCountObjects(n){
   // Match the page-card pattern: count polys + openings + lines + refs + parking for this page

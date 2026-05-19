@@ -4757,8 +4757,10 @@ def _test_inv_overview_mode(page):
         // E. Groups + cards
         const groups = document.querySelectorAll('.ov-group');
         const cards = document.querySelectorAll('.ov-card');
-        const excluded = (typeof excludedPages !== 'undefined') ? excludedPages.size : 0;
-        const expectedCards = totalPages - excluded;
+        // INV-2026-05-19-002c port: excluded pages NO LONGER filtered out — they
+        // flow into the "title" group with chip="ยกเว้น" (mockup spec). So the
+        // expected card count is now the full totalPages.
+        const expectedCards = totalPages;
         r.groupCount = groups.length;
         r.cardCount = cards.length;
         r.expectedCardCount = expectedCards;
@@ -4799,6 +4801,126 @@ def _test_inv_overview_mode(page):
         "cardClickExitOverview": probe.get("cardClickedExitOverview") is True,
         "cardClickSetCurPage": probe.get("cardClickedSetCurPage") is True,
         "escClosesOverview": probe.get("escClosesOverview") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
+def _test_inv_overview_port(page):
+    """INV-2026-05-19-002c: F12 Overview mockup port (faithful).
+    Supersedes 002b's PHASE_INV_OVERVIEW_OK with port-specific assertions per
+    mockup spatial-sheet-map.html.
+
+    10 sub-checks:
+    A. _OV_GROUPS has 7 entries with correct keys (site/title/plan/elev/section/detail/sys, no "none")
+    B. Group labels match mockup Thai labels verbatim
+    C. Banner #ov-banner exists with correct text (ranges over totalPages)
+    D. Card width === 180px (computed style)
+    E. Thumb height === 124px (computed style)
+    F. Hover transform contains "scale(1.04)" (CSS rule)
+    G. Chip with text label rendered after thumb loads (.ov-chip with .ov-chip-dot + label)
+    H. Excluded pages flow into title group (not filtered) — verify by setting excludedPages and re-rendering
+    I. 002a top bar not regressed — #zen-topbar still renders in overview
+    J. 001a HUDs not regressed — toggleZenMode still works
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        if(document.body.classList.contains('zen'))toggleZenMode();
+        if(document.body.classList.contains('overview'))closeOverview();
+        // A. _OV_GROUPS shape
+        r.A_groupCount = Array.isArray(_OV_GROUPS) && _OV_GROUPS.length === 7;
+        const expectedKeys = ['site','title','plan','elev','section','detail','sys'];
+        r.A_groupKeys = JSON.stringify(_OV_GROUPS.map(g=>g.key)) === JSON.stringify(expectedKeys);
+        r.A_noNoneGroup = !_OV_GROUPS.some(g => g.key === 'none');
+        // B. Labels match mockup Thai verbatim
+        const labelMap = Object.fromEntries(_OV_GROUPS.map(g=>[g.key,g.label]));
+        r.B_labels = labelMap.site === '🌳 ผังบริเวณ'
+            && labelMap.title === '📋 ปก / สารบัญ'
+            && labelMap.plan === '📐 ผังพื้น'
+            && labelMap.elev === '🏢 รูปด้าน'
+            && labelMap.section === '✂ รูปตัด'
+            && labelMap.detail === '🔧 รายละเอียดสถาปัตย์'
+            && labelMap.sys === '⚡ งานระบบ';
+        // Enter overview to render
+        toggleOverview();
+        // C. Banner
+        const banner = document.getElementById('ov-banner');
+        r.C_bannerExists = !!banner;
+        r.C_bannerText = banner ? banner.textContent.includes('infinite canvas') && banner.textContent.includes('⌘K') : false;
+        const bc = document.getElementById('ov-banner-count');
+        r.C_bannerCount = bc ? bc.textContent === String(totalPages) : false;
+        // D-E. Card + thumb dimensions
+        const card = document.querySelector('.ov-card');
+        const thumb = document.querySelector('.ov-thumb');
+        if(card){
+            const cs = getComputedStyle(card);
+            r.D_cardWidth180 = cs.width === '180px';
+            r.E_thumbHeight124 = thumb ? getComputedStyle(thumb).height === '124px' : false;
+        } else { r.D_cardWidth180 = false; r.E_thumbHeight124 = false; }
+        // F. Hover transform contains scale(1.04) — query CSS rule via stylesheets
+        let hoverHasScale = false;
+        try {
+            for(const sheet of document.styleSheets){
+                let rules;
+                try { rules = sheet.cssRules || sheet.rules; } catch(e){ continue; }
+                for(const rule of rules){
+                    if(rule.selectorText && rule.selectorText.includes('.ov-card:hover')){
+                        if(rule.style.transform && rule.style.transform.includes('scale(1.04)')){
+                            hoverHasScale = true; break;
+                        }
+                    }
+                }
+                if(hoverHasScale) break;
+            }
+        } catch(e){ r._hoverErr = String(e); }
+        r.F_hoverScale104 = hoverHasScale;
+        // G. Chip renders with label — render needs IO trigger; synthetically trigger by checking card chip after manual render
+        // The chip is added inside the IntersectionObserver callback. To make this deterministic in test,
+        // we look for whether the chip helper logic is wired up by inspecting the source of _ovBuildGrid.
+        const src = _ovBuildGrid.toString();
+        r.G_chipLogicPresent = src.includes('ov-chip') && src.includes('chipLabel') && src.includes('พร้อม') && src.includes('ยกเว้น');
+        // H. Excluded pages flow into title group (no filter skip)
+        r.H_noExcludedSkip = !src.includes('excludedPages.has(i))continue') && !src.includes('excludedPages.has(i)) continue');
+        // Verify: add page 1 to excludedPages, rebuild, count cards (should still include page 1)
+        const wasExcluded = excludedPages.has(1);
+        excludedPages.add(1);
+        _ovBuildGrid();
+        const cardsAfterExclude = document.querySelectorAll('.ov-card').length;
+        r.H_excludedStillRendered = cardsAfterExclude === totalPages;
+        if(!wasExcluded) excludedPages.delete(1);
+        _ovBuildGrid();
+        // I. 002a top bar
+        const tb = document.getElementById('zen-topbar');
+        r.I_topbarStillRenders = !!tb && getComputedStyle(tb).display !== 'none';
+        // Exit overview
+        closeOverview();
+        // J. 001a HUDs (toggleZenMode still works)
+        toggleZenMode();
+        r.J_zenStillWorks = document.body.classList.contains('zen');
+        if(document.body.classList.contains('zen'))toggleZenMode();
+        return r;
+    }""")
+    checks = {
+        "A_sevenGroupsWithCorrectKeys": probe.get("A_groupCount") is True
+                                        and probe.get("A_groupKeys") is True
+                                        and probe.get("A_noNoneGroup") is True,
+        "B_mockupLabelsVerbatim": probe.get("B_labels") is True,
+        "C_bannerRendered": probe.get("C_bannerExists") is True
+                            and probe.get("C_bannerText") is True
+                            and probe.get("C_bannerCount") is True,
+        "D_cardWidth180": probe.get("D_cardWidth180") is True,
+        "E_thumbHeight124": probe.get("E_thumbHeight124") is True,
+        "F_hoverScale104": probe.get("F_hoverScale104") is True,
+        "G_chipLogicPresent": probe.get("G_chipLogicPresent") is True,
+        "H_noExcludedSkip": probe.get("H_noExcludedSkip") is True,
+        "H_excludedStillRendered": probe.get("H_excludedStillRendered") is True,
+        "I_topbarStillRenders": probe.get("I_topbarStillRenders") is True,
+        "J_zenStillWorks": probe.get("J_zenStillWorks") is True,
     }
     all_pass = all(checks.values())
     failed = [k for k, v in checks.items() if not v]
@@ -7553,6 +7675,7 @@ def main():
             inv_png_export = _test_inv_png_export(page)
             inv_zen_v2_topbar = _test_inv_zen_v2_topbar(page)
             inv_overview_mode = _test_inv_overview_mode(page)
+            inv_overview_port = _test_inv_overview_port(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
             ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
@@ -7643,6 +7766,7 @@ def main():
         print("PHASE_INV_PNG_EXPORT_OK", inv_png_export)
         print("PHASE_INV_ZEN_V2_OK", inv_zen_v2_topbar)
         print("PHASE_INV_OVERVIEW_OK", inv_overview_mode)
+        print("PHASE_INV_OVERVIEW_PORT_OK", inv_overview_port)
         print("PHASE_HT18_OK", ht18_pushundo)
         print("PHASE_HT18B_OK", ht18b_round_trip)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
