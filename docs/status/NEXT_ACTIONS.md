@@ -1,19 +1,20 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-19
+Date: 2026-05-19 (updated: BLOAT-1 shipped)
 
 ## Immediate Next
 
-**INV-003b PASS + HT-18c PASS + INV-003a PASS. HT-18 series complete. Print canvas B+C shipped. Three items for immediate next session:**
+**BLOAT-1 docs-only sprint shipped. Immediate next sprint is BLOAT-2.**
 
-- **(PRIORITY a) Finalize Zen Mode user manual docs sprint** — uncommitted 4 files: `proto/manual/zen-mode.md` (NEW ~80 LOC Thai manual), `proto/manual/keyboard-shortcuts.md` (+2 LOC F11/Cmd+K entries), `proto/manual/getting-started.md` (+1 LOC link to zen-mode), `proto/static/docs/content.json` (rebuilt via `scripts/build_docs.py`). This is a docs-only sprint. Review uncommitted changes, run `python scripts/build_docs.py` to verify content.json rebuilds correctly, then commit.
+- **(PRIORITY a) BLOAT-2 — Extract status-bar JS to `static/js/status-bar.js`** — Smallest extractable cohesive JS module in `proto/ui.html`. Proves the no-bundler extraction pattern (following `semantic-meta.js` + `opening-parent.js`). Validated by `bma-status-bar-specialist`. Sprint discipline: start with `/bma-ui-scope` → `/bma-ui-status` chain, end with `/bma-ui-regression`. After BLOAT-2 PASS, BLOAT-3..5 (export-save / annotations / page-setup modules) become eligible in parallel. `/loop /bma-dev-loop` will pick BLOAT-2 automatically on next iteration (it is next `queued` item in `docs/status/PHASE_INDEX.md` after BLOAT-1).
 
-- **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS in `proto/ui.html` + `proto/static/css/app.css`. Ports the spike preview (`proto/sandbox/invent-f12-overview-mockup-port.html`) into the live app. Run via `/loop /bma-dev-loop`.
+- **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Ports spike preview (`proto/sandbox/invent-f12-overview-mockup-port.html`) into live app. Can run after BLOAT-2 or in parallel if the LOC concern is addressed first.
 
-- **(c) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits, last push before the session). Options: (1) keep separate branch strategy (safest, branch diverges); (2) rebase main-v2 onto remote main then force-push (rewrites 33 commits); (3) merge with --no-ff into a new branch. User decision required — do not auto-merge.
+- **(c) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits, last push before the session). User decision required — do not auto-merge.
 
 ## Recently Done
 
+- **BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule** — 2026-05-19. DOCS-ONLY. Corrected `proto/ui.html` LOC in `CLAUDE.md` (~1,700→~4,230) and `proto/server.py` (~1,370→~1,750). Added Size discipline trigger rule (>5,000 lines → must extract). BLOAT-2..5 queued in PHASE_INDEX.md active queue. py_compile PASS; no E2E.
 - **INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)** — 2026-05-19. NEW `/export-png` POST endpoint in `proto/server.py` (additive). PyMuPDF render per selected page at requested DPI scale. ZIP bundle. Export menu wired. `PHASE_INV_EXPORT_PNG_OK` PASS. full EXIT 0. Commits: `612de96` feat + `7f0300f` docs.
 - **HT-18c — Save/load round-trip 13/13 GREEN** — 2026-05-19. Fixed `_test_ht18b_save_load_round_trip` eq() over-strict comparison + `applyLoadedProject` `_projInfoSnap` restoration bug. `PHASE_HT18B_OK` 13/13 GREEN. **HT-18 series complete.** Commits: `f1b4331` fix + `9297ed4` docs.
 - **INV-2026-05-19-003a — Print canvas per page (Path B)** — 2026-05-19. "Print Current Page" + "Print Selected Pages" File menu items. `canvas.toDataURL + window.print`. `PHASE_INV_PRINT_CANVAS_OK` 8/8 PASS. full EXIT 0. Commits: `b4f7235` feat + `8200ef6` docs.

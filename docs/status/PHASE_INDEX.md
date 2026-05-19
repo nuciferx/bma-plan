@@ -126,6 +126,11 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 | INV-2026-05-19-001b | **⌘K Command Palette (page jump)** — `#cmd-palette` floating modal. Filters pages by number/name/tag slug/Thai tag label (TAG_LABELS: ผังบริเวณ/ชั้น/รูปด้าน/รูปตัด/รายละเอียด). ↑↓ nav, Enter = `loadPage(n)` + close, Esc = cancel. Bound to Ctrl+K/Cmd+K with `mPts.length===0 && !anyModal` guard. Key handlers placed BEFORE inInput guard so palette input doesn't swallow nav keys. Works in classic + zen (z-index 9500 > zen 1500). Pre-filter shows 12 default rows on empty input. `PHASE_INV_PALETTE_OK` 10/10 PASS. smoke + full GREEN (no regression on 001a). JOURNEY_OK on 45-page permit (13/13 steps, 1 FRICTION HT-Z-3 filed). +120 LOC ui.html / +35 CSS / +95 e2e. Zero forbidden-surface. Schema unchanged. Source: `docs/invent/fullscreen-canvas-ui.md` (Approach B, 28/30) + spike same file. | `/bma-ui-scope` → `/bma-ui-menu` (palette modal) | UI / modal + keyboard | ✅ done `a51207f` | — |
 | INV-2026-05-19-003a | **Print to printer button (Path B)** — File-menu items "🖨 Print Current Page" + "🖨 Print Selected Pages" → captures canvas via `toDataURL('image/png')` → opens synthetic print window with `<img>` + `@media print` page-break CSS + `window.print()` trigger. Two modes: single page + iterate selected/all-non-excluded with `loadPage(n)` + `_waitForRedraw` (2 RAF). Original `curPage` restored after multi-page. DPR captured in synth metadata. **Note:** sprint card originally said "Export panel" — actual placement is File menu dropdown (Export panel doesn't exist as a separate widget; exports live in File menu post-HT-12). Removed `Ctrl+P` shortcut to avoid conflict with existing `togglePerp()` snap toggle. `PHASE_INV_PRINT_OK` 8/8 PASS. smoke + full GREEN (no new regressions; 6 pre-existing failures unchanged). +72 LOC ui.html / +83 LOC e2e. TEST-H skipped per AGENTS.md no-test rationale (additive menu sprint, journey doesn't exercise print). Zero forbidden-surface. Schema unchanged. Source: `docs/invent/print-canvas-per-page.md` (Path B). | `/bma-ui-scope` → `/bma-ui-canvas` | UI / File menu + canvas snapshot | ✅ done `b4f7235` | — |
 | INV-2026-05-19-003b | **`/export-png` ZIP endpoint (Path C)** — New POST `/export-png` returns ZIP of PyMuPDF-rendered PNGs (one per requested page) with overlays drawn via the **exact same helpers** as `/export-pdf` (no overlay-math reimpl). DPI clamped 72..300 (default 200). `MAX_EXPORT_PAGES` env-overridable (default 200) → 413 with `max` field. `ZIP_STORED` (PNG already compressed). File menu "🖼 Export PNG (ZIP, 200 DPI)" + `exportPngZip()` POSTs current `selectedPages` or all non-excluded pages. **Shipped manually** (not via /bma-dev-loop — server.py edit outside loop's safe scope per step-3 guardrail; /bma-check-forbidden returned WARN→OK). `PHASE_INV_PNG_EXPORT_OK` 11/11 PASS. smoke 33/34 + full 37/37 (1 pre-existing PHASE_I_D_OK unrelated). +130 LOC server.py / +25 LOC ui.html / +130 LOC e2e. Zero forbidden-surface (no edit to /upload, /page, /analyse, /export-pdf, CASES, RS, render cache, .bmaplan). Schema unchanged. Source: `docs/invent/print-canvas-per-page.md` (Path C). | `/bma-check-forbidden` (WARN — additive endpoint) | export / server endpoint + client menu | ✅ done `612de96` | INV-003a ✅ |
+| BLOAT-1 | **CLAUDE.md ui.html LOC drift fix + consolidation trigger rule** — Update CLAUDE.md baseline `~1,700 lines` → current `~4,231 lines` for `proto/ui.html`, and add a discipline rule: "if `ui.html` crosses **5,000 lines**, the next sprint MUST be a consolidation sprint that extracts a JS region to `static/js/*`." Pure documentation; no code path touched. Source: manual bloat audit 2026-05-19 (see Discovered backlog → bloat-audit). | `/bma-check-forbidden` (docs-only) | docs / discipline | queued | — |
+| BLOAT-2 | **Extract status-bar JS to `static/js/status-bar.js`** — Move status-bar render + reactive update functions (`updateStatusBar`, label setters, etc.) from inline `<script>` in `ui.html` to a new external file. Pattern: existing prior art `static/js/semantic-meta.js` + `static/js/opening-parent.js`. Acceptance: `ui.html` LOC -150 to -250, smoke + full GREEN, all status-bar markers retained. | `/bma-ui-scope` → `/bma-ui-status` | UI / extraction | queued | BLOAT-1 |
+| BLOAT-3 | **Extract export/save JS to `static/js/export-save.js`** — Move client-side `saveProject`/`saveProjectAs`/`exportCSV`/`exportJSON`/`exportXLSX`/`exportPngZip`/`saveSourcePdfInPlace` etc. to external file. Acceptance: `ui.html` LOC -400 to -500, full GREEN (export markers retained), `.bmaplan` save/load round-trip unchanged. | `/bma-ui-scope` → `/bma-check-forbidden` (save format unchanged) | UI / extraction | queued | BLOAT-2 |
+| BLOAT-4 | **Extract annotation JS to `static/js/annotations.js`** — Move 7 annotation tool handlers (`ann_text`/`ann_highlight`/`ann_rect`/`ann_circle`/`ann_cloud`/`ann_arrow`/`ann_sticky`) + render + hit-test to external file. Acceptance: `ui.html` LOC -300, annotation E2E markers retained (incl. `PHASE_INV_STICKY_OK`, `PHASE_HT11_OK`). | `/bma-ui-scope` | UI / extraction | queued | BLOAT-2 |
+| BLOAT-5 | **Extract page-setup modal JS to `static/js/page-setup.js`** — Move INV-2026-05-18-001a/b/c helpers (`_renderSetupDashboard`/`_renderSetupPageCard`/`_openRenumberDialog`/floor-kind) to external file. Acceptance: `ui.html` LOC -300, `PHASE_INV_PAGE_SETUP_*_OK` markers retained. | `/bma-ui-scope` → `/bma-ui-panel` | UI / extraction | queued | BLOAT-2 |
 
 ## User priority notes
 
@@ -143,6 +148,27 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 > - `SB-YYYY-MM-DD-NNN` = found by `bma-sandbox-journey-tester` (PDFs dropped in `sandbox/`)
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
+
+### bloat-audit 2026-05-19 (user-initiated, manual analysis pre-loop)
+
+User asked for a size/speed analysis before launching the loop. Findings:
+
+- `proto/ui.html` = **4,231 lines / 432 KB**, of which **360 KB (83%) inline `<script>`** with **483 functions** in one global scope
+- CLAUDE.md baseline says `~1,700 lines` for ui.html — accurate as of when it was written; today it has drifted **+149%**
+- Startup: `server.py` first-import ~8.2s (mostly PyMuPDF + uvicorn deps, not our code); `ui.html` cold-read ~307 ms — user load time is fine
+- Pain is developer-facing: `bma-explorer` subagent was created specifically because `ui.html` is too big to read directly
+- No consolidation phase in `/bma-dev-loop` — every iteration only adds, never re-flattens
+- Prior art for extraction exists: `static/js/semantic-meta.js` (4 KB) + `static/js/opening-parent.js` (1.5 KB) shipped earlier — pattern proven, no bundler needed
+
+Filed as **BLOAT-1..5** in active queue. Sequencing: BLOAT-1 (docs + trigger rule) first → BLOAT-2 (status-bar extraction, smallest module, proves pattern) → BLOAT-3..5 (parallel after BLOAT-2 establishes the extraction recipe).
+
+| id | severity | category | scope skill |
+|---|---|---|---|
+| BLOAT-1 | FRICTION (developer) | docs / discipline | `/bma-check-forbidden` (docs-only) |
+| BLOAT-2 | FRICTION (developer) | UI / status-bar JS extraction | `/bma-ui-scope` → `/bma-ui-status` |
+| BLOAT-3 | FRICTION (developer) | UI / export-save JS extraction | `/bma-ui-scope` → `/bma-check-forbidden` |
+| BLOAT-4 | FRICTION (developer) | UI / annotation JS extraction | `/bma-ui-scope` |
+| BLOAT-5 | FRICTION (developer) | UI / page-setup modal extraction | `/bma-ui-scope` → `/bma-ui-panel` |
 
 ### sandbox 2026-05-15
 

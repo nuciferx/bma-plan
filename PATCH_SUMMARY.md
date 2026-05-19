@@ -4,7 +4,49 @@
 
 ---
 
-# Latest: INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)
+# Latest: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
+
+Branch: main
+Date: 2026-05-19
+
+## Outcome: DOCS-ONLY — py_compile PASS (sanity baseline); no E2E tests run (docs-only sprint, no code path touched)
+
+## Summary
+
+Pre-loop bloat audit sprint. Corrected stale LOC baselines in `CLAUDE.md`: `proto/ui.html` had drifted from ~1,700 to ~4,230 lines (+149%), and `proto/server.py` from ~1,370 to ~1,750. Added a "Size discipline" paragraph with a hard rule: if `proto/ui.html` crosses 5,000 lines the next sprint MUST extract one cohesive JS region to `static/js/<region>.js` (following the `semantic-meta.js` / `opening-parent.js` pattern). Queued BLOAT-2..5 sprint cards in `docs/status/PHASE_INDEX.md` active queue; added a `### bloat-audit 2026-05-19` block to the Discovered backlog. No code, schema, or runtime files were changed.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `CLAUDE.md` | +21 −2 — LOC corrections in Architecture section (ui.html ~1700→~4230, server.py ~1370→~1750) + new Size discipline paragraph + bma-explorer subagent row LOC correction |
+| `docs/status/PHASE_INDEX.md` | +26 −0 — BLOAT-1..5 active-queue rows + `### bloat-audit 2026-05-19` Discovered-backlog block |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — UNCHANGED
+- `proto/ui.html` — UNCHANGED
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; no field added, renamed, or removed
+
+## Tests Run
+
+None. Docs-only sprint. `python -m py_compile proto/server.py` → PASS (sanity baseline only). Per AGENTS.md §1, docs-only sprints record a no-test rationale: this sprint changed only `CLAUDE.md` and `docs/status/PHASE_INDEX.md`. No source code, UI, test code, or schema changed. `/bma-e2e` and `/bma-human-test` not run.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; no field rename or removal)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)
 
 Branch: main
 Date: 2026-05-19
@@ -63,7 +105,11 @@ PHASE_INV_POLISH_001C_OK 5/5
 
 ---
 
-# Previous: HT-18c — Save/load round-trip E2E test 13/13 GREEN
+> Older sprints (HT-18c, HT-18a-ext, HT-18a, INV-002b, INV-002a, INV-001a/b/c, and earlier) archived to [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) and git commit log.
+
+<!-- ARCHIVED BELOW — HT-18c (formerly Previous, now superseded) -->
+
+# Previous (older): HT-18c — Save/load round-trip E2E test 13/13 GREEN
 
 Branch: main
 Date: 2026-05-19

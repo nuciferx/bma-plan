@@ -4,7 +4,35 @@
 
 ---
 
-# Latest: INV-2026-05-19-003b /export-png ZIP endpoint (end-of-day bundle) — PASS
+# Latest: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule — DOCS-ONLY
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+DOCS-ONLY sprint. No code, tests, or schema changed. Sprint result is PASS by no-test rationale. Two files touched: `CLAUDE.md` and `docs/status/PHASE_INDEX.md`. This sprint was triggered by a manual bloat audit performed before invoking `/bma-dev-loop` — user asked "โปรแกรม เริ่ม ทำงานได้ช้าไหม ไฟล์อ้วนไหม", which surfaced that `proto/ui.html` had grown 149% above its documented baseline without any consolidation mechanism in place.
+
+## What was delivered
+
+- Corrected `CLAUDE.md` Architecture section LOC numbers: `proto/ui.html` ~1,700 → ~4,230 lines; `proto/server.py` ~1,370 → ~1,750 lines.
+- Added "Size discipline" paragraph to `CLAUDE.md`: documents drift history (360 KB inline JS, 483 functions) and establishes a hard trigger rule — if `proto/ui.html` crosses 5,000 lines, the next sprint MUST be a consolidation sprint extracting one cohesive JS region to `static/js/<region>.js`. Pattern already proven by `semantic-meta.js` and `opening-parent.js`.
+- Corrected LOC numbers in the `bma-explorer` subagent table row in `CLAUDE.md`.
+- Inserted BLOAT-1..5 sprint cards into `docs/status/PHASE_INDEX.md` active queue (after INV-2026-05-19-003b). Sequence: BLOAT-1 (this, docs-only) → BLOAT-2 (status-bar JS extraction, proves pattern) → BLOAT-3..5 (export-save / annotations / page-setup extraction, can parallel after BLOAT-2).
+- Added `### bloat-audit 2026-05-19 (user-initiated, manual analysis pre-loop)` block to the PHASE_INDEX.md Discovered backlog explaining findings and sequencing rationale.
+
+## What's next
+
+- **BLOAT-2** — Extract status-bar JS to `static/js/status-bar.js` (smallest extractable module, proves the no-bundler extraction pattern, validates with `bma-status-bar-specialist`). Preceded by `/bma-ui-scope` → `/bma-ui-status` chain. `/loop /bma-dev-loop` will pick this automatically on next iteration.
+- After BLOAT-2: BLOAT-3..5 (export-save / annotations / page-setup modules) can run in parallel or sequence to bring `proto/ui.html` back toward the ~3,000-line target.
+
+## Position in Plan
+
+Phase 1 complete. This sprint is the first of the BLOAT series (BLOAT-1..5), which is a maintenance track aimed at reducing `proto/ui.html` file size to maintain developer velocity and browser parse performance. The BLOAT track runs in parallel with any remaining INV/HT items in the active queue. The 5,000-line consolidation trigger rule acts as a self-enforcing guard going forward.
+
+---
+
+# Previous: INV-2026-05-19-003b /export-png ZIP endpoint (end-of-day bundle) — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -32,7 +60,11 @@ Phase 1 complete. HT-18 series fully closed after HT-18c. INV series: 001a/b/c +
 
 ---
 
-# Previous: HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS
+> Older sprint reports (HT-18a-ext, HT-18a, INV-002b, INV-002a, INV-001a/b/c, and earlier) archived to [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md).
+
+<!-- ARCHIVED BELOW — HT-18a-ext (formerly Previous, now superseded) -->
+
+# Previous (older): HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS
 
 **Date:** 2026-05-19
 **Branch:** main

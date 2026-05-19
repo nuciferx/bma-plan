@@ -51,7 +51,11 @@ FastAPI app (proto/server.py)
 Uploaded PDF → per-case temp file via CASES[case_id]
 ```
 
-~95% of the runtime lives in two files: `proto/server.py` (~1370 lines, all endpoints) and `proto/ui.html` (~1700 lines, all measurement geometry, tools, render, save/load — inline JS, no bundler). Static assets in `proto/static/css/app.css` and `proto/static/js/{semantic-meta,opening-parent}.js`.
+~95% of the runtime lives in two files: `proto/server.py` (~1750 lines, all endpoints) and `proto/ui.html` (~4230 lines, all measurement geometry, tools, render, save/load — inline JS, no bundler). Static assets in `proto/static/css/app.css` and `proto/static/js/{semantic-meta,opening-parent}.js`.
+
+**Size discipline (added 2026-05-19 after bloat audit):** `ui.html` started at ~1,700 lines (2026-05). As of 2026-05-19 it stands at ~4,230 lines / 432 KB / 360 KB inline JS / 483 functions. The single-file pattern is still valid by stack (no bundler), but mental + AI-tool load grows non-linearly past ~3,000 lines.
+
+> **Consolidation trigger rule:** if `proto/ui.html` crosses **5,000 lines**, the next sprint MUST be a consolidation sprint that extracts one cohesive JS region to `static/js/<region>.js`, following the existing `semantic-meta.js` / `opening-parent.js` pattern. The `/bma-dev-loop` adds; this rule is the only counter-force. Verify with `wc -l proto/ui.html` before queuing the next feature sprint. Active queue holds BLOAT-2..5 sprint cards for status-bar / export-save / annotations / page-setup extraction — pick the topmost when the trigger fires.
 
 ### Non-negotiable invariants
 
@@ -209,7 +213,7 @@ Upstream of `/bma-dev-loop`. Raw ideas (from `/idea` or PHASE_INDEX `invent-queu
 
 | Subagent | Model | Use |
 |---|---|---|
-| `bma-explorer` | haiku | Symbol lookup in `proto/ui.html` (~1700) + `proto/server.py` (~1370) — returns line ranges, never dumps whole files |
+| `bma-explorer` | haiku | Symbol lookup in `proto/ui.html` (~4230) + `proto/server.py` (~1750) — returns line ranges, never dumps whole files |
 | `bma-sprint-writer` | sonnet | Batch-write the 7 sprint output files with consistent cross-links + Latest/Previous demotion |
 | `bma-test-runner` | haiku | Run E2E and parse the 19 markers — keeps raw uvicorn/Playwright logs out of the main thread |
 | `bma-doc-auditor` | sonnet | Quarterly doc drift scan (dates, duplicate facts, broken links, contradictions across status docs) |
@@ -255,6 +259,18 @@ Upstream of `/bma-dev-loop`. Raw ideas (from `/idea` or PHASE_INDEX `invent-queu
 | `bma-researcher` | haiku | Phase 2 of the invent pipeline. Surveys prior art: in-repo prior work (sprints/plans/design docs), inline-JS library options, CAD/GIS/graphics incumbents (AutoCAD, Rhino, QGIS, Bluebeam, Foxit), literature/algorithms, competitor measurement UX. Returns a 5-section research block + verdict (`PRIOR_ART_MATURE` / `PRIOR_ART_PARTIAL` / `GREENFIELD`). Read-only |
 | `bma-inventor` | sonnet | Phase 4-5 of the invent pipeline. Generates 3-5 genuinely different approaches on different axes (data-model / algorithm / UX / representation / integration / library use) — never variants of one another. Then scores them on 6 dimensions (novelty / accuracy / UX / model-fit / boundary / cost) and recommends the top one + a fallback for spike. Read-only |
 
+#### Bug report intake (Pack I, 2026-05-19)
+
+Upstream of `/bma-dev-loop`. A bug surfaced by the user (or as a structured finding from `/bma-human-test` / `/bma-sandbox-test`) doesn't need the full PLAN→SCOPE→BUILD→TEST→LEARN→SHIP loop hand-rolled — Pack I orchestrates it in one invocation. The new bug is always filed into `PHASE_INDEX.md` **before** any fix work starts, so even a stop-condition leaves a tracked sprint behind.
+
+| Skill | Trigger phrases | When to use |
+|---|---|---|
+| `/bma-bug-report` | "แจ้งบั๊ก", "เจอบั๊ก", "มีบั๊ก", "bug report", "report a bug", "fix this bug" | User-surfaced bug, or a structured finding from a journey test that needs one-shot diagnose-fix-ship. Full-auto: triage → scope → specialist patch plan → fix → /bma-e2e → regression → /bma-sprint-finalize → commit to `main`. Halts on `BUG_STOP_*` (forbidden surface / regression / CRASH / design ambiguity / Phase 2 scope / needs-repro) — bug stays filed either way |
+
+| Subagent | Model | Use |
+|---|---|---|
+| `bma-bug-triager` | sonnet | Single-bug router (not to be confused with `bma-issue-triager`, which clusters MANY findings + drafts NEW specialist specs). Takes one bug, returns severity + category (one of 15) + suspected file:line + recommended scope skill + recommended specialist subagent + recommended regression skill + acceptance criteria + E2E marker name + risk + adjacent forbidden surface. Read-only — never edits code, never writes to PHASE_INDEX, never invokes other skills. Special return codes: `BUG_TRIAGE_NEEDS_REPRO` / `BUG_TRIAGE_FORBIDDEN` / `BUG_TRIAGE_OUT_OF_SCOPE` |
+
 ### Invariants
 
 - `/bma-sprint-finalize` maintains 7 files: `log.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `CURRENT_STATUS.md`, `docs/status/LATEST_STATUS.md`, `docs/status/NEXT_ACTIONS.md`. Do not skip — drift between these is the most common housekeeping bug.
@@ -265,6 +281,7 @@ Upstream of `/bma-dev-loop`. Raw ideas (from `/idea` or PHASE_INDEX `invent-queu
 - Measure sprint discipline (Pack E): every Measure sprint starts with `/bma-measure-scope` and ends with `/bma-measure-regression`. `/bma-measure-geometry` covers geometry core + shape generators + curve UI in one skill via a `sub-area` field — `curve-ui` work requires geometry `core` to be PASS first (sequencing, not a split). Measure skills + subagents never edit `polyAreaM2` / `polyMetrics` / `polySelfIntersects` / `pdfToC` / `cToPdf` / `RS` / `snap` internals — they add new functions next to them or route to `/bma-check-forbidden`. Specialists are read-only; the main agent applies edits.
 - Autonomous Dev Loop (Pack F): `docs/status/PHASE_INDEX.md` is the canonical phase/sprint roadmap — `/bma-dev-loop` reads the next `queued` sprint from it and writes status back every iteration. The loop is full-auto (commits to `main` without per-sprint review) but every commit still passes `py_compile + smoke + full` first, and it halts on any of 6 stop-conditions (BLOCKED forbidden surface / marker regression / human-test CRASH / design ambiguity / Phase 1 scope boundary / roadmap exhausted). `/bma-human-test` is the "see problems" mechanism — `bma-human-journey-tester` walks the full workflow like a real user (open → measure every page → export → save → reopen) and files discovered issues back into `PHASE_INDEX.md` as new sprints, so the loop self-extends. Run continuously with `/loop /bma-dev-loop`.
 - Sandbox / pre-release gate (Pack G): `sandbox/` (gitignored) holds real customer / problematic PDFs. `/bma-sandbox-test` runs every file through `bma-sandbox-journey-tester` (Tier 1 open+render → Tier 2 journey round-trip) and `bma-issue-triager` (root-cause cluster + existing-coverage check + new-specialist spec draft). All findings — including drafts of NEW skill/subagent specs — are filed into the `PHASE_INDEX.md` Discovered backlog under a `### sandbox YYYY-MM-DD` sub-block. **Propose-first, never auto-create:** new specialist files are created in a follow-up sprint by `/bma-dev-loop`, not by this pack, so each gets normal sprint discipline. `/bma-sandbox-test` is required to return `SANDBOX_TEST_PASS` (or ISSUES with all CRASH resolved) before any user-visible release / build hand-off.
+- Bug report intake (Pack I): one-shot orchestrator for a single user-surfaced bug. `/bma-bug-report` always (1) files the bug into `PHASE_INDEX.md` **before** any fix work starts so a stop-condition never loses the bug, (2) delegates triage to `bma-bug-triager` (sonnet, one bug → one routing block), (3) chains the existing scope/specialist/regression skills already in Packs D–E, (4) reuses `/bma-sprint-finalize` for the 7 mandatory outputs, (5) commits to `main`. Full-auto by default but halts on `BUG_STOP_BLOCKED` / `BUG_STOP_REGRESSION` / `BUG_STOP_CRASH` / `BUG_STOP_DESIGN` / `BUG_STOP_SCOPE` / `BUG_STOP_NEEDS_REPRO`. **Pack I never adds new code paths** — it only orchestrates existing skills/subagents. Distinction from `bma-issue-triager` (Pack G): that one digests *many* findings from a journey and drafts NEW specialist specs; `bma-bug-triager` (Pack I) routes *one* bug into the *existing* specialist roster.
 - Invention / R&D loop (Pack H): upstream of `/bma-dev-loop`. Raw ideas (status `invent-queued`) become vetted sprint cards (status `invent-done-go`) only after passing the 7-phase pipeline: **PICK → RESEARCH (`bma-researcher`, haiku) → FRAME → DIVERGE (`bma-inventor`, sonnet, 3-5 approaches on different axes) → SCORE (6-dim) → SPIKE (in `proto/sandbox/invent-<name>.html`, never in `proto/ui.html`) → CHECKPOINT (human decides GO / NOGO / RESHAPE)**. Two key differences from `/bma-dev-loop`: (1) every iteration halts at the human checkpoint — invention requires human risk-taking, the loop never auto-promotes; (2) commits are restricted to `docs/invent/`, `proto/sandbox/`, and `PHASE_INDEX.md` — invention NEVER touches the live app (`proto/ui.html` / `proto/server.py`). Research-first is non-negotiable: cheap haiku research often reveals a viable inline-JS library (e.g. flatten-js, paper.js) that turns a "novel invention" into a regular sprint (`PRIOR_ART_MATURE` → skip diverge/spike → write standard sprint card). The dev loop reads only `invent-done-go` items; raw `invent-queued` ideas are NOT eligible for `/bma-dev-loop`. Run via `/loop /bma-invent-loop` for continuous invention across the whole idea backlog.
 
 ## Repository layout

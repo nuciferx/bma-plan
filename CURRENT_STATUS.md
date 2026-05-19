@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-19
+Date: 2026-05-19 (updated: BLOAT-1)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-19
 
 ## One-Line Status
 
-Sprint INV-003b PASS. /export-png ZIP endpoint added (Path C). Session totals: 33 commits since 2026-05-18 init; Zen Mode v1+v2 suite + Print canvas (B+C) + HT-18 a/a-ext/b/c done; INV-002c F12 mockup port still queued.
+2026-05-19 — BLOAT-1 docs-only sprint shipped: CLAUDE.md ui.html LOC drift fixed (~1,700→~4,230) + consolidation trigger rule added (>5,000 lines → must extract). BLOAT-2..5 queued.
 
 ## Latest Sprint
 
+- BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule: DOCS-ONLY (2026-05-19) — corrected ui.html ~1700→~4230 + server.py ~1370→~1750 in CLAUDE.md; added Size discipline trigger rule (>5,000 lines → extract); BLOAT-2..5 queued in PHASE_INDEX.md. py_compile PASS; no E2E (docs-only).
 - INV-2026-05-19-003b — /export-png ZIP endpoint (Path C): PASS (2026-05-19) — NEW /export-png server endpoint; PyMuPDF per-page render + ZIP bundle; Export menu wired; PHASE_INV_EXPORT_PNG_OK PASS; full EXIT 0; server.py additive (no existing endpoint modified). Commits: 612de96 + 7f0300f
 - HT-18c — Save/load round-trip 13/13 GREEN: PASS (2026-05-19) — fixed _test_ht18b_save_load_round_trip eq() over-strict comparison + applyLoadedProject _projInfoSnap bug; PHASE_HT18B_OK 13/13; HT-18 series complete. Commits: f1b4331 + 9297ed4
 - INV-2026-05-19-003a — Print canvas per page (Path B): PASS (2026-05-19) — "Print Current Page" + "Print Selected Pages" in File menu; canvas.toDataURL + window.print; 8 E2E sub-checks; PHASE_INV_PRINT_CANVAS_OK PASS. Commits: b4f7235 + 8200ef6

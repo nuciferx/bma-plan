@@ -4,7 +4,37 @@
 
 ---
 
-# Latest: INV-2026-05-19-003b — /export-png ZIP endpoint (end-of-day bundle)
+# Latest: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
+
+Branch: main
+Date: 2026-05-19
+
+## Result: PASS (no-test, docs-only sprint)
+
+## No-Test Rationale
+
+Per AGENTS.md §1, docs-only sprints record a no-test rationale instead of running tests.
+This sprint changed only: `CLAUDE.md` (+21 −2 LOC corrections + Size discipline paragraph) and `docs/status/PHASE_INDEX.md` (+26 −0 queue rows). No source code, UI, test code, or schema changed. Therefore `/bma-e2e` (py_compile + smoke + full) and `/bma-human-test` were not run.
+
+Sanity baseline: `python -m py_compile proto/server.py` → PASS.
+
+## Reference Baseline (from previous sprint: INV-2026-05-19-003b end-of-day bundle)
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py full                           → EXIT 0
+  PHASE_INV_EXPORT_PNG_OK: PASS (new in 003b)
+  PHASE_INV_PRINT_CANVAS_OK: PASS — 8 sub-checks (new in 003a)
+  PHASE_HT18B_OK: 13/13 GREEN (fixed in HT-18c)
+  PHASE_HT18_OK: 36/36 GREEN (from HT-18a-ext)
+  All 21 core markers GREEN (smoke 18 + PHASE_I_A_OK + PHASE_I_B1_OK + ANNOT_OK + PERSIST_OK + REAL_OK)
+```
+
+Markers: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK (smoke 18 + full adds 3).
+
+---
+
+# Previous: INV-2026-05-19-003b — /export-png ZIP endpoint (end-of-day bundle)
 
 Branch: main
 Date: 2026-05-19
@@ -64,7 +94,11 @@ All 13/13 PASS. HT-18 series complete.
 
 ---
 
-# Previous: HT-18a-ext — Extended pushUndo() coverage to 22 more mutation sites
+> Older entries (HT-18a-ext, HT-18a, INV-002b, INV-002a, INV-001a/b/c, and earlier) archived to [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md).
+
+<!-- ARCHIVED BELOW — HT-18a-ext (formerly Previous, now superseded) -->
+
+# Previous (older): HT-18a-ext — Extended pushUndo() coverage to 22 more mutation sites
 
 Branch: main
 Date: 2026-05-19
