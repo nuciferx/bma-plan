@@ -166,7 +166,7 @@ User direction: "ทำระบบเมนูให้ชัดเจนก่
 
 | id | severity | category | source | scope skill |
 |---|---|---|---|---|
-| HT-8 | FRICTION | drawing-tool menu clarity — ribbon has 13 flat measure buttons, Measure menu has 23 items, sub-modes (Arc via 'A', Freeform via Alt-drag, Opening toggle) are invisible until discovered. **Fix:** (a) ribbon split into labeled sections with visual dividers: 🔍Select · 🟩พื้นที่ (Area/Rect/Circle/Ellipse/Opening) · 📏เส้น/ระยะ (Distance/Path/Ref) · 📍Marker (Parking/North) · 📐Calibrate · ↩Edit; (b) Area button shows sub-mode badge when Arc-pending or Freeform-active; (c) status bar `lbl-mode` prefix `[📐 วัด]` so user sees they're in measure layer; (d) tooltip rewrite mentioning sub-mode shortcuts (e.g. Area tooltip: "A — กด 'A' ระหว่างวาด=Arc edge, Alt+drag=Freeform"). ~120 LOC + CSS dividers + PHASE_HT8_OK marker. | user-test 2026-05-17 | `/bma-ui-scope` → `/bma-ui-ribbon` + `/bma-ui-menu` + `/bma-ui-status` |
+| HT-8 | FRICTION → ✅ done `b1665f5` 2026-05-19 | drawing-tool menu clarity — **AUDIT:** (a) ribbon dividers + 6 labeled sections (TOOL/SCALE/พื้นที่/LINES/MARKER/HELPERS) ALREADY DONE in prior sprints. (c) status bar prefix `📐 วัด` ALREADY DONE (`#status-mode-prefix` via _RIBBON_TAB_PREFIX). (b) **NEW:** Area sub-mode badge — `_updateAreaSubmodeBadge()` shows red "A" when `mArcDraft.pending`, purple "✎" when `mFreehandActive`; hooked into setMode + keydown('A') + Alt+mousedown + mouseup + Esc. (d) **NEW:** btn-area tooltip rewritten (both inline + initTooltips() override) to mention A=Arc / Alt=Freeform / Shift=Ortho / O=Opening shortcuts. `PHASE_HT8_OK` 8/8 GREEN. | user-test 2026-05-17 | `/bma-ui-scope` |
 
 ### zen-mode 2026-05-19 (post INV-2026-05-19-001a/b human-tests) — ALL DONE in INV-001c
 
