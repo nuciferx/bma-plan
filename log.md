@@ -6,6 +6,47 @@
 
 ---
 
+## 2026-05-20 — BLOAT-3 Extract export/save JS to proto/static/js/export-save.js — PASS (branch: main)
+
+**What changed:** Created `proto/static/js/export-save.js` (188 lines, classic non-module script) containing 14 functions and 13 constants extracted from `proto/ui.html`. Added `<script src="/static/js/export-save.js">` after `status-bar.js` in `proto/ui.html`. Functions extracted: `rowBase`, `buildRows`, `dlBlob`, `exportJSON`, `exportCSV`, `exportSummaryXLSX`, `exportXLSX`, `exportAllPagesAnnotatedPDF`, `exportCurrentPageAnnotatedPDF`, `exportPngZip`, `_makeProjBlob`, `_writeToHandle`, `_fallbackDownload`, `saveProjectAs`, `saveProject`, `saveSourcePdfInPlace`. Constants extracted: `COL_PAGE`, `COL_TYPE`, `COL_NAME`, `COL_VALUE`, `COL_UNIT`, `COL_RNW`, `TYPE_DISTANCE`, `TYPE_PATH`, `TYPE_REF`, `TYPE_PARKING`, `TYPE_AREA`, `TYPE_OPENING`, `TYPE_REF_DISTANCE`. Added E2E machinery in `proto/e2e_ui_test.py`: `exportSaveJsLoaded` field in UI-load test + new `_test_bloat3_export_save_extracted` function (8 sub-checks: `fileLoad`, `fnsOk`, `constsOk`, `dlBlobOk`, `buildRowsOk`, `blobIsBlob`, `schemaOk`, `asyncOk`) + new marker `PHASE_BLOAT3_OK`. Net: `proto/ui.html` −161 +6 (4,208→4,057 lines, −151 net); `proto/static/js/export-save.js` NEW 188 LOC; `proto/e2e_ui_test.py` +111 LOC.
+
+**Why:** BLOAT-2 proved the no-bundler extraction recipe on a small module (status bar). BLOAT-3 scales it to the largest cohesive cluster: export + save = 14 fns + 13 consts, including the sensitive `.bmaplan` schema serialization (`_makeProjBlob`) and FSA file-handle persistence (`saveProject` / `saveSourcePdfInPlace` that mutate `currentProjectHandle` / `currentSourcePdfHandle` declared in `ui.html`). With the recipe now proven on the biggest and most complex piece — verified by `XLSX_OK`, `PROJECT_OK`, `PERSIST_OK`, and `ANNOT_OK` all GREEN on the real 45-page permit — BLOAT-4 (annotations) and BLOAT-5 (page-setup) become formulaic.
+
+**Files touched:**
+- `proto/ui.html`: −161 +6 — extracted 14 fns + 13 consts; added `<script src="/static/js/export-save.js">` tag; 3 one-line comment placeholders remain; net −155 LOC (4,208→4,057)
+- `proto/static/js/export-save.js`: NEW 188 LOC — 6 column consts + 7 type consts + `rowBase` + `buildRows` + `dlBlob` + JSON/CSV/XLSX/PDF/PNG export fns + save fns (`_makeProjBlob`, `_writeToHandle`, `_fallbackDownload`, `saveProjectAs`, `saveProject`, `saveSourcePdfInPlace`)
+- `proto/e2e_ui_test.py`: +111 LOC — `exportSaveJsLoaded` field + `_test_bloat3_export_save_extracted` (8 sub-checks) + `PHASE_BLOAT3_OK` marker print
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0, 18/18 baseline + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
+python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
+  XLSX_OK (calls extracted exportXLSX) — GREEN
+  PROJECT_OK (calls extracted saveProject + applyLoadedProject round-trip) — GREEN
+  PERSIST_OK (save+reload multi-page on real 45-page permit) — GREEN
+  ANNOT_OK (calls extracted exportCurrentPageAnnotatedPDF) — GREEN
+  REAL_OK (real-PDF flow) — GREEN
+  PHASE_BLOAT3_OK 8/8 sub-checks — GREEN (incl. schemaOk: all 12 v1 fields present; asyncOk: 3 async fns confirmed)
+/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PROJECT_OK + PERSIST_OK + ANNOT_OK on real permit cover most sensitive surfaces; schemaOk sub-check explicitly verifies 12-field v1 schema integrity post-extraction)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED (extracted client functions still POST to `/export-pdf` / `/export-xlsx` / `/export-xlsx-summary` / `/export-png`; server side untouched)
+- ✅ `.bmaplan` schema — UNCHANGED (`_makeProjBlob` still emits `version: 1` with same 12 fields; verified by `schemaOk` sub-check)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- BLOAT-4 (annotation extraction, ~300 LOC, 7 annotation tool handlers + render + hit-test → `proto/static/js/annotations.js`) — next queued sprint.
+- BLOAT-5 (page-setup modal extraction) — after BLOAT-4.
+- Optional BLOAT-3b: extract print cluster (`printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`) to `proto/static/js/print-canvas.js` (~50–60 LOC delta). Low-risk; self-contained. Not in scope of BLOAT-3.
+- Optional BLOAT-6: shared helpers (`collectAreas` / `phase1Warnings` / `collectSummaryData` / `syncProjectInfoFromForm` / `normalizeAllObjects`) — high coupling (summary widget + layer + measurement); NOT for export-save.js; separate sprint if desired.
+
+---
+
 ## 2026-05-20 — BLOAT-2 Extract status-bar JS to proto/static/js/status-bar.js — PASS (branch: main)
 
 **What changed:** Created `proto/static/js/status-bar.js` (49 LOC, plain non-module classic script) containing 8 functions (`updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar`, `updateModeLabel`, `_markSaved`, `_setDirty`) and 2 constants (`MODE_BASE_LABELS`, `SITE_TAG_THAI_LABELS`) extracted from `proto/ui.html`. Added `<script src="/static/js/status-bar.js"></script>` in `proto/ui.html` (line 822) between `opening-parent.js` and the main inline `<script>` block. Removed the extracted code from `proto/ui.html`'s inline `<script>` (replaced with 3 one-line comment placeholders). Added new E2E machinery in `proto/e2e_ui_test.py`: `statusBarJsLoaded` field in the main UI-load test (asserts all 8 globals are defined) + new function `_test_bloat2_status_bar_extracted` with 8 sub-checks + new marker `PHASE_BLOAT2_OK`. Net delta: `proto/ui.html` −29 +6 (4,231→4,208 lines), `proto/static/js/status-bar.js` NEW 49 LOC, `proto/e2e_ui_test.py` +95 LOC.

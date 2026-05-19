@@ -821,6 +821,7 @@
 <script src="/static/js/semantic-meta.js"></script>
 <script src="/static/js/opening-parent.js"></script>
 <script src="/static/js/status-bar.js"></script>
+<script src="/static/js/export-save.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // State
@@ -2948,76 +2949,8 @@ function setAType(t){curAType=t;document.querySelectorAll(".atype-btn").forEach(
 // ══════════════════════════════════════════════════════
 // Export
 // ══════════════════════════════════════════════════════
-const COL_PAGE="\u0e2b\u0e19\u0e49\u0e32";
-const COL_TYPE="\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17";
-const COL_NAME="\u0e0a\u0e37\u0e48\u0e2d";
-const COL_VALUE="\u0e04\u0e48\u0e32";
-const COL_UNIT="\u0e2b\u0e19\u0e48\u0e27\u0e22";
-const COL_RNW="\u0e44\u0e23\u0e48-\u0e07\u0e32\u0e19-\u0e27\u0e32";
-const TYPE_DISTANCE="\u0e23\u0e30\u0e22\u0e30";
-const TYPE_PATH="\u0e23\u0e30\u0e22\u0e30\u0e15\u0e48\u0e2d\u0e40\u0e19\u0e37\u0e48\u0e2d\u0e07";
-const TYPE_REF="\u0e40\u0e2a\u0e49\u0e19\u0e2d\u0e49\u0e32\u0e07\u0e2d\u0e34\u0e07";
-const TYPE_PARKING="\u0e17\u0e35\u0e48\u0e08\u0e2d\u0e14\u0e23\u0e16";
-const TYPE_AREA="\u0e1e\u0e37\u0e49\u0e19\u0e17\u0e35\u0e48";
-const TYPE_OPENING="\u0e0a\u0e48\u0e2d\u0e07\u0e27\u0e48\u0e32\u0e07";
-const TYPE_REF_DISTANCE="\u0e23\u0e30\u0e22\u0e30\u0e16\u0e36\u0e07\u0e40\u0e2a\u0e49\u0e19\u0e2d\u0e49\u0e32\u0e07\u0e2d\u0e34\u0e07";
-function rowBase(pg,type,name,value,unit,scale){return{[COL_PAGE]:pg,[COL_TYPE]:type,[COL_NAME]:name||"",[COL_VALUE]:value,[COL_UNIT]:unit,[COL_RNW]:"",scale:scaleLabel(scale),scale_source:scale?.source||"-",scale_verified:!!scale?.verified};}
-function buildRows(){
-  normalizeAllObjects();
-  const rows=[];
-  for(const[pgStr,data]of Object.entries(pageStore)){
-    const pg=+pgStr;
-    const scale=getScaleForPage(pg);
-    const scl=scaleLabel(scale);
-    for(const l of(data.lines||[])){
-      const metrics=lineMetrics(l,pg);
-      const lSem=l.semanticTag||defaultSemanticTag("line",l);rows.push({...rowBase(pg,l.kind==="path"?TYPE_PATH:TYPE_DISTANCE,l.name||"",metrics.dist!=null?+metrics.dist.toFixed(4):+metrics.ptDist.toFixed(4),metrics.dist!=null?"ม.":"pt",scale),object_id:l.id,segments:metrics.segments.length,semanticTag:lSem,useCategory:null,...deriveMeasurementMeta(lSem)});
-    }
-    for(const r of(data.refs||[])){
-      const metrics=lineMetrics(r,pg);
-      const rSem=r.semanticTag||defaultSemanticTag("ref",r);rows.push({...rowBase(pg,TYPE_REF,r.name||REF_LABELS[r.refType]||"",metrics.dist!=null?+metrics.dist.toFixed(4):+metrics.ptDist.toFixed(4),metrics.dist!=null?"ม.":"pt",scale),object_id:r.id,ref_type:r.refType||"custom",label_mode:r.label?.mode||"auto",semanticTag:rSem,useCategory:null,...deriveMeasurementMeta(rSem)});
-    }
-    for(const p of(data.parking||[])){
-      const pkSem=p.semanticTag||defaultSemanticTag("parking",p);rows.push({...rowBase(pg,TYPE_PARKING,PARKING_LABELS[p.parkingType]||p.parkingType||"รถยนต์",p.count||1,"คัน",scale),object_id:p.id,parking_type:p.parkingType||"car",semanticTag:pkSem,useCategory:null,...deriveMeasurementMeta(pkSem)});
-    }
-    for(const p of(data.polys||[])){
-      if(!p.closed)continue;
-      const metrics=polyMetricsAnyShape(p,pg);
-      const sem=p.semanticTag||defaultSemanticTag("poly",p);
-      const row={...rowBase(pg,TYPE_AREA,p.name||"",metrics.area!=null?+metrics.area.toFixed(4):null,"ตร.ม.",scale),object_id:p.id,area_type:p.areaType||"room",label_mode:p.label?.mode||"auto",semanticTag:sem,useCategory:isAreaSemanticTag(sem)?(p.useCategory||null):null,...deriveMeasurementMeta(sem)};
-      row[COL_RNW]=p.areaType==="land"?toRNW(metrics.area):"";
-      rows.push(row);
-    }
-    for(const op of(data.openings||[])){
-      if(!op.closed)continue;
-      const area=polyMetrics({pts:op.pts,closed:true},pg).area;
-      const opSem=op.semanticTag||defaultSemanticTag("opening",op);rows.push({...rowBase(pg,TYPE_OPENING,op.name||"",area!=null?+area.toFixed(4):null,"ตร.ม.",scale),object_id:op.id,parent_id:op.parentId||"",label_mode:op.label?.mode||"auto",semanticTag:opSem,useCategory:null,...deriveMeasurementMeta(opSem)});
-    }
-  }
-  for(const r of collectRefDistanceReport()){
-    const scale=getScaleForPage(r.pg);
-    rows.push({...rowBase(r.pg,TYPE_REF_DISTANCE,`${r.objectName} -> ${r.refName}`,+(r.dist!=null?r.dist:r.distPt).toFixed(4),r.unit,scale),ref_type:r.refType,object_type:r.objectType,point_role:r.pointRole,semanticTag:"dimension_line",useCategory:null,...deriveMeasurementMeta("dimension_line")});
-  }
-  return rows.sort((a,b)=>a[COL_PAGE]-b[COL_PAGE]);
-}
-function dlBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
-function exportJSON(){
-  const rows=buildRows();
-  dlBlob(new Blob([JSON.stringify(rows,null,2)],{type:"application/json"}),"measurements.json");
-}
-function exportCSV(){
-  const rows=buildRows();
-  if(!rows.length){alert("\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25");return;}
-  // INV-2026-05-18-002 \u2014 Settings v2 export prefs (csvSeparator, includeLawBasis)
-  const sep=(typeof getPref==='function')?getPref('export.csvSeparator',','):',';
-  const includeLaw=(typeof getPref==='function')?getPref('export.includeLawBasis',true):true;
-  const cols=[COL_PAGE,"object_id","parent_id",COL_TYPE,COL_NAME,COL_VALUE,COL_UNIT,COL_RNW,"scale","scale_source","scale_verified","area_type","ref_type","object_type","point_role","parking_type","segments","label_mode","semanticTag","useCategory"];
-  if(includeLaw)cols.push("lawBasis");
-  const sepRe=new RegExp(`[${sep.replace(/[\t]/g,'\\t').replace(/[-[\]{}()*+?.,\\^$|#\s]/g,'\\$&')}"\r\n]`);
-  const esc=v=>{const s=String(v??"").replace(/"/g,'""');return sepRe.test(s)?`"${s}"`:s;};
-  const csv="\uFEFF"+[cols.join(sep),...rows.map(r=>cols.map(c=>esc(r[c])).join(sep))].join("\r\n");
-  dlBlob(new Blob([csv],{type:"text/csv;charset=utf-8"}),"measurements.csv");
-}
+// COL_* / TYPE_* constants + rowBase \u2014 moved to /static/js/export-save.js (sprint BLOAT-3)
+// buildRows + dlBlob + exportJSON + exportCSV — moved to /static/js/export-save.js (sprint BLOAT-3)
 // ─── Sprint U2: 1-Page Excel Summary ───
 // Aggregates site-area numbers by semanticTag, computes BCR/OSR/FAR/Permeable
 // as plain ratios (no pass/fail verdict — Phase 1 boundary), aggregates
@@ -3120,33 +3053,6 @@ function collectSummaryData(){
   })).sort((a,b)=>b.count-a.count);
   return{landArea,landCount,areaBreakdown,bcr,osr,far,permeablePct,setbacks,markerBreakdown};
 }
-async function exportSummaryXLSX(){
-  if(!totalPages){alert("เปิด PDF ก่อน");return false;}
-  const summary=collectSummaryData();
-  const body={
-    case_id:currentCaseId,
-    pdfName:currentFileName,
-    projectInfo,
-    generatedAt:new Date().toISOString(),
-    summary
-  };
-  setStatus("กำลังสร้าง 1-page summary…");
-  try{
-    const r=await fetch("/export-xlsx-summary",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if(!r.ok){
-      const d=await r.json().catch(()=>({}));
-      setStatus("export summary ล้มเหลว: "+(d.error||r.status));
-      if(r.status===501)alert("ติดตั้ง xlsxwriter ก่อน: pip install xlsxwriter");
-      return false;
-    }
-    const blob=await r.blob();
-    const safe=currentFileName.replace(/\.pdf$/i,"")||"export";
-    dlBlob(blob,safe+"_summary.xlsx");
-    setStatus("✅ export 1-page summary แล้ว ("+(blob.size||0)+" bytes)");
-    return true;
-  }catch(e){setStatus("export summary ล้มเหลว: "+e.message);return false;}
-}
-async function exportXLSX(){if(!totalPages){alert("เปิด PDF ก่อน");return;}syncProjectInfoFromForm();normalizeAllObjects();const report=collectAreas(),warnings=phase1Warnings(report);const scales={};for(let pg=1;pg<=totalPages;pg++){const pgStr=String(pg);const sc=getScaleForPage(pg);scales[pgStr]=sc?{label:scaleLabel(sc),pts_per_m:sc.pts_per_m,source:sc.source||"",verified:!!sc.verified,calibrated:!!sc.calibrated,status:scaleState(sc)}:null;}const body={case_id:currentCaseId,pageStore,pageTags,pageNames,projectInfo,siteOrientation,pageScales:scales,pdfName:currentFileName,pageCount:totalPages,warnings,auditMeta:{generatedAt:new Date().toISOString(),areaCount:report.areaRows.length,openingCount:report.openingRows.length,lineCount:report.lineCount,refCount:report.refCount,parkingCount:report.parkingCount,grossArea:report.measuredArea+report.landArea,openingArea:report.totalOpenings,netArea:report.netArea,warningCount:warnings.length}};setStatus("กำลัง export XLSX…");const r=await fetch("/export-xlsx",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){const d=await r.json().catch(()=>({}));setStatus("export XLSX ล้มเหลว: "+(d.error||""));if(r.status===501)alert("ติดตั้ง xlsxwriter ก่อน: pip install xlsxwriter");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"");dlBlob(blob,(safe||"export")+"_report.xlsx");setStatus("✅ export XLSX แล้ว");}
 // ══════════════════════════════════════════════════════
 // Phase 1 measurement report
 // ══════════════════════════════════════════════════════
@@ -3268,8 +3174,6 @@ function pgmgrSelectAll(){pgmgrSel.clear();for(let i=1;i<=totalPages;i++)if(!exc
 function pgmgrClearAll(){pgmgrSel.clear();document.querySelectorAll(".pgmgr-cell").forEach(c=>c.classList.remove("sel"));pgmgrUpdateInfo();}
 function pgmgrUpdateInfo(){const validTotal=totalPages-excludedPages.size;document.getElementById("pgmgr-sel-info").textContent=`เลือก ${pgmgrSel.size} / ${validTotal} หน้า`;}
 async function pgmgrExportPDF(withAnnotations){if(!pgmgrSel.size){alert("เลือกหน้าก่อน");return;}const pages=[...pgmgrSel].sort((a,b)=>a-b);saveCurrentPage();const body={case_id:currentCaseId,pages,pdfName:currentFileName,rotations:pageRotations};if(withAnnotations)body.annotations=pageStore;setStatus("กำลัง export…");const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){setStatus("export ล้มเหลว");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"");dlBlob(blob,(safe||"export")+`_p${pages.join("-")}.pdf`);setStatus(`✅ export ${pages.length} หน้า`);}
-async function exportAllPagesAnnotatedPDF(){if(!totalPages){alert("เปิด PDF ก่อน");return;}saveCurrentPage();const pages=[];for(let i=1;i<=totalPages;i++)if(!excludedPages.has(i))pages.push(i);if(!pages.length){alert("ไม่มีหน้าให้ export");return;}const body={case_id:currentCaseId,pages,pdfName:currentFileName,rotations:pageRotations,annotations:pageStore};setStatus("กำลัง export ทุกหน้า...");try{const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){setStatus("export ล้มเหลว");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"")||"export";dlBlob(blob,safe+"_all_annotated.pdf");setStatus(`✅ export ${pages.length} หน้าแล้ว`);}catch(e){setStatus("export ล้มเหลว: "+e.message);}}
-async function exportCurrentPageAnnotatedPDF(){if(!totalPages){alert("เปิด PDF ก่อน");return;}saveCurrentPage();const body={case_id:currentCaseId,pages:[curPage],pdfName:currentFileName,rotations:pageRotations,annotations:pageStore};setStatus("กำลัง export หน้าปัจจุบัน...");try{const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){setStatus("export ล้มเหลว");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"")||"export";dlBlob(blob,safe+`_page${curPage}_annotated.pdf`);setStatus(`✅ export หน้า ${curPage} แล้ว`);}catch(e){setStatus("export ล้มเหลว: "+e.message);}}
 // ══════════════════════════════════════════════════════
 // INV-003a — Print canvas view (with overlays) per page
 // Captures current canvas via toDataURL → synthetic HTML print window.
@@ -3311,26 +3215,6 @@ async function printCurrentPage(){
   setStatus(`🖨 พิมพ์หน้า ${curPage}`);
   return w;
 }
-async function exportPngZip(){
-  if(!totalPages){alert("เปิด PDF ก่อน");return;}
-  saveCurrentPage();
-  const sel=selectedPages.size>0
-    ?[...selectedPages].filter(n=>!excludedPages.has(n)).sort((a,b)=>a-b)
-    :(function(){const all=[];for(let i=1;i<=totalPages;i++)if(!excludedPages.has(i))all.push(i);return all;})();
-  if(!sel.length){alert("ไม่มีหน้าให้ export");return;}
-  const dpi=200;
-  const body={case_id:currentCaseId,pages:sel,pdfName:currentFileName,rotations:pageRotations,annotations:pageStore,dpi};
-  setStatus(`🖼 กำลังสร้าง PNG ${sel.length} หน้า (DPI ${dpi})…`);
-  try{
-    const r=await fetch("/export-png",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if(r.status===413){const j=await r.json().catch(()=>({}));alert(`หน้าที่เลือกเกินขีดจำกัด (${j.max||"max"} หน้า)`);setStatus("export PNG ยกเลิก — เกิน MAX_EXPORT_PAGES");return;}
-    if(!r.ok){const j=await r.json().catch(()=>({}));setStatus("export PNG ล้มเหลว: "+(j.error||r.status));return;}
-    const blob=await r.blob();
-    const safe=currentFileName.replace(/\.pdf$/i,"")||"export";
-    dlBlob(blob,`${safe}_pages_dpi${dpi}.zip`);
-    setStatus(`✅ export PNG ZIP ${sel.length} หน้าแล้ว`);
-  }catch(e){setStatus("export PNG ล้มเหลว: "+e.message);}
-}
 async function printSelectedPages(){
   if(!totalPages){alert("เปิด PDF ก่อน");return;}
   saveCurrentPage();
@@ -3360,45 +3244,10 @@ async function printSelectedPages(){
 }
 // ══════════════════════════════════════════════════════
 // Save/Load project
+// _makeProjBlob + _writeToHandle + _fallbackDownload + saveProject + saveProjectAs
+// + saveSourcePdfInPlace + all export-* functions — moved to /static/js/export-save.js (sprint BLOAT-3, 2026-05-20)
 // ══════════════════════════════════════════════════════
-function _makeProjBlob(){syncProjectInfoFromForm();normalizeAllObjects();const proj={version:1,pdfName:currentFileName,totalPages,pageStore,pageRotations,pageTags,pageNames,projectInfo,siteOrientation,excludedPages:[...excludedPages],pageFloorKind,pageFloorNum};return new Blob([JSON.stringify(proj,null,2)],{type:"application/json"});}
-async function _writeToHandle(h){const wr=await h.createWritable();await wr.write(_makeProjBlob());await wr.close();}
 // _markSaved, _setDirty — moved to /static/js/status-bar.js (sprint BLOAT-2, 2026-05-19)
-function _fallbackDownload(){const safe=currentFileName.replace(/\.pdf$/i,"")||"project";dlBlob(_makeProjBlob(),safe+".bmaplan");_markSaved("download");}
-async function saveProjectAs(){if(!totalPages){alert("เปิด PDF ก่อน");return;}if(window.showSaveFilePicker){try{const safe=currentFileName.replace(/\.pdf$/i,"")||"project";const handle=await window.showSaveFilePicker({suggestedName:safe+".bmaplan",types:[{description:"BMA-Plan Project",accept:{"application/json":[".bmaplan"]}}]});currentProjectHandle=handle;await _writeToHandle(handle);_markSaved("overwrite");}catch(e){if(e.name!=="AbortError")_fallbackDownload();}}else{_fallbackDownload();}}
-async function saveProject(){if(!totalPages){alert("เปิด PDF ก่อน");return;}if(currentProjectHandle){try{await _writeToHandle(currentProjectHandle);_markSaved("overwrite");return;}catch(e){currentProjectHandle=null;}}await saveProjectAs();}
-async function saveSourcePdfInPlace(){
-  if(!totalPages){alert("เปิด PDF ก่อน");return;}
-  saveCurrentPage();
-  const pages=[];for(let i=1;i<=totalPages;i++)if(!excludedPages.has(i))pages.push(i);
-  if(!pages.length){alert("ไม่มีหน้าให้บันทึก");return;}
-  const body={case_id:currentCaseId,pages,pdfName:currentFileName,rotations:pageRotations,annotations:pageStore};
-  const hasHandle=!!currentSourcePdfHandle;
-  setStatus(hasHandle?"กำลังบันทึก PDF ทับไฟล์เดิม…":"กำลังสร้าง PDF + annotations…");
-  try{
-    const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if(!r.ok){setStatus("บันทึก PDF ไม่สำเร็จ");return false;}
-    const blob=await r.blob();
-    if(currentSourcePdfHandle){
-      try{
-        const perm=await currentSourcePdfHandle.queryPermission?.({mode:"readwrite"});
-        if(perm&&perm!=="granted"){const req=await currentSourcePdfHandle.requestPermission({mode:"readwrite"});if(req!=="granted")throw new Error("permission denied");}
-        const wr=await currentSourcePdfHandle.createWritable();
-        await wr.write(blob);
-        await wr.close();
-        setStatus(`✅ บันทึก PDF ทับ ${currentFileName} แล้ว`);
-        return true;
-      }catch(e){
-        setStatus("เขียนทับไฟล์ไม่สำเร็จ — ดาวน์โหลดแทน ("+(e.message||e.name||"unknown")+")");
-        currentSourcePdfHandle=null;
-      }
-    }
-    const safe=currentFileName.replace(/\.pdf$/i,"")||"export";
-    dlBlob(blob,safe+"_annotated.pdf");
-    setStatus("✅ ดาวน์โหลด PDF + annotations แล้ว ("+pages.length+" หน้า)");
-    return true;
-  }catch(e){setStatus("บันทึก PDF ไม่สำเร็จ: "+e.message);return false;}
-}
 /* HT-18d: populate the projectInfo form fields from the projectInfo object.
    Extracted from openSetup so it can be called from any code path that needs
    to keep the form in sync with the underlying data — specifically

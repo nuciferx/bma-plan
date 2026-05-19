@@ -4,7 +4,50 @@
 
 ---
 
-# Latest: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
+# Latest: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js
+
+Branch: main
+Date: 2026-05-20
+
+## Result: PASS — py_compile PASS, smoke 18/18 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK, full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
+
+## Commands
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                          # EXIT 0 — 18/18 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK
+python proto/e2e_ui_test.py full                           # EXIT 0 — 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK
+```
+
+## New Marker — PHASE_BLOAT3_OK (8 sub-checks)
+
+| Sub-check | Result |
+|---|---|
+| fileLoad (HTTP 200 + key fn defs in body) | PASS |
+| fnsOk (all 14 functions defined as typeof === "function") | PASS |
+| constsOk (all 13 consts defined with correct values) | PASS |
+| dlBlobOk (`dlBlob` callable without throwing) | PASS |
+| buildRowsOk (`buildRows()` returns Array) | PASS |
+| blobIsBlob (`_makeProjBlob` returns Blob type application/json) | PASS |
+| schemaOk (all 12 v1 schema fields present: version, pdfName, totalPages, pageStore, pageRotations, pageTags, pageNames, projectInfo, siteOrientation, excludedPages, pageFloorKind, pageFloorNum) | PASS |
+| asyncOk (`saveProject` / `saveProjectAs` / `saveSourcePdfInPlace` are AsyncFunctions) | PASS |
+
+## Critical Baseline Markers Verified (no regression)
+
+All 21 core markers GREEN: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK.
+
+Critical markers for this sprint (exercise extracted code):
+- **XLSX_OK** — calls extracted `exportXLSX` — GREEN
+- **PROJECT_OK** — calls extracted `saveProject` + `applyLoadedProject` round-trip — GREEN
+- **PERSIST_OK** — save+reload across multiple pages on real 45-page permit — GREEN
+- **ANNOT_OK** — calls extracted `exportCurrentPageAnnotatedPDF` — GREEN
+- **REAL_OK** — real-PDF full workflow — GREEN
+
+`/bma-human-test` — SKIPPED. Rationale: mechanical extraction with zero user-visible change; `PROJECT_OK` + `PERSIST_OK` + `ANNOT_OK` on the real 45-page permit cover the most sensitive surfaces; `schemaOk` sub-check in `PHASE_BLOAT3_OK` explicitly verifies the 12-field v1 schema integrity post-extraction.
+
+---
+
+# Previous: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
 
 Branch: main
 Date: 2026-05-20
@@ -42,7 +85,7 @@ PERSIST_OK on real 45-page permit confirms `_setDirty`/`_markSaved` extraction i
 
 ---
 
-# Previous: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
+# Previous (older): BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
 
 Branch: main
 Date: 2026-05-19

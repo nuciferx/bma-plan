@@ -4,7 +4,56 @@
 
 ---
 
-# Latest: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
+# Latest: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js
+
+Branch: main
+Date: 2026-05-20
+
+## Outcome: PASS — py_compile PASS, smoke 18/18 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK, full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
+
+## Summary
+
+Extracted 14 export/save functions and 13 column/type constants from `proto/ui.html`'s inline `<script>` block into a new file `proto/static/js/export-save.js` (188 LOC, plain non-module classic script). `proto/ui.html` shrank from 4,208 to 4,057 lines (−151 net). Functions include the full export surface (`exportJSON`, `exportCSV`, `exportSummaryXLSX`, `exportXLSX`, `exportAllPagesAnnotatedPDF`, `exportCurrentPageAnnotatedPDF`, `exportPngZip`) and the full save surface (`_makeProjBlob`, `_writeToHandle`, `_fallbackDownload`, `saveProjectAs`, `saveProject`, `saveSourcePdfInPlace`). New E2E marker `PHASE_BLOAT3_OK` (8 sub-checks) verifies all 14 fns + 13 consts defined, `.bmaplan` v1 schema intact (12 fields), and 3 save fns are AsyncFunctions. `XLSX_OK` + `PROJECT_OK` + `PERSIST_OK` + `ANNOT_OK` all GREEN on real 45-page permit. With the recipe proven on the most complex cluster, BLOAT-4 (annotations) and BLOAT-5 (page-setup) are formulaic.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | −161 +6 — extracted 14 fns + 13 consts from inline `<script>`; added `<script src="/static/js/export-save.js">` tag; 3 one-line comment placeholders remain; net −155 LOC (4,208→4,057) |
+| `proto/static/js/export-save.js` | NEW 188 LOC — 6 column consts + 7 type consts + `rowBase` + `buildRows` + `dlBlob` + JSON/CSV/XLSX/PDF/PNG export fns + save fns (plain non-module classic script) |
+| `proto/e2e_ui_test.py` | +111 LOC — `exportSaveJsLoaded` load-check field + `_test_bloat3_export_save_extracted` (8 sub-checks) + `PHASE_BLOAT3_OK` marker |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — UNCHANGED (zero edits this sprint; extracted client functions still POST to existing endpoints)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; `_makeProjBlob` still emits all 12 v1 fields (verified by `schemaOk` sub-check in PHASE_BLOAT3_OK)
+
+## Tests Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0, 18/18 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
+python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
+  XLSX_OK, PROJECT_OK, PERSIST_OK, ANNOT_OK, REAL_OK — all GREEN on real 45-page permit
+  PHASE_BLOAT3_OK 8/8 sub-checks GREEN (fileLoad, fnsOk, constsOk, dlBlobOk, buildRowsOk, blobIsBlob, schemaOk, asyncOk)
+/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PROJECT_OK + PERSIST_OK + ANNOT_OK on real permit cover most sensitive surfaces)
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; `schemaOk` sub-check verified all 12 v1 fields present post-extraction)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
 
 Branch: main
 Date: 2026-05-20
@@ -52,7 +101,7 @@ python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 + P
 
 ---
 
-# Previous: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
+# Previous (older): BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
 
 Branch: main
 Date: 2026-05-19

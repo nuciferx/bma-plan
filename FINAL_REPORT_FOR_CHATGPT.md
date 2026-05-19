@@ -4,7 +4,35 @@
 
 ---
 
-# Latest: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js — PASS
+# Latest: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js — PASS
+
+**Date:** 2026-05-20
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS. smoke 18/18 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN. full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN. New file `proto/static/js/export-save.js` (188 LOC) holds the full extracted export + save module. `proto/ui.html` dropped from 4,208 to 4,057 lines (−151 net). No forbidden surfaces touched. `XLSX_OK` + `PROJECT_OK` + `PERSIST_OK` + `ANNOT_OK` all GREEN on real 45-page permit; `schemaOk` sub-check confirms `.bmaplan` v1 schema (12 fields) intact post-extraction.
+
+## What was delivered
+
+- **`proto/static/js/export-save.js`** — NEW 188 LOC: 6 column consts (`COL_PAGE/TYPE/NAME/VALUE/UNIT/RNW`), 7 type consts (`TYPE_DISTANCE/PATH/REF/PARKING/AREA/OPENING/REF_DISTANCE`), `rowBase` + `buildRows` (row builder), `dlBlob` (download helper), `exportJSON` / `exportCSV`, `exportSummaryXLSX` / `exportXLSX` (1-page summary + 4-sheet detail), `exportAllPagesAnnotatedPDF` / `exportCurrentPageAnnotatedPDF`, `exportPngZip`, `_makeProjBlob` / `_writeToHandle` / `_fallbackDownload` / `saveProjectAs` / `saveProject` / `saveSourcePdfInPlace`. Plain classic script tag, no bundler needed.
+- **`proto/ui.html`** — `<script src="/static/js/export-save.js">` tag added after `status-bar.js`. Extracted code replaced with 3 one-line comment placeholders. Net −151 LOC (4,208→4,057). Kept in scope: `pgmgrExportPDF` (Page-Manager modal coupling), print cluster (separate logical group, BLOAT-3b), load side (`applyLoadedProject` et al., fragile + heavy UI-global coupling), shared helpers (`collectAreas` / `collectSummaryData` etc., used by summary widget too — not pure export).
+- **`proto/e2e_ui_test.py`** — `exportSaveJsLoaded` field in UI-load test; new `_test_bloat3_export_save_extracted` function (8 sub-checks: `fileLoad`, `fnsOk`, `constsOk`, `dlBlobOk`, `buildRowsOk`, `blobIsBlob`, `schemaOk`, `asyncOk`); new `PHASE_BLOAT3_OK` marker.
+- **Recipe battle-tested on largest cluster**: cross-script binding access works; FSA handle persistence (`saveProject`/`saveSourcePdfInPlace` mutate `currentProjectHandle`/`currentSourcePdfHandle` declared in `ui.html`) confirmed safe; `.bmaplan` schema serialization untouched.
+
+## What's next
+
+- **BLOAT-4** — Extract annotation JS (7 annotation tool handlers: `ann_text` / `ann_highlight` / `ann_rect` / `ann_circle` / `ann_cloud` / `ann_arrow` / `ann_sticky` + render + hit-test) to `proto/static/js/annotations.js`. Est. ~300 LOC. Pre-flight: `/bma-ui-scope`. Depends-on BLOAT-2 and BLOAT-3 (both now satisfied).
+- BLOAT-5 (page-setup modal extraction) — after BLOAT-4 or in parallel.
+- Optional BLOAT-3b: extract print cluster (~50–60 LOC delta) to `proto/static/js/print-canvas.js`. Low-risk.
+
+## Position in Plan
+
+Phase 1 complete. BLOAT-3 is the third sprint of the BLOAT maintenance track (BLOAT-1..5). BLOAT-1 added the consolidation trigger rule; BLOAT-2 proved the extraction recipe on the status-bar module; BLOAT-3 proves the recipe scales to the largest and most complex cluster (export + save). With recipe validated on the hardest piece, BLOAT-4..5 are formulaic. Long-term target: bring `proto/ui.html` back toward ~3,000 lines (currently 4,057).
+
+---
+
+# Previous: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js — PASS
 
 **Date:** 2026-05-20
 **Branch:** main
@@ -31,7 +59,7 @@ Phase 1 complete. BLOAT-2 is the second sprint of the BLOAT maintenance track (B
 
 ---
 
-# Previous: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule — DOCS-ONLY
+# Previous (older): BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule — DOCS-ONLY
 
 **Date:** 2026-05-19
 **Branch:** main

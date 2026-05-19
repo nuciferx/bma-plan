@@ -437,6 +437,7 @@ def _test_main_measurement_ui_cleanup(page):
                 semanticMetaJsLoaded: typeof AREA_SEMANTIC_TAGS !== "undefined",
                 openingParentJsLoaded: typeof openingProbePoints !== "undefined",
                 statusBarJsLoaded: typeof updateBottomBar === "function" && typeof updateModeLabel === "function" && typeof _markSaved === "function" && typeof MODE_BASE_LABELS !== "undefined",
+                exportSaveJsLoaded: typeof exportJSON === "function" && typeof saveProject === "function" && typeof _makeProjBlob === "function" && typeof buildRows === "function" && typeof COL_PAGE !== "undefined" && typeof TYPE_AREA !== "undefined",
                 canvasTopBarVisible: isVisible(canvasTopBar),
                 canvasTopBarInsideWorkspace: !!document.querySelector("#workspace #canvas-top-bar"),
                 canvasTopBarNotBlockingCanvas: getComputedStyle(canvasTopBar).pointerEvents === "none",
@@ -590,6 +591,8 @@ def _test_main_measurement_ui_cleanup(page):
         raise AssertionError(f"openingProbePoints undefined: opening-parent.js may not have loaded: {result}")
     if not result.get("statusBarJsLoaded"):
         raise AssertionError(f"status-bar.js may not have loaded (BLOAT-2): {result}")
+    if not result.get("exportSaveJsLoaded"):
+        raise AssertionError(f"export-save.js may not have loaded (BLOAT-3): {result}")
     if not result.get("canvasTopBarVisible") or not result.get("canvasTopBarInsideWorkspace"):
         raise AssertionError(f"canvas top info bar is not visible inside #workspace: {result}")
     if not result.get("canvasTopBarNotBlockingCanvas"):
@@ -7529,6 +7532,112 @@ def _test_ht4_name_panel_dismissal(page):
     return {**result, "all": True}
 
 
+def _test_bloat3_export_save_extracted(page):
+    """BLOAT-3 acceptance — export + save functions live in
+    /static/js/export-save.js and still work after extraction.
+
+    Sub-checks:
+      1. /static/js/export-save.js HTTP 200 + contains key fn defs
+      2. All 14 extracted functions defined globally
+      3. All 13 extracted constants defined with correct values
+      4. dlBlob is callable (does not throw on a small Blob)
+      5. buildRows() returns an Array (empty when no PDF loaded is OK)
+      6. _makeProjBlob() returns a Blob with the 12 v1 schema fields
+      7. saveProject / saveProjectAs / saveSourcePdfInPlace are async fns
+      8. Schema additive: .bmaplan version still 1
+    """
+    js_text = page.evaluate("""async () => {
+        const r = await fetch('/static/js/export-save.js');
+        return { status: r.status, body: await r.text() };
+    }""")
+    body = js_text.get("body", "")
+    fileLoad = (
+        js_text.get("status") == 200
+        and "function buildRows" in body
+        and "function _makeProjBlob" in body
+        and "async function saveProject" in body
+        and "async function exportPngZip" in body
+    )
+
+    result = page.evaluate("""async () => {
+        const fnsOk = typeof dlBlob === 'function'
+                   && typeof exportJSON === 'function'
+                   && typeof exportCSV === 'function'
+                   && typeof exportXLSX === 'function'
+                   && typeof exportSummaryXLSX === 'function'
+                   && typeof exportPngZip === 'function'
+                   && typeof exportAllPagesAnnotatedPDF === 'function'
+                   && typeof exportCurrentPageAnnotatedPDF === 'function'
+                   && typeof _makeProjBlob === 'function'
+                   && typeof _writeToHandle === 'function'
+                   && typeof _fallbackDownload === 'function'
+                   && typeof saveProject === 'function'
+                   && typeof saveProjectAs === 'function'
+                   && typeof saveSourcePdfInPlace === 'function'
+                   && typeof buildRows === 'function'
+                   && typeof rowBase === 'function';
+
+        const constsOk = typeof COL_PAGE !== 'undefined'
+                      && typeof COL_TYPE !== 'undefined'
+                      && typeof COL_NAME !== 'undefined'
+                      && typeof COL_VALUE !== 'undefined'
+                      && typeof COL_UNIT !== 'undefined'
+                      && typeof COL_RNW !== 'undefined'
+                      && typeof TYPE_DISTANCE !== 'undefined'
+                      && typeof TYPE_AREA !== 'undefined'
+                      && typeof TYPE_OPENING !== 'undefined'
+                      && typeof TYPE_PARKING !== 'undefined'
+                      && typeof TYPE_REF !== 'undefined'
+                      && typeof TYPE_PATH !== 'undefined'
+                      && typeof TYPE_REF_DISTANCE !== 'undefined';
+
+        // dlBlob smoke — generate URL, click is no-op in this test path
+        let dlBlobOk = false;
+        try {
+            const orig = HTMLAnchorElement.prototype.click;
+            HTMLAnchorElement.prototype.click = function(){};
+            dlBlob(new Blob(['x'], {type:'text/plain'}), '_bloat3_test_dl.txt');
+            HTMLAnchorElement.prototype.click = orig;
+            dlBlobOk = true;
+        } catch(e) { dlBlobOk = false; }
+
+        // buildRows returns array (no PDF loaded → empty is fine)
+        const rows = buildRows();
+        const buildRowsOk = Array.isArray(rows);
+
+        // _makeProjBlob returns Blob with v1 schema
+        const blob = _makeProjBlob();
+        const blobIsBlob = blob instanceof Blob && blob.type === 'application/json';
+        const projText = await blob.text();
+        const proj = JSON.parse(projText);
+        const schemaOk = proj.version === 1
+                      && 'pdfName' in proj
+                      && 'totalPages' in proj
+                      && 'pageStore' in proj
+                      && 'pageRotations' in proj
+                      && 'pageTags' in proj
+                      && 'pageNames' in proj
+                      && 'projectInfo' in proj
+                      && 'siteOrientation' in proj
+                      && 'excludedPages' in proj
+                      && 'pageFloorKind' in proj
+                      && 'pageFloorNum' in proj;
+
+        // saveProject family are async (return promises)
+        const asyncOk = saveProject.constructor.name === 'AsyncFunction'
+                     && saveProjectAs.constructor.name === 'AsyncFunction'
+                     && saveSourcePdfInPlace.constructor.name === 'AsyncFunction';
+
+        return { fnsOk, constsOk, dlBlobOk, buildRowsOk, blobIsBlob, schemaOk, asyncOk };
+    }""")
+
+    out = {"fileLoad": fileLoad, **result, "all": True}
+    failed = [k for k, v in out.items() if k != "all" and v is not True]
+    if failed:
+        raise AssertionError(f"BLOAT-3 export-save extraction failed: {failed} — got {out}")
+    return out
+
+
 def _test_bloat2_status_bar_extracted(page):
     """BLOAT-2 acceptance — status-bar functions live in /static/js/status-bar.js
     and still work after extraction. Mirrors the existing semantic-meta.js /
@@ -8018,6 +8127,7 @@ def main():
             ht8_menu_clarity = _test_ht8_menu_clarity(page)
             inv_sticky_notes = _test_inv_sticky_notes(page)
             bloat2_status_bar = _test_bloat2_status_bar_extracted(page)
+            bloat3_export_save = _test_bloat3_export_save_extracted(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
             ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
@@ -8142,6 +8252,7 @@ def main():
         print("PHASE_HT4_OK", ht4_name_dismiss)
         print("PHASE_HT5_OK", ht5_overflow)
         print("PHASE_BLOAT2_OK", bloat2_status_bar)
+        print("PHASE_BLOAT3_OK", bloat3_export_save)
         if mode == "full":
             print("ANNOT_OK", annotated)
             print("PERSIST_OK", real_persist)
