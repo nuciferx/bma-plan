@@ -120,6 +120,10 @@
         <div class="dd-item" id="dd-export-pdf-all" onclick="exportAllPagesAnnotatedPDF()">📄 Export Annotated PDF — all pages</div>
         <div class="dd-item" id="dd-export-csv" onclick="exportCSV()">📋 Export CSV (raw data)</div>
         <div class="dd-item" onclick="exportJSON()">📋 Export JSON</div>
+        <div class="dd-sep"></div>
+        <div class="dd-sub">Print</div>
+        <div class="dd-item" id="dd-print-current" onclick="printCurrentPage()">🖨 Print Current Page</div>
+        <div class="dd-item" id="dd-print-selected" onclick="printSelectedPages()">🖨 Print Selected Pages (หรือทุกหน้า)</div>
       </div>
     </div>
     <div class="menu-item" data-menu="measure" onclick="toggleMenu(this)">Measure<span class="caret">▾</span>
@@ -3177,6 +3181,74 @@ function pgmgrUpdateInfo(){const validTotal=totalPages-excludedPages.size;docume
 async function pgmgrExportPDF(withAnnotations){if(!pgmgrSel.size){alert("เลือกหน้าก่อน");return;}const pages=[...pgmgrSel].sort((a,b)=>a-b);saveCurrentPage();const body={case_id:currentCaseId,pages,pdfName:currentFileName,rotations:pageRotations};if(withAnnotations)body.annotations=pageStore;setStatus("กำลัง export…");const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){setStatus("export ล้มเหลว");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"");dlBlob(blob,(safe||"export")+`_p${pages.join("-")}.pdf`);setStatus(`✅ export ${pages.length} หน้า`);}
 async function exportAllPagesAnnotatedPDF(){if(!totalPages){alert("เปิด PDF ก่อน");return;}saveCurrentPage();const pages=[];for(let i=1;i<=totalPages;i++)if(!excludedPages.has(i))pages.push(i);if(!pages.length){alert("ไม่มีหน้าให้ export");return;}const body={case_id:currentCaseId,pages,pdfName:currentFileName,rotations:pageRotations,annotations:pageStore};setStatus("กำลัง export ทุกหน้า...");try{const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){setStatus("export ล้มเหลว");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"")||"export";dlBlob(blob,safe+"_all_annotated.pdf");setStatus(`✅ export ${pages.length} หน้าแล้ว`);}catch(e){setStatus("export ล้มเหลว: "+e.message);}}
 async function exportCurrentPageAnnotatedPDF(){if(!totalPages){alert("เปิด PDF ก่อน");return;}saveCurrentPage();const body={case_id:currentCaseId,pages:[curPage],pdfName:currentFileName,rotations:pageRotations,annotations:pageStore};setStatus("กำลัง export หน้าปัจจุบัน...");try{const r=await fetch("/export-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok){setStatus("export ล้มเหลว");return;}const blob=await r.blob();const safe=currentFileName.replace(/\.pdf$/i,"")||"export";dlBlob(blob,safe+`_page${curPage}_annotated.pdf`);setStatus(`✅ export หน้า ${curPage} แล้ว`);}catch(e){setStatus("export ล้มเหลว: "+e.message);}}
+// ══════════════════════════════════════════════════════
+// INV-003a — Print canvas view (with overlays) per page
+// Captures current canvas via toDataURL → synthetic HTML print window.
+// Zero forbidden-surface (no polyAreaM2/pdfToC/RS/snap/.bmaplan touched).
+// ══════════════════════════════════════════════════════
+function _captureCanvasDataURL(){
+  if(!canvas||!canvas.width||!canvas.height)return null;
+  try{return canvas.toDataURL("image/png");}
+  catch(e){console.warn("[print] toDataURL failed:",e);return null;}
+}
+function _waitForRedraw(){return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}
+function _buildPrintDoc(images,title){
+  const dpr=window.devicePixelRatio||1;
+  const styles=`<style>
+    @page { margin: 8mm; size: auto; }
+    body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#fff; color:#000; }
+    .pg { page-break-after: always; padding: 4mm 2mm; box-sizing: border-box; }
+    .pg:last-child { page-break-after: auto; }
+    .pg-header { font-size: 10pt; margin-bottom: 4mm; color:#333; border-bottom:1px solid #ddd; padding-bottom: 2mm; display:flex; justify-content:space-between; }
+    .pg-header .name { font-weight:600; }
+    .pg-header .meta { color:#666; font-size:9pt; }
+    .pg img { display:block; margin:0 auto; max-width:100%; max-height:255mm; object-fit:contain; }
+    @media print { .pg-header { font-size:9pt; } }
+  </style>`;
+  const body=images.map(im=>`<div class="pg" data-page="${im.page}"><div class="pg-header"><span class="name">หน้า ${im.page}${im.name?" — "+_escForHtml(im.name):""}</span><span class="meta">${im.scale?_escForHtml(im.scale)+" · ":""}${im.w}×${im.h}px · DPR ${im.dpr}</span></div><img src="${im.dataUrl}" alt="page ${im.page}"></div>`).join("");
+  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${_escForHtml(title)}</title>${styles}</head><body data-dpr="${dpr}" data-count="${images.length}">${body}<script>window.addEventListener("load",function(){setTimeout(function(){try{window.print();}catch(e){}},300);});<\/script></body></html>`;
+}
+function _escForHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function printCurrentPage(){
+  if(!totalPages){alert("เปิด PDF ก่อน");return;}
+  const dataUrl=_captureCanvasDataURL();
+  if(!dataUrl){setStatus("จับภาพไม่สำเร็จ");return;}
+  const sc=getScaleForPage(curPage);
+  const images=[{page:curPage,dataUrl,name:pageNames[curPage]||"",scale:sc?scaleLabel(sc):"",w:canvas.width,h:canvas.height,dpr:window.devicePixelRatio||1}];
+  const html=_buildPrintDoc(images,`Print page ${curPage}`);
+  const w=window.open("","_blank");
+  if(!w){alert("Browser block popup — เปิด popup สำหรับหน้านี้ก่อน");return;}
+  try{w.document.open();w.document.write(html);w.document.close();}catch(e){alert("เขียนหน้าต่างพิมพ์ไม่สำเร็จ: "+e.message);return;}
+  setStatus(`🖨 พิมพ์หน้า ${curPage}`);
+  return w;
+}
+async function printSelectedPages(){
+  if(!totalPages){alert("เปิด PDF ก่อน");return;}
+  saveCurrentPage();
+  const sel=selectedPages.size>0
+    ?[...selectedPages].filter(n=>!excludedPages.has(n)).sort((a,b)=>a-b)
+    :(function(){const all=[];for(let i=1;i<=totalPages;i++)if(!excludedPages.has(i))all.push(i);return all;})();
+  if(!sel.length){alert("ไม่มีหน้าให้พิมพ์");return;}
+  const origPage=curPage;
+  setStatus(`🖨 กำลังจับภาพ ${sel.length} หน้า…`);
+  const images=[];
+  for(const n of sel){
+    try{await loadPage(n);}catch(e){console.warn("[print] loadPage fail",n,e);continue;}
+    await _waitForRedraw();
+    const dataUrl=_captureCanvasDataURL();
+    if(!dataUrl){console.warn("[print] skip page",n);continue;}
+    const sc=getScaleForPage(n);
+    images.push({page:n,dataUrl,name:pageNames[n]||"",scale:sc?scaleLabel(sc):"",w:canvas.width,h:canvas.height,dpr:window.devicePixelRatio||1});
+  }
+  if(origPage&&origPage!==curPage){try{await loadPage(origPage);}catch(e){}}
+  if(!images.length){setStatus("พิมพ์ไม่สำเร็จ — ไม่มีภาพ");return;}
+  const html=_buildPrintDoc(images,`Print ${images.length} pages`);
+  const w=window.open("","_blank");
+  if(!w){alert("Browser block popup — เปิด popup สำหรับหน้านี้ก่อน");return;}
+  try{w.document.open();w.document.write(html);w.document.close();}catch(e){alert("เขียนหน้าต่างพิมพ์ไม่สำเร็จ: "+e.message);return;}
+  setStatus(`🖨 พิมพ์ ${images.length} หน้า`);
+  return w;
+}
 // ══════════════════════════════════════════════════════
 // Save/Load project
 // ══════════════════════════════════════════════════════
