@@ -237,7 +237,16 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **est LOC:** ~150 (mostly E2E test)
 - **success criterion:** if any field doesn't round-trip → file HT-18c with that specific field fix; if all round-trip → HT-18b PASS and HT-18 series complete
 
-#### HT-18c — `_test_ht18b_save_load_round_trip` eq() comparison fix — `queued` 2026-05-19
+#### HT-18d — applyLoadedProject wipes projectInfo on load — `queued` 2026-05-19 ⚠️ **data-integrity** (newly discovered)
+
+- **scope skill:** `/bma-check-forbidden` (touches `applyLoadedProject` in `proto/ui.html` — save/load surface)
+- **discovered by:** HT-18c's `_test_ht18b_save_load_round_trip` diagnostic. `stepTrace.before_apply: '{}'` (cleared) → `stepTrace.after_apply: '{"reqNo":"","cls":""}'` (still empty strings after applyLoadedProject completes). Blob HAS the values (`projectInfo_blob_reqNo: 'HT18B-TEST-001'`) so save side works. Load side wipes them — likely a syncProjectInfoFromForm call inside applyLoadedProject's call chain (buildSidebar / buildTagGrid / buildRightPanel) reads empty form fields back into projectInfo, undoing the `projectInfo=proj.projectInfo||{}` assignment.
+- **user-visible symptom:** Open .bmaplan → projectInfo fields (reqNo, buildingType, gfa, classification, userDefinedLimits etc.) lose their saved values silently.
+- **scope:** Locate the syncProjectInfoFromForm call in applyLoadedProject's downstream and either (a) re-populate form FROM projectInfo BEFORE that call fires, or (b) defer the syncing.
+- **est LOC:** ~10-30 (additive; locate + reorder)
+- **success criterion:** HT-18b L_projectInfo can revert from blob-check back to post-load global check + still PASS.
+
+#### HT-18c — `_test_ht18b_save_load_round_trip` eq() comparison fix — `done` 2026-05-19
 
 - **scope skill:** `/bma-measure-scope` (touches E2E test only, not app code)
 - **diagnosis from HT-18b run 2026-05-19:** 7/13 sub-checks PASS (F-K + M = pageTags / pageNames / pageRotations / floorKind / excludedPages / siteOrientation / layerState). 6 FAIL (A-E + L = poly / opening / line / ref / parking / projectInfo). Failure mode is **test design**, not schema drift — `eq(polyL, tpoly)` uses full JSON equality but `normalizeAllObjects()` runs during save AFTER pre-snapshot is captured (adds `measurementProfile` / `objectCategory` / `reportTarget` / `lawBasis` / `countingRule` / `layerId` / linked-opening parent fields). So `tpoly` ≠ `polyL` even with perfect round-trip. The schema IS symmetric (HT-18a audit confirmed); the test is too strict.
