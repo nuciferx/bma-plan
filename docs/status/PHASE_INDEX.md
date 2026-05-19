@@ -193,7 +193,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Sprint split rationale: ~410 total LOC at upper boundary → 002a (F11 ~230 LOC, breaking change) + 002b (F12 ~180 LOC, depends-on 002a)
     - Carry-over: 001a minimap deprecated; ZEN_MENU_ITEMS shared handler array; F-key scope guard; onboarding `PREFS.layout.zenV2Onboarded`; modal z-index audit
 
-#### INV-2026-05-19-002a — F11 Zen + top bar (additive layer over v1) — `queued`
+#### INV-2026-05-19-002a — F11 Zen + top bar (additive layer over v1) — `done 0915ab5`
 
 > **Reshape 2026-05-19 (user during dev-loop SCOPE):** Original framing = replace 001a `toggleZen()` (breaking). User redirected: "ทำแยกจากของ v1 ไปเลยจะดีกว่า" → **non-breaking additive** approach. 001a `toggleZen()` UNTOUCHED. Add `#zen-topbar` as a new overlay that renders when `body.zen` is active. 001a minimap, 3 HUDs, hide-menubar behavior all UNCHANGED.
 
