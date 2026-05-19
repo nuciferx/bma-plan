@@ -221,7 +221,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **forbidden surfaces touched:** NONE — change is additive call insertion only
 - **predecessors retained:** PHASE_INV_ZEN_V2_OK 10/10, PHASE_INV_OVERVIEW_OK 9/9, all earlier markers GREEN
 
-#### HT-18a-ext — Extended pushUndo coverage to 22 more mutation sites — `done` 2026-05-19
+#### HT-18a-ext — Extended pushUndo coverage to 22 more mutation sites — `done b2d37af` 2026-05-19
 
 - **scope:** After HT-18a's 6 sites, audit (`sprints/active/2026-05-19-ht-18-save-load-audit-fix/PHASE_A_AUDIT.md`) found 22 additional mutation sites missing pushUndo. Added pushUndo() to: layer reorder (moveLayerUp/Down) + rename + color + toggleLayerLock + bulk vis/lock (setAllLayersVisible / hideOtherLayers / lockOtherLayers / setAllLayersLocked) + toggleLayer / layerHideOthers / layerShowAll + page metadata (setQuickTag / setPageTag / setPageFloorKind / setPageFloorNum / applyAutoNames / excludePage / restorePage2 / hideSelectedPages / rotatePage / resetPageScale + autoNamePage inline) — total 22 sites. Also added 29 sub-checks to `_test_ht18_pushundo_leaks` (now 36/36 GREEN; was 7/7).
 - **bulk handling:** `excludePage` / `restorePage2` accept optional `_skipUndo` param so bulk callers (hideSelectedPages loop) push once instead of N times.
