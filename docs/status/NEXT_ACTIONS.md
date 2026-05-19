@@ -4,22 +4,17 @@ Date: 2026-05-19
 
 ## Immediate Next
 
-**INV-2026-05-19-001b ⌘K Command Palette PASS — commit pending (main agent handles). Pair 001a+001b complete. Next: Zen polish sprint (HT-Z batch) or next invent-queued idea.**
+**INV-2026-05-19-001c Zen+Palette FRICTION polish PASS — commit pending (main agent handles). Trilogy 001a+001b+001c complete. HT-Z queue empty. Next: pick next `invent-queued` idea from `PHASE_INDEX.md`.**
 
-1. **Commit INV-2026-05-19-001b** (main agent fills hash, flips PHASE_INDEX row to `done`).
+1. **Commit INV-2026-05-19-001c** (main agent fills hash, flips PHASE_INDEX row to `done`).
 
-2. **Zen polish sprint (HT-Z-1 + HT-Z-2 + HT-Z-3 batch)** — three FRICTION findings from the 001a/001b journey tests:
-   - HT-Z-1: transient stale HUD page name during fast minimap nav (MutationObserver timing lag)
-   - HT-Z-2: auto-unverified scale not visually distinguished in HUD chip (amber styling missing)
-   - HT-Z-3: empty-state when filtering by Thai tag on untagged PDF lacks hint that Page Setup tagging is needed first
-   All three are FRICTION, not BROKEN. Can be batched into one polish sprint. Filed to `PHASE_INDEX.md` `### zen-mode 2026-05-19`.
-
-3. **Next invent-queued idea** from `PHASE_INDEX.md` discovered backlog — after HT-Z polish sprint is cleared (or concurrently if separate sprint track).
+2. **Next `invent-queued` idea** from `PHASE_INDEX.md` discovered backlog — trilogy done, no open HT-Z items. Resume `/loop /bma-invent-loop` or `/loop /bma-dev-loop` to pick the next idea.
 
 ## Recently Done
 
-- **INV-2026-05-19-001b — ⌘K Command Palette** — 2026-05-19. Ctrl+K fuzzy page jump modal; 5 helpers (`togglePalette`/`closePalette`/`filterPalette`/`_palJumpToIdx`/`_palMoveSel`); ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose (z-index 9500); color-coded tag chips. `PHASE_INV_PALETTE_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK 13/13 steps; 0 JS errors. HT-Z-3 filed. Zero forbidden-surface edits. Idea `2026-05-19-01-36`, sprint 001b of 2.
-- **INV-2026-05-19-001a — Zen Mode + Sheet Minimap** — 2026-05-19. `body.zen` chrome-hide; 3 corner HUDs; lazy minimap (IntersectionObserver, malloc-safe); F11/Esc toggle; PREFS additive; `PHASE_INV_ZEN_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK (45-page permit). HT-Z-1/HT-Z-2 filed. Idea `2026-05-19-01-36`, sprint 001a of 2.
+- **INV-2026-05-19-001c — Zen+Palette FRICTION polish** — 2026-05-19. HT-Z-1: `_zenSyncHud()` direct `pageNames[curPage]` read (no MutationObserver lag). HT-Z-2: amber Scale chip when auto-unverified/no scale + tooltip. HT-Z-3: Thai-tag empty-state hint in palette. `PHASE_INV_POLISH_001C_OK` 5/5; smoke + full EXIT 0; TEST-H SKIPPED (sub-200-LOC, all branches marker-covered). Zero forbidden-surface edits. Trilogy complete.
+- **INV-2026-05-19-001b — ⌘K Command Palette** — 2026-05-19. Ctrl+K fuzzy page jump modal; 5 helpers (`togglePalette`/`closePalette`/`filterPalette`/`_palJumpToIdx`/`_palMoveSel`); ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose (z-index 9500); color-coded tag chips. `PHASE_INV_PALETTE_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK 13/13 steps; 0 JS errors. HT-Z-3 filed. Idea `2026-05-19-01-36`, sprint 001b of 3.
+- **INV-2026-05-19-001a — Zen Mode + Sheet Minimap** — 2026-05-19. `body.zen` chrome-hide; 3 corner HUDs; lazy minimap (IntersectionObserver, malloc-safe); F11/Esc toggle; PREFS additive; `PHASE_INV_ZEN_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK (45-page permit). HT-Z-1/HT-Z-2 filed. Idea `2026-05-19-01-36`, sprint 001a of 3.
 - **Ribbon Cleanup Polish** — 2026-05-19. `body { font-size }` 16px → 14px (revert after Chrome layout shift). `#scale-badge` hidden from ribbon. `#active-layer-select` ribbon-group hidden (preserved in DOM). `#btn-report` rewrapped in `.rsection` + `.rlbl` + `.rrow` (uniform 60px height). py_compile PASS, smoke PASS (all pre-existing markers GREEN). Zero forbidden-surface edits.
 - **INV-2026-05-18-002 — Settings v2: export defaults + loupe prefs** — 2026-05-19. 4 new PREFS additive in settings.v1: csvSeparator / includeLawBasis / loupe.radius / loupe.zoomFactor. exportCSV separator-aware; updateLoupe zoom-factor-driven. SETTINGS_V2_OK 6/6; SETTINGS_OK (v1) still GREEN. Commit `3e71865`.
 - **INV-2026-05-18-001c — Page delete + renumber-map + /rebuild-pdf** — 2026-05-19. NEW /rebuild-pdf endpoint. PyMuPDF doc.delete_page() reverse-order. _reindexPageDicts across 7 per-page dicts. Hard-block during draw, last-page guard, pushUndo(), Foxit-style warning. PHASE_INV_PAGE_SETUP_C_OK 7/7. Commit `ebb521c`. Research: `afd4e71` Q1-Q4 locked in `docs/invent/page-setup-redesign.md`.

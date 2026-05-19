@@ -8,10 +8,11 @@ Date: 2026-05-19
 
 ## One-Line Status
 
-INV-2026-05-19-001b ⌘K Command Palette — PASS. Ctrl+K fuzzy page jump; PHASE_INV_PALETTE_OK 10/10; composes with Zen Mode (z-index 9500); JOURNEY_OK 13/13 steps. 001a+001b pair complete.
+INV-2026-05-19-001c Zen+Palette FRICTION polish — PASS. HT-Z-1/Z-2/Z-3 cleared; PHASE_INV_POLISH_001C_OK 5/5; Zen+Palette trilogy complete; HT-Z queue empty.
 
 ## Latest Sprint
 
+- INV-2026-05-19-001c — Zen+Palette FRICTION polish: PASS (2026-05-19) — HT-Z-1 page-name direct read; HT-Z-2 amber scale chip; HT-Z-3 Thai-tag hint; PHASE_INV_POLISH_001C_OK 5/5; full EXIT 0; trilogy done
 - INV-2026-05-19-001b — ⌘K Command Palette: PASS (2026-05-19) — Ctrl+K fuzzy page jump modal; 5 helpers; ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose; PHASE_INV_PALETTE_OK 10/10; full EXIT 0; JOURNEY_OK; HT-Z-3 filed
 - INV-2026-05-19-001a — Zen Mode + Sheet Minimap: PASS (2026-05-19) — body.zen chrome-hide, 3 HUDs, lazy minimap, F11/Esc, PHASE_INV_ZEN_OK 10/10, full EXIT 0, JOURNEY_OK; forbidden-surface scan CLEAN
 - INV-2026-05-18-002 — Settings v2 export defaults + loupe prefs: PASS (2026-05-19) — 4 new PREFS (csvSeparator/includeLawBasis/loupe.radius/loupe.zoomFactor) additive in settings.v1; SETTINGS_V2_OK 6/6; v1 SETTINGS_OK still GREEN [commit 3e71865]
@@ -29,14 +30,15 @@ INV-2026-05-19-001b ⌘K Command Palette — PASS. Ctrl+K fuzzy page jump; PHASE
 
 ```bash
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
-python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing)
+python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing)
 python3.11 proto/e2e_ui_test.py full                           # PASS EXIT 0 (2026-05-19)
 ```
 
-Last smoke run: 2026-05-19 (INV-001b Palette; PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last smoke run: 2026-05-19 (INV-001c polish; PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 
+- `<COMMIT_HASH_PENDING>` — INV-2026-05-19-001c: Zen+Palette FRICTION polish (commit pending)
 - `<COMMIT_HASH_PENDING>` — INV-2026-05-19-001b: ⌘K Command Palette (commit pending)
 - `<COMMIT_HASH_PENDING>` — INV-2026-05-19-001a: Zen Mode + Sheet Minimap (commit pending)
 - `0e4e851` — polish(ribbon): hide scale-badge + active-layer-select, wrap Review in rsection, revert body font 14px

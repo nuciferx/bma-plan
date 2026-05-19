@@ -4,7 +4,56 @@
 
 ---
 
-# Latest: INV-2026-05-19-001b — ⌘K Command Palette (fuzzy page jump)
+# Latest: INV-2026-05-19-001c — Zen+Palette FRICTION polish (HT-Z-1 + HT-Z-2 + HT-Z-3 bundle)
+
+Branch: main
+Date: 2026-05-19
+
+## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_POLISH_001C_OK 5/5), full EXIT 0
+
+## Summary
+
+Polish sprint clearing all 3 FRICTION findings from the 001a/001b human-test journey. `_zenSyncHud()` now reads page names directly from `pageNames[curPage]` (HT-Z-1 timing fix) and colors the Scale chip amber when scale is auto-unverified or absent (HT-Z-2 visual fix). `filterPalette()` empty branch appends a Thai-language hint when a Thai tag word is typed but no pages are tagged yet (HT-Z-3 discoverability fix). ~20 LOC total across two files. Completes the Zen+Palette feature trilogy from idea `2026-05-19-01-36`.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | ~15 LOC — `_zenSyncHud()` direct page-name read + amber scale chip; `filterPalette()` Thai-tag empty-state hint |
+| `proto/e2e_ui_test.py` | +65 LOC — `_test_inv_polish_001c` (5 sub-checks), `PHASE_INV_POLISH_001C_OK` marker |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `proto/server.py` — UNCHANGED (no server edit)
+- `.bmaplan` schema version stays 1; no schema fields changed
+
+## Tests Run
+
+```
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
+  PHASE_INV_POLISH_001C_OK 5/5 (hudReadsPageNamesDirectly, unverifiedScaleAmber,
+  manualScaleNotAmber, thaiTagHintShown, hintAbsentWhenTaggedOrNoThai)
+  PHASE_INV_ZEN_OK 10/10 + PHASE_INV_PALETTE_OK 10/10 — no regression
+python3.11 proto/e2e_ui_test.py full                           → EXIT 0
+TEST-H: SKIPPED — sub-200-LOC polish; all changed branches covered by PHASE_INV_POLISH_001C_OK
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints — UNCHANGED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: INV-2026-05-19-001b — ⌘K Command Palette (fuzzy page jump)
 
 Branch: main
 Date: 2026-05-19
@@ -13,7 +62,7 @@ Date: 2026-05-19
 
 ## Summary
 
-Additive ⌘K Command Palette for fuzzy page jump. A fixed-center modal (z-index 9500, above Zen Mode HUDs at 1500) opens on Ctrl+K/Cmd+K with a filter input that narrows pages by number, name, or Thai page-type tag. Keyboard navigation (ArrowDown/Up to move selection, Enter to jump and close, Esc to dismiss) is handled before the generic `inInput` guard so the palette input does not swallow nav keys. A mid-draw guard (`mPts.length===0`) prevents Ctrl+K from hijacking polygon construction. View menu item added. Composes cleanly with Zen Mode and the HT-7 scale gate. No schema, no server, purely transient UI state.
+Additive ⌘K Command Palette for fuzzy page jump. A fixed-center modal (z-index 9500, above Zen Mode HUDs at 1500) opens on Ctrl+K/Cmd+K with a filter input that narrows pages by number, name, or Thai page-type tag. Keyboard navigation handled before the `inInput` guard so palette input receives nav keys correctly. Mid-draw guard prevents Ctrl+K from hijacking polygon construction. View menu item added. No schema, no server, purely transient UI state.
 
 ## Files Changed
 
@@ -23,33 +72,16 @@ Additive ⌘K Command Palette for fuzzy page jump. A fixed-center modal (z-index
 | `proto/ui.html` | ~120 LOC — `togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`; Ctrl+K keybind; ArrowDown/Up/Enter/Esc palette handlers; View menu item; `#cmd-palette` DOM block |
 | `proto/e2e_ui_test.py` | ~95 LOC — `_test_inv_palette` (10 sub-checks), `PHASE_INV_PALETTE_OK` marker |
 
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `proto/server.py` — UNCHANGED (no server edit in this sprint)
-- `.bmaplan` schema version stays 1; palette is purely transient UI state
-
 ## Tests Run
 
 ```
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
 python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0 (PHASE_INV_PALETTE_OK 10/10; PHASE_INV_ZEN_OK 10/10; all pre-existing GREEN)
 python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-bma-human-journey-tester                                       → JOURNEY_OK (45-page permit; 13/13 spec steps PASS; 0 JS errors; HT-Z-3 filed)
+bma-human-journey-tester                                       → JOURNEY_OK (45-page permit; 13/13 PASS; 0 JS errors; HT-Z-3 filed)
 ```
 
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` core endpoints — UNCHANGED
-- ✅ `.bmaplan` schema — UNCHANGED (palette is transient; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
+<!-- INV-001a Zen Mode + Ribbon Cleanup archived to docs/archive/patch-history-2026-05-09.md -->
 
 # Previous: INV-2026-05-19-001a — Zen Mode + Sheet Minimap
 

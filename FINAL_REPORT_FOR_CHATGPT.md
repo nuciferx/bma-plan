@@ -4,7 +4,34 @@
 
 ---
 
-# Latest: INV-2026-05-19-001b ⌘K Command Palette (fuzzy page jump) — PASS
+# Latest: INV-2026-05-19-001c Zen+Palette FRICTION polish — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_POLISH_001C_OK` 5/5, `PHASE_INV_ZEN_OK` 10/10, `PHASE_INV_PALETTE_OK` 10/10, all pre-existing GREEN), full EXIT 0. TEST-H skipped — sub-200-LOC polish with full marker coverage of all changed branches. Forbidden-surface scan CLEAN. No schema change.
+
+## What was delivered
+
+- HT-Z-1 fix: `_zenSyncHud()` reads `pageNames[curPage]` directly — eliminates MutationObserver timing lag on fast minimap navigation
+- HT-Z-2 fix: Scale chip in Zen HUD turns amber when scale is `auto-unverified` or absent; tooltip explains state
+- HT-Z-3 fix: `filterPalette()` empty-state appends Thai-tag discoverability hint when no pages are tagged yet
+- `PHASE_INV_POLISH_001C_OK` E2E marker (5 sub-checks) covering all 3 fixes
+- HT-Z queue fully cleared; Zen+Palette trilogy complete
+
+## What's next
+
+- Next `invent-queued` idea from `PHASE_INDEX.md` discovered backlog — trilogy is done, queue is clean
+
+## Position in Plan
+
+Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-001c — polish companion to 001a (Zen Mode) + 001b (⌘K Palette), all from idea `2026-05-19-01-36`. The 001a/001b/001c trilogy is now fully shipped and polished.
+
+---
+
+# Previous: INV-2026-05-19-001b ⌘K Command Palette (fuzzy page jump) — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -34,33 +61,4 @@ PASS. All three test tiers passed: py_compile PASS, smoke EXIT 0 (`PHASE_INV_PAL
 
 Phase 1 complete. INV series ongoing (invent-loop). This sprint is INV-2026-05-19-001b — companion to 001a Zen Mode (both from idea `2026-05-19-01-36`, SPLIT_REQUIRED boundary). The 001a/001b pair is now complete. Next loop iteration picks the next `invent-done-go` item from `PHASE_INDEX.md`.
 
----
-
-# Previous: INV-2026-05-19-001a Zen Mode + Sheet Minimap — PASS
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_ZEN_OK` 10/10, all pre-existing GREEN), full EXIT 0, JOURNEY_OK (zero CRASH/BROKEN; HT-Z-1 + HT-Z-2 filed). Forbidden-surface scan CLEAN. PREFS schema additive only.
-
-## What was delivered
-
-- `body.zen` class system hiding ribbon, left/right panels, status bar, summary widget — canvas ~94% viewport height
-- Three corner HUDs (TL: scale + tool, TR: objects + layer, BL: save state) synced via MutationObserver
-- Lazy-loaded 5-column sheet minimap (`#zen-minimap`) with IntersectionObserver per cell (malloc-safe)
-- F11 toggle + Esc-exit-zen keydown branch
-- `PREFS.layout.zenMode` + `PREFS.layout.zenOnboarded` (additive, defaults false)
-- View menu "⛶ Zen Mode" item; auto-dismiss onboarding toast
-- `PHASE_INV_ZEN_OK` E2E marker (10 sub-checks) + 2 pre-existing baseline drift fixes
-
-## What's next
-
-INV-2026-05-19-001b (⌘K palette) was the immediate next sprint — now DONE.
-
-## Position in Plan
-
-Phase 1 complete. INV series, idea `2026-05-19-01-36`, sprint 1 of 2.
-
-<!-- older Previous (Ribbon Cleanup + Page Setup trilogy) archived to docs/archive/reports-2026-05-09.md -->
+<!-- 001a Zen Mode + older entries archived to docs/archive/reports-2026-05-09.md -->

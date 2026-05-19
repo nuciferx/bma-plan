@@ -4143,6 +4143,73 @@ def _test_inv_palette(page):
     return {**checks, "all": True}
 
 
+def _test_inv_polish_001c(page):
+    """INV-2026-05-19-001c: Zen+Palette FRICTION polish (HT-Z-1 + HT-Z-2 + HT-Z-3 bundle).
+
+    HT-Z-1: _zenSyncHud reads pageNames[curPage] directly (no MutationObserver lag)
+    HT-Z-2: HUD Scale chip colors amber when scale state is auto-unverified/unknown
+    HT-Z-3: Palette empty-state shows Page Setup hint when Thai tag word searched + no tags exist
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // HT-Z-1: enter zen, set a pageName, verify HUD reads from pageNames not bb-page-name
+        if(document.body.classList.contains('zen')) toggleZenMode();
+        pageNames[curPage] = 'TEST-Z1-name';
+        toggleZenMode();
+        const hudPageEl = document.getElementById('zen-hud-page');
+        r.hudReadsPageNamesDirectly = hudPageEl && hudPageEl.textContent.includes('TEST-Z1-name');
+        // HT-Z-2: ensure NO scale on curPage; HUD Scale should be amber
+        if(typeof setPageScale === 'function'){
+            // can't reliably reset, just check current state
+        }
+        const scaleEl = document.getElementById('zen-hud-scale');
+        const beforeColor = scaleEl ? scaleEl.style.color : '';
+        // Force unverified state by calling _zenSyncHud after stubbing getScaleForPage
+        const origGetScale = window.getScaleForPage;
+        window.getScaleForPage = function(){return {state:'auto-unverified', label:'1:100 ?'};};
+        _zenSyncHud();
+        const unverifiedColor = scaleEl ? scaleEl.style.color : '';
+        r.unverifiedScaleAmber = unverifiedColor.includes('orange') || unverifiedColor.includes('255, 159');
+        // Now stub manual; should be empty/white
+        window.getScaleForPage = function(){return {state:'manual', label:'1:100'};};
+        _zenSyncHud();
+        const manualColor = scaleEl ? scaleEl.style.color : '';
+        r.manualScaleNotAmber = !(manualColor.includes('orange') || manualColor.includes('255, 159'));
+        window.getScaleForPage = origGetScale;
+        // Exit zen
+        toggleZenMode();
+        // HT-Z-3: open palette, type Thai tag word with no pages tagged
+        if(window.pageTags) for(const k of Object.keys(window.pageTags)) delete window.pageTags[k];
+        togglePalette();
+        const inp = document.getElementById('cmd-palette-input');
+        inp.value = 'ผังบริเวณ'; filterPalette();
+        const emptyHtml = document.getElementById('cmd-palette-results').innerHTML;
+        r.thaiTagHintShown = emptyHtml.includes('Page Setup') && emptyHtml.includes('💡');
+        // Now tag a page and verify hint does NOT appear (real match would fire, so use a non-matching query)
+        if(!window.pageTags) window.pageTags = {};
+        pageTags[1] = 'site';
+        inp.value = 'XYZNOMATCH'; filterPalette();
+        const taggedHtml = document.getElementById('cmd-palette-results').innerHTML;
+        r.hintAbsentWhenTaggedOrNoThai = !taggedHtml.includes('💡');
+        closePalette();
+        return r;
+    }""")
+    checks = {
+        "hudReadsPageNamesDirectly": probe.get("hudReadsPageNamesDirectly") is True,
+        "unverifiedScaleAmber": probe.get("unverifiedScaleAmber") is True,
+        "manualScaleNotAmber": probe.get("manualScaleNotAmber") is True,
+        "thaiTagHintShown": probe.get("thaiTagHintShown") is True,
+        "hintAbsentWhenTaggedOrNoThai": probe.get("hintAbsentWhenTaggedOrNoThai") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_zen_mode(page):
     """INV-2026-05-19-001a: Zen Mode + Sheet Minimap.
 
@@ -6627,6 +6694,7 @@ def main():
             ht17_enter_area = _test_ht17_enter_finishes_area(page)
             inv_zen_mode = _test_inv_zen_mode(page)
             inv_palette = _test_inv_palette(page)
+            inv_polish_001c = _test_inv_polish_001c(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -6710,6 +6778,7 @@ def main():
         print("PHASE_HT17_OK", ht17_enter_area)
         print("PHASE_INV_ZEN_OK", inv_zen_mode)
         print("PHASE_INV_PALETTE_OK", inv_palette)
+        print("PHASE_INV_POLISH_001C_OK", inv_polish_001c)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)

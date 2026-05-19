@@ -3436,7 +3436,12 @@ function filterPalette(){
   _palMatches=matches;
   _palSel=0;
   if(!matches.length){
-    results.innerHTML='<div class="cmd-palette-empty">ไม่พบหน้าที่ตรงกับ "'+_palEsc(q)+'"</div>';
+    // INV-2026-05-19-001c (HT-Z-3): if user is searching by a Thai tag label (ผังบริเวณ/ชั้น/
+    // รูปด้าน/รูปตัด/รายละเอียด/ตาราง) but no pages are tagged yet, add hint about Page Setup.
+    const isThaiTagQuery=/ผังบริเวณ|ชั้น|รูปด้าน|รูปตัด|รายละเอียด|ตาราง/.test(q);
+    const anyTagged=Object.keys(pageTags||{}).some(k=>pageTags[k]);
+    const hint=(isThaiTagQuery&&!anyTagged)?'<div class="cmd-palette-empty" style="color:var(--orange);padding-top:2px">💡 แท็กภาษาไทยใช้ได้หลังตั้งค่าหน้าใน <b>Page Setup</b></div>':'';
+    results.innerHTML='<div class="cmd-palette-empty">ไม่พบหน้าที่ตรงกับ "'+_palEsc(q)+'"</div>'+hint;
     if(cnt)cnt.textContent="0 ผลลัพธ์";
     return;
   }
@@ -3467,7 +3472,9 @@ function _zenSyncHud(){
   const hud={
     tool:get("lbl-mode")||"—",
     scale:get("lbl-scale")||"—",
-    page:get("bb-page-name")||(curPage?`${curPage}/${totalPages||"?"}`:"—"),
+    // INV-2026-05-19-001c (HT-Z-1): read pageNames/curPage directly to avoid MutationObserver
+    // racing setStatus("กำลังโหลดหน้า…") before updateBottomBar writes bb-page-name.
+    page:curPage?(pageNames[curPage]?`${pageNames[curPage]} (${curPage}/${totalPages||"?"})`:`${curPage}/${totalPages||"?"}`):"—",
     layer:get("lbl-layer")||"—",
     save:get("lbl-save-state")||"—",
     obj:get("lbl-objects")||"0",
@@ -3486,6 +3493,15 @@ function _zenSyncHud(){
   if(saveEl){
     const dirty=(hud.save||"").includes("Unsaved")||(hud.save||"").includes("Manual");
     saveEl.style.color=dirty?"var(--orange)":"var(--green)";
+  }
+  // INV-2026-05-19-001c (HT-Z-2): color HUD Scale chip amber when scale state is auto-unverified.
+  // Manual scale = white (default); no scale = amber (orange) too.
+  const scaleEl=document.getElementById("zen-hud-scale");
+  if(scaleEl){
+    const sc=typeof getScaleForPage==="function"?getScaleForPage(curPage):null;
+    const unverified=!sc||sc.state==="auto-unverified"||sc.state==="unknown";
+    scaleEl.style.color=unverified?"var(--orange)":"";
+    scaleEl.title=unverified?"Scale ยังไม่ได้สอบเทียบ — ตั้งค่าก่อนวัดเพื่อความแม่นยำ":"Scale สอบเทียบแล้ว (manual)";
   }
 }
 // HT-12a: menu-bar density picker shortcut — writes PREFS.layout.density + applies.

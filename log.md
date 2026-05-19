@@ -1,8 +1,44 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (includes 001a Zen Mode + Ribbon Cleanup)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-19 — INV-2026-05-19-001c Zen+Palette FRICTION polish — PASS (branch: main)
+
+**What changed:** Polish sprint bundling 3 FRICTION findings from INV-001a/001b human-tests (~20 LOC total). `proto/ui.html`: (1) HT-Z-1 — `_zenSyncHud()` now reads `pageNames[curPage]` directly instead of via the `#bb-page-name` element, which lagged during fast minimap navigation; HUD displays "ชื่อหน้า (N/total)" format. (2) HT-Z-2 — `_zenSyncHud()` now colors the Scale HUD chip amber (`var(--orange)`) when `getScaleForPage(curPage).state === 'auto-unverified'` or when no scale is set; manual scale uses default white; a `title` tooltip explains the state. (3) HT-Z-3 — `filterPalette()` empty-results branch detects a Thai page-type word query (ผังบริเวณ|ชั้น|รูปด้าน|รูปตัด|รายละเอียด|ตาราง) AND no pages tagged, and appends a hint: "💡 แท็กภาษาไทยใช้ได้หลังตั้งค่าหน้าใน Page Setup". `proto/e2e_ui_test.py`: new `_test_inv_polish_001c(page)` with 5 sub-checks + `PHASE_INV_POLISH_001C_OK` marker (+65 LOC).
+
+**Why:** HT-Z-1/HT-Z-2/HT-Z-3 were all FRICTION findings filed from the 001a/001b human-test journey. Batched as one small polish sprint per "one problem set" principle (all three touch the same two files, all three are sub-10-LOC edits, none require forbidden-surface changes). Clears the HT-Z queue and completes the Zen+Palette feature trilogy.
+
+**Files touched:**
+- `proto/ui.html`: ~15 LOC — 3 small edits in `_zenSyncHud()` (page-name direct read, amber scale chip) + `filterPalette()` empty branch Thai-tag hint
+- `proto/e2e_ui_test.py`: +65 LOC — `_test_inv_polish_001c` (5 sub-checks), `PHASE_INV_POLISH_001C_OK` marker
+
+**Tests:**
+```
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
+  PHASE_INV_POLISH_001C_OK 5/5 PASS (hudReadsPageNamesDirectly, unverifiedScaleAmber,
+  manualScaleNotAmber, thaiTagHintShown, hintAbsentWhenTaggedOrNoThai)
+  PHASE_INV_ZEN_OK 10/10 — no regression; PHASE_INV_PALETTE_OK 10/10 — no regression
+python3.11 proto/e2e_ui_test.py full                           → EXIT 0
+TEST-H: SKIPPED — 3 fixes are tiny visual/UX tweaks; all changed branches covered by
+  PHASE_INV_POLISH_001C_OK markers. No new interactive flow requiring journey-level validation.
+  Per AGENTS.md: sub-200-LOC polish with full marker coverage of all changed branches.
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints — UNCHANGED (no server edit)
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- none — HT-Z-1/HT-Z-2/HT-Z-3 all cleared; Zen+Palette trilogy complete
 
 ---
 
@@ -44,42 +80,4 @@ bma-human-journey-tester (real 45-page permit PDF)             → JOURNEY_OK
 - HT-Z-3: empty-state hint missing when filtering by Thai tag on an untagged PDF; filed to `PHASE_INDEX.md`
 - HT-Z-1 + HT-Z-2 (from 001a) still open — can batch into a Zen polish sprint
 
----
-
-## 2026-05-19 — INV-2026-05-19-001a Zen Mode + Sheet Minimap — PASS (branch: main)
-
-**What changed:** Additive fullscreen-canvas "Zen Mode" feature across three files. `proto/static/css/app.css`: `body.zen` chrome-hide rules, `.zen-hud-tl/tr/bl` corner HUD styles, `.zen-minimap` 5-col lazy-loaded grid, `.zen-onboarding-toast` auto-dismiss, `.zen-exit-chip` style (~50 LOC). `proto/ui.html`: `PREFS.layout.zenMode` + `PREFS.layout.zenOnboarded` state; `applyLayoutPrefs()` extended with `body.zen` toggle + lazy minimap build + HUD sync hook; new helpers `toggleZenMode()`, `_zenBuildMinimapIfNeeded()` (IntersectionObserver-based), `_zenUpdateMinimapActive()`, `_zenToggleMinimap()`, `_zenSyncHud()`; View menu "⛶ Zen Mode" item; F11 toggle + Esc-exit-zen keydown branches; 3 `.zen-hud` corner DOM elements + `#zen-minimap` + `#zen-onboarding-toast`; MutationObserver bridges status-bar → HUD (~180 LOC). `proto/e2e_ui_test.py`: new `_test_inv_zen_mode(page)` 10 sub-checks + `PHASE_INV_ZEN_OK` marker; fixed 2 pre-existing baseline drifts from polish commit `0e4e851` (`#active-layer-select` removed from MAIN_UI_OK required-visible list; `#scale-badge` downgraded visible→exists) (~110 LOC).
-
-**Why:** User idea 2026-05-19-01-36 ("ทำ ui แบบ fullscreen ให้เหลือแต่ canva และมีแค่ top เมนู") ran through the `/bma-invent` pipeline (PICK → RESEARCH → FRAME → DIVERGE → SCORE → SPIKE → CHECKPOINT) and was promoted `invent-done-go`. Zen Mode maximises canvas to ~94% viewport height for high-density measurement work by hiding ribbon, left panel, right panel, status bar, and summary widget, replacing them with three small corner HUDs (TL = scale + tool, TR = objects + layer, BL = save state) and a lazy-loaded sheet minimap. The IntersectionObserver lazy-load strategy was chosen specifically to avoid the malloc anti-pattern documented in `AGENTS.md` — only visible thumb cells trigger fetch, preventing concurrent render overload. Sprint was split into 001a (Zen Mode, this sprint) + 001b (⌘K command palette, next iteration) per the SPLIT_REQUIRED boundary.
-
-**Files touched:**
-- `proto/static/css/app.css`: ~50 LOC — `body.zen` chrome rules, HUD corner styles, minimap grid, onboarding toast, exit chip
-- `proto/ui.html`: ~180 LOC — PREFS state, helpers, View menu item, F11/Esc handlers, HUD + minimap DOM, MutationObserver
-- `proto/e2e_ui_test.py`: ~110 LOC + 2-line baseline fix — `_test_inv_zen_mode` (10 sub-checks), `PHASE_INV_ZEN_OK` marker, baseline drift fixes
-
-**Tests:**
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
-  PHASE_INV_ZEN_OK 10/10 PASS (canvas 94.44% vh; F11 + Esc exit; minimap lazy-load; PREFS round-trip; status hidden)
-  all pre-existing markers GREEN (no regressions)
-python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-bma-human-journey-tester: JOURNEY_OK (real 45-page permit, zero CRASH/BROKEN)
-  HT-Z-1 filed: transient stale HUD page name during fast minimap nav (MutationObserver timing)
-  HT-Z-2 filed: auto-unverified scale not visually distinguished in HUD chip
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` core endpoints — UNCHANGED (no server edit)
-- ✅ `.bmaplan` schema — ADDITIVE only (`PREFS.layout.zenMode` + `PREFS.layout.zenOnboarded`; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- HT-Z-1: transient stale HUD page name during fast minimap nav — MutationObserver timing; filed to `PHASE_INDEX.md` `### zen-mode 2026-05-19`
-- HT-Z-2: auto-unverified scale not visually distinguished in HUD chip — amber styling deferred to 001b or polish sprint
-- INV-2026-05-19-001b (⌘K command palette) queued as next sprint for the loop
-
-<!-- sessions before 2026-05-19 INV-001a are archived to docs/archive/log-2026-05-19.md (Ribbon Cleanup) and docs/archive/log-2026-05-18.md (earlier) -->
+<!-- sessions before 2026-05-19 INV-001b are archived to docs/archive/log-2026-05-19.md (001a Zen Mode + Ribbon Cleanup) and docs/archive/log-2026-05-18.md (earlier) -->

@@ -4,7 +4,46 @@
 
 ---
 
-# Latest: INV-2026-05-19-001b — ⌘K Command Palette (fuzzy page jump)
+# Latest: INV-2026-05-19-001c — Zen+Palette FRICTION polish (HT-Z-1 + HT-Z-2 + HT-Z-3 bundle)
+
+Branch: main
+Date: 2026-05-19
+
+## Result: PASS — py_compile PASS, smoke EXIT 0, full EXIT 0; TEST-H SKIPPED (no-test rationale below)
+
+## Commands
+
+```bash
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
+python3.11 proto/e2e_ui_test.py full                           → EXIT 0
+```
+
+## No-Test-H Rationale
+
+Per AGENTS.md: sub-200-LOC polish sprint with full marker coverage of all changed branches. `PHASE_INV_POLISH_001C_OK` 5/5 directly exercises all 3 changed code paths (page-name direct read, amber scale chip, Thai-tag hint). All changes are UI label / CSS class tweaks — no new interactive flow requiring end-to-end journey validation. Prior JOURNEY_OK baseline (001b, 13/13 steps) remains valid.
+
+## New Marker: PHASE_INV_POLISH_001C_OK (5/5)
+
+| Sub-check | Result |
+|---|---|
+| hudReadsPageNamesDirectly | PASS |
+| unverifiedScaleAmber | PASS |
+| manualScaleNotAmber | PASS |
+| thaiTagHintShown | PASS |
+| hintAbsentWhenTaggedOrNoThai | PASS |
+
+## Pre-existing Markers
+
+`PHASE_INV_ZEN_OK` 10/10 — no regression. `PHASE_INV_PALETTE_OK` 10/10 — no regression. All other pre-existing smoke markers GREEN.
+
+## Full Run
+
+EXIT 0. `ANNOT_OK`, `PERSIST_OK`, `REAL_OK` GREEN.
+
+---
+
+# Previous: INV-2026-05-19-001b — ⌘K Command Palette (fuzzy page jump)
 
 Branch: main
 Date: 2026-05-19
@@ -20,7 +59,7 @@ python3.11 proto/e2e_ui_test.py full                           → EXIT 0
 bma-human-journey-tester (real 45-page permit PDF)             → JOURNEY_OK
 ```
 
-## New Marker: PHASE_INV_PALETTE_OK (10/10)
+## Marker: PHASE_INV_PALETTE_OK (10/10)
 
 | Sub-check | Result |
 |---|---|
@@ -35,52 +74,8 @@ bma-human-journey-tester (real 45-page permit PDF)             → JOURNEY_OK
 | midDrawGuard | PASS |
 | escClosesPalette | PASS |
 
-## Pre-existing Markers
+`PHASE_INV_ZEN_OK` 10/10 still PASS (001a unaffected). All pre-existing markers GREEN.
 
-All pre-existing smoke markers GREEN — no regressions. `PHASE_INV_ZEN_OK` 10/10 still PASS (001a Zen Mode unaffected).
+Human journey: JOURNEY_OK — 13/13 spec steps PASS; 0 JS errors; HT-Z-3 filed.
 
-## Full Run
-
-EXIT 0. `ANNOT_OK`, `PERSIST_OK`, `REAL_OK` GREEN. No regressions on export/rotation/real-PDF paths.
-
-## Human Journey Test
-
-`JOURNEY_OK` — 13/13 spec steps PASS. Zero JS errors throughout. One FRICTION finding filed:
-- HT-Z-3: empty-state when filtering by Thai tag on an untagged PDF lacks hint that Page Setup tagging is needed first
-
-Filed to `PHASE_INDEX.md` `### zen-mode 2026-05-19` backlog.
-
----
-
-# Previous: INV-2026-05-19-001a — Zen Mode + Sheet Minimap
-
-Branch: main
-Date: 2026-05-19
-
-## Result: PASS — py_compile PASS, smoke EXIT 0, full EXIT 0, JOURNEY_OK
-
-## Commands
-
-```bash
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0 (PHASE_INV_ZEN_OK 10/10; all pre-existing GREEN)
-python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-bma-human-journey-tester (real 45-page permit PDF)             → JOURNEY_OK (0 CRASH/BROKEN; HT-Z-1 + HT-Z-2 filed)
-```
-
-## Marker: PHASE_INV_ZEN_OK (10/10)
-
-| Sub-check | Result |
-|---|---|
-| helpersAndDomExist | PASS |
-| bodyZenClassAdded | PASS |
-| canvasGE92Pct (actual: 94.44% vh) | PASS |
-| hudHasScaleToolPageSaveLayer | PASS |
-| minimapCellCountMatch | PASS |
-| lazyLoadActive | PASS |
-| f11ExitsZen | PASS |
-| escExitsZen | PASS |
-| statusHiddenInZen | PASS |
-| prefsRoundTrip | PASS |
-
-<!-- older Previous (Ribbon Cleanup + Page Setup trilogy) archived to docs/archive/test-history-2026-05-09.md -->
+<!-- 001a Zen Mode + older entries archived to docs/archive/test-history-2026-05-09.md -->
