@@ -3,7 +3,7 @@ server.py — PDF Scale Backend v4
 รัน: python server.py
 เปิด: http://localhost:8000
 """
-import io, math, re, json, tempfile, os, time
+import io, math, re, json, tempfile, os, time, zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Optional
@@ -53,6 +53,11 @@ try:
 except ValueError:
     _env_upload_mb = 256
 MAX_UPLOAD_BYTES = max(1, _env_upload_mb) * 1024 * 1024
+try:
+    _env_export_pages = int(os.environ.get("BMA_MAX_EXPORT_PAGES", "200"))
+except ValueError:
+    _env_export_pages = 200
+MAX_EXPORT_PAGES = max(1, _env_export_pages)
 CASE_TTL_SECONDS = 2 * 60 * 60
 MAX_CASES = 12
 MIN_RENDER_SCALE = 0.1
@@ -691,6 +696,145 @@ async def export_pdf(body: dict):
     return Response(buf.getvalue(), media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{safe}_export.pdf"'})
 
+
+# ══════════════════════════════════════════════════════
+# INV-2026-05-19-003b — /export-png ZIP endpoint
+# Renders the same overlay-drawing pipeline as /export-pdf but rasterizes
+# each page to PNG at the requested DPI (72–300) and zips the results.
+# Reuses _hex_to_rgb / _line_points / _line_length_pt / _poly_area_pt2 + the
+# exact draw_polyline / insert_text / draw_rect calls from /export-pdf so
+# overlay coordinate math is identical.
+# Forbidden surfaces touched: NONE — additive endpoint, no change to /upload,
+# /page/{n}, /analyse, /export-pdf, CASES, RS, render cache.
+# ══════════════════════════════════════════════════════
+@app.post("/export-png")
+async def export_png(body: dict):
+    case = _get_case(body.get("case_id", ""))
+    if not case: return JSONResponse({"error":"invalid case"}, 400)
+    doc = case.get("doc")
+    pages     = body.get("pages", []) or []
+    annots    = body.get("annotations", {}) or {}
+    rotations = body.get("rotations", {}) or {}
+    pdf_name  = body.get("pdfName", "export")
+    try:
+        dpi_req = int(body.get("dpi", 200) or 200)
+    except (TypeError, ValueError):
+        dpi_req = 200
+    dpi = max(72, min(300, dpi_req))
+
+    if not pages:
+        return JSONResponse({"error":"no pages"}, 400)
+    if len(pages) > MAX_EXPORT_PAGES:
+        return JSONResponse(
+            {"error": f"too many pages ({len(pages)} > {MAX_EXPORT_PAGES})", "max": MAX_EXPORT_PAGES},
+            413,
+        )
+
+    def _rot_pt(x, y, rot, W, H):
+        if rot == 0:   return x, y
+        if rot == 90:  return y, W - x
+        if rot == 180: return W - x, H - y
+        return H - y, x
+
+    zip_buf = io.BytesIO()
+    safe = pdf_name.replace("/","_").replace("\\","_").replace(".pdf","") or "export"
+    rendered = 0
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_STORED) as zf:
+        for pg_num in pages:
+            try:
+                idx = int(pg_num) - 1
+            except (TypeError, ValueError):
+                continue
+            if idx < 0 or idx >= len(doc):
+                continue
+            orig_page = doc[idx]
+            orig_W, orig_H = orig_page.rect.width, orig_page.rect.height
+
+            temp_doc = fitz.open()
+            try:
+                temp_doc.insert_pdf(doc, from_page=idx, to_page=idx)
+                page = temp_doc[0]
+                rot = int(rotations.get(str(pg_num), rotations.get(pg_num, 0)) or 0)
+                if rot in (90, 180, 270):
+                    page.set_rotation(rot)
+                pg_annots = annots.get(str(pg_num), annots.get(pg_num, {})) or {}
+
+                for ln in pg_annots.get("lines", []):
+                    try:
+                        col = _hex_to_rgb(ln.get("color","#ffd60a"))
+                        raw_pts = _line_points(ln)
+                        if len(raw_pts) < 2:
+                            continue
+                        pts = [fitz.Point(*_rot_pt(p["x"], p["y"], rot, orig_W, orig_H)) for p in raw_pts]
+                        page.draw_polyline(pts, color=col, width=1.5, dashes="[6 3]")
+                        pt_dist = ln.get("ptDist") or _line_length_pt(raw_pts)
+                        lbl = f"{ln['dist']:.2f} m" if ln.get("dist") else f"{pt_dist:.1f} pt"
+                        mid = raw_pts[len(raw_pts) // 2]
+                        mx, my = _rot_pt(mid["x"], mid["y"] - 5, rot, orig_W, orig_H)
+                        page.insert_text(fitz.Point(mx, my), lbl, fontsize=7, color=col)
+                    except Exception: pass
+
+                for ref in pg_annots.get("refs", []):
+                    try:
+                        col = _hex_to_rgb(ref.get("color", "#5ac8fa"))
+                        raw_pts = _line_points(ref)
+                        if len(raw_pts) < 2:
+                            continue
+                        pts = [fitz.Point(*_rot_pt(p["x"], p["y"], rot, orig_W, orig_H)) for p in raw_pts]
+                        page.draw_polyline(pts, color=col, width=1.2, dashes="[8 4]")
+                        mid = raw_pts[len(raw_pts) // 2]
+                        label = ref.get("name") or ref.get("refType") or "reference"
+                        mx, my = _rot_pt(mid["x"], mid["y"] - 5, rot, orig_W, orig_H)
+                        page.insert_text(fitz.Point(mx, my), label, fontsize=7, color=col)
+                    except Exception: pass
+
+                for park in pg_annots.get("parking", []):
+                    try:
+                        col = _hex_to_rgb(park.get("color", "#ffcc00"))
+                        x, y = _rot_pt(park["x"], park["y"], rot, orig_W, orig_H)
+                        rect = fitz.Rect(x - 3, y - 3, x + 3, y + 3)
+                        page.draw_rect(rect, color=col, fill=col, width=0.8)
+                        page.insert_text(fitz.Point(x + 4, y + 3), "P", fontsize=7, color=col)
+                    except Exception: pass
+
+                for poly in pg_annots.get("polys", []):
+                    if not poly.get("closed"): continue
+                    try:
+                        col  = _hex_to_rgb(poly.get("color","#30d158"))
+                        rpts = [_rot_pt(p["x"], p["y"], rot, orig_W, orig_H) for p in poly["pts"]]
+                        pts  = [fitz.Point(x, y) for x, y in rpts]
+                        page.draw_polyline(pts, color=col, fill=col, fill_opacity=0.08,
+                                           width=1.5, closePath=True)
+                        cx = sum(x for x, _ in rpts) / len(rpts)
+                        cy = sum(y for _, y in rpts) / len(rpts)
+                        rows = []
+                        if poly.get("name"): rows.append(poly["name"])
+                        area = poly.get("area")
+                        if area is None and poly.get("pts"):
+                            area_pt2 = _poly_area_pt2(poly["pts"])
+                            area = area_pt2 / (poly.get("scale_pts_per_m", 1) ** 2) if poly.get("scale_pts_per_m") else None
+                        if area: rows.append(f"{area:.2f} sq.m")
+                        for i, t in enumerate(rows):
+                            page.insert_text(fitz.Point(cx, cy+i*9-4), t, fontsize=7, color=col)
+                    except Exception: pass
+
+                scale = dpi / 72.0
+                mat = fitz.Matrix(scale, scale)
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                png_bytes = pix.tobytes("png")
+                zf.writestr(f"{safe}_page{int(pg_num):03d}.png", png_bytes)
+                rendered += 1
+            finally:
+                temp_doc.close()
+
+    if not rendered:
+        return JSONResponse({"error":"no valid pages rendered"}, 400)
+
+    return Response(
+        zip_buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe}_pages_dpi{dpi}.zip"'},
+    )
 
 
 # ══════════════════════════════════════════════════════

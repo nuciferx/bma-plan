@@ -124,6 +124,7 @@
         <div class="dd-sub">Print</div>
         <div class="dd-item" id="dd-print-current" onclick="printCurrentPage()">🖨 Print Current Page</div>
         <div class="dd-item" id="dd-print-selected" onclick="printSelectedPages()">🖨 Print Selected Pages (หรือทุกหน้า)</div>
+        <div class="dd-item" id="dd-export-png-zip" onclick="exportPngZip()">🖼 Export PNG (ZIP, 200 DPI)</div>
       </div>
     </div>
     <div class="menu-item" data-menu="measure" onclick="toggleMenu(this)">Measure<span class="caret">▾</span>
@@ -3222,6 +3223,26 @@ async function printCurrentPage(){
   setStatus(`🖨 พิมพ์หน้า ${curPage}`);
   return w;
 }
+async function exportPngZip(){
+  if(!totalPages){alert("เปิด PDF ก่อน");return;}
+  saveCurrentPage();
+  const sel=selectedPages.size>0
+    ?[...selectedPages].filter(n=>!excludedPages.has(n)).sort((a,b)=>a-b)
+    :(function(){const all=[];for(let i=1;i<=totalPages;i++)if(!excludedPages.has(i))all.push(i);return all;})();
+  if(!sel.length){alert("ไม่มีหน้าให้ export");return;}
+  const dpi=200;
+  const body={case_id:currentCaseId,pages:sel,pdfName:currentFileName,rotations:pageRotations,annotations:pageStore,dpi};
+  setStatus(`🖼 กำลังสร้าง PNG ${sel.length} หน้า (DPI ${dpi})…`);
+  try{
+    const r=await fetch("/export-png",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.status===413){const j=await r.json().catch(()=>({}));alert(`หน้าที่เลือกเกินขีดจำกัด (${j.max||"max"} หน้า)`);setStatus("export PNG ยกเลิก — เกิน MAX_EXPORT_PAGES");return;}
+    if(!r.ok){const j=await r.json().catch(()=>({}));setStatus("export PNG ล้มเหลว: "+(j.error||r.status));return;}
+    const blob=await r.blob();
+    const safe=currentFileName.replace(/\.pdf$/i,"")||"export";
+    dlBlob(blob,`${safe}_pages_dpi${dpi}.zip`);
+    setStatus(`✅ export PNG ZIP ${sel.length} หน้าแล้ว`);
+  }catch(e){setStatus("export PNG ล้มเหลว: "+e.message);}
+}
 async function printSelectedPages(){
   if(!totalPages){alert("เปิด PDF ก่อน");return;}
   saveCurrentPage();
@@ -3291,7 +3312,14 @@ async function saveSourcePdfInPlace(){
     return true;
   }catch(e){setStatus("บันทึก PDF ไม่สำเร็จ: "+e.message);return false;}
 }
-function applyLoadedProject(proj){isDirty=false;currentProjectHandle=null;pageStore=proj.pageStore||{};for(const store of Object.values(pageStore)){ensureStoreObjectIds(store);for(const arr of[store.polys||[],store.openings||[]]){for(const obj of arr){if(obj.geometryType==='path'&&Array.isArray(obj.segments)){obj.pts=flattenPathToPoints(obj,1.0);obj.closed=true;}}}for(const p of(store.parking||[])){if(!p.markerType)p.markerType="parking";}}pageRotations=proj.pageRotations||{};pageTags=proj.pageTags||{};pageNames=proj.pageNames||{};projectInfo=proj.projectInfo||{};siteOrientation=proj.siteOrientation||{};excludedPages=new Set(proj.excludedPages||[]);pageFloorKind=proj.pageFloorKind||{};pageFloorNum=proj.pageFloorNum||{};restorePage(curPage);buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))openSetup();else buildTagGrid();redraw();buildRightPanel();}
+/* HT-18d: populate the projectInfo form fields from the projectInfo object.
+   Extracted from openSetup so it can be called from any code path that needs
+   to keep the form in sync with the underlying data — specifically
+   applyLoadedProject, which restores projectInfo from the .bmaplan blob but
+   was previously losing those values when downstream syncProjectInfoFromForm
+   calls re-read the (still empty) form fields back into projectInfo. */
+function populateProjectInfoForm(){const _set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v??"";};_set("pi-reqno",projectInfo.reqNo);_set("pi-btype",projectInfo.buildingType);_set("pi-worktype",projectInfo.workType||"new");_set("pi-floors",projectInfo.floors);_set("pi-gfa",projectInfo.gfa);_set("pi-units",projectInfo.units);_set("pi-bclass",projectInfo.buildingClassification);_set("pi-usetype",projectInfo.buildingUseType);_set("pi-zonecode",projectInfo.zoneCode);_set("pi-roadwidth",projectInfo.siteAccessRoadWidth_m);const _udl=projectInfo.userDefinedLimits||{};_set("pi-far",_udl.far_max);_set("pi-osr",_udl.osr_min_pct);_set("pi-permeable",_udl.permeable_min_pct);_set("pi-setback-front",_udl.setback_front_min_m);_set("pi-setback-side",_udl.setback_side_min_m);_set("pi-setback-back",_udl.setback_back_min_m);}
+function applyLoadedProject(proj){isDirty=false;currentProjectHandle=null;pageStore=proj.pageStore||{};for(const store of Object.values(pageStore)){ensureStoreObjectIds(store);for(const arr of[store.polys||[],store.openings||[]]){for(const obj of arr){if(obj.geometryType==='path'&&Array.isArray(obj.segments)){obj.pts=flattenPathToPoints(obj,1.0);obj.closed=true;}}}for(const p of(store.parking||[])){if(!p.markerType)p.markerType="parking";}}pageRotations=proj.pageRotations||{};pageTags=proj.pageTags||{};pageNames=proj.pageNames||{};projectInfo=proj.projectInfo||{};populateProjectInfoForm();/* HT-18d */siteOrientation=proj.siteOrientation||{};excludedPages=new Set(proj.excludedPages||[]);pageFloorKind=proj.pageFloorKind||{};pageFloorNum=proj.pageFloorNum||{};restorePage(curPage);buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))openSetup();else buildTagGrid();redraw();buildRightPanel();}
 const RECENT_KEY="bmaPlan.recentProjects.v1";
 function getRecentProjects(){try{return JSON.parse(localStorage.getItem(RECENT_KEY))||[];}catch{return[];}}
 function addRecentProject(name){const list=getRecentProjects().filter(x=>x!==name);list.unshift(name);localStorage.setItem(RECENT_KEY,JSON.stringify(list.slice(0,10)));}
