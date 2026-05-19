@@ -198,6 +198,11 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Implementation guide: § Research → "Mockup → Live-app delta map" (row-by-row port plan)
     - Supersedes: f12-excluded-group (NOGO — folded into this port)
 
+- [ ] **Save state out of sync with canvas visual state** — `queued` — from /idea 2026-05-19
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-19 16:08
+    - Tags: bma-plan, save, p-high
+    - Open Qs: (1) canvas แสดงของที่ยังไม่ save (isDirty ไม่ trigger) หรือ load กลับมาแล้ว render ไม่ครบ? (2) object ประเภทไหน — poly / path / annotation / rotation?
+
 #### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `queued` (depends-on 002b ✅ — replaces in-place)
 
 - **scope skill:** `/bma-ui-scope` (UI region: canvas-ui standalone mode — same surface as 002b)
