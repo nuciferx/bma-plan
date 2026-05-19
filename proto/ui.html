@@ -18,8 +18,8 @@
     <!-- HT-mockup-menubar: BMA logo + Phase badge removed to match mockup (mockup has no logo/badge in menu bar) -->
     <div class="menu-item" data-menu="file" onclick="toggleMenu(this)">File<span class="caret">▾</span>
       <div class="dropdown" id="dd-file">
-        <div class="dd-item" onclick="openPdfBtnClick()">📂 Open PDF<span class="shortcut">Ctrl+O</span></div>
-        <div class="dd-item" onclick="openProjectBtnClick()">📁 Open Project<span class="shortcut">Ctrl+Shift+O</span></div>
+        <div class="dd-item" onclick="event.stopPropagation();closeAllMenus();openPdfBtnClick()">📂 Open PDF<span class="shortcut">Ctrl+O</span></div>
+        <div class="dd-item" onclick="event.stopPropagation();closeAllMenus();openProjectBtnClick(true)">📁 Open Project<span class="shortcut">Ctrl+Shift+O</span></div>
         <div class="dd-item" onclick="openSamplePdf()">📄 Sample PDF</div>
         <div class="dd-sep"></div>
         <div class="dd-item" onclick="saveProject()">💾 Save Project<span class="shortcut">Ctrl+S</span></div>
@@ -109,7 +109,7 @@
         <div class="dd-item" onclick="showSummaryWidget();switchSWTab('area')">📊 Project Summary</div>
         <div class="dd-sep"></div>
         <div class="dd-item" onclick="saveProject()">💾 Save Project<span class="shortcut">Ctrl+S</span></div>
-        <div class="dd-item" onclick="openProjectBtnClick()">📁 Open Project<span class="shortcut">Ctrl+O</span></div>
+        <div class="dd-item" onclick="event.stopPropagation();closeAllMenus();openProjectBtnClick(true)">📁 Open Project<span class="shortcut">Ctrl+Shift+O</span></div>
         <div class="dd-sep"></div>
         <div class="dd-item" id="dd-save-pdf" onclick="saveSourcePdfInPlace()">📄 Save PDF (ทับไฟล์เดิม)<span class="shortcut">Ctrl+Shift+S</span></div>
         <div class="dd-sep"></div>
@@ -621,9 +621,9 @@
     <div class="ztb-logo">⬡ BMA-Plan</div>
     <div class="ztb-mi" data-ztb-menu="file" onclick="_ztbToggleMenu(this)">📁 File
       <div class="ztb-dd">
-        <div class="ztb-dd-item" onclick="openPdfBtnClick()">📂 เปิด PDF<span class="ztb-kbd">Ctrl+O</span></div>
-        <div class="ztb-dd-item" onclick="openSamplePdf()">📁 เปิดไฟล์ตัวอย่าง</div>
-        <div class="ztb-dd-item" onclick="openProjectBtnClick()">📂 เปิด Project (.bmaplan)</div>
+        <div class="ztb-dd-item" onclick="event.stopPropagation();_ztbCloseAllMenus&&_ztbCloseAllMenus();openPdfBtnClick()">📂 เปิด PDF<span class="ztb-kbd">Ctrl+O</span></div>
+        <div class="ztb-dd-item" onclick="event.stopPropagation();_ztbCloseAllMenus&&_ztbCloseAllMenus();openSamplePdf()">📁 เปิดไฟล์ตัวอย่าง</div>
+        <div class="ztb-dd-item" onclick="event.stopPropagation();_ztbCloseAllMenus&&_ztbCloseAllMenus();openProjectBtnClick(true)">📂 เปิด Project (.bmaplan)</div>
         <div class="ztb-dd-sep"></div>
         <div class="ztb-dd-item" onclick="saveProject()">💾 บันทึก Project<span class="ztb-kbd">Ctrl+S</span></div>
         <div class="ztb-dd-item" onclick="saveProjectAs()">💾 บันทึก Project เป็น…<span class="ztb-kbd">Ctrl+⇧+S</span></div>
@@ -3132,7 +3132,11 @@ document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="y"){e.preventDefault();redo();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==="s"&&!e.shiftKey){e.preventDefault();saveProject();return;}
   if((e.ctrlKey||e.metaKey)&&(e.key==="S"||(e.key==="s"&&e.shiftKey))&&e.shiftKey){e.preventDefault();saveSourcePdfInPlace();return;}
-  if((e.ctrlKey||e.metaKey)&&e.key==="o"){e.preventDefault();if(!anyModal)openProjectBtnClick();return;}
+  /* HT-MENU-FIX: Ctrl+O = Open PDF (matches File menu label + universal convention);
+     Ctrl+Shift+O = Open Project (.bmaplan). Previously Ctrl+O dispatched to
+     openProjectBtnClick which contradicted the File menu's labeling. */
+  if((e.ctrlKey||e.metaKey)&&e.key==="o"&&!e.shiftKey){e.preventDefault();if(!anyModal)openPdfBtnClick();return;}
+  if((e.ctrlKey||e.metaKey)&&(e.key==="O"||(e.key==="o"&&e.shiftKey))&&e.shiftKey){e.preventDefault();if(!anyModal)openProjectBtnClick(true);return;}
   if((e.ctrlKey||e.metaKey)&&e.key==="p"){e.preventDefault();if(!anyModal)togglePerp();return;}
   // INV-2026-05-19-001b · ⌘K Command Palette — page jump. Guard against mid-draw hijack.
   if((e.ctrlKey||e.metaKey)&&(e.key==="k"||e.key==="K")){e.preventDefault();if(mPts.length===0&&!anyModal)togglePalette();return;}
@@ -3341,7 +3345,13 @@ const RECENT_KEY="bmaPlan.recentProjects.v1";
 function getRecentProjects(){try{return JSON.parse(localStorage.getItem(RECENT_KEY))||[];}catch{return[];}}
 function addRecentProject(name){const list=getRecentProjects().filter(x=>x!==name);list.unshift(name);localStorage.setItem(RECENT_KEY,JSON.stringify(list.slice(0,10)));}
 async function _applyLoadedProjectFile(file){const text=await file.text();const proj=JSON.parse(text);if(proj.version!==1)throw new Error("version ไม่รองรับ");if(proj.pdfName&&currentFileName&&proj.pdfName!==currentFileName)console.warn("pdfName mismatch — continuing");applyLoadedProject(proj);}
-function openProjectBtnClick(){const dd=document.getElementById("recent-proj-dropdown");const recents=getRecentProjects();if(!recents.length){document.getElementById("proj-input").click();return;}if(dd.style.display!=="none"){dd.style.display="none";return;}dd.innerHTML=`<div class="recent-proj-row browse" onclick="closeRecentDropdown();document.getElementById('proj-input').click()">📂 เลือกไฟล์...</div>`+recents.slice(0,5).map(n=>`<div class="recent-proj-row" onclick="closeRecentDropdown();document.getElementById('proj-input').click()" title="${escHtml(n)}">${escHtml(n.length>35?n.slice(0,33)+"…":n)}</div>`).join("");dd.style.display="block";}
+/* HT-MENU-FIX (2026-05-19): split into _fromMenu (direct picker) vs ribbon
+   (recent-list dropdown). Old behavior: every call from File menu fell into
+   the recent-list-dropdown branch which positions itself in the ribbon area
+   (next to #open-project-wrap), so users clicking "Open Project" in the File
+   menu saw NOTHING happen near the menu — the dropdown appeared far away in
+   the ribbon. Fix: when _fromMenu=true, ALWAYS open file picker directly. */
+function openProjectBtnClick(_fromMenu){const dd=document.getElementById("recent-proj-dropdown");const recents=getRecentProjects();if(_fromMenu||!recents.length){document.getElementById("proj-input").click();return;}if(dd.style.display!=="none"){dd.style.display="none";return;}dd.innerHTML=`<div class="recent-proj-row browse" onclick="closeRecentDropdown();document.getElementById('proj-input').click()">📂 เลือกไฟล์...</div>`+recents.slice(0,5).map(n=>`<div class="recent-proj-row" onclick="closeRecentDropdown();document.getElementById('proj-input').click()" title="${escHtml(n)}">${escHtml(n.length>35?n.slice(0,33)+"…":n)}</div>`).join("");dd.style.display="block";}
 function closeRecentDropdown(){const dd=document.getElementById("recent-proj-dropdown");if(dd)dd.style.display="none";}
 document.addEventListener("click",e=>{const wrap=document.getElementById("open-project-wrap");if(wrap&&!wrap.contains(e.target))closeRecentDropdown();});
 document.getElementById("proj-input").addEventListener("change",async e=>{const file=e.target.files[0];if(!file)return;e.target.value="";try{await _applyLoadedProjectFile(file);addRecentProject(file.name);setStatus("📂 โหลด "+file.name+" แล้ว");}catch(err){alert("โหลดไม่ได้: "+err.message);}});
