@@ -4357,6 +4357,132 @@ def _test_ht17_enter_finishes_area(page):
     return {**checks, "all": True}
 
 
+def _test_inv_zen_v2_topbar(page):
+    """INV-2026-05-19-002a: F11 Zen + top bar (additive layer over 001a).
+
+    8 sub-checks:
+    A. #zen-topbar present in DOM; height ≤ 44 px when zen on
+    B. 6 dropdowns (File/Page/Measure/Annotate/View/Help) + 4 right-side chips
+    C. toggleZenFocus toggles body.focus; CSS hides HUDs (opacity → 0)
+    D. body.zen.focus.peek class restores HUD opacity to 1
+    E. F key scope guard — in zen calls toggleZenFocus, outside zen still calls fitToWindow
+    F. First F11 after clearing zenV2Onboarded shows v2 toast
+    G. 001a HUDs + minimap still visible when zen on (additive — no regression)
+    H. ⌘K palette composes above topbar (z-index 9500 > 1550)
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // Ensure clean start: classic mode, v2 onboarding flag cleared
+        if(document.body.classList.contains('zen'))toggleZenMode();
+        if(PREFS && PREFS.layout){
+          PREFS.layout.zenV2Onboarded = false;
+          PREFS.layout.zenOnboarded = false;
+          if(typeof savePrefs === 'function') savePrefs();
+        }
+        // A. #zen-topbar exists
+        const tb = document.getElementById('zen-topbar');
+        r.topbarExists = !!tb;
+        // Enter zen
+        toggleZenMode();
+        r.bodyZenAdded = document.body.classList.contains('zen');
+        // A cont. height
+        const tbH = tb ? tb.getBoundingClientRect().height : 0;
+        r.topbarHeight = tbH;
+        r.topbarHeightOK = tbH > 0 && tbH <= 44;
+        // B. 6 dropdowns + 4 chips
+        const dropdowns = document.querySelectorAll('#zen-topbar .ztb-mi[data-ztb-menu]');
+        const chips = document.querySelectorAll('#zen-topbar .ztb-chip');
+        r.dropdownCount = dropdowns.length;
+        r.chipCount = chips.length;
+        r.sixDropdowns = dropdowns.length === 6;
+        r.fourChips = chips.length === 4;
+        const labels = Array.from(dropdowns).map(d => d.getAttribute('data-ztb-menu'));
+        r.dropdownLabels = labels.join(',');
+        r.expectedDropdowns = ['file','page','measure','annotate','view','help'].every(k => labels.includes(k));
+        // C. Focus toggle
+        toggleZenFocus();
+        r.bodyFocusAdded = document.body.classList.contains('focus');
+        const hudTl = document.getElementById('zen-hud-tl');
+        const hudOpacity = hudTl ? parseFloat(getComputedStyle(hudTl).opacity) : -1;
+        r.hudOpacityWhenFocus = hudOpacity;
+        r.hudHiddenInFocus = hudOpacity < 0.1;
+        // D. Peek restores
+        document.body.classList.add('peek');
+        const hudOpacityPeek = hudTl ? parseFloat(getComputedStyle(hudTl).opacity) : -1;
+        r.hudOpacityWhenPeek = hudOpacityPeek;
+        r.hudRestoredByPeek = hudOpacityPeek > 0.9;
+        document.body.classList.remove('peek');
+        toggleZenFocus(); // back off
+        r.focusOffAfterToggle = !document.body.classList.contains('focus');
+        // E. F-key scope guard — in zen, F should toggle focus (not call fitToWindow)
+        const focusBefore = document.body.classList.contains('focus');
+        const evF = new KeyboardEvent('keydown',{key:'f',bubbles:true,cancelable:true});
+        document.dispatchEvent(evF);
+        const focusAfter = document.body.classList.contains('focus');
+        r.fInZenToggledFocus = focusBefore !== focusAfter;
+        // Reset focus state
+        if(document.body.classList.contains('focus')) toggleZenFocus();
+        // Exit zen, then F should call fitToWindow (no focus toggle)
+        toggleZenMode();
+        r.zenExited = !document.body.classList.contains('zen');
+        // Track fitToWindow call by wrapping briefly
+        let fitCalled = false;
+        const origFit = window.fitToWindow;
+        window.fitToWindow = function(){fitCalled = true; return origFit && origFit.apply(this, arguments);};
+        const evF2 = new KeyboardEvent('keydown',{key:'f',bubbles:true,cancelable:true});
+        document.dispatchEvent(evF2);
+        window.fitToWindow = origFit;
+        r.fOutsideZenCalledFit = fitCalled;
+        r.fScopeGuard = r.fInZenToggledFocus && r.fOutsideZenCalledFit;
+        // F. Onboarding toast on first F11 after clearing
+        if(PREFS && PREFS.layout){
+          PREFS.layout.zenV2Onboarded = false;
+          if(typeof savePrefs === 'function') savePrefs();
+        }
+        // Enter zen via toggle (mimics F11)
+        toggleZenMode();
+        const t2 = document.getElementById('zen-v2-onboarding-toast');
+        r.v2ToastExists = !!t2;
+        r.v2ToastShown = t2 && t2.classList.contains('show');
+        r.zenV2OnboardedFlipped = !!(PREFS && PREFS.layout && PREFS.layout.zenV2Onboarded);
+        // G. 001a HUDs + minimap still in DOM and visible
+        const hudVisible = hudTl && getComputedStyle(hudTl).display !== 'none';
+        const mm = document.getElementById('zen-minimap');
+        const mmVisible = mm && getComputedStyle(mm).display !== 'none';
+        r.hudVisibleInZen = hudVisible;
+        r.minimapVisibleInZen = mmVisible;
+        r.no001aRegression = hudVisible && mmVisible;
+        // H. Palette z-index > topbar z-index
+        const tbZ = parseInt(getComputedStyle(tb).zIndex,10) || 0;
+        const pal = document.getElementById('cmd-palette');
+        const palZ = pal ? (parseInt(getComputedStyle(pal).zIndex,10) || 0) : 0;
+        r.topbarZ = tbZ;
+        r.paletteZ = palZ;
+        r.paletteAboveTopbar = palZ > tbZ;
+        // Cleanup: exit zen
+        if(document.body.classList.contains('zen')) toggleZenMode();
+        return r;
+    }""")
+    checks = {
+        "topbarExistsAndShort": probe.get("topbarExists") is True and probe.get("topbarHeightOK") is True,
+        "sixDropdownsExpectedLabels": probe.get("sixDropdowns") is True and probe.get("expectedDropdowns") is True,
+        "fourChips": probe.get("fourChips") is True,
+        "focusHidesHuds": probe.get("hudHiddenInFocus") is True,
+        "peekRestoresHuds": probe.get("hudRestoredByPeek") is True,
+        "fKeyScopeGuard": probe.get("fScopeGuard") is True,
+        "v2OnboardingToastShown": probe.get("v2ToastShown") is True and probe.get("zenV2OnboardedFlipped") is True,
+        "no001aRegression": probe.get("no001aRegression") is True,
+        "paletteAboveTopbar": probe.get("paletteAboveTopbar") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_page_setup_a(page):
     """INV-2026-05-18-001a: Page Setup context-sensitive inspector + traffic-light chips.
 
@@ -6695,6 +6821,7 @@ def main():
             inv_zen_mode = _test_inv_zen_mode(page)
             inv_palette = _test_inv_palette(page)
             inv_polish_001c = _test_inv_polish_001c(page)
+            inv_zen_v2_topbar = _test_inv_zen_v2_topbar(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -6779,6 +6906,7 @@ def main():
         print("PHASE_INV_ZEN_OK", inv_zen_mode)
         print("PHASE_INV_PALETTE_OK", inv_palette)
         print("PHASE_INV_POLISH_001C_OK", inv_polish_001c)
+        print("PHASE_INV_ZEN_V2_OK", inv_zen_v2_topbar)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)

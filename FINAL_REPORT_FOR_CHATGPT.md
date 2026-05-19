@@ -4,7 +4,38 @@
 
 ---
 
-# Latest: INV-2026-05-19-001c Zen+Palette FRICTION polish — PASS
+# Latest: INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_ZEN_V2_OK` 9/9, `PHASE_INV_ZEN_OK` 10/10, `PHASE_INV_PALETTE_OK` 10/10, `PHASE_INV_POLISH_001C_OK` 5/5, all pre-existing GREEN), full EXIT 0 (`ANNOT_OK` / `PERSIST_OK` / `REAL_OK`), `bma-human-journey-tester` HUMAN_TEST_PASS (13/13 journey steps, 45/45 pages measured, `.bmaplan` round-trip OK). Forbidden-surface scan CLEAN. No server edit. No schema change. Reshape: original 002a was a breaking `toggleZen()` replacement; user redirected mid-SCOPE to non-breaking additive approach — 001a behavior fully preserved.
+
+## What was delivered
+
+- `#zen-topbar` 40px overlay inside `body.zen` with 6 dropdowns (File / Page / Measure / Annotate / View / Help) wired to existing handlers
+- 4 icon chips in topbar: search (opens Command Palette), Zen palette jump, circle/ellipse picker, rectangle picker
+- `toggleZenFocus()` — F key in Zen = Focus sub-mode; `body.zen.focus` class hides all HUDs with `!important`; CSS transition suppressed for reliable E2E detection
+- `_setupZenEdgePeek()` — 4px invisible edge strip at viewport top triggers `body.zen.focus.peek` class to temporarily restore HUDs on hover
+- `_ztbToggleMenu(id, btn)` — dropdown open/close for topbar menus
+- `toggleZenMode` extended with v2 onboarding toast (green tint, shown once, `PREFS.layout.zenV2Onboarded` session pref)
+- F-key scope guard: F inside text inputs blocked to prevent accidental focus toggle
+- 001a HUDs shifted top: 34px → 50px to clear new topbar height
+- `PHASE_INV_ZEN_V2_OK` E2E marker (9 sub-checks, initial 8/9 → after `!important` + transition fix → 9/9)
+
+## What's next
+
+- INV-2026-05-19-002b — F12 Overview spatial map standalone mode (`body.overview` class replaces canvas with 45-card grid grouped by discipline; lazy IntersectionObserver per card; card click atomic exit + loadPage). Depends-on 002a (shares `#zen-topbar` chrome). Est ~180 LOC.
+
+## Position in Plan
+
+Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-002a — first sprint of the 002 sub-series (Zen chrome upgrade). 002b (F12 Overview) is the next dependent sprint. The 001a/001b/001c trilogy is fully shipped; 002a extends the Zen feature set additively.
+
+---
+
+# Previous: INV-2026-05-19-001c Zen+Palette FRICTION polish — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -23,42 +54,10 @@ PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_POLISH_001C_OK` 5/5, `PHASE_INV_
 
 ## What's next
 
-- Next `invent-queued` idea from `PHASE_INDEX.md` discovered backlog — trilogy is done, queue is clean
+- INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled) — non-breaking additive `#zen-topbar` overlay
 
 ## Position in Plan
 
-Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-001c — polish companion to 001a (Zen Mode) + 001b (⌘K Palette), all from idea `2026-05-19-01-36`. The 001a/001b/001c trilogy is now fully shipped and polished.
+Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-001c — polish companion to 001a (Zen Mode) + 001b (Command Palette), all from idea `2026-05-19-01-36`. The 001a/001b/001c trilogy is fully shipped and polished.
 
----
-
-# Previous: INV-2026-05-19-001b ⌘K Command Palette (fuzzy page jump) — PASS
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-PASS. All three test tiers passed: py_compile PASS, smoke EXIT 0 (`PHASE_INV_PALETTE_OK` 10/10, `PHASE_INV_ZEN_OK` 10/10, all pre-existing GREEN), full EXIT 0, and `bma-human-journey-tester` JOURNEY_OK on real 45-page permit (13/13 spec steps PASS, zero JS errors, one FRICTION finding HT-Z-3 filed). Forbidden-surface scan CLEAN. No schema change; palette is purely transient UI state. Composes correctly above Zen Mode z-index layer.
-
-## What was delivered
-
-- `.cmd-palette` fixed-center modal (z-index 9500, above Zen HUDs at 1500) — CSS in `proto/static/css/app.css`
-- Color-coded tag chips (site/plan/elev/section/detail) in results rows
-- 5 new helpers: `togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`
-- Ctrl+K / Cmd+K keybind with mid-draw guard (`mPts.length===0` check)
-- Arrow key + Enter + Esc navigation placed before `inInput` guard so palette input receives nav keys correctly
-- View menu "🔍 ค้นหาหน้า (Command Palette) Ctrl+K" item
-- `#cmd-palette` modal DOM block with filter input, results list, hint bar
-- `PHASE_INV_PALETTE_OK` E2E marker (10 sub-checks)
-- HT-Z-3 FRICTION finding filed: empty-state hint missing when filtering by Thai tag on untagged PDF
-
-## What's next
-
-- Zen polish sprint (HT-Z-1, HT-Z-2, HT-Z-3 batch) — MutationObserver timing, amber HUD chip for auto-unverified scale, empty-state hint in palette
-- Next `invent-queued` ideas from `PHASE_INDEX.md` discovered backlog
-
-## Position in Plan
-
-Phase 1 complete. INV series ongoing (invent-loop). This sprint is INV-2026-05-19-001b — companion to 001a Zen Mode (both from idea `2026-05-19-01-36`, SPLIT_REQUIRED boundary). The 001a/001b pair is now complete. Next loop iteration picks the next `invent-done-go` item from `PHASE_INDEX.md`.
-
-<!-- 001a Zen Mode + older entries archived to docs/archive/reports-2026-05-09.md -->
+<!-- 001a/001b Zen Mode + Command Palette + older entries archived to docs/archive/reports-2026-05-09.md -->

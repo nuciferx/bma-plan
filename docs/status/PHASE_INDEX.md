@@ -193,15 +193,17 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Sprint split rationale: ~410 total LOC at upper boundary → 002a (F11 ~230 LOC, breaking change) + 002b (F12 ~180 LOC, depends-on 002a)
     - Carry-over: 001a minimap deprecated; ZEN_MENU_ITEMS shared handler array; F-key scope guard; onboarding `PREFS.layout.zenV2Onboarded`; modal z-index audit
 
-#### INV-2026-05-19-002a — F11 Zen + top bar (A + D bundled) — `queued`
+#### INV-2026-05-19-002a — F11 Zen + top bar (additive layer over v1) — `queued`
 
-- **scope skill:** `/bma-ui-scope` (UI region: menu bar + canvas + new top bar + HUDs)
-- **depends-on:** 001a (must remain in tree; 002a replaces its F11 toggleZen behavior)
-- **est LOC:** ~230 (HTML ~40, CSS ~70, JS ~80, E2E test ~40)
-- **success markers needed:** `PHASE_INV_ZEN_V2_OK` (8 sub-checks per spike criteria 1-3 + 6-8); `PHASE_INV_ZEN_OK` 10/10 retained (re-baselined for new behavior); `PHASE_INV_PALETTE_OK` 10/10 (no regression); `PHASE_INV_POLISH_001C_OK` 5/5 (no regression)
-- **scope:** Replace `toggleZen()` to swap menu bar for `#zen-topbar` (40px). Build `ZEN_MENU_ITEMS` shared handler array (File/Page/Measure/Annotate/View/Help dropdowns). Keep 3 corner HUDs from 001a. Add F = Focus sub-mode (`body.zen.focus` hides HUDs + 4 edge-trigger strips for hover-peek with 800ms debounce). F-key scope guard (F = Fit outside Zen). Mandatory onboarding toast on first F11 (gated by `PREFS.layout.zenV2Onboarded` additive bool). Deprecate 001a minimap. Annotate dropdown stub "Coming soon".
-- **forbidden surfaces touched:** NONE (no polyAreaM2/pdfToC/RS/snap/server.py edits; PREFS layout key additive)
-- **link:** `docs/invent/zen-mode-v2-topbar.md` (§ Decision: 002a)
+> **Reshape 2026-05-19 (user during dev-loop SCOPE):** Original framing = replace 001a `toggleZen()` (breaking). User redirected: "ทำแยกจากของ v1 ไปเลยจะดีกว่า" → **non-breaking additive** approach. 001a `toggleZen()` UNTOUCHED. Add `#zen-topbar` as a new overlay that renders when `body.zen` is active. 001a minimap, 3 HUDs, hide-menubar behavior all UNCHANGED.
+
+- **scope skill:** `/bma-ui-scope` → UI_SCOPE_OK (canvas-ui primary + menu-bar dropdown wiring)
+- **depends-on:** 001a (additive — does not modify; reads `body.zen` class set by `toggleZen()`)
+- **est LOC:** ~180 (HTML ~40, CSS ~50, JS ~50, E2E test ~40) — reduced from 230 (no `toggleZen()` refactor)
+- **success markers needed:** `PHASE_INV_ZEN_V2_OK` (8 sub-checks: top bar present + height ≤44px when zen / 6 dropdowns wired / Focus toggle + edge peek / F-key scope guard / onboarding toast first F11 / 3 HUDs still visible / ⌘K palette composes / no minimap regression); `PHASE_INV_ZEN_OK` 10/10 retained UNCHANGED; `PHASE_INV_PALETTE_OK` 10/10 + `PHASE_INV_POLISH_001C_OK` 5/5 no regression
+- **scope:** **Additive layer only.** New `#zen-topbar` overlay (display:none default; `body.zen #zen-topbar { display:flex }`) with 6 dropdowns (File/Page/Measure/Annotate/View/Help, wired to existing handlers by reference) + right-side 4 chips (🔍 ⌘K / 🐦 Overview / ◯ Focus / ◻ Exit). Annotate dropdown stub "Coming soon". F = Focus sub-mode (`body.zen.focus` hides 3 HUDs + 4 edge-trigger strips for hover-peek with 800ms debounce). F-key scope guard (F = Fit outside Zen, F = Focus inside Zen). Onboarding toast on first F11 (gated by `PREFS.layout.zenV2Onboarded` additive bool). 001a minimap, hide-menubar, HUDs, toggleZen() ALL UNCHANGED. F12 Overview button = stub in this sprint (002b separately).
+- **forbidden surfaces touched:** NONE
+- **link:** `docs/invent/zen-mode-v2-topbar.md` (§ Decision: 002a, reshape note added)
 
 #### INV-2026-05-19-002b — F12 Overview standalone (C) — `queued` (depends-on 002a)
 

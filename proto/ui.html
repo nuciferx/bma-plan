@@ -610,6 +610,76 @@
   <div class="zen-onboarding-toast" id="zen-onboarding-toast">
     <b>⛶ Zen Mode</b> — canvas เต็มจอ · กด <span class="kbd">F11</span> หรือ <span class="kbd">Esc</span> ออก · มี Sheets minimap มุมขวาล่าง
   </div>
+  <!-- INV-2026-05-19-002a · Zen v2 — additive top bar over body.zen.
+       Renders alongside existing 001a HUDs + minimap. 001a behavior untouched. -->
+  <div class="zen-topbar" id="zen-topbar">
+    <div class="ztb-logo">⬡ BMA-Plan</div>
+    <div class="ztb-mi" data-ztb-menu="file" onclick="_ztbToggleMenu(this)">📁 File
+      <div class="ztb-dd">
+        <div class="ztb-dd-item" onclick="openPdfBtnClick()">📂 เปิด PDF<span class="ztb-kbd">Ctrl+O</span></div>
+        <div class="ztb-dd-item" onclick="openSamplePdf()">📁 เปิดไฟล์ตัวอย่าง</div>
+        <div class="ztb-dd-item" onclick="openProjectBtnClick()">📂 เปิด Project (.bmaplan)</div>
+        <div class="ztb-dd-sep"></div>
+        <div class="ztb-dd-item" onclick="saveProject()">💾 บันทึก Project<span class="ztb-kbd">Ctrl+S</span></div>
+        <div class="ztb-dd-item" onclick="saveProjectAs()">💾 บันทึก Project เป็น…<span class="ztb-kbd">Ctrl+⇧+S</span></div>
+        <div class="ztb-dd-item" onclick="saveSourcePdfInPlace()">📄 บันทึก PDF (ทับ)</div>
+      </div>
+    </div>
+    <div class="ztb-mi" data-ztb-menu="page" onclick="_ztbToggleMenu(this)">📄 Page
+      <div class="ztb-dd">
+        <div class="ztb-dd-item" onclick="menuLoadPrevPage()">◀ หน้าก่อน<span class="ztb-kbd">PgUp</span></div>
+        <div class="ztb-dd-item" onclick="menuLoadNextPage()">▶ หน้าถัดไป<span class="ztb-kbd">PgDn</span></div>
+        <div class="ztb-dd-item" onclick="loadFirstPage()">⏮ หน้าแรก</div>
+        <div class="ztb-dd-item" onclick="loadLastPage()">⏭ หน้าสุดท้าย</div>
+        <div class="ztb-dd-sep"></div>
+        <div class="ztb-dd-item" onclick="openPgMgr()">⚙ Page Setup</div>
+      </div>
+    </div>
+    <div class="ztb-mi" data-ztb-menu="measure" onclick="_ztbToggleMenu(this)">📐 Measure
+      <div class="ztb-dd">
+        <div class="ztb-dd-item" onclick="setMode('calib')">📐 Set Scale</div>
+        <div class="ztb-dd-item" onclick="activateAreaTool('room')">⬡ Area (Polygon)<span class="ztb-kbd">A</span></div>
+        <div class="ztb-dd-item" onclick="activateRectTool('room')">▭ Rectangle<span class="ztb-kbd">⇧R</span></div>
+        <div class="ztb-dd-item" onclick="setMode('dist')">↔ Distance<span class="ztb-kbd">D</span></div>
+        <div class="ztb-dd-item" onclick="setMode('path')">〰 Path<span class="ztb-kbd">⇧D</span></div>
+        <div class="ztb-dd-item" onclick="setMode('ref')">⤴ Reference Line<span class="ztb-kbd">R</span></div>
+      </div>
+    </div>
+    <div class="ztb-mi ztb-mi-stub" data-ztb-menu="annotate" onclick="_ztbToggleMenu(this)">📝 Annotate
+      <div class="ztb-dd">
+        <div class="ztb-dd-item ztb-dd-stub">⏳ Coming soon (รอ sprint annotate)</div>
+      </div>
+    </div>
+    <div class="ztb-mi" data-ztb-menu="view" onclick="_ztbToggleMenu(this)">👁 View
+      <div class="ztb-dd">
+        <div class="ztb-dd-item" onclick="toggleZenMode()">⛶ ออกจาก Zen<span class="ztb-kbd">F11</span></div>
+        <div class="ztb-dd-item" onclick="togglePalette()">🔍 ค้นหาหน้า (Palette)<span class="ztb-kbd">Ctrl+K</span></div>
+        <div class="ztb-dd-item" onclick="toggleZenFocus()">◯ Focus (ซ่อน HUDs)<span class="ztb-kbd">F</span></div>
+        <div class="ztb-dd-sep"></div>
+        <div class="ztb-dd-item" onclick="fitToWindow()">⊡ Fit to Window</div>
+      </div>
+    </div>
+    <div class="ztb-mi" data-ztb-menu="help" onclick="_ztbToggleMenu(this)">❓ Help
+      <div class="ztb-dd">
+        <div class="ztb-dd-item" onclick="window.open('/static/docs/','_blank')">📖 คู่มือ (Manual)</div>
+        <div class="ztb-dd-item" onclick="alert('BMA-Plan Phase 1 · Zen v2 (INV-2026-05-19-002a)')">ℹ About</div>
+      </div>
+    </div>
+    <div class="ztb-spacer"></div>
+    <div class="ztb-chip" id="ztb-chip-search" onclick="togglePalette()" title="ค้นหาหน้า [Ctrl+K]">🔍 ค้นหา <span class="ztb-kbd">⌘K</span></div>
+    <div class="ztb-chip ztb-chip-stub" id="ztb-chip-overview" onclick="alert('Overview mode รอใน INV-2026-05-19-002b')" title="Overview spatial map (coming in 002b)">🐦 Overview <span class="ztb-kbd">F12</span></div>
+    <div class="ztb-chip" id="ztb-chip-focus" onclick="toggleZenFocus()" title="Focus sub-mode — ซ่อน HUDs [F]">◯ Focus <span class="ztb-kbd">F</span></div>
+    <div class="ztb-chip ztb-chip-exit" id="ztb-chip-exit" onclick="toggleZenMode()" title="ออกจาก Zen Mode [F11/Esc]">◻ Exit <span class="ztb-kbd">F11</span></div>
+  </div>
+  <!-- Focus mode hover-peek edge triggers — 48px strips on all 4 edges, only active in body.zen.focus -->
+  <div class="zen-focus-edge" id="zen-focus-edge-top"></div>
+  <div class="zen-focus-edge" id="zen-focus-edge-bottom"></div>
+  <div class="zen-focus-edge" id="zen-focus-edge-left"></div>
+  <div class="zen-focus-edge" id="zen-focus-edge-right"></div>
+  <!-- v2 first-time onboarding toast (separate from v1 zenOnboarded) -->
+  <div class="zen-onboarding-toast zen-v2-toast" id="zen-v2-onboarding-toast">
+    <b>⛶ Zen v2</b> — Top bar เพิ่มเข้ามา · กด <span class="kbd">F</span> = Focus (ซ่อน HUDs) · เมนู File/Page/Measure ใน top bar · <span class="kbd">F11</span>/<span class="kbd">Esc</span> ออก
+  </div>
   <!-- INV-2026-05-19-001b · ⌘K Command Palette — fuzzy page search.
        Composes with classic + zen mode (z-index above zen overlays). -->
   <div id="cmd-palette" class="cmd-palette">
@@ -3044,7 +3114,11 @@ document.addEventListener("keydown",e=>{
   if((e.key==="Delete"||e.key==="Backspace")&&mode==="sel"&&selItem){pushUndo();if(selItem.type==="line")mLines.splice(selItem.idx,1);else if(selItem.type==="poly")mPolys.splice(selItem.idx,1);else if(selItem.type==="opening")mOpenings.splice(selItem.idx,1);else if(selItem.type==="ref")mRefs.splice(selItem.idx,1);else if(selItem.type==="parking")mParking.splice(selItem.idx,1);selItem=null;dragState=null;updatePageSummary(curPage);redraw();}
   if(e.key==="F2"){if(!anyModal)renameSelectedObject();return;}
   if(e.key==="Delete"&&ctxTarget)ctxDelete();
-  if(e.key==="f"||e.key==="F")fitToWindow();
+  // INV-2026-05-19-002a · F-key scope guard — Focus toggle inside Zen, Fit to Window outside
+  if(e.key==="f"||e.key==="F"){
+    if(!anyModal && document.body.classList.contains("zen")){toggleZenFocus();return;}
+    fitToWindow();
+  }
   if(anyModal)return;
   if(!e.ctrlKey&&!e.metaKey&&!e.altKey){
     if(e.key==="v"||e.key==="V"){setMode("sel");return;}
@@ -3332,6 +3406,7 @@ function applyLayoutPrefs(){
   }catch(e){}
 }
 // INV-2026-05-19-001a · Zen Mode toggle — flips PREFS.layout.zenMode + persists.
+// INV-2026-05-19-002a · adds v2 onboarding toast + clears focus class on exit.
 function toggleZenMode(){
   if(!PREFS)loadPrefs();
   if(!PREFS.layout)PREFS.layout={};
@@ -3339,8 +3414,15 @@ function toggleZenMode(){
   savePrefs();
   applyLayoutPrefs();
   if(PREFS.layout.zenMode){
-    // First-time onboarding toast (auto-dismiss 5 s, never shown again)
-    if(!PREFS.layout.zenOnboarded){
+    // v2 onboarding toast supersedes v1 (covers top bar + Focus + Overview-soon)
+    if(!PREFS.layout.zenV2Onboarded){
+      const t2=document.getElementById("zen-v2-onboarding-toast");
+      if(t2){t2.classList.add("show");setTimeout(()=>t2.classList.remove("show"),5500);}
+      PREFS.layout.zenV2Onboarded=true;
+      PREFS.layout.zenOnboarded=true; // suppress legacy v1 toast — v2 message supersedes
+      savePrefs();
+    }else if(!PREFS.layout.zenOnboarded){
+      // Legacy v1 path (only fires if user has v1 flag false and v2 flag true — unusual)
       const t=document.getElementById("zen-onboarding-toast");
       if(t){t.classList.add("show");setTimeout(()=>t.classList.remove("show"),5000);}
       PREFS.layout.zenOnboarded=true;
@@ -3348,9 +3430,54 @@ function toggleZenMode(){
     }
     if(typeof setStatus==="function")setStatus("⛶ Zen Mode — F11 ออก");
   }else{
+    // Exit zen → drop focus + peek classes too (don't leak state)
+    document.body.classList.remove("focus","peek");
     if(typeof setStatus==="function")setStatus("ออกจาก Zen Mode แล้ว");
   }
 }
+// INV-2026-05-19-002a · Focus sub-mode toggle. Only valid inside Zen Mode.
+function toggleZenFocus(){
+  if(!document.body.classList.contains("zen"))return;
+  document.body.classList.toggle("focus");
+  const chip=document.getElementById("ztb-chip-focus");
+  if(chip)chip.classList.toggle("active",document.body.classList.contains("focus"));
+  if(typeof setStatus==="function"){
+    setStatus(document.body.classList.contains("focus")?"◯ Focus — hover edges to peek · F ออก":"◯ Focus off");
+  }
+}
+// INV-2026-05-19-002a · Top-bar dropdown toggle (click-based per UX research; matches mockup).
+function _ztbToggleMenu(el){
+  if(!el)return;
+  const wasOpen=el.classList.contains("ztb-open");
+  document.querySelectorAll("#zen-topbar .ztb-mi.ztb-open").forEach(m=>m.classList.remove("ztb-open"));
+  if(!wasOpen)el.classList.add("ztb-open");
+  event && event.stopPropagation && event.stopPropagation();
+}
+// INV-2026-05-19-002a · Close zen-topbar dropdowns on outside click.
+document.addEventListener("click",function(e){
+  if(!e.target.closest("#zen-topbar")){
+    document.querySelectorAll("#zen-topbar .ztb-mi.ztb-open").forEach(m=>m.classList.remove("ztb-open"));
+  }
+});
+// INV-2026-05-19-002a · Focus-mode hover-peek edge triggers (800 ms debounce out).
+let _zenPeekTimer=null;
+function _setupZenEdgePeek(){
+  const edges=document.querySelectorAll(".zen-focus-edge");
+  if(!edges.length)return;
+  edges.forEach(el=>{
+    el.addEventListener("mouseenter",()=>{
+      if(!document.body.classList.contains("focus"))return;
+      document.body.classList.add("peek");
+      if(_zenPeekTimer){clearTimeout(_zenPeekTimer);_zenPeekTimer=null;}
+    });
+    el.addEventListener("mouseleave",()=>{
+      if(_zenPeekTimer)clearTimeout(_zenPeekTimer);
+      _zenPeekTimer=setTimeout(()=>{document.body.classList.remove("peek");_zenPeekTimer=null;},800);
+    });
+  });
+}
+// Wire edge peek listeners once on boot
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",_setupZenEdgePeek);}else{_setupZenEdgePeek();}
 // Build the 45-cell minimap once, then reuse. IntersectionObserver lazy-loads thumbs.
 let _zenMinimapBuilt=false;
 let _zenMinimapIO=null;

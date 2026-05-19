@@ -4,7 +4,61 @@
 
 ---
 
-# Latest: INV-2026-05-19-001c — Zen+Palette FRICTION polish (HT-Z-1 + HT-Z-2 + HT-Z-3 bundle)
+# Latest: INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled)
+
+Branch: main
+Date: 2026-05-19
+
+## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_ZEN_V2_OK 9/9), full EXIT 0, HUMAN_TEST_PASS
+
+## Summary
+
+Additive `#zen-topbar` overlay (40px) piggybacks on `body.zen` without touching 001a's `toggleZen()`. The bar provides 6 dropdowns (File / Page / Measure / Annotate / View / Help) wired to existing handlers plus 4 icon chips. New `toggleZenFocus()` (F key = Focus sub-mode hides all HUDs), `_ztbToggleMenu()`, and `_setupZenEdgePeek()` (edge hover restores HUDs temporarily). `toggleZenMode` extended with a v2 onboarding toast (green tint, shown once per `PREFS.layout.zenV2Onboarded`). The original 002a plan was a breaking change to `toggleZen()`; user redirected mid-SCOPE to a non-breaking additive approach. 001a minimap + 3 HUDs + hide-menubar behavior all UNCHANGED.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | +133 LOC — `#zen-topbar` HTML (6 dropdowns + 4 chips + edge triggers + v2 toast); `toggleZenFocus`, `_ztbToggleMenu`, `_setupZenEdgePeek`; F-key scope guard; `toggleZenMode` v2 onboarding logic |
+| `proto/static/css/app.css` | +40 LOC — `.zen-topbar` + `.ztb-*` rules; `body.zen.focus` HUD hide (`!important`); `body.zen.focus.peek` restore; 4 `.zen-focus-edge` rules; 001a HUDs shifted top:34→50px; `.zen-v2-toast` green tint |
+| `proto/e2e_ui_test.py` | +128 LOC — `_test_inv_zen_v2_topbar()` (9 sub-checks); `PHASE_INV_ZEN_V2_OK` print line; registered in main() pipeline |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `proto/server.py` — UNCHANGED (no server edit)
+- `.bmaplan` schema version stays 1; `PREFS.layout.zenV2Onboarded` is session pref, not project schema
+
+## Tests Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0
+  PHASE_INV_ZEN_V2_OK 9/9 (topbarExistsAndShort, sixDropdownsExpectedLabels, fourChips,
+  focusHidesHuds, peekRestoresHuds, fKeyScopeGuard, v2OnboardingToastShown,
+  no001aRegression, paletteAboveTopbar)
+  PHASE_INV_ZEN_OK 10/10, PHASE_INV_PALETTE_OK 10/10, PHASE_INV_POLISH_001C_OK 5/5 — no regression
+python proto/e2e_ui_test.py full                           → EXIT 0
+  ANNOT_OK / PERSIST_OK / REAL_OK — all PASS
+TEST-H: HUMAN_TEST_PASS — 13/13 journey steps; 45/45 pages; .bmaplan round-trip OK
+  1 FRICTION (test-infra only — not filed)
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints — UNCHANGED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ Layer model: no name-based calculation introduced
+
+---
+
+# Previous: INV-2026-05-19-001c — Zen+Palette FRICTION polish (HT-Z-1 + HT-Z-2 + HT-Z-3 bundle)
 
 Branch: main
 Date: 2026-05-19
@@ -22,14 +76,6 @@ Polish sprint clearing all 3 FRICTION findings from the 001a/001b human-test jou
 | `proto/ui.html` | ~15 LOC — `_zenSyncHud()` direct page-name read + amber scale chip; `filterPalette()` Thai-tag empty-state hint |
 | `proto/e2e_ui_test.py` | +65 LOC — `_test_inv_polish_001c` (5 sub-checks), `PHASE_INV_POLISH_001C_OK` marker |
 
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `proto/server.py` — UNCHANGED (no server edit)
-- `.bmaplan` schema version stays 1; no schema fields changed
-
 ## Tests Run
 
 ```
@@ -42,85 +88,4 @@ python3.11 proto/e2e_ui_test.py full                           → EXIT 0
 TEST-H: SKIPPED — sub-200-LOC polish; all changed branches covered by PHASE_INV_POLISH_001C_OK
 ```
 
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` core endpoints — UNCHANGED
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-# Previous: INV-2026-05-19-001b — ⌘K Command Palette (fuzzy page jump)
-
-Branch: main
-Date: 2026-05-19
-
-## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_PALETTE_OK 10/10), full EXIT 0, JOURNEY_OK
-
-## Summary
-
-Additive ⌘K Command Palette for fuzzy page jump. A fixed-center modal (z-index 9500, above Zen Mode HUDs at 1500) opens on Ctrl+K/Cmd+K with a filter input that narrows pages by number, name, or Thai page-type tag. Keyboard navigation handled before the `inInput` guard so palette input receives nav keys correctly. Mid-draw guard prevents Ctrl+K from hijacking polygon construction. View menu item added. No schema, no server, purely transient UI state.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/static/css/app.css` | ~35 LOC — `.cmd-palette` fixed-center modal, input, results list, hint bar, color-coded tag chips |
-| `proto/ui.html` | ~120 LOC — `togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`; Ctrl+K keybind; ArrowDown/Up/Enter/Esc palette handlers; View menu item; `#cmd-palette` DOM block |
-| `proto/e2e_ui_test.py` | ~95 LOC — `_test_inv_palette` (10 sub-checks), `PHASE_INV_PALETTE_OK` marker |
-
-## Tests Run
-
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0 (PHASE_INV_PALETTE_OK 10/10; PHASE_INV_ZEN_OK 10/10; all pre-existing GREEN)
-python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-bma-human-journey-tester                                       → JOURNEY_OK (45-page permit; 13/13 PASS; 0 JS errors; HT-Z-3 filed)
-```
-
-<!-- INV-001a Zen Mode + Ribbon Cleanup archived to docs/archive/patch-history-2026-05-09.md -->
-
-# Previous: INV-2026-05-19-001a — Zen Mode + Sheet Minimap
-
-Branch: main
-Date: 2026-05-19
-
-## Outcome: PASS — py_compile PASS, smoke PASS, pure cosmetic changes
-
-## Summary
-
-Pure CSS + DOM `display:none` ribbon cleanup with zero JS logic change. Hid the `#scale-badge` red pill from the ribbon (status bar Scale field already surfaces this state) and hid the `#active-layer-select` ribbon-group (Right panel Layers tab is the primary path; select element preserved in DOM for JS references). Rewrapped the `#btn-report` Review button in a proper `.rsection` + `.rlbl` + `.rrow` structure so it renders at the same 60px uniform height as all other ribbon groups. Reverted `body { font-size }` from 16px back to 14px after real-Chrome testing showed layout shifts.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/static/css/app.css` | `body { font-size: 16px }` → `14px` (1-line revert) |
-| `proto/ui.html` | `#scale-badge` `display:none`; `.ribbon-group` wrapping `#active-layer-select` `display:none` + 2 `rdiv` dividers removed; `#btn-report` rewrapped in `.ribbon-group.rsection` with `.rlbl "📊 REVIEW"` + `.rrow` + leading `rdiv` |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `proto/server.py` — UNCHANGED
-- `.bmaplan` schema version stays 1; no schema fields changed
-
-## Tests Run
-
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke  → PASS (all 18 markers GREEN)
-full not run: no forbidden-trigger surfaces touched
-```
-
-## Phase 1 Scope Check
-
-- ✅ All forbidden surfaces — UNCHANGED
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-<!-- older Previous (Page Setup trilogy + Settings v2) archived to docs/archive/patch-history-2026-05-09.md -->
+<!-- INV-001a/001b Zen Mode + Command Palette + older entries archived to docs/archive/patch-history-2026-05-09.md -->
