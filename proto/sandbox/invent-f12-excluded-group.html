@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>SPIKE — INV f12-excluded-group (Approach A: bottom-band atomic-restore)</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;font-family:-apple-system,"Segoe UI","Noto Sans Thai",sans-serif;background:#0f1115;color:#e7eaf0;overflow:hidden;font-size:13px;}
+
+  /* shared top bar (from 002a, simplified) */
+  #topbar{position:fixed;top:0;left:0;right:0;height:40px;display:flex;align-items:center;padding:0 14px;gap:8px;background:rgba(15,17,22,.96);border-bottom:1px solid #2a2f37;z-index:200;font-size:13px;}
+  #topbar .logo{font-weight:700;color:#3b82f6;margin-right:10px;}
+  #topbar .crumb{color:#9ca3af;font-size:12px;}
+
+  /* overview content */
+  #overview-content{position:fixed;top:40px;left:0;right:0;bottom:0;background:#0f1115;overflow-y:auto;padding:24px 36px 60px;}
+  #ov-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;flex-wrap:wrap;gap:14px;}
+  #ov-title{font-size:18px;font-weight:600;color:#fff;}
+  #ov-meta{font-size:11px;color:#6b7280;}
+  #ov-groups{display:flex;flex-direction:column;gap:28px;}
+  .ov-group{display:flex;flex-direction:column;gap:10px;}
+  .ov-group-label{display:flex;align-items:baseline;gap:12px;font-size:13.5px;font-weight:600;color:#e7eaf0;}
+  .ov-group-count{font-size:10px;color:#6b7280;font-weight:400;background:#1f232b;padding:2px 8px;border-radius:10px;}
+  .ov-group.gb-site .ov-group-label{color:#22c55e;}
+  .ov-group.gb-plan .ov-group-label{color:#3b82f6;}
+  .ov-group.gb-elev .ov-group-label{color:#f59e0b;}
+  .ov-group.gb-section .ov-group-label{color:#a855f7;}
+  .ov-group.gb-detail .ov-group-label{color:#06b6d4;}
+  .ov-group.gb-none .ov-group-label{color:#9ca3af;}
+  .ov-group.gb-excluded .ov-group-label{color:#ef4444;}
+  .ov-group.gb-excluded{border-top:1px dashed #2a2f37;padding-top:18px;margin-top:6px;}
+
+  .ov-group-grid{display:grid;grid-template-columns:repeat(auto-fill,170px);gap:12px;}
+  .ov-card{width:170px;background:#1c2027;border:1px solid #2a2f37;border-radius:6px;overflow:hidden;cursor:pointer;transition:transform .1s,border-color .1s,box-shadow .15s;}
+  .ov-card:hover{transform:translateY(-2px);border-color:#3b82f6;box-shadow:0 8px 18px rgba(59,130,246,.25);z-index:5;}
+  .ov-card.active{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.35);}
+
+  /* Approach A — Excluded cards greyed + red dot + chip */
+  .ov-card.ov-card--excl{opacity:.55;filter:grayscale(.65);}
+  .ov-card.ov-card--excl:hover{opacity:.95;filter:grayscale(0);border-color:#ef4444;box-shadow:0 8px 18px rgba(239,68,68,.3);}
+  .ov-card.ov-card--excl:hover .ov-excl-cta{display:flex;}
+
+  .ov-thumb{width:100%;height:108px;background:#0a0c10;border-bottom:1px solid #2a2f37;display:flex;align-items:center;justify-content:center;color:#3a3f47;font-size:10.5px;position:relative;}
+  .ov-thumb.loaded{background:linear-gradient(135deg,#1f2937 0%,#374151 100%);color:#9ca3af;}
+  .ov-thumb.excl-thumb{background:linear-gradient(135deg,#2a1c1c 0%,#3a2424 100%);}
+  .ov-dot{position:absolute;top:5px;left:5px;width:8px;height:8px;border-radius:50%;border:1px solid rgba(0,0,0,.4);}
+  .ov-dot.green{background:#22c55e;}
+  .ov-dot.amber{background:#f59e0b;}
+  .ov-dot.red{background:#ef4444;}
+  .ov-obj{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:9.5px;padding:1px 5px;border-radius:8px;font-family:'SF Mono',monospace;}
+  .ov-excl-chip{position:absolute;top:4px;right:4px;background:rgba(239,68,68,.92);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:8px;font-weight:600;letter-spacing:.3px;}
+  .ov-excl-cta{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(59,130,246,.96);color:#fff;font-size:11px;padding:4px 10px;border-radius:14px;align-items:center;gap:5px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.5);}
+
+  .ov-meta-row{padding:5px 8px;font-size:11px;color:#c4c9d4;display:flex;align-items:center;gap:6px;}
+  .ov-num{font-weight:600;color:#6b7280;font-size:10px;background:#1f232b;padding:1px 5px;border-radius:3px;font-family:'SF Mono',monospace;}
+  .ov-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* spike badge */
+  #spike-badge{position:fixed;top:48px;right:8px;width:360px;background:#15171c;border:2px solid #3b82f6;border-radius:8px;padding:12px 14px;font-size:11px;z-index:9999;color:#c4c9d4;box-shadow:0 8px 24px rgba(59,130,246,.3);max-height:84vh;overflow-y:auto;}
+  #spike-badge h3{font-size:12px;color:#3b82f6;margin-bottom:6px;font-weight:700;}
+  #spike-badge .sub{font-size:10px;color:#6b7280;margin-bottom:8px;}
+  #spike-badge .row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1a1d24;font-size:10px;gap:6px;}
+  #spike-badge .label{color:#9ca3af;flex:1;}
+  #spike-badge .result{font-weight:600;padding:2px 6px;border-radius:3px;font-size:9px;}
+  #spike-badge .result.pass{background:#16a34a;color:#fff;}
+  #spike-badge .result.fail{background:#dc2626;color:#fff;}
+  #spike-badge .result.pending{background:#6b7280;color:#fff;}
+  #spike-badge .total{margin-top:8px;text-align:center;padding:6px;background:#1c2027;border-radius:4px;font-size:11px;font-weight:700;}
+
+  #instructions{position:fixed;top:48px;left:8px;background:rgba(20,22,28,.94);border:1px solid #3a3f47;border-radius:6px;padding:10px 12px;font-size:11px;color:#9ca3af;z-index:9998;max-width:300px;line-height:1.5;}
+  #instructions b{color:#3b82f6;}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="logo">⬡ BMA-Plan</span>
+  <span class="crumb">SPIKE · INV-f12-excluded-group · Approach A (bottom-band atomic-restore)</span>
+</div>
+
+<div id="overview-content">
+  <div id="ov-header">
+    <div id="ov-title">🐦 Overview — <span id="ov-total">0</span> หน้าทั้งโครงการ</div>
+    <div id="ov-meta">Approach A: excluded pages render เป็น band ล่างสุด · greyed + red chip "ยกเว้น" · คลิก → atomic restore</div>
+  </div>
+  <div id="ov-groups"></div>
+</div>
+
+<div id="instructions">
+  <b>SPIKE · approach A</b><br>
+  Excluded pages (2/3/4 = ปก/สารบัญ/บันทึก) จะ render เป็น band ล่างสุด<br>
+  <b>Hover</b> excluded card → ขาว+คลิก [คืน] เห็นชัด<br>
+  <b>Click</b> excluded card → atomic restore → กลับเข้า group เดิม<br>
+  Spike auto-tests 7 success criteria
+</div>
+
+<div id="spike-badge">
+  <h3>🧪 SPIKE — f12-excluded-group (Approach A)</h3>
+  <div class="sub">Auto 7 criteria from Frame.</div>
+  <div class="row"><span class="label">1. Excluded group renders if size>0</span><span class="result pending" id="r1">…</span></div>
+  <div class="row"><span class="label">2. Excluded cards greyed (opacity&lt;0.6)</span><span class="result pending" id="r2">…</span></div>
+  <div class="row"><span class="label">3. Excluded chip "ยกเว้น" visible</span><span class="result pending" id="r3">…</span></div>
+  <div class="row"><span class="label">4. Band placed at BOTTOM (after others)</span><span class="result pending" id="r4">…</span></div>
+  <div class="row"><span class="label">5. Click excluded card → atomic restore</span><span class="result pending" id="r5">…</span></div>
+  <div class="row"><span class="label">6. After restore, count decreases</span><span class="result pending" id="r6">…</span></div>
+  <div class="row"><span class="label">7. Empty excluded → no band (set=0)</span><span class="result pending" id="r7">…</span></div>
+  <div class="total" id="total">running…</div>
+</div>
+
+<script>
+// Mock state — 30 pages with assigned discipline tags + 3 excluded
+const PAGES = (() => {
+  const TAGS = ['site','none','none','none','plan','plan','plan','plan','plan','plan','plan','plan','plan','plan','elev','elev','elev','elev','section','section','section','detail','detail','detail','detail','detail','detail','detail','detail','detail'];
+  const NAMES = {1:'A-01 ผังบริเวณ',2:'หน้าปก',3:'สารบัญ',4:'บันทึกแก้ไข',5:'A-10 ชั้นใต้ดิน',6:'A-11 ชั้น 1',7:'A-12 ชั้น 2'};
+  return Array.from({length:30},(_,i)=>{
+    const n=i+1;
+    return {n, tag: TAGS[i], name: NAMES[n]||`A-${10+i} ชั้น ${i-4}`, objCount: Math.floor(Math.random()*15), state: ['green','amber','red'][Math.floor(Math.random()*3)]};
+  });
+})();
+let excludedPages = new Set([2,3,4]); // 002b would normally have this populated from .bmaplan
+
+const _OV_GROUPS = [
+  {key:'site',label:'🌳 ผังบริเวณ',cls:'gb-site'},
+  {key:'plan',label:'📐 ผังพื้น',cls:'gb-plan'},
+  {key:'elev',label:'🏢 รูปด้าน',cls:'gb-elev'},
+  {key:'section',label:'✂ รูปตัด',cls:'gb-section'},
+  {key:'detail',label:'🔧 รายละเอียด',cls:'gb-detail'},
+  {key:'none',label:'📄 ยังไม่จัดกลุ่ม',cls:'gb-none'}
+];
+
+function restorePage2(n){
+  excludedPages.delete(n);
+  console.log('restored page',n,'now excluded=',[...excludedPages]);
+  _ovBuildGrid();
+}
+
+function _ovBuildGrid(){
+  const root = document.getElementById('ov-groups');
+  root.innerHTML = '';
+  const grouped = {};
+  _OV_GROUPS.forEach(g => grouped[g.key] = []);
+  const excludedList = [];
+
+  for(let i=1; i<=PAGES.length; i++){
+    const p = PAGES[i-1];
+    if(excludedPages.has(i)){
+      excludedList.push(p);
+      continue;
+    }
+    const key = grouped[p.tag] ? p.tag : 'none';
+    grouped[key].push(p);
+  }
+
+  // Render normal groups
+  let totalRendered = 0;
+  _OV_GROUPS.forEach(g => {
+    const pages = grouped[g.key];
+    if(!pages.length) return;
+    const band = document.createElement('div');
+    band.className = `ov-group ${g.cls}`;
+    band.innerHTML = `<div class="ov-group-label">${g.label}<span class="ov-group-count">${pages.length} หน้า</span></div><div class="ov-group-grid"></div>`;
+    const grid = band.querySelector('.ov-group-grid');
+    pages.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'ov-card' + (p.n===1 ? ' active' : '');
+      card.dataset.page = p.n;
+      card.innerHTML = `<div class="ov-thumb loaded"><span class="ov-dot ${p.state}"></span>${p.objCount?`<span class="ov-obj">${p.objCount}</span>`:''}<span>page ${p.n}</span></div><div class="ov-meta-row"><span class="ov-num">${p.n}</span><span class="ov-name">${p.name}</span></div>`;
+      card.onclick = () => alert(`(normal) jump to page ${p.n}`);
+      grid.appendChild(card);
+      totalRendered++;
+    });
+    root.appendChild(band);
+  });
+
+  // Approach A — APPEND excluded group at bottom if any
+  if(excludedList.length > 0){
+    const band = document.createElement('div');
+    band.className = 'ov-group gb-excluded';
+    band.dataset.excludedGroup = '1';
+    band.innerHTML = `<div class="ov-group-label">⛔ ยกเว้นจากการวัด<span class="ov-group-count">${excludedList.length} หน้า</span></div><div class="ov-group-grid"></div>`;
+    const grid = band.querySelector('.ov-group-grid');
+    excludedList.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'ov-card ov-card--excl';
+      card.dataset.page = p.n;
+      card.dataset.excluded = '1';
+      card.innerHTML = `<div class="ov-thumb excl-thumb loaded"><span class="ov-dot red"></span><span class="ov-excl-chip">ยกเว้น</span><span class="ov-excl-cta">↩ คืน</span><span>page ${p.n}</span></div><div class="ov-meta-row"><span class="ov-num">${p.n}</span><span class="ov-name">${p.name}</span></div>`;
+      card.onclick = () => restorePage2(p.n);
+      grid.appendChild(card);
+      totalRendered++;
+    });
+    root.appendChild(band);
+  }
+
+  document.getElementById('ov-total').textContent = totalRendered;
+}
+
+// SELF-VERIFY
+async function runVerify(){
+  const set = (i, ok, note) => {
+    const el = document.getElementById('r'+i);
+    el.className = 'result ' + (ok ? 'pass' : 'fail');
+    el.textContent = ok ? 'PASS' : 'FAIL';
+    el.title = note;
+  };
+  let pass = 0;
+
+  // 1. Excluded group renders
+  _ovBuildGrid();
+  const exclGroup = document.querySelector('.ov-group.gb-excluded');
+  const ok1 = !!exclGroup;
+  set(1, ok1, `excludedPages.size=${excludedPages.size} → group ${ok1?'present':'missing'}`);
+  if(ok1) pass++;
+
+  // 2. Excluded cards greyed opacity < 0.6
+  const exclCard = document.querySelector('.ov-card.ov-card--excl');
+  const opacity = exclCard ? parseFloat(getComputedStyle(exclCard).opacity) : 1;
+  const ok2 = opacity < 0.6;
+  set(2, ok2, `opacity=${opacity.toFixed(2)}`);
+  if(ok2) pass++;
+
+  // 3. Excluded chip visible
+  const exclChip = document.querySelector('.ov-excl-chip');
+  const chipText = exclChip ? exclChip.textContent.trim() : '';
+  const ok3 = exclChip && chipText === 'ยกเว้น';
+  set(3, ok3, `chip text="${chipText}"`);
+  if(ok3) pass++;
+
+  // 4. Band at BOTTOM — last child of ov-groups
+  const groups = document.querySelectorAll('#ov-groups > .ov-group');
+  const last = groups[groups.length - 1];
+  const ok4 = last && last.classList.contains('gb-excluded');
+  set(4, ok4, `${groups.length} groups; last is excluded? ${ok4}`);
+  if(ok4) pass++;
+
+  // 5. Click excluded card → atomic restore
+  const excludedBefore = excludedPages.size;
+  const firstExcl = document.querySelector('.ov-card.ov-card--excl');
+  if(firstExcl){
+    const targetN = +firstExcl.dataset.page;
+    firstExcl.click();
+    await new Promise(r=>setTimeout(r,40));
+    const ok5 = !excludedPages.has(targetN);
+    set(5, ok5, `clicked page ${targetN} → in excludedPages? ${excludedPages.has(targetN)}`);
+    if(ok5) pass++;
+  } else {
+    set(5, false, 'no excluded card');
+  }
+
+  // 6. After restore, count decreased
+  const ok6 = excludedPages.size === excludedBefore - 1;
+  set(6, ok6, `before ${excludedBefore} → after ${excludedPages.size}`);
+  if(ok6) pass++;
+
+  // 7. Empty excluded → no band
+  const saved = new Set(excludedPages);
+  excludedPages = new Set();
+  _ovBuildGrid();
+  const ok7 = !document.querySelector('.ov-group.gb-excluded');
+  set(7, ok7, `set empty → band ${ok7?'gone':'still present'}`);
+  if(ok7) pass++;
+
+  // Restore demo state
+  excludedPages = saved;
+  // Re-add a couple for visual demo (the originally-clicked one stays restored)
+  excludedPages.add(3); excludedPages.add(4);
+  _ovBuildGrid();
+
+  document.getElementById('total').textContent = `${pass}/7 ${pass===7?'✅ ALL PASS':'⚠ some FAIL'}`;
+  document.getElementById('total').style.background = pass===7 ? '#16a34a' : '#dc2626';
+  document.getElementById('total').style.color = '#fff';
+  window.__spikeResult = {pass, total: 7};
+}
+
+window.addEventListener('load', () => setTimeout(runVerify, 400));
+</script>
+</body>
+</html>

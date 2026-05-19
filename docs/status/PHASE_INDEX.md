@@ -187,6 +187,28 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 
 ### ideas 2026-05-19
 
+- [x] **F12 Overview — Excluded pages as separate group** — `invent-done-nogo (superseded by f12-overview-mockup-port)` 2026-05-19. Spike 7/7 PASS, but user decided to scrap incremental gap-by-gap approach in favor of a single faithful mockup port. Approach A (bottom-band atomic-restore, 26/30) design feeds into the port sprint's implementation.
+    - Source: user 2026-05-19 (NOGO)
+    - Tags: bma-plan, ui, zen, overview, excluded-pages, p-med
+    - Artifact retained for future reference: `docs/invent/f12-excluded-group.md`
+
+- [x] **F12 Overview — Mockup-spatial-sheet-map faithful port** — `invent-done-go (→ INV-2026-05-19-002c)` 2026-05-19. Verdict `PRIOR_ART_MATURE` (mockup is the in-repo, user-blessed spec); diverge/score/spike SKIPPED per /bma-invent MATURE-path rule. Single sprint card filed. User GO 2026-05-19. See `docs/invent/f12-overview-mockup-port.md` + spec `proto/sandbox/mockup-spatial-sheet-map.html`.
+    - Source: user 2026-05-19 — "ทำแบบนี้ใหม่ทั้งหมด เอาตามนี้เลยไม่ต้องเปลี่ยน"
+    - Tags: bma-plan, ui, zen, overview, mockup-port, p-high
+    - Implementation guide: § Research → "Mockup → Live-app delta map" (row-by-row port plan)
+    - Supersedes: f12-excluded-group (NOGO — folded into this port)
+
+#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `queued` (depends-on 002b ✅ — replaces in-place)
+
+- **scope skill:** `/bma-ui-scope` (UI region: canvas-ui standalone mode — same surface as 002b)
+- **depends-on:** **002b** (in-place replacement of `_OV_GROUPS`, `_ovBuildGrid` chip logic, `.ov-*` CSS; F12 hotkey + body.overview class kept)
+- **est LOC:** ~240 (proto/ui.html ~90, app.css ~120, e2e_ui_test.py ~30)
+- **success markers needed:** `PHASE_INV_OVERVIEW_PORT_OK` (10-11 sub-checks supersedes 002b's PHASE_INV_OVERVIEW_OK 9/9 with port-specific assertions: 7 groups present per mockup label list, banner element rendered, white-card bg, scale-1.04 hover, status chips with text labels พร้อม/ตรวจ scale/ยังไม่วัด/auto scale/ยกเว้น, excluded pages flow into title group not filtered, 002a top bar + 001a HUDs not regressed)
+- **scope:** Port mockup-spatial-sheet-map.html verbatim. (1) Replace `_OV_GROUPS` 6→7 entries: site/title/plan/elev/section/detail/sys with mockup Thai labels verbatim. (2) Rewrite `.ov-card`/`.ov-thumb`/`.ov-group-grid` CSS to match mockup: 180px white cards on dark grid bg, 124px thumb height, scale-1.04 hover, 16px gap, 54px between groups. (3) Replace status dot with chip-and-dot combo: `<div class="chip"><div class="dot dot-X"></div>LABEL</div>` where LABEL ∈ {พร้อม / ตรวจ scale / ยังไม่วัด / auto scale / ยกเว้น}. (4) Add banner above grid: "💡 45 หน้าทั้งโครงการบน infinite canvas เดียว · คลิก sheet ใดก็ได้เพื่อ zoom เข้า · กด ⌘K เพื่อค้นหา". (5) Remove `excludedPages.has(i) continue` filter — excluded pages flow into title group (per mockup), chip = "ยกเว้น". (6) Group label colors (7 disciplines, per mockup CSS). (7) Card click → existing `_ovCardClick(n)` behavior preserved.
+- **forbidden surfaces touched:** NONE (no polyAreaM2/pdfToC/RS/snap/server.py/.bmaplan rename; pure UI port)
+- **link:** `docs/invent/f12-overview-mockup-port.md` (§ Research → Delta map is the row-by-row guide)
+- **hard rules:** Do NOT redesign — port verbatim. Any deviation requires user check-in. Banner text exact. 7 groups in mockup section order. No separate "excluded group" (that was f12-excluded-group NOGO; mockup integrates into title group).
+
 - [x] **Zen Mode v2 — swap menu bar for spatial-sheet-map top bar** — `invent-done-go (→ INV-2026-05-19-002a + 002b)` 2026-05-19. Verdict `PRIOR_ART_PARTIAL` (top-bar + dropdowns + ⌘K mature individually; composition novel for PDF). 5 approaches on 5 axes; **2 attempts** — v1 framed as extension (rejected), **v2 RESHAPED** as dual-mode (F11+F12 separate). Top approach v2: F11 = A (top bar) + D (Focus) bundled; F12 = C (standalone spatial grid). Spike v2 PASS 8/8 (top bar 40px, F11 actions ≤2 clicks, 7 HUD fields visible, F12 per-card status + lazy load, F12↔F11 roundtrip page sync, Focus + edge peek, HT-7 gate, onboarding toast). 001a F11 behavior deprecated (breaking change + mandatory onboarding). User GO 2026-05-19. 2 sprint cards in active queue (002a→002b). See `docs/invent/zen-mode-v2-topbar.md` + spike `proto/sandbox/invent-zen-mode-v2-topbar.html`.
     - Source: user 2026-05-19 11:39 + screenshot `proto/ui/Screenshot 2026-05-18 221940.png`
     - Tags: bma-plan, ui, zen, top-bar, overview, focus, p-med
