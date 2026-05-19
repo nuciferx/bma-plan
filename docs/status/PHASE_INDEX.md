@@ -203,7 +203,28 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Tags: bma-plan, save, p-high, data-integrity
     - Open Qs: (1) canvas แสดงของที่ยังไม่ save (isDirty ไม่ trigger) หรือ load กลับมาแล้ว render ไม่ครบ? (2) object ประเภทไหน — poly / path / annotation / rotation?
 
-#### HT-18 — Save state out of sync with canvas visuals (audit + fix) — `queued` ⚠️ **TOP PRIORITY — data-integrity**
+#### HT-18 — Save state out of sync with canvas visuals (audit + fix) — `superseded — split into HT-18a/b/c` (audit complete, bma-explorer drift map showed `JSON.stringify(pageStore)` already round-trips all fields; real bug = pushUndo leaks)
+
+#### HT-18a — pushUndo leak fixes on 6 mutations — `done 895a9d7` 2026-05-19
+
+- **commit:** (pending — see commit after this line in `git log`)
+- **scope:** Added pushUndo() to toggleScaleLine + showLayer/hideLayer/lockLayer/unlockLayer/soloLayer + applyLandEdgeTag. Purely additive; no schema touch.
+- **marker:** PHASE_HT18_OK 7/7 (smoke EXIT 0)
+- **forbidden surfaces touched:** NONE — change is additive call insertion only
+- **predecessors retained:** PHASE_INV_ZEN_V2_OK 10/10, PHASE_INV_OVERVIEW_OK 9/9, all earlier markers GREEN
+
+#### HT-18b — Save/load round-trip E2E coverage — `queued` (depends-on HT-18a ✅)
+
+- **scope skill:** `/bma-check-forbidden` (still touches save/load test code)
+- **scope:** Write `_test_ht18b_save_load_round_trip` — Playwright: draw 1 of each object type (poly area/opening/line/ref/parking + annotation each kind) + set page tags/floor/north angle/excluded + layer color/lock/vis + projectInfo → invoke saveProject() → reload page → re-load .bmaplan → diff every field against pre-save snapshot. ≥12 per-object-type sub-checks. NEW marker `PHASE_HT18B_OK`. No code change in proto/ui.html expected (HT-18a audit confirmed all fields auto-serialize).
+- **est LOC:** ~150 (mostly E2E test)
+- **success criterion:** if any field doesn't round-trip → file HT-18c with that specific field fix; if all round-trip → HT-18b PASS and HT-18 series complete
+
+#### HT-18c — Field-gap fixes surfaced by HT-18b — `pending` (will queue only if HT-18b reveals drift)
+
+- **conditional:** Only file if HT-18b round-trip test finds an actual field-drift. If HT-18b PASS clean, HT-18c is dropped.
+
+#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `queued`
 
 - **scope skill:** `/bma-check-forbidden` first (touches `.bmaplan` schema area — forbidden surface; additive-only)
 - **depends-on:** none — placed at top of queue
