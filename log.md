@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-05-20 — BLOAT-FLAKE-1 Fix REAL_PDF `_wait_analyse_ready` flake — PASS (branch: main)
+
+**What changed:** In `proto/e2e_ui_test.py`, the `_wait_analyse_ready` helper was updated: default timeout raised from 30.0 s to 60.0 s, and a "grace window" was added — if the status bar still shows active progress (`กำลังโหลด` / `กำลังวิเคราะห์`) at the deadline, the wait is granted +50% extra time before declaring failure. ~15 LOC changed inside the one helper only. No other test logic, no app code, no schema changed.
+
+**Why:** The real 45-page A1 permit PDF (rotated 90°, ~1–1.4 s/page JPEG encode) occasionally caused `_wait_analyse_ready` to exceed the prior 30 s ceiling during a session-loaded box run — especially after 5 consecutive sprint test cycles in one session. The raised ceiling is free on the fast smoke path (small `test_plan_A1.pdf` completes in ~1–2 s). The grace window avoids a false fail when the page is actively making progress but hasn't crossed the threshold yet. This flake halted the dev-loop at BLOAT-5 (3 retries all failed at `_test_real_pdf_multipage_persistence`). With the fix, full E2E is GREEN. Retroactively confirms BLOAT-5 passes full E2E.
+
+**Files touched:**
+- `proto/e2e_ui_test.py`: +15 −2 — `_wait_analyse_ready` timeout 30.0→60.0, added grace-window branch for active-loading status
+
+**Tests:**
+```
+python -m py_compile proto/e2e_ui_test.py                     → PASS
+python proto/e2e_ui_test.py full                               → EXIT 0 — ALL GREEN
+  PERSIST_OK + REAL_OK + ANNOT_OK GREEN (flaked 3x during BLOAT-5; now stable)
+  PHASE_BLOAT2_OK 8/8 + _BLOAT3_OK 8/8 + _BLOAT4_OK 8/8 + _BLOAT5_OK 8/8
+  PHASE_INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10
+  Retroactively confirms BLOAT-5 (shipped smoke-only) passes full E2E.
+/bma-human-test — N/A (test-infrastructure change; no app runtime code touched)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- (only `proto/e2e_ui_test.py` `_wait_analyse_ready` helper changed)
+
+**Known gaps / follow-ups:**
+- If the flake recurs under even heavier load, next escalation paths: Playwright browser-context reset between heavy real-PDF tests, or server cache warm-up before real-PDF suite (documented as alternatives in KNOWN_ISSUES.md).
+- Dev-loop queue is now clear of P1 blockers. Remaining: `INV-2026-05-19-002c` (F12 Overview mockup port) + invent-queued ideas.
+
+---
+
 ## 2026-05-20 — BLOAT-5 Extract page-setup modal JS to proto/static/js/page-setup.js — PASS (smoke; full ENV-FLAKE) (branch: main)
 
 **What changed:** Created `proto/static/js/page-setup.js` (125 lines, classic non-module script) and extracted 15 page-setup functions + 2 floor constants from 3 non-contiguous ranges in `proto/ui.html`. Range A (L855–856): `FLOOR_KIND_LABELS` + `FLOOR_KIND_OPTIONS`. Range B (L1051–1070): floor helpers `autoNamePage`, `setPageFloorKind`, `setPageFloorNum`, `countTagBefore`. Range C (L3094–3167): inspector + renumber/delete cluster `selectSetupPage`, `_pageReadiness`, `_setupCountObjects`, `_renderSetupDashboard`, `_renderSetupPageCard`, `_setupBack`, `_renderSetupInspector`, `_pendingDeleteN`, `_openRenumberDialog`, `closeRebuildDialog`, `_executeRenumberDelete`, `_reindexPageDicts`. Kept in `proto/ui.html`: 15 cross-cluster glue functions including `buildTagGrid`, `setPageTag`, `applyAutoNames`, `excludePage`, `restorePage2`, `pageFloorKind`/`pageFloorNum` state declarations. Added E2E marker `PHASE_BLOAT5_OK` (8 sub-checks) to `proto/e2e_ui_test.py`. Net: `proto/ui.html` −93 +2 (3,869→3,777); `proto/static/js/page-setup.js` NEW 125 LOC; `proto/e2e_ui_test.py` +91 LOC. Smoke 18/18 baseline + BLOAT2/3/4/5 8/8 each + INV_PAGE_SETUP_A/B/C OK all GREEN. Full failed 3 retries — pre-existing REAL_PDF analyse flake (BLOAT-FLAKE-1 filed). Loop halted per `LOOP_STOP_REGRESSION` safety rule. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5).

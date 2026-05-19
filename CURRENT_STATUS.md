@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-20 (updated: BLOAT-5)
+Date: 2026-05-20 (updated: BLOAT-FLAKE-1)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-20 (updated: BLOAT-5)
 
 ## One-Line Status
 
-2026-05-20 — BLOAT-5 page-setup extracted. ui.html 3869→3777 (-92; session -454). smoke + PHASE_BLOAT5_OK + INV_PAGE_SETUP_A/B/C GREEN. Full hit pre-existing REAL_PDF flake (BLOAT-FLAKE-1 filed). Loop halted per LOOP_STOP_REGRESSION safety rule — user review.
+2026-05-20 — BLOAT-FLAKE-1: REAL_PDF E2E flake fixed (_wait_analyse_ready 30→60s + grace). Full E2E GREEN. BLOAT-5 now full-validated. Bloat wave done: ui.html 4231→3777 (−454). Dev-loop unblocked.
 
 ## Latest Sprint
 
+- BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake: PASS (full E2E GREEN) (2026-05-20) — timeout 30→60s + grace window (+50% if still loading); full EXIT 0; PERSIST_OK/REAL_OK/ANNOT_OK stable; LOOP_STOP_REGRESSION halt cleared; BLOAT-5 retroactively full-validated; dev-loop unblocked.
 - BLOAT-5 — Extract page-setup modal JS to proto/static/js/page-setup.js: PASS (smoke; full ENV-FLAKE) (2026-05-20) — NEW page-setup.js 125 LOC (15 fns + 2 consts); ui.html −92 LOC (3869→3777; session total −454); smoke 18/18 + PHASE_BLOAT5_OK 8/8 + INV_PAGE_SETUP_A/B/C GREEN; full failed 3 retries (pre-existing REAL_PDF flake BLOAT-FLAKE-1, NOT BLOAT-5 regression); loop halted LOOP_STOP_REGRESSION.
 - BLOAT-4 — Extract annotation JS to proto/static/js/annotations.js: PASS (2026-05-20) — NEW annotations.js 205 LOC (13 fns); ui.html −188 LOC (4057→3869); full 22/22 + PHASE_BLOAT4_OK 8/8 + PHASE_INV_STICKY_OK 10/10 + PHASE_HT11_OK 10/10 GREEN; sticky-note round-trip + annotation edit/delete modal verified.
 - BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js: PASS (2026-05-20) — NEW export-save.js 188 LOC (14 fns + 13 consts); ui.html −151 LOC (4208→4057); smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN; XLSX_OK + PROJECT_OK + PERSIST_OK + ANNOT_OK on real 45-page permit all GREEN; schemaOk verifies 12-field v1 schema intact. BLOAT-4 + BLOAT-5 formulaic.
@@ -42,10 +43,10 @@ Date: 2026-05-20 (updated: BLOAT-5)
 ```bash
 python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 python proto/e2e_ui_test.py smoke                          # PASS EXIT 0 (18 baseline + PHASE_BLOAT2/3/4/5_OK 8/8 each + INV_PAGE_SETUP_A/B/C + HT11 GREEN)
-python proto/e2e_ui_test.py full                           # FLAKY — REAL_PDF analyse flake (BLOAT-FLAKE-1); last clean full: BLOAT-4 retry
+python proto/e2e_ui_test.py full                           # PASS EXIT 0 (BLOAT-FLAKE-1 fixed; PERSIST_OK/REAL_OK/ANNOT_OK stable)
 ```
 
-Last smoke run: 2026-05-20 (BLOAT-5; all markers GREEN). Last clean full: 2026-05-20 (BLOAT-4 retry; 22 baseline + PHASE_BLOAT4_OK). Full now blocked by BLOAT-FLAKE-1 (KNOWN_ISSUES.md). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last full run: 2026-05-20 (BLOAT-FLAKE-1; all markers GREEN — PERSIST_OK/REAL_OK/ANNOT_OK + all BLOAT/INV/HT11 markers). BLOAT-FLAKE-1 resolved (KNOWN_ISSUES.md). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

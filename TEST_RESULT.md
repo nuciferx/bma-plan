@@ -4,12 +4,68 @@
 
 ---
 
-# Latest: BLOAT-5 — Extract page-setup modal JS to proto/static/js/page-setup.js
+# Latest: BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake
 
 Branch: main
 Date: 2026-05-20
 
-## Result: PASS (smoke only) — py_compile PASS; smoke 18/18 GREEN + PHASE_BLOAT5_OK 8/8 GREEN; full FAILED (3/3 retries, pre-existing REAL_PDF env flake — BLOAT-FLAKE-1; NOT a BLOAT-5 regression)
+## Result: PASS — py_compile PASS; full EXIT 0 — PERSIST_OK / REAL_OK / ANNOT_OK GREEN; all BLOAT and INV_PAGE_SETUP markers GREEN. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated.
+
+## Commands
+
+```bash
+python -m py_compile proto/e2e_ui_test.py                  # PASS
+python proto/e2e_ui_test.py full                           # EXIT 0 — ALL GREEN
+```
+
+## Full Results — All Markers GREEN
+
+| Marker | Result |
+|---|---|
+| CACHE_OK | PASS |
+| SETUP_OK | PASS |
+| MAIN_UI_OK (incl. pageSetupJsLoaded: True) | PASS |
+| VECTOR_OK | PASS |
+| RECAL_OK | PASS |
+| SITE_UI_OK | PASS |
+| XLSX_OK | PASS |
+| PROJECT_OK | PASS |
+| RASTER_OK | PASS |
+| WHEEL_OK | PASS |
+| SNAP_OK | PASS |
+| SELECT_OK | PASS |
+| SETBACK_OK | PASS |
+| EXT_MEASURE_OK | PASS |
+| MENU_OK | PASS |
+| PATH_GEOMETRY_OK | PASS |
+| PHASE_I_A_OK | PASS |
+| PHASE_I_B1_OK | PASS |
+| **ANNOT_OK** | **PASS** (flaked 3x during BLOAT-5; now stable) |
+| **PERSIST_OK** | **PASS** (flaked 3x during BLOAT-5; now stable) |
+| **REAL_OK** | **PASS** (flaked 3x during BLOAT-5; now stable) |
+| PHASE_BLOAT2_OK 8/8 | PASS |
+| PHASE_BLOAT3_OK 8/8 | PASS |
+| PHASE_BLOAT4_OK 8/8 | PASS |
+| PHASE_BLOAT5_OK 8/8 | PASS (retroactively full-validated) |
+| PHASE_INV_PAGE_SETUP_A_OK 8/8 | PASS |
+| PHASE_INV_PAGE_SETUP_B_OK 9/9 | PASS |
+| PHASE_INV_PAGE_SETUP_C_OK 7/7 | PASS |
+| PHASE_HT11_OK 10/10 | PASS |
+
+`/bma-human-test` — N/A (test-infrastructure change only; no app runtime code touched).
+
+## Fix Summary
+
+`_wait_analyse_ready` in `proto/e2e_ui_test.py`: default timeout raised 30.0 s → 60.0 s; grace window added (+50% time if status bar still shows active progress at deadline). ~15 LOC changed. No app code touched.
+
+---
+
+# Previous: BLOAT-5 — Extract page-setup modal JS to proto/static/js/page-setup.js
+
+Branch: main
+Date: 2026-05-20
+
+## Result: PASS (smoke only) — py_compile PASS; smoke 18/18 GREEN + PHASE_BLOAT5_OK 8/8 GREEN; full FAILED (3/3 retries, pre-existing REAL_PDF env flake — BLOAT-FLAKE-1; NOT a BLOAT-5 regression). Now retroactively full-validated by BLOAT-FLAKE-1.
 
 ## Commands
 

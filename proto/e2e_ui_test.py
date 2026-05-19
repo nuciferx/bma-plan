@@ -842,12 +842,22 @@ def _canvas_box(page):
     return box
 
 
-def _wait_analyse_ready(page, timeout: float = 30.0):
+def _wait_analyse_ready(page, timeout: float = 60.0):
+    # BLOAT-FLAKE-1 (2026-05-20): ceiling raised 30s → 60s. The function returns
+    # the instant analyse is ready (250ms poll), so a higher ceiling costs nothing
+    # for the fast small-PDF smoke path — it only buys headroom for the real 45-page
+    # A1 permit (rotated 90°, heavy JPEG encode ~1-1.4s/page) whose first-page
+    # render+analyse round-trip occasionally exceeds 30s on a loaded CI/dev box.
+    # A page that is STILL actively loading ("กำลังโหลดหน้า N…") is making progress,
+    # not stuck — we grant it an extra grace window past the deadline so a slow
+    # cold-cache render is not misreported as an analyse failure.
     deadline = time.time() + timeout
+    grace_deadline = deadline + timeout * 0.5  # +50% extra while actively loading
     last_snaps = ""
     last_status = ""
     last_page_label = ""
-    while time.time() < deadline:
+    while True:
+        now = time.time()
         last_snaps = page.locator("#lbl-snaps").inner_text().strip()
         last_status = page.locator("#status").inner_text().strip()
         last_page_label = page.locator("#page-lbl").inner_text().strip()
@@ -855,6 +865,9 @@ def _wait_analyse_ready(page, timeout: float = 30.0):
             return
         if "analyse error" in last_status.lower():
             raise AssertionError(f"analyse failed: page={last_page_label} status={last_status!r}")
+        actively_loading = "กำลังโหลด" in last_status or "กำลังวิเคราะห์" in last_status
+        if now >= deadline and not (actively_loading and now < grace_deadline):
+            break
         page.wait_for_timeout(250)
     raise AssertionError(
         f"analyse did not finish: page={last_page_label!r}, "

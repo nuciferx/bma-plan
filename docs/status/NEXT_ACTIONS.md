@@ -1,24 +1,23 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: BLOAT-5 shipped — loop halted LOOP_STOP_REGRESSION)
+Date: 2026-05-20 (updated: BLOAT-FLAKE-1 PASS — dev-loop unblocked)
 
 ## Immediate Next
 
-**BLOAT-5 shipped (smoke PASS). Full E2E blocked by pre-existing REAL_PDF analyse flake (BLOAT-FLAKE-1). Loop halted per LOOP_STOP_REGRESSION safety rule. User decides.**
+**BLOAT-FLAKE-1 resolved. Full E2E GREEN. Dev-loop is unblocked. Bloat-reduction wave complete (BLOAT-1..5 all full-validated). Next sprint from queue:**
 
-- **(PRIORITY 1 — BLOAT-FLAKE-1) Fix `_wait_analyse_ready` flake on real 45-page permit** — REQUIRED before full E2E reliability is restored and the dev loop can resume. Symptom: `_test_real_pdf_multipage_persistence` → `_wait_analyse_ready` hung on page 1/45 ("กำลังโหลดหน้า 1…"). 3/3 retries failed this session (worst occurrence; prior: BLOAT-3 1 retry + pass; BLOAT-4 1 retry + pass). Hypothesis: env-level Playwright/Windows file-handle exhaustion or analyse timeout too tight for cold-cache real PDF. Suggested fix paths: (a) bump `_wait_analyse_ready` timeout, (b) add Playwright browser-context reset between heavy tests, (c) warm-up server caches before real-PDF tests. See `docs/status/KNOWN_ISSUES.md` entry BLOAT-FLAKE-1.
+- **(PRIORITY 1) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Pick up with `/bma-dev-loop`.
 
-- **(a) Optional BLOAT-3b — Extract print cluster to `proto/static/js/print-canvas.js`** — `printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`. ~60 LOC delta. Self-contained; low-risk. Can run independently of BLOAT-FLAKE-1 (print cluster not exercised by real-PDF test path).
+- **(a) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
 
-- **(b) Consolidation option** — With 5 BLOAT extractions done, ui.html is at 3,777 — well below the 5,000-line trigger. Could declare the bloat-reduction wave complete and move to other queued sprints (INV-2026-05-19-002c F12 Overview, etc.).
+- **(b) Optional BLOAT-3b — Extract print cluster to `proto/static/js/print-canvas.js`** — `printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`. ~60 LOC delta. Self-contained; low-risk. Not required (bloat wave already well under 5,000-line trigger at 3,777).
 
-- **(c) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Can run after BLOAT-FLAKE-1 fix.
-
-- **(d) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
+- **(c) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
 
 ## Recently Done
 
-- **BLOAT-5 — Extract page-setup modal JS to `proto/static/js/page-setup.js`** — 2026-05-20. PASS (smoke; full ENV-FLAKE). NEW `proto/static/js/page-setup.js` (125 LOC): 15 fns + 2 consts extracted from 3 non-contiguous ranges in `proto/ui.html`. ui.html 3,869→3,777 lines (−92 net). Smoke 18/18 + PHASE_BLOAT5_OK 8/8 + INV_PAGE_SETUP_A/B/C GREEN. Full failed 3 retries (pre-existing REAL_PDF flake BLOAT-FLAKE-1, NOT BLOAT-5 regression). Recipe 5-for-5. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5). Loop halted LOOP_STOP_REGRESSION.
+- **BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake** — 2026-05-20. PASS. `_wait_analyse_ready` timeout 30→60 s + grace window (+50% if still loading). Full E2E EXIT 0: PERSIST_OK/REAL_OK/ANNOT_OK stable. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated. Dev-loop unblocked. ~15 LOC in `proto/e2e_ui_test.py` only.
+- **BLOAT-5 — Extract page-setup modal JS to `proto/static/js/page-setup.js`** — 2026-05-20. PASS (smoke; full retroactively validated by BLOAT-FLAKE-1). NEW `proto/static/js/page-setup.js` (125 LOC): 15 fns + 2 consts extracted from 3 non-contiguous ranges in `proto/ui.html`. ui.html 3,869→3,777 lines (−92 net). Smoke 18/18 + PHASE_BLOAT5_OK 8/8 + INV_PAGE_SETUP_A/B/C GREEN. Recipe 5-for-5. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5).
 - **BLOAT-4 — Extract annotation JS to `proto/static/js/annotations.js`** — 2026-05-20. PASS. NEW `proto/static/js/annotations.js` (205 LOC): 13 fns extracted from `proto/ui.html` (L1680–1869). ui.html 4,057→3,869 lines (−188 net). full 22/22 + PHASE_BLOAT4_OK 8/8 + PHASE_INV_STICKY_OK 10/10 + PHASE_HT11_OK 10/10 GREEN. Sticky-note round-trip + annotation edit/delete modal verified. Recipe 4-for-4.
 - **BLOAT-3 — Extract export/save JS to `proto/static/js/export-save.js`** — 2026-05-20. PASS. NEW `proto/static/js/export-save.js` (188 LOC): 14 fns + 13 consts extracted from `proto/ui.html` inline `<script>`. ui.html 4,208→4,057 lines (−151 net). smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN. XLSX_OK + PROJECT_OK + PERSIST_OK + ANNOT_OK all GREEN on real 45-page permit. `schemaOk` verifies 12-field `.bmaplan` v1 schema intact.
 - **BLOAT-2 — Extract status-bar JS to `proto/static/js/status-bar.js`** — 2026-05-20. PASS. NEW `proto/static/js/status-bar.js` (49 LOC): 8 status-bar functions + 2 constants extracted from `proto/ui.html` inline `<script>`. ui.html 4,231→4,208 lines (−23). smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK GREEN. PERSIST_OK on real 45-page permit confirms save/load integrity. Recipe proven: cross-script `let`/`const` binding access works in classic non-module scripts.
