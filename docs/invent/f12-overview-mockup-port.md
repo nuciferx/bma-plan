@@ -75,7 +75,26 @@ Total: **~240 LOC**. Single sprint-sized.
 
 ## Spike
 
-**SKIPPED** per PRIOR_ART_MATURE — the sandbox `mockup-spatial-sheet-map.html` (committed earlier) already serves as the spike for this design. The "spike outcome" is "open mockup in browser → verified by user as the target". No new `proto/sandbox/invent-*` file needed.
+### Outcome
+
+**Artifact:** `proto/sandbox/invent-f12-overview-mockup-port.html` — created 2026-05-19 on user request ("มีทำ invent ให้ดู ก่อนไหม" — "is there a preview to see first?"). Originally planned to skip per PRIOR_ART_MATURE rule, but user wanted a concrete preview before committing to ~240 LOC of production work.
+
+**What it demonstrates:**
+- All 7 group bands in mockup order (site / title / plan / elev / section / detail / sys)
+- 45 mock pages distributed per RAMA4 permit structure (1 site / 3 title / 14 plan / 4 elev / 3 section / 8 detail / 12 sys)
+- Excluded pages (2/3/4) integrated into title group with chip "ยกเว้น" — NOT a separate band
+- 5 status states with chip+dot combo (พร้อม / ตรวจ scale / ยังไม่วัด / auto scale / ยกเว้น)
+- 180px white sheet cards on dark dotted-grid bg; 124px discipline-tinted thumb
+- Hover transform `translateY(-4px) scale(1.04)` + accent shadow per mockup CSS
+- Banner with mockup-verbatim text above grid
+- Group label colors per discipline (7 colors)
+- Object-count chips top-right where objCount > 0
+
+**Self-verifying:** auto-runs 10 acceptance criteria 400 ms after load; result badge top-right.
+
+**Expected: 10/10 PASS** — the spike matches the production sprint's `PHASE_INV_OVERVIEW_PORT_OK` planned sub-checks 1-for-1 (so passing the spike = de-risking the sprint).
+
+**How to use:** open `proto/sandbox/invent-f12-overview-mockup-port.html` in browser → see the full ported layout → verify visual matches expectation → confirm GO is still correct → proceed to 002c sprint.
 
 ## Decision
 

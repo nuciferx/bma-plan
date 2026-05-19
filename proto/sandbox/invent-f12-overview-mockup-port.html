@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>SPIKE — INV f12-overview-mockup-port (preview before 002c sprint)</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;font-family:-apple-system,"Segoe UI","Noto Sans Thai",sans-serif;background:#15171c;color:#e7eaf0;overflow:hidden;font-size:13px;}
+
+  /* ─── shared top bar from 002a (kept) ─── */
+  #topbar{position:fixed;top:0;left:0;right:0;height:40px;display:flex;align-items:center;padding:0 14px;gap:2px;background:rgba(20,22,28,0.96);backdrop-filter:blur(14px);border-bottom:1px solid #2a2f37;z-index:200;font-size:13px;}
+  #topbar .logo{font-weight:700;color:#3b82f6;letter-spacing:0.5px;margin-right:14px;font-size:14px;}
+  #topbar .mi{padding:7px 12px;border-radius:5px;cursor:pointer;color:#c4c9d4;font-size:13px;user-select:none;}
+  #topbar .mi:hover{background:#2a2f37;color:#fff;}
+  #topbar .spacer{flex:1;}
+  #topbar .tb{padding:6px 11px;margin-left:4px;border-radius:5px;cursor:pointer;color:#c4c9d4;font-size:12px;display:flex;align-items:center;gap:5px;border:1px solid transparent;user-select:none;}
+  #topbar .tb:hover{background:#2a2f37;color:#fff;}
+  #topbar .tb.active{background:#3b82f6;color:#fff;border-color:#3b82f6;}
+  .kbd{background:#2a2f37;border:1px solid #3a3f47;border-radius:3px;padding:1px 5px;font-size:10px;color:#9ca3af;font-family:'SF Mono',monospace;}
+
+  /* ─── overview content (ported from mockup) ─── */
+  #overview-content{position:fixed;top:40px;left:0;right:0;bottom:0;background:
+    radial-gradient(circle at 20% 30%, #1f232b 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 60%, #1f232b 1px, transparent 1.5px),
+    #0f1115;background-size:32px 32px,32px 32px;overflow-y:auto;}
+
+  /* banner — mockup verbatim */
+  #ov-banner{padding:14px 80px;font-size:12.5px;color:#bfdbfe;border-bottom:1px solid #1a1d24;background:rgba(10,132,255,0.08);}
+  #ov-banner b{color:#fff;}
+
+  .spatial-map{padding:60px 80px 100px;min-width:max-content;}
+
+  /* group bands — mockup verbatim */
+  .group-band{margin-bottom:54px;}
+  .group-label{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;font-size:15px;font-weight:600;}
+  .group-count{font-size:11px;color:#6b7280;font-weight:400;background:#1f232b;padding:2px 8px;border-radius:10px;}
+  .group-grid{display:grid;grid-template-columns:repeat(auto-fit, 180px);gap:16px;}
+
+  /* group label colors — per mockup */
+  .group-band.gb-site .group-label{color:#22c55e;}
+  .group-band.gb-title .group-label{color:#9ca3af;}
+  .group-band.gb-plan .group-label{color:#3b82f6;}
+  .group-band.gb-elev .group-label{color:#f59e0b;}
+  .group-band.gb-section .group-label{color:#a855f7;}
+  .group-band.gb-detail .group-label{color:#06b6d4;}
+  .group-band.gb-sys .group-label{color:#ef4444;}
+
+  /* sheet card — mockup verbatim */
+  .sheet{
+    width:180px;background:#fff;border:1px solid #2a2f37;border-radius:5px;overflow:hidden;cursor:pointer;
+    transition:all 0.15s ease-out;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  }
+  .sheet:hover{
+    transform:translateY(-4px) scale(1.04);
+    box-shadow:0 10px 28px rgba(59,130,246,0.35);
+    border-color:#3b82f6;z-index:10;
+  }
+  .sheet.active{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.35);}
+
+  .sheet-thumb{
+    width:100%;height:124px;background:#f6f7f9;position:relative;
+    border-bottom:1px solid #e5e7eb;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px;
+  }
+  /* discipline-tinted backgrounds (mockup) */
+  .d-site{background:linear-gradient(135deg,#e0f2f1 0%,#b2dfdb 100%);}
+  .d-title{background:#f3f4f6;}
+  .d-plan{background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);}
+  .d-plan-2{background:linear-gradient(135deg,#ede7f6 0%,#d1c4e9 100%);}
+  .d-elev{background:linear-gradient(135deg,#fff3e0 0%,#ffe0b2 100%);}
+  .d-section{background:linear-gradient(135deg,#fce4ec 0%,#f8bbd0 100%);}
+  .d-detail{background:linear-gradient(135deg,#e0f7fa 0%,#b2ebf2 100%);}
+  .d-sys{background:linear-gradient(135deg,#ffebee 0%,#ffcdd2 100%);}
+
+  .sheet-meta{padding:7px 9px;color:#1f2937;font-size:11px;background:#fff;}
+  .sheet-num{font-weight:600;color:#374151;}
+  .sheet-name{color:#6b7280;margin-top:2px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* status chip — mockup verbatim (chip + dot combo) */
+  .chip{
+    position:absolute;top:6px;left:6px;
+    display:flex;gap:4px;align-items:center;
+    background:rgba(255,255,255,0.95);
+    border:1px solid #e5e7eb;border-radius:10px;
+    padding:1px 7px 1px 5px;font-size:9.5px;color:#374151;
+    box-shadow:0 1px 4px rgba(0,0,0,0.15);
+    font-weight:500;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;}
+  .dot-green{background:#22c55e;}
+  .dot-amber{background:#f59e0b;}
+  .dot-red{background:#ef4444;}
+  .dot-gray{background:#9ca3af;}
+
+  .obj-chip{
+    position:absolute;top:6px;right:6px;
+    background:#374151;color:#fff;font-size:9.5px;
+    padding:1px 6px;border-radius:8px;
+    font-family:'SF Mono',monospace;font-weight:600;
+  }
+
+  /* spike badge */
+  #spike-badge{position:fixed;top:48px;right:8px;width:360px;background:#0f1115;border:2px solid #3b82f6;border-radius:8px;padding:12px 14px;font-size:11px;z-index:9999;color:#c4c9d4;box-shadow:0 8px 24px rgba(59,130,246,.3);max-height:84vh;overflow-y:auto;}
+  #spike-badge h3{font-size:12px;color:#3b82f6;margin-bottom:6px;font-weight:700;}
+  #spike-badge .sub{font-size:10px;color:#6b7280;margin-bottom:8px;}
+  #spike-badge .row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1a1d24;font-size:10px;gap:6px;}
+  #spike-badge .label{color:#9ca3af;flex:1;}
+  #spike-badge .result{font-weight:600;padding:2px 6px;border-radius:3px;font-size:9px;}
+  #spike-badge .result.pass{background:#16a34a;color:#fff;}
+  #spike-badge .result.fail{background:#dc2626;color:#fff;}
+  #spike-badge .result.pending{background:#6b7280;color:#fff;}
+  #spike-badge .total{margin-top:8px;text-align:center;padding:6px;background:#1c2027;border-radius:4px;font-size:11px;font-weight:700;}
+
+  #instructions{position:fixed;top:48px;left:8px;background:rgba(20,22,28,.94);border:1px solid #3a3f47;border-radius:6px;padding:10px 12px;font-size:11px;color:#9ca3af;z-index:9998;max-width:300px;line-height:1.5;}
+  #instructions b{color:#3b82f6;}
+</style>
+</head>
+<body>
+
+<!-- ════════ SHARED TOP BAR (002a — kept verbatim) ════════ -->
+<div id="topbar">
+  <div class="logo">⬡ BMA-Plan</div>
+  <div class="mi">📁 File</div>
+  <div class="mi">📄 Page</div>
+  <div class="mi">📐 Measure</div>
+  <div class="mi">📝 Annotate</div>
+  <div class="mi">👁 View</div>
+  <div class="mi">❓ Help</div>
+  <div class="spacer"></div>
+  <div class="tb">🔍 ค้นหาหน้า <span class="kbd">⌘K</span></div>
+  <div class="tb active">🐦 Overview <span class="kbd">F12</span></div>
+  <div class="tb">◯ Focus <span class="kbd">F</span></div>
+</div>
+
+<!-- ════════ OVERVIEW CONTENT (002c port) ════════ -->
+<div id="overview-content">
+  <div id="ov-banner">💡 <b>45 หน้าทั้งโครงการบน infinite canvas เดียว</b> · คลิก sheet ใดก็ได้เพื่อ zoom เข้า · กด <span class="kbd">⌘K</span> เพื่อค้นหา</div>
+  <div class="spatial-map" id="ov-spatial-map"></div>
+</div>
+
+<!-- instructions -->
+<div id="instructions">
+  <b>SPIKE · INV-002c preview</b><br>
+  Full mockup port — visual + interaction รวมในเชิงท้อง<br>
+  <b>Hover</b> sheet → ยกขึ้น + scale 1.04<br>
+  <b>Click</b> sheet → console.log (ตอน production = exit overview + loadPage)<br>
+  Status chips: พร้อม / ตรวจ scale / ยังไม่วัด / auto scale / ยกเว้น<br>
+  Excluded pages (2/3/4) อยู่ใน title group + chip "ยกเว้น" (ไม่แยก band)
+</div>
+
+<!-- self-verify badge -->
+<div id="spike-badge">
+  <h3>🧪 SPIKE — INV-002c port preview</h3>
+  <div class="sub">Auto 10 acceptance criteria (matches PHASE_INV_OVERVIEW_PORT_OK plan).</div>
+  <div class="row"><span class="label">1. Banner with mockup text exact</span><span class="result pending" id="r1">…</span></div>
+  <div class="row"><span class="label">2. 7 group bands rendered</span><span class="result pending" id="r2">…</span></div>
+  <div class="row"><span class="label">3. Groups in mockup order (site/title/plan/elev/section/detail/sys)</span><span class="result pending" id="r3">…</span></div>
+  <div class="row"><span class="label">4. Sheet cards = 180px white bg</span><span class="result pending" id="r4">…</span></div>
+  <div class="row"><span class="label">5. Thumb = 124px, discipline-tinted</span><span class="result pending" id="r5">…</span></div>
+  <div class="row"><span class="label">6. Status chip+dot combo (5 labels)</span><span class="result pending" id="r6">…</span></div>
+  <div class="row"><span class="label">7. Excluded pages in title group (not filtered)</span><span class="result pending" id="r7">…</span></div>
+  <div class="row"><span class="label">8. Group label colors (7 disciplines)</span><span class="result pending" id="r8">…</span></div>
+  <div class="row"><span class="label">9. Hover transform scale 1.04</span><span class="result pending" id="r9">…</span></div>
+  <div class="row"><span class="label">10. Object-count chip top-right</span><span class="result pending" id="r10">…</span></div>
+  <div class="total" id="total">running…</div>
+</div>
+
+<script>
+// ─── mock data (45 pages per RAMA4 permit) ───
+const PAGES = (() => {
+  const TAGS = [
+    'site',                                  // 1
+    'title','title','title',                 // 2-4
+    'plan','plan','plan','plan','plan','plan','plan','plan','plan','plan','plan','plan','plan','plan', // 5-18 (14)
+    'elev','elev','elev','elev',             // 19-22
+    'section','section','section',           // 23-25
+    'detail','detail','detail','detail','detail','detail','detail','detail',  // 26-33
+    'sys','sys','sys','sys','sys','sys','sys','sys','sys','sys','sys','sys'   // 34-45
+  ];
+  const NAMES = {
+    1:'A-01 ผังบริเวณ', 2:'หน้าปก', 3:'สารบัญ', 4:'บันทึกแก้ไข',
+    5:'A-10 ชั้นใต้ดิน', 6:'A-11 ชั้น 1', 7:'A-12 ชั้น 2', 8:'A-13 ชั้น 3',
+    9:'A-14 ชั้น 4', 10:'A-15 ชั้น 5', 11:'A-16 ชั้น 6', 12:'A-17 ชั้น 7',
+    13:'A-18 ชั้น 8', 14:'A-19 ชั้น 9', 15:'A-20 ชั้น 10', 16:'A-21 ชั้นห้องเครื่อง',
+    17:'A-22 ดาดฟ้า', 18:'A-23 ผังหลังคา',
+    19:'A-30 รูปด้านทิศเหนือ', 20:'A-31 รูปด้านทิศใต้', 21:'A-32 รูปด้านทิศตะวันออก', 22:'A-33 รูปด้านทิศตะวันตก',
+    23:'A-40 รูปตัด A-A', 24:'A-41 รูปตัด B-B', 25:'A-42 รูปตัด C-C',
+    26:'A-50 บันได', 27:'A-51 ลิฟต์', 28:'A-52 ห้องน้ำ', 29:'A-53 ประตู-หน้าต่าง',
+    30:'A-54 ผนัง', 31:'A-55 พื้น-ฝ้า', 32:'A-56 ราวกันตก', 33:'A-57 หลังคา'
+  };
+  return Array.from({length:45}, (_,i)=>{
+    const n=i+1;
+    return {
+      n, tag: TAGS[i],
+      name: NAMES[n] || `M-${n} งานระบบ ${n-33}`,
+      objCount: Math.floor(Math.random()*15),
+      state: ['green','amber','red','auto-amber'][Math.floor(Math.random()*4)]
+    };
+  });
+})();
+const excludedPages = new Set([2,3,4]); // ปก/สารบัญ/บันทึกแก้ไข — excluded per mockup
+
+// ─── group config — 7 groups in mockup order ───
+const _OV_GROUPS = [
+  {key:'site',    label:'🌳 ผังบริเวณ',                 cls:'gb-site',    note:''},
+  {key:'title',   label:'📋 ปก / สารบัญ',               cls:'gb-title',   note:'ยกเว้นจากการวัด'},
+  {key:'plan',    label:'📐 ผังพื้น',                   cls:'gb-plan',    note:'ชั้นใต้ดิน → ดาดฟ้า'},
+  {key:'elev',    label:'🏢 รูปด้าน',                   cls:'gb-elev',    note:''},
+  {key:'section', label:'✂ รูปตัด',                     cls:'gb-section', note:''},
+  {key:'detail',  label:'🔧 รายละเอียดสถาปัตย์',         cls:'gb-detail',  note:''},
+  {key:'sys',     label:'⚡ งานระบบ',                    cls:'gb-sys',     note:''}
+];
+
+// ─── status state → chip text/dot ───
+function chipForPage(p, n){
+  if(excludedPages.has(n)) return {text:'ยกเว้น', dot:'gray'};
+  if(p.state === 'green') return {text:'พร้อม', dot:'green'};
+  if(p.state === 'amber') return {text:'ตรวจ scale', dot:'amber'};
+  if(p.state === 'auto-amber') return {text:'auto scale', dot:'amber'};
+  return {text:'ยังไม่วัด', dot:'red'};
+}
+
+function thumbClassForTag(tag, n){
+  if(tag==='site') return 'd-site';
+  if(tag==='title') return 'd-title';
+  if(tag==='plan'){
+    // First plan = ground/basement, rest alternate (per mockup d-plan vs d-plan-2)
+    return (n===5||n===17||n===18) ? 'd-plan' : 'd-plan-2';
+  }
+  if(tag==='elev') return 'd-elev';
+  if(tag==='section') return 'd-section';
+  if(tag==='detail') return 'd-detail';
+  if(tag==='sys') return 'd-sys';
+  return 'd-title';
+}
+
+// ─── build spatial map ───
+function buildSpatialMap(){
+  const root = document.getElementById('ov-spatial-map');
+  root.innerHTML = '';
+  // Group pages
+  const grouped = {};
+  _OV_GROUPS.forEach(g => grouped[g.key] = []);
+  PAGES.forEach(p => {
+    if(grouped[p.tag]) grouped[p.tag].push(p);
+  });
+
+  _OV_GROUPS.forEach(g => {
+    const pages = grouped[g.key];
+    if(!pages.length) return;
+    const band = document.createElement('div');
+    band.className = `group-band ${g.cls}`;
+    band.dataset.groupKey = g.key;
+    const noteHtml = g.note ? ` · ${g.note}` : '';
+    band.innerHTML = `<div class="group-label">${g.label}<span class="group-count">${pages.length} หน้า${noteHtml}</span></div><div class="group-grid"></div>`;
+    const grid = band.querySelector('.group-grid');
+    pages.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'sheet' + (p.n===1 ? ' active' : '');
+      card.dataset.page = p.n;
+      const chip = chipForPage(p, p.n);
+      const thumbCls = thumbClassForTag(p.tag, p.n);
+      const objHtml = (excludedPages.has(p.n) || p.objCount === 0) ? '' : `<div class="obj-chip">${p.objCount}</div>`;
+      card.innerHTML = `
+        <div class="sheet-thumb ${thumbCls}">
+          <div class="chip"><div class="dot dot-${chip.dot}"></div>${chip.text}</div>
+          ${objHtml}
+          <span>${p.tag === 'sys' ? 'M-' + p.n : 'A-' + (10+p.n-5)}</span>
+        </div>
+        <div class="sheet-meta">
+          <div class="sheet-num">${p.n}</div>
+          <div class="sheet-name">${p.name}</div>
+        </div>`;
+      card.onclick = () => {
+        console.log('enterFocus →', p.n, p.name);
+        // Production: closeOverview() + loadPage(p.n)
+      };
+      grid.appendChild(card);
+    });
+    root.appendChild(band);
+  });
+}
+
+buildSpatialMap();
+
+// ─── self-verify ───
+function runVerify(){
+  const set = (i, ok, note) => {
+    const el = document.getElementById('r'+i);
+    el.className = 'result ' + (ok ? 'pass' : 'fail');
+    el.textContent = ok ? 'PASS' : 'FAIL';
+    el.title = note;
+  };
+  let pass = 0;
+
+  // 1. Banner text
+  const banner = document.getElementById('ov-banner');
+  const bText = banner.textContent;
+  const ok1 = bText.includes('45 หน้าทั้งโครงการ') && bText.includes('คลิก sheet') && bText.includes('⌘K');
+  set(1, ok1, `text="${bText.trim().slice(0,60)}..."`); if(ok1) pass++;
+
+  // 2. 7 group bands
+  const bands = document.querySelectorAll('.group-band');
+  const ok2 = bands.length === 7;
+  set(2, ok2, `${bands.length} bands`); if(ok2) pass++;
+
+  // 3. Order matches mockup
+  const order = Array.from(bands).map(b => b.dataset.groupKey);
+  const expected = ['site','title','plan','elev','section','detail','sys'];
+  const ok3 = JSON.stringify(order) === JSON.stringify(expected);
+  set(3, ok3, `order=${order.join(',')}`); if(ok3) pass++;
+
+  // 4. Sheet card = 180px white
+  const s = document.querySelector('.sheet');
+  const sBg = s ? getComputedStyle(s).backgroundColor : '';
+  const sW = s ? s.offsetWidth : 0;
+  const ok4 = sW === 180 && sBg.includes('255, 255, 255');
+  set(4, ok4, `w=${sW}px bg=${sBg}`); if(ok4) pass++;
+
+  // 5. Thumb = 124px, discipline-tinted
+  const t = document.querySelector('.sheet-thumb');
+  const tH = t ? t.offsetHeight : 0;
+  const tinted = document.querySelectorAll('.sheet-thumb.d-site, .sheet-thumb.d-plan, .sheet-thumb.d-plan-2, .sheet-thumb.d-elev').length;
+  const ok5 = tH === 124 && tinted > 0;
+  set(5, ok5, `h=${tH}px ${tinted} tinted thumbs`); if(ok5) pass++;
+
+  // 6. Status chips with 5 labels
+  const chipTexts = new Set();
+  document.querySelectorAll('.chip').forEach(c => {
+    const txt = c.textContent.trim();
+    chipTexts.add(txt);
+  });
+  // Possible: พร้อม / ตรวจ scale / auto scale / ยังไม่วัด / ยกเว้น (5 labels — random selection may not show all)
+  const validLabels = ['พร้อม','ตรวจ scale','auto scale','ยังไม่วัด','ยกเว้น'];
+  const matchedLabels = validLabels.filter(l => Array.from(chipTexts).some(t => t.includes(l)));
+  const ok6 = matchedLabels.length >= 3 && matchedLabels.includes('ยกเว้น'); // at least 3 of 5 + ยกเว้น (because excluded pages exist)
+  set(6, ok6, `${matchedLabels.length}/5 labels: ${matchedLabels.join('|')}`); if(ok6) pass++;
+
+  // 7. Excluded pages in title group (not filtered)
+  const titleBand = document.querySelector('.group-band.gb-title');
+  const titleSheets = titleBand ? titleBand.querySelectorAll('.sheet').length : 0;
+  // Excluded chip count in title group
+  const titleChips = titleBand ? Array.from(titleBand.querySelectorAll('.chip')).filter(c => c.textContent.includes('ยกเว้น')).length : 0;
+  const ok7 = titleSheets === 3 && titleChips === 3;
+  set(7, ok7, `title=${titleSheets} sheets, ${titleChips} excluded chips`); if(ok7) pass++;
+
+  // 8. Group label colors (7 disciplines)
+  const colorChecks = {
+    'gb-site':   '34, 197, 94',
+    'gb-title':  '156, 163, 175',
+    'gb-plan':   '59, 130, 246',
+    'gb-elev':   '245, 158, 11',
+    'gb-section':'168, 85, 247',
+    'gb-detail': '6, 182, 212',
+    'gb-sys':    '239, 68, 68'
+  };
+  let colorOK = 0;
+  Object.entries(colorChecks).forEach(([cls, rgb]) => {
+    const el = document.querySelector(`.group-band.${cls} .group-label`);
+    if(el && getComputedStyle(el).color.includes(rgb)) colorOK++;
+  });
+  const ok8 = colorOK === 7;
+  set(8, ok8, `${colorOK}/7 colors match`); if(ok8) pass++;
+
+  // 9. Hover transform
+  // We can't actually trigger :hover in JS reliably, but we can read the CSS rule
+  const sheetStyle = Array.from(document.styleSheets).flatMap(ss => {
+    try { return Array.from(ss.cssRules); } catch(e){ return []; }
+  }).find(r => r.selectorText === '.sheet:hover');
+  const hoverTransform = sheetStyle ? sheetStyle.style.transform : '';
+  const ok9 = hoverTransform.includes('scale(1.04)') && hoverTransform.includes('translateY');
+  set(9, ok9, `:hover transform="${hoverTransform || 'n/a'}"`); if(ok9) pass++;
+
+  // 10. Object-count chip top-right
+  const objChips = document.querySelectorAll('.obj-chip');
+  const sample = objChips[0];
+  const pos = sample ? getComputedStyle(sample).position : '';
+  const ok10 = objChips.length > 0 && pos === 'absolute';
+  set(10, ok10, `${objChips.length} obj-chips, position=${pos}`); if(ok10) pass++;
+
+  const total = 10;
+  document.getElementById('total').textContent = `${pass}/${total} ${pass===total?'✅ ALL PASS':'⚠ some FAIL'}`;
+  document.getElementById('total').style.background = pass===total ? '#16a34a' : '#dc2626';
+  document.getElementById('total').style.color = '#fff';
+  window.__spikeResult = {pass, total};
+}
+
+window.addEventListener('load', () => setTimeout(runVerify, 400));
+</script>
+</body>
+</html>
