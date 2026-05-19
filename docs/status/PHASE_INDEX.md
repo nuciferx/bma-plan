@@ -124,6 +124,8 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 | INV-2026-05-19-001a | **Zen Mode + Sheet Minimap** — body.zen CSS class hides ribbon/lp/rp/status/topbar (canvas measured at 94.4% vh on 900px test viewport, exceeds 92% target). 3 corner HUDs replace status bar: TL (Scale + Tool), TR (Page + Exit Zen chip), BL (Layer + Save + Obj + ⚠). #zen-minimap 260×200 bottom-right with 5-col grid of pages, IntersectionObserver lazy-load. F11 toggle + Esc exit + visible chip. `PREFS.layout.zenMode` + `zenOnboarded` additive. MutationObserver on #bottombar mirrors status-bar updates → HUD. HT-10 `applyLayoutPrefs()` restores prior panel state on zen exit. `PHASE_INV_ZEN_OK` 10/10 PASS. smoke + full GREEN. JOURNEY_OK on 45-page permit (0 CRASH/BROKEN, 2 FRICTION → HT-Z-1/HT-Z-2 filed). +180 LOC ui.html / +50 CSS / +110 e2e. Also fixed 2 pre-existing baseline test drifts from polish `0e4e851`. Zero forbidden-surface. Schema additive. Source: `docs/invent/fullscreen-canvas-ui.md` (Approach A, 27/30) + spike `proto/sandbox/invent-fullscreen-canvas-ui.html` (6/6 PASS). | `/bma-ui-scope` → `/bma-ui-canvas` + `/bma-ui-status` | UI / canvas overlay + HUDs + new zen-mode surface | ✅ done `20e2548` | HT-10 ✅ |
 | INV-2026-05-19-001c | **Zen+Palette FRICTION polish (HT-Z-1/2/3 bundle)** — 3 small fixes from journey tests on 001a/b. (1) `_zenSyncHud()` reads `pageNames[curPage]` directly instead of `bb-page-name` element — kills MutationObserver lag during fast nav. (2) HUD Scale chip amber when scale state is `auto-unverified`/`unknown`, default white when manual — fixes "is my scale calibrated?" confusion. (3) `filterPalette()` empty branch adds `💡 แท็กภาษาไทยใช้ได้หลังตั้งค่าหน้าใน Page Setup` hint when Thai tag word queried + no pages tagged. `PHASE_INV_POLISH_001C_OK` 5/5 PASS. smoke + full GREEN (no regression on 001a/b markers). +15 LOC ui.html / +65 e2e. TEST-H skipped per AGENTS.md no-test rationale. Zero forbidden-surface. Schema unchanged. | `/bma-ui-scope` → `/bma-ui-canvas` + `/bma-ui-menu` | UI / HUD + palette | ✅ done `f7d64b8` | INV-001a ✅ + INV-001b ✅ |
 | INV-2026-05-19-001b | **⌘K Command Palette (page jump)** — `#cmd-palette` floating modal. Filters pages by number/name/tag slug/Thai tag label (TAG_LABELS: ผังบริเวณ/ชั้น/รูปด้าน/รูปตัด/รายละเอียด). ↑↓ nav, Enter = `loadPage(n)` + close, Esc = cancel. Bound to Ctrl+K/Cmd+K with `mPts.length===0 && !anyModal` guard. Key handlers placed BEFORE inInput guard so palette input doesn't swallow nav keys. Works in classic + zen (z-index 9500 > zen 1500). Pre-filter shows 12 default rows on empty input. `PHASE_INV_PALETTE_OK` 10/10 PASS. smoke + full GREEN (no regression on 001a). JOURNEY_OK on 45-page permit (13/13 steps, 1 FRICTION HT-Z-3 filed). +120 LOC ui.html / +35 CSS / +95 e2e. Zero forbidden-surface. Schema unchanged. Source: `docs/invent/fullscreen-canvas-ui.md` (Approach B, 28/30) + spike same file. | `/bma-ui-scope` → `/bma-ui-menu` (palette modal) | UI / modal + keyboard | ✅ done `a51207f` | — |
+| INV-2026-05-19-003a | **Print to printer button (Path B)** — Add `#btn-print-page` in Export panel beside existing PDF export. Two modes: (1) **current page** → render `canvas` to `toDataURL('image/png')` at `devicePixelRatio*2` resolution, open `window.print()` on synthetic doc with `<img>` + `@media print { @page { margin:8mm } img { max-width:100%; page-break-after:always } }`; (2) **all selected pages** → iterate selected pages, for each: `loadPage(n)` → wait paint → `toDataURL` → append `<img page-break-after:always>` → final `window.print()`. Reuse the Export-panel page-picker checkbox state. **Zero server change. Zero forbidden surface** (no `polyAreaM2`/`pdfToC`/`RS`/`snap` touched — purely render + DOM). **Zero schema change**. Marker `PHASE_INV_PRINT_OK` 8 sub-checks (button exists / DPR scaling applied / current-page print synth opens / all-pages multi-img / page-break CSS present / print dialog triggered / no canvas mutation / scale label rendered in synth). +60-80 LOC ui.html. Source: `docs/invent/print-canvas-per-page.md` (Path B). | `/bma-ui-scope` → `/bma-ui-canvas` | UI / Export panel + canvas snapshot | `queued` | — |
+| INV-2026-05-19-003b | **`/export-png` ZIP endpoint (Path C)** — New server endpoint `/export-png?case_id=&pages=&dpi=` returns ZIP of high-DPI PNG per page using PyMuPDF + overlay drawing (Pillow). Mirror existing `/export-pdf` overlay-drawing pipeline (polys, paths, openings/deductions, dims, labels, parking/north markers) but rasterize to PNG instead of vector overlay. Default DPI 200, max 300. Client: Export panel "Export PNG (ZIP)" button → `fetch` → save Blob. Phase 1 boundary preserved (no verdict, raw data only). **Forbidden-surface caution:** must reuse existing render pipeline (do NOT re-implement overlay coordinate math — call same helpers used by `/export-pdf`). Cache-isolation per `case_id` mandatory. Marker `PHASE_INV_PNG_EXPORT_OK` 10 sub-checks (endpoint exists / 200 on valid / 413 on huge page count / ZIP contains 1 PNG per selected page / PNG width × DPI math correct / overlay colors match canvas / opening punched / no `polyAreaM2` import / case isolation / save/load unaffected). +120-180 LOC server.py + ~40 LOC ui.html. `full` E2E required (export channel). Depends-on 003a so UX/UI conventions align. Source: `docs/invent/print-canvas-per-page.md` (Path C). | `/bma-measure-scope` (export-impact) + `/bma-check-forbidden` | export / server endpoint + client menu | `queued` | INV-003a |
 
 ## User priority notes
 
@@ -203,6 +205,12 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Tags: bma-plan, save, p-high, data-integrity
     - Open Qs: (1) canvas แสดงของที่ยังไม่ save (isDirty ไม่ trigger) หรือ load กลับมาแล้ว render ไม่ครบ? (2) object ประเภทไหน — poly / path / annotation / rotation?
 
+- [x] **Print canvas view with measurement overlays per page** — `invent-done-go (→ INV-2026-05-19-003a + 003b)` 2026-05-19. Verdict `PRIOR_ART_MATURE` (`/export-pdf` already flattens overlays + handles rotation + per-page selection). Diverge/score/spike SKIPPED per /bma-invent MATURE-path rule. 3 paths surfaced (A=educate / B=printer button / C=PNG endpoint). User chose **B + C** — 2 sprint cards filed (003a printer button, 003b PNG ZIP endpoint with depends-on 003a). See `docs/invent/print-canvas-per-page.md`.
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-19 17:15
+    - Tags: bma-plan, export, print, p-med
+    - Open Qs resolved at checkpoint: (1) ทั้งคู่ — Path B = direct printer, Path C = PNG file. (2) ทั้งคู่ — current page + all-selected modes both supported in 003a.
+    - Invent artifact: `docs/invent/print-canvas-per-page.md`
+
 #### HT-18 — Save state out of sync with canvas visuals (audit + fix) — `superseded — split into HT-18a/b/c` (audit complete, bma-explorer drift map showed `JSON.stringify(pageStore)` already round-trips all fields; real bug = pushUndo leaks)
 
 #### HT-18a — pushUndo leak fixes on 6 mutations — `done 895a9d7` 2026-05-19
@@ -213,16 +221,31 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **forbidden surfaces touched:** NONE — change is additive call insertion only
 - **predecessors retained:** PHASE_INV_ZEN_V2_OK 10/10, PHASE_INV_OVERVIEW_OK 9/9, all earlier markers GREEN
 
-#### HT-18b — Save/load round-trip E2E coverage — `queued` (depends-on HT-18a ✅)
+#### HT-18a-ext — Extended pushUndo coverage to 22 more mutation sites — `done` 2026-05-19
+
+- **scope:** After HT-18a's 6 sites, audit (`sprints/active/2026-05-19-ht-18-save-load-audit-fix/PHASE_A_AUDIT.md`) found 22 additional mutation sites missing pushUndo. Added pushUndo() to: layer reorder (moveLayerUp/Down) + rename + color + toggleLayerLock + bulk vis/lock (setAllLayersVisible / hideOtherLayers / lockOtherLayers / setAllLayersLocked) + toggleLayer / layerHideOthers / layerShowAll + page metadata (setQuickTag / setPageTag / setPageFloorKind / setPageFloorNum / applyAutoNames / excludePage / restorePage2 / hideSelectedPages / rotatePage / resetPageScale + autoNamePage inline) — total 22 sites. Also added 29 sub-checks to `_test_ht18_pushundo_leaks` (now 36/36 GREEN; was 7/7).
+- **bulk handling:** `excludePage` / `restorePage2` accept optional `_skipUndo` param so bulk callers (hideSelectedPages loop) push once instead of N times.
+- **marker:** PHASE_HT18_OK 36/36 — full E2E 21/21 core markers GREEN, smoke 16/16 GREEN.
+- **forbidden surfaces touched:** NONE — additive only.
+- **human-test verified:** `/bma-human-test` 2026-05-19 found 3 sites I initially missed (toggleLayer / layerHideOthers / layerShowAll — distinct from toggleLayerLock / hideOtherLayers); fixed inline same iteration. setQuickTag and resetPageScale leak-reports turned out to be early-exit paths (correct behavior: no mutation = no dirty).
+- **artifact:** `sprints/active/2026-05-19-ht-18-save-load-audit-fix/`
+
+#### HT-18b — Save/load round-trip E2E coverage — `done-with-test-design-caveat` 2026-05-19 (depends-on HT-18a ✅)
 
 - **scope skill:** `/bma-check-forbidden` (still touches save/load test code)
 - **scope:** Write `_test_ht18b_save_load_round_trip` — Playwright: draw 1 of each object type (poly area/opening/line/ref/parking + annotation each kind) + set page tags/floor/north angle/excluded + layer color/lock/vis + projectInfo → invoke saveProject() → reload page → re-load .bmaplan → diff every field against pre-save snapshot. ≥12 per-object-type sub-checks. NEW marker `PHASE_HT18B_OK`. No code change in proto/ui.html expected (HT-18a audit confirmed all fields auto-serialize).
 - **est LOC:** ~150 (mostly E2E test)
 - **success criterion:** if any field doesn't round-trip → file HT-18c with that specific field fix; if all round-trip → HT-18b PASS and HT-18 series complete
 
-#### HT-18c — Field-gap fixes surfaced by HT-18b — `pending` (will queue only if HT-18b reveals drift)
+#### HT-18c — `_test_ht18b_save_load_round_trip` eq() comparison fix — `queued` 2026-05-19
 
-- **conditional:** Only file if HT-18b round-trip test finds an actual field-drift. If HT-18b PASS clean, HT-18c is dropped.
+- **scope skill:** `/bma-measure-scope` (touches E2E test only, not app code)
+- **diagnosis from HT-18b run 2026-05-19:** 7/13 sub-checks PASS (F-K + M = pageTags / pageNames / pageRotations / floorKind / excludedPages / siteOrientation / layerState). 6 FAIL (A-E + L = poly / opening / line / ref / parking / projectInfo). Failure mode is **test design**, not schema drift — `eq(polyL, tpoly)` uses full JSON equality but `normalizeAllObjects()` runs during save AFTER pre-snapshot is captured (adds `measurementProfile` / `objectCategory` / `reportTarget` / `lawBasis` / `countingRule` / `layerId` / linked-opening parent fields). So `tpoly` ≠ `polyL` even with perfect round-trip. The schema IS symmetric (HT-18a audit confirmed); the test is too strict.
+- **scope:** rewrite the 6 failing checks to compare **subset of fields the user explicitly set** rather than full JSON equality. OR move pre-snapshot to AFTER `normalizeAllObjects()` so it captures the post-normalize shape that round-trips.
+- **est LOC:** ~30-50 (test-only)
+- **success criterion:** PHASE_HT18B_OK 13/13 GREEN with no app code changes.
+
+
 
 #### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `queued`
 

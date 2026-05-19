@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent
 VECTOR_PDF = ROOT / "test_plan_A1.pdf"
 RASTER_PDF = ROOT / "_tmp_raster_test.pdf"
 REAL_PDF = ROOT.parent / "20250616_RAMA4 APARTMENT PERMIT rev 1.pdf"
-BASE_URL = "http://127.0.0.1:8011"
+BASE_URL = "http://127.0.0.1:8012"
 VECTOR_POLY_NAME = "E2E_ROOM_A"
 VECTOR_OPENING_NAME = "E2E_VOID_A"
 
@@ -92,11 +92,11 @@ def _make_raster_pdf(src_pdf: Path, out_pdf: Path):
 
 
 def _start_server():
-    config = uvicorn.Config(server.app, host="127.0.0.1", port=8011, log_level="warning")
+    config = uvicorn.Config(server.app, host="127.0.0.1", port=8012, log_level="warning")
     instance = uvicorn.Server(config)
     thread = threading.Thread(target=instance.run, daemon=True)
     thread.start()
-    _wait_port("127.0.0.1", 8011)
+    _wait_port("127.0.0.1", 8012)
     requests.get(BASE_URL, timeout=5)
     return instance, thread
 
@@ -4622,6 +4622,49 @@ def _test_ht18_pushundo_leaks(page):
         // We verify the function source contains pushUndo() rather than triggering it (requires UI setup)
         const src = applyLandEdgeTag.toString();
         r.applyLandEdgeTagHasPushUndo = src.includes('pushUndo');
+
+        // ─── HT-18 Phase B: 20 new mutation sites covered 2026-05-19 ───
+        // Source-level checks (don't require UI setup): function body must contain "pushUndo"
+        const srcHas = (fn) => { try { return fn.toString().includes('pushUndo'); } catch(e){ return false; } };
+        r.moveLayerUpHasPushUndo       = srcHas(moveLayerUp);
+        r.moveLayerDownHasPushUndo     = srcHas(moveLayerDown);
+        r.renameLayerHasPushUndo       = srcHas(renameLayer);
+        r.setLayerColorHasPushUndo     = srcHas(setLayerColor);
+        r.toggleLayerLockHasPushUndo   = srcHas(toggleLayerLock);
+        r.setAllLayersVisibleHasPushUndo = srcHas(setAllLayersVisible);
+        r.hideOtherLayersHasPushUndo   = srcHas(hideOtherLayers);
+        r.lockOtherLayersHasPushUndo   = srcHas(lockOtherLayers);
+        r.setAllLayersLockedHasPushUndo = srcHas(setAllLayersLocked);
+        r.setQuickTagHasPushUndo       = srcHas(setQuickTag);
+        r.setPageTagHasPushUndo        = srcHas(setPageTag);
+        r.setPageFloorKindHasPushUndo  = srcHas(setPageFloorKind);
+        r.setPageFloorNumHasPushUndo   = srcHas(setPageFloorNum);
+        r.applyAutoNamesHasPushUndo    = srcHas(applyAutoNames);
+        r.excludePageHasPushUndo       = srcHas(excludePage);
+        r.restorePage2HasPushUndo      = srcHas(restorePage2);
+        r.rotatePageHasPushUndo        = srcHas(rotatePage);
+        r.resetPageScaleHasPushUndo    = srcHas(resetPageScale);
+        r.hideSelectedPagesHasPushUndo = srcHas(hideSelectedPages);
+        // Sites discovered by human-test 2026-05-19 (HT-18 extension):
+        r.toggleLayerHasPushUndo       = srcHas(toggleLayer);
+        r.layerHideOthersHasPushUndo   = srcHas(layerHideOthers);
+        r.layerShowAllHasPushUndo      = srcHas(layerShowAll);
+
+        // Runtime checks (verify isDirty actually flips) for the safe-to-call ones
+        reset(); try { setPageTag(1,'plan'); r.setPageTagSetsDirty = isDirty === true; }
+        catch(e){ r.setPageTagSetsDirty = false; }
+        reset(); try { rotatePage(0); r.rotatePageSetsDirty = isDirty === true; }
+        catch(e){ r.rotatePageSetsDirty = false; }
+        reset(); try { excludePage(99); r.excludePageSetsDirty = isDirty === true; excludedPages.delete(99); }
+        catch(e){ r.excludePageSetsDirty = false; }
+        reset(); try { restorePage2(99); r.restorePage2SetsDirty = isDirty === true; }
+        catch(e){ r.restorePage2SetsDirty = false; }
+        reset(); try { setAllLayersVisible(true); r.setAllLayersVisibleSetsDirty = isDirty === true; }
+        catch(e){ r.setAllLayersVisibleSetsDirty = false; }
+        reset(); try { setAllLayersLocked(false); r.setAllLayersLockedSetsDirty = isDirty === true; }
+        catch(e){ r.setAllLayersLockedSetsDirty = false; }
+        reset(); try { applyAutoNames(); r.applyAutoNamesSetsDirty = isDirty === true; }
+        catch(e){ r.applyAutoNamesSetsDirty = false; }
         return r;
     }""")
     checks = {
@@ -4632,6 +4675,250 @@ def _test_ht18_pushundo_leaks(page):
         "unlockLayerSetsDirty": probe.get("unlockLayerSetsDirty") is True,
         "soloLayerSetsDirty": probe.get("soloLayerSetsDirty") is True,
         "applyLandEdgeTagHasPushUndo": probe.get("applyLandEdgeTagHasPushUndo") is True,
+        # Phase B source-presence checks for 19 new mutation sites
+        "moveLayerUpHasPushUndo": probe.get("moveLayerUpHasPushUndo") is True,
+        "moveLayerDownHasPushUndo": probe.get("moveLayerDownHasPushUndo") is True,
+        "renameLayerHasPushUndo": probe.get("renameLayerHasPushUndo") is True,
+        "setLayerColorHasPushUndo": probe.get("setLayerColorHasPushUndo") is True,
+        "toggleLayerLockHasPushUndo": probe.get("toggleLayerLockHasPushUndo") is True,
+        "setAllLayersVisibleHasPushUndo": probe.get("setAllLayersVisibleHasPushUndo") is True,
+        "hideOtherLayersHasPushUndo": probe.get("hideOtherLayersHasPushUndo") is True,
+        "lockOtherLayersHasPushUndo": probe.get("lockOtherLayersHasPushUndo") is True,
+        "setAllLayersLockedHasPushUndo": probe.get("setAllLayersLockedHasPushUndo") is True,
+        "setQuickTagHasPushUndo": probe.get("setQuickTagHasPushUndo") is True,
+        "setPageTagHasPushUndo": probe.get("setPageTagHasPushUndo") is True,
+        "setPageFloorKindHasPushUndo": probe.get("setPageFloorKindHasPushUndo") is True,
+        "setPageFloorNumHasPushUndo": probe.get("setPageFloorNumHasPushUndo") is True,
+        "applyAutoNamesHasPushUndo": probe.get("applyAutoNamesHasPushUndo") is True,
+        "excludePageHasPushUndo": probe.get("excludePageHasPushUndo") is True,
+        "restorePage2HasPushUndo": probe.get("restorePage2HasPushUndo") is True,
+        "rotatePageHasPushUndo": probe.get("rotatePageHasPushUndo") is True,
+        "resetPageScaleHasPushUndo": probe.get("resetPageScaleHasPushUndo") is True,
+        "hideSelectedPagesHasPushUndo": probe.get("hideSelectedPagesHasPushUndo") is True,
+        "toggleLayerHasPushUndo": probe.get("toggleLayerHasPushUndo") is True,
+        "layerHideOthersHasPushUndo": probe.get("layerHideOthersHasPushUndo") is True,
+        "layerShowAllHasPushUndo": probe.get("layerShowAllHasPushUndo") is True,
+        # Runtime isDirty-flip checks
+        "setPageTagSetsDirty": probe.get("setPageTagSetsDirty") is True,
+        "rotatePageSetsDirty": probe.get("rotatePageSetsDirty") is True,
+        "excludePageSetsDirty": probe.get("excludePageSetsDirty") is True,
+        "restorePage2SetsDirty": probe.get("restorePage2SetsDirty") is True,
+        "setAllLayersVisibleSetsDirty": probe.get("setAllLayersVisibleSetsDirty") is True,
+        "setAllLayersLockedSetsDirty": probe.get("setAllLayersLockedSetsDirty") is True,
+        "applyAutoNamesSetsDirty": probe.get("applyAutoNamesSetsDirty") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
+def _test_ht18b_save_load_round_trip(page):
+    """HT-18b: verify save (_makeProjBlob) → load (applyLoadedProject) round-trip
+    preserves every field across every object type. Audit (HT-18a) showed _makeProjBlob
+    uses JSON.stringify(pageStore) direct so all enumerable fields should auto-serialize;
+    this test confirms by injecting a rich test state, serializing, clearing, reloading,
+    and comparing field-by-field.
+
+    13 sub-checks (one per object type or metadata category):
+    A. poly with all complex fields (shape/center/radius, edges, buildingHeight_m, etc.)
+    B. opening with parent linkage (parentId/parentStatus/parentManual)
+    C. line with all fields
+    D. ref with label.mode + refType
+    E. parking with markerType + parkingType
+    F. pageTags
+    G. pageNames
+    H. pageRotations
+    I. pageFloorKind + pageFloorNum
+    J. excludedPages (Set ↔ Array round-trip)
+    K. siteOrientation (north angle)
+    L. projectInfo
+    M. layer state (page-scoped layers with visible/locked/_userModified)
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // ─── inject rich test state ───
+        const tpoly = {
+            id: 'ht18b-poly-1', pts: [{x:100,y:100},{x:200,y:100},{x:200,y:200},{x:100,y:200}],
+            closed: true, name: 'TestRoom_HT18B', areaType: 'room',
+            color: '#abcdef', opacity: 0.42,
+            semanticTag: 'gross_floor_area', useCategory: 'residential',
+            buildingHeight_m: 3.75,
+            edges: [{wallEdgeType:'exterior_wall'}, {wallEdgeType:'party_wall'}, null, null],
+            shape: 'rect',
+            edgeTags: [{label:'ทิศเหนือ',role:'street',type:'street',note:'หน้าแปลง'}],
+            layerSlug: 'measurement', layerId: 'test-layer-1'
+        };
+        const topening = {
+            id: 'ht18b-opening-1', pts: [{x:120,y:120},{x:140,y:120},{x:140,y:140},{x:120,y:140}],
+            closed: true, name: 'TestDoor', color: '#ff8800', opacity: 0.5,
+            semanticTag: 'deduction_opening', useCategory: null,
+            parentId: 'ht18b-poly-1', parentStatus: 'linked', parentManual: true
+        };
+        const tline = {
+            id: 'ht18b-line-1', pts: [{x:50,y:50},{x:150,y:50}],
+            kind: 'line', color: '#00ff00', opacity: 0.8,
+            semanticTag: 'dimension_line', useCategory: null,
+            x0: 50, y0: 50, x1: 150, y1: 50
+        };
+        const tref = {
+            id: 'ht18b-ref-1', pts: [{x:0,y:0},{x:300,y:0}],
+            kind: 'ref', refType: 'road',
+            color: '#5ac8fa', opacity: 1.0,
+            semanticTag: 'reference_line', useCategory: null,
+            name: 'ถนนทดสอบ',
+            x0: 0, y0: 0, x1: 300, y1: 0,
+            label: {mode: 'hidden'}
+        };
+        const tparking = {
+            id: 'ht18b-park-1', x: 250, y: 250,
+            markerType: 'parking_fire', parkingType: 'disabled',
+            count: 2, color: '#ffcc00', opacity: 0.9
+        };
+        const tlayer = {
+            id: 'L-test-1', slug: 'measurement', name: 'Test Layer',
+            color: '#13579b', visible: false, locked: true, _userModified: true
+        };
+        // inject into pageStore + module state for page 1
+        if(typeof pageStore !== 'object') return {error:'no pageStore'};
+        const s = (typeof getStore === 'function') ? getStore(1) : (pageStore[1] = pageStore[1] || {});
+        s.polys = [tpoly];
+        s.openings = [topening];
+        s.lines = [tline];
+        s.refs = [tref];
+        s.parking = [tparking];
+        s.layers = [tlayer];
+        s.activeLayerSlug = 'measurement';
+        s.showScaleLine = true;
+        // page-level metadata
+        pageTags = pageTags || {};
+        pageTags[1] = 'site';
+        pageTags[2] = 'plan';
+        pageNames = pageNames || {};
+        pageNames[1] = 'TestPageOne';
+        pageNames[2] = 'TestPageTwo';
+        pageRotations = pageRotations || {};
+        pageRotations[1] = 90;
+        pageRotations[2] = 180;
+        pageFloorKind = pageFloorKind || {};
+        pageFloorKind[2] = 'basement';
+        pageFloorNum = pageFloorNum || {};
+        pageFloorNum[2] = 1;
+        excludedPages = excludedPages instanceof Set ? excludedPages : new Set();
+        excludedPages.add(99);
+        siteOrientation = siteOrientation || {};
+        siteOrientation[1] = {north: {x1:10, y1:10, x2:20, y2:20, angleDeg:45,
+                                       source:'manual', status:'verified',
+                                       semanticTag:'north_arrow', useCategory:null}};
+        projectInfo.reqNo = 'HT18B-TEST-001';
+        projectInfo.buildingClassification = 'A1';
+        projectInfo.userDefinedLimits = projectInfo.userDefinedLimits || {};
+        projectInfo.userDefinedLimits.farPct = 350;
+        // ─── snapshot pre-save state ───
+        const preSnapshot = JSON.stringify({
+            poly: s.polys[0],
+            opening: s.openings[0],
+            line: s.lines[0],
+            ref: s.refs[0],
+            parking: s.parking[0],
+            layer: s.layers[0],
+            pageTags: pageTags,
+            pageNames: pageNames,
+            pageRotations: pageRotations,
+            pageFloorKind: pageFloorKind,
+            pageFloorNum: pageFloorNum,
+            excludedPages: [...excludedPages],
+            siteOrientation: siteOrientation,
+            projectInfo_reqNo: projectInfo.reqNo,
+            projectInfo_class: projectInfo.buildingClassification,
+            projectInfo_farPct: projectInfo.userDefinedLimits.farPct,
+        });
+        // ─── serialize directly (bypass normalizeAllObjects + syncProjectInfoFromForm
+        //     because those have side effects that overwrite our injection: saveCurrentPage()
+        //     flushes mPolys→pageStore[1].polys=[] wiping injection; sync*FromForm reads DOM
+        //     into projectInfo overwriting our reqNo. We're testing schema fidelity of the
+        //     serialization layer per HT-18a audit, not the prep-side-effects.) ───
+        let proj;
+        try {
+            proj = JSON.parse(JSON.stringify({
+                version: 1, pdfName: currentFileName, totalPages,
+                pageStore, pageRotations, pageTags, pageNames, projectInfo,
+                siteOrientation, excludedPages: [...excludedPages],
+                pageFloorKind, pageFloorNum
+            }));
+        } catch(e) {
+            return {error: 'serialize failed: ' + String(e)};
+        }
+        // ─── clear state ───
+        for(const k of Object.keys(pageStore)) delete pageStore[k];
+        pageTags = {}; pageNames = {}; pageRotations = {};
+        pageFloorKind = {}; pageFloorNum = {};
+        excludedPages = new Set();
+        siteOrientation = {};
+        projectInfo = {};
+        // ─── re-apply via applyLoadedProject ───
+        try { applyLoadedProject(proj); }
+        catch(e) { return {error: 'applyLoadedProject failed: ' + String(e)}; }
+        // ─── snapshot post-load state ───
+        const sLoad = pageStore[1] || {};
+        const polyL = (sLoad.polys || []).find(p => p.id === 'ht18b-poly-1');
+        const openL = (sLoad.openings || []).find(o => o.id === 'ht18b-opening-1');
+        const lineL = (sLoad.lines || []).find(l => l.id === 'ht18b-line-1');
+        const refL = (sLoad.refs || []).find(r => r.id === 'ht18b-ref-1');
+        const parkL = (sLoad.parking || []).find(p => p.id === 'ht18b-park-1');
+        const layerL = (sLoad.layers || []).find(l => l.slug === 'measurement');
+
+        // helper: deep eq via JSON
+        const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+        r.A_polyRoundTrip = polyL && eq(polyL, tpoly);
+        r.B_openingRoundTrip = openL && eq(openL, topening) && openL.parentId === 'ht18b-poly-1';
+        r.C_lineRoundTrip = lineL && eq(lineL, tline);
+        r.D_refRoundTrip = refL && eq(refL, tref) && refL.label && refL.label.mode === 'hidden';
+        r.E_parkingRoundTrip = parkL && eq(parkL, tparking) && parkL.markerType === 'parking_fire';
+        r.F_pageTags = pageTags[1] === 'site' && pageTags[2] === 'plan';
+        r.G_pageNames = pageNames[1] === 'TestPageOne' && pageNames[2] === 'TestPageTwo';
+        r.H_pageRotations = pageRotations[1] === 90 && pageRotations[2] === 180;
+        r.I_floorKindNum = pageFloorKind[2] === 'basement' && pageFloorNum[2] === 1;
+        r.J_excludedPages = excludedPages.has(99);
+        r.K_siteOrientation = siteOrientation[1] && siteOrientation[1].north
+                              && siteOrientation[1].north.angleDeg === 45
+                              && siteOrientation[1].north.source === 'manual';
+        r.L_projectInfo = projectInfo.reqNo === 'HT18B-TEST-001'
+                          && projectInfo.buildingClassification === 'A1'
+                          && projectInfo.userDefinedLimits
+                          && projectInfo.userDefinedLimits.farPct === 350;
+        r.M_layerState = layerL && layerL.visible === false && layerL.locked === true
+                         && layerL.color === '#13579b'
+                         && layerL._userModified === true;
+
+        // Diagnostic: for any failed check, capture the loaded value for triage
+        r._diag = {
+            polyMatch: polyL ? JSON.stringify(polyL).slice(0,200) : 'MISSING',
+            openingMatch: openL ? JSON.stringify(openL).slice(0,200) : 'MISSING',
+            layerMatch: layerL ? JSON.stringify(layerL).slice(0,150) : 'MISSING',
+        };
+        return r;
+    }""")
+    if probe.get("error"):
+        return {"all": False, "error": probe["error"]}
+    checks = {
+        "A_polyRoundTrip": probe.get("A_polyRoundTrip") is True,
+        "B_openingRoundTrip": probe.get("B_openingRoundTrip") is True,
+        "C_lineRoundTrip": probe.get("C_lineRoundTrip") is True,
+        "D_refRoundTrip": probe.get("D_refRoundTrip") is True,
+        "E_parkingRoundTrip": probe.get("E_parkingRoundTrip") is True,
+        "F_pageTags": probe.get("F_pageTags") is True,
+        "G_pageNames": probe.get("G_pageNames") is True,
+        "H_pageRotations": probe.get("H_pageRotations") is True,
+        "I_floorKindNum": probe.get("I_floorKindNum") is True,
+        "J_excludedPages": probe.get("J_excludedPages") is True,
+        "K_siteOrientation": probe.get("K_siteOrientation") is True,
+        "L_projectInfo": probe.get("L_projectInfo") is True,
+        "M_layerState": probe.get("M_layerState") is True,
     }
     all_pass = all(checks.values())
     failed = [k for k, v in checks.items() if not v]
@@ -6981,6 +7268,7 @@ def main():
             inv_zen_v2_topbar = _test_inv_zen_v2_topbar(page)
             inv_overview_mode = _test_inv_overview_mode(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
+            ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -7068,6 +7356,7 @@ def main():
         print("PHASE_INV_ZEN_V2_OK", inv_zen_v2_topbar)
         print("PHASE_INV_OVERVIEW_OK", inv_overview_mode)
         print("PHASE_HT18_OK", ht18_pushundo)
+        print("PHASE_HT18B_OK", ht18b_round_trip)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)

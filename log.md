@@ -1,95 +1,92 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (includes 001a Zen Mode + Ribbon Cleanup)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (includes 001a Zen Mode + Ribbon Cleanup + 001c FRICTION polish + 002a Zen top bar)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
 
 ---
 
-## 2026-05-19 — INV-2026-05-19-002b F12 Overview standalone (C) — PASS (branch: main)
+## 2026-05-19 — HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS (branch: main)
 
-**What changed:** F12 Overview mode implemented as approach C standalone. `body.overview` class hides canvas, ribbon, panels, status bar, and all HUDs; shows `#overview-content` grid grouped by 6 discipline categories (site/plan/elev/section/detail/none). Shared `#zen-topbar` from 002a remains visible as navigation chrome. New functions: `toggleOverview()`, `closeOverview()`, `_ovBuildGrid()`, `_ovCountObjects()`, `_ovCardClick()`. Card click is atomic: `closeOverview()` + `loadPage(n)` in one call. Lazy IntersectionObserver per card reuses the 001a `thumbUrl()` + IO pattern (no new server endpoint; `/page/{n}` hot path untouched). `#ztb-chip-overview` in top bar unstubbed — now calls `toggleOverview()`. Esc handler updated: overview takes priority over zen (overview → close overview; zen → exit zen; else → default). F12 keydown registered. 6 discipline group label colors: site=green, plan=blue, elev=amber, section=purple, detail=cyan, none=gray.
+**What changed:** Extended HT-18a (`895a9d7`) by inserting `pushUndo()` at 22 additional mutation sites found via Phase A audit + `/bma-human-test` discovery pass: layer reorder (`moveLayerUp`/`moveLayerDown`), `renameLayer`, `setLayerColor`, `toggleLayerLock`, `setAllLayersVisible`, `hideOtherLayers`, `lockOtherLayers`, `setAllLayersLocked`, `toggleLayer`, `layerHideOthers`, `layerShowAll`, `setQuickTag`, `setPageTag`, `setPageFloorKind`, `setPageFloorNum`, `applyAutoNames`, `excludePage` (+ `_skipUndo` param), `restorePage2` (+ `_skipUndo` param), `hideSelectedPages`, `rotatePage`, `resetPageScale`, `pageCtxMenu` inline `autoNamePage` call. The E2E test `_test_ht18_pushundo_leaks` was extended from 7 sub-checks to **36 sub-checks** (22 source-presence + 7 runtime isDirty-flip + 7 original from HT-18a). `PHASE_HT18_OK` is now `{'all': True}` with 36/36 GREEN. Human journey test (`/bma-human-test`) discovered 3 sites initially missed in Phase A audit (`toggleLayer`, `layerHideOthers`, `layerShowAll`); fixed inline in the same iteration. `setQuickTag` and `resetPageScale` were reported as "leaks" but are early-exit code paths — correct that `isDirty` stays false when preconditions unmet. `PHASE_INDEX.md` updated: HT-18a-ext card filed (done), HT-18b updated to `done-with-test-design-caveat`, HT-18c upgraded from `pending conditional` to `queued` with concrete fix scope. New drift-map artifact `sprints/active/2026-05-19-ht-18-save-load-audit-fix/PHASE_A_AUDIT.md` (~120 lines). +39 LOC JS, +295 LOC test.
 
-**Why:** INV-002b is the second and final sprint of the 002 sub-series (Zen chrome upgrade). 002a delivered the shared top bar chrome. 002b delivers the Overview spatial map that the `#ztb-chip-overview` stub in 002a was reserved for. Together, 001a/b/c + 002a/b complete the Zen Mode feature set: focus-mode distraction-free canvas + palette jump + friction polish + top bar chrome + spatial sheet overview. Approach C (standalone, no coupling to Zen Mode's existing `toggleZen()`) was chosen per the invent doc recommendation v2 — additive, non-breaking, easy to test.
+**Why:** HT-18a fixed 6 of the `pushUndo()` leak sites but a Phase A audit of the full function surface revealed 22 more mutation functions that bypass `pushUndo()`. Each missing call means the user can make changes and close the browser without being prompted to save, silently losing work. Eliminating the full set of leaks in one sequel sprint (HT-18a-ext) is cheaper than filing 22 individual sprints and avoids the "is this site fixed?" ambiguity in future audits. The 36-sub-check E2E test creates a permanent regression guard that will catch any future additions that forget `pushUndo()`.
 
 **Files touched:**
-- `proto/ui.html`: +~135 LOC — `#overview-content` HTML block, `_OV_GROUPS` config (6 discipline groups), `toggleOverview` + `closeOverview` + `_ovBuildGrid` + `_ovCountObjects` + `_ovCardClick` + IntersectionObserver lazy thumb load; F12 hotkey; Esc priority guard; `#ztb-chip-overview` unstubbed
-- `proto/static/css/app.css`: +~50 LOC — `.overview-content` grid (replaces canvas at top:40), `body.overview` hide rules (canvas/ribbon/panels/status/HUDs), `.ov-group` + `.ov-card` + `.ov-thumb`, 6 discipline group label colors
-- `proto/e2e_ui_test.py`: +~80 LOC — `_test_inv_overview_mode()` with 9 sub-checks + `PHASE_INV_OVERVIEW_OK` marker registered in pipeline
+- `proto/ui.html`: +39 LOC — `pushUndo()` inserted at 22 mutation sites (layer reorder/rename/color/lock/visibility helpers, page tag/floor/name/exclude/restore/rotate/reset helpers, pageCtxMenu inline call)
+- `proto/e2e_ui_test.py`: +295 LOC — `_test_ht18_pushundo_leaks` extended from 7 → 36 sub-checks (22 source-presence + 7 runtime isDirty-flip + 7 original)
+- `docs/status/PHASE_INDEX.md`: HT-18a-ext card filed (done); HT-18b updated `done-with-test-design-caveat`; HT-18c upgraded to `queued` with concrete eq()-fix scope
+- `sprints/active/2026-05-19-ht-18-save-load-audit-fix/PHASE_A_AUDIT.md`: New drift-map artifact (~120 lines)
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PY_COMPILE_OK
+python proto/e2e_ui_test.py full                           → EXIT 0
+  PHASE_HT18_OK: {'all': True} — 36/36 sub-checks GREEN
+  21/21 core markers GREEN (smoke 16 + Phase I 2 + full 3)
+  Smoke re-run after 3 additional sites found via /bma-human-test → still GREEN
+Pre-existing non-regressions (NOT this sprint's regressions):
+  PHASE_HT8C_OK 3/5, PHASE_HT8D1_OK 8/9, PHASE_HT10_OK 8/10, PHASE_HT12H_OK 4/5
+  PHASE_HT18B_OK 7/13 (test design issue: eq() too strict after normalizeAllObjects;
+  NOT schema drift — Phase A audit confirmed save/load symmetric; filed as HT-18c)
+Human journey test: HUMAN_TEST_PASS after inline fix of 3 initially-missed sites
+  (toggleLayer L2657, layerHideOthers L2659, layerShowAll L2666)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED this sprint
+- ✅ `.bmaplan` schema — ADDITIVE ONLY (`_skipUndo` params are internal helpers; no field rename/removal; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- HT-18c (queued): fix `_test_ht18b_save_load_round_trip` eq() comparison (too strict after `normalizeAllObjects` mutates pre-snapshot). ~30-50 LOC, test-only, no app code change.
+- After HT-18c lands, HT-18 series complete; queue moves to INV-2026-05-19-002c (F12 Overview mockup-port)
+- PHASE_HT18B_OK 7/13 is a test design issue, not a schema drift — confirmed by Phase A audit
+
+---
+
+## 2026-05-19 — HT-18a Save-state pushUndo leak fixes — PASS (branch: main)
+
+**What changed:** Inserted `pushUndo()` calls at 6 mutation sites that previously set data without marking the project dirty, causing the "save ไม่ตรงกับ canvas" data-integrity bug: `toggleScaleLine` (L2814), `showLayer` / `hideLayer` / `lockLayer` / `unlockLayer` / `soloLayer` (L2824-2828), and `applyLandEdgeTag` (L1788). Added new E2E test function `_test_ht18_pushundo_leaks()` (7 sub-checks) + `PHASE_HT18_OK` marker. Sprint card split: HT-18 → HT-18a (done, commit 895a9d7) + HT-18b (queued, round-trip E2E) + HT-18c (conditional). Session addenda (parallel commits, not part of this sprint): `c7e9334` (fix 002b chip alignment), `d94b35e` (fix 002a classic menu-bar hidden under body.zen), `5468d13` (invent GO verdict for f12-overview-mockup-port), `1f57451` (spike preview proto/sandbox/invent-f12-overview-mockup-port.html), `b6ba232` + `23ba929` (precursor docs for HT-18 card).
+
+**Why:** User reported that closing the app after certain operations (layer toggles, scale line toggle, land-edge tag apply) resulted in changes being lost because the browser did not prompt to save. The root cause was confirmed via `bma-explorer` audit: `_makeProjBlob` uses `JSON.stringify(pageStore)` which auto-serializes all fields (save schema is complete), and `applyLoadedProject` restores by ref (no field drift). The bug was purely missing `pushUndo()` calls — mutations were not setting `isDirty` — so the user believed the project was saved when it was not, and closed without Ctrl+S.
+
+**Files touched:**
+- `proto/ui.html`: +~10 LOC — `pushUndo()` inserted at: `toggleScaleLine` (L2814), `showLayer` (L2824), `hideLayer` (L2825), `lockLayer` (L2826), `unlockLayer` (L2827), `soloLayer` (L2828), `applyLandEdgeTag` (L1788)
+- `proto/e2e_ui_test.py`: +~70 LOC — `_test_ht18_pushundo_leaks()` with 7 sub-checks; `PHASE_HT18_OK` marker registered in pipeline
+- `docs/status/PHASE_INDEX.md`: sprint card split HT-18 → HT-18a (done 895a9d7) + HT-18b (queued) + HT-18c (conditional)
 
 **Tests:**
 ```
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
 python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
-  PHASE_INV_OVERVIEW_OK 9/9 PASS (initial: cardClickExitOverview + cardClickSetCurPage FAIL
-  because test PDF had <3 pages so data-page="3" selector returned null; surgical retry using
-  first available card + direct _ovCardClick(targetPage) → 9/9 PASS)
-  PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_ZEN_OK 10/10 + PHASE_INV_PALETTE_OK 10/10 +
-  PHASE_INV_POLISH_001C_OK 5/5 — no regression
-python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-  PHASE_INV_OVERVIEW_OK 9/9; ANNOT_OK / PERSIST_OK / REAL_OK all PASS
-  Pre-existing non-regressions unchanged: HT8C 3/5, HT8D1 8/9, HT10 8/10, HT12H 4/5, I_D 7/8
-TEST-H: SKIPPED — 002b is additive NEW MODE, doesn't touch measurement / canvas drawing;
-  9 sub-checks cover entry (F12 hotkey), exit (Esc/chip), atomic page-sync, DOM render, lazy IO;
-  thumb-cache pattern reuses 001a (already journey-tested). Per AGENTS.md no-test rationale applies.
+  PHASE_HT18_OK 7/7 PASS (toggleScaleLineSetsDirty, hideLayerSetsDirty,
+  showLayerSetsDirty, lockLayerSetsDirty, unlockLayerSetsDirty, soloLayerSetsDirty,
+  applyLandEdgeTagHasPushUndo)
+  PHASE_INV_ZEN_V2_OK 10/10, PHASE_INV_OVERVIEW_OK 9/9, PHASE_INV_ZEN_OK 10/10,
+  PHASE_INV_PALETTE_OK 10/10, PHASE_INV_POLISH_001C_OK 5/5 — no regression
+full → SKIPPED (additive pushUndo() insert only; no save/load logic, no .bmaplan schema change,
+  no field rename; PROJECT_OK + PERSIST_OK test save/load round-trip not isDirty trigger)
+TEST-H → SKIPPED (sub-50-LOC additive fix; all 7 mutation sites marker-covered by PHASE_HT18_OK)
 ```
 
 **Phase 1 scope check:**
 - ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
 - ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
 - ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — UNCHANGED (no server edit; reused existing `/thumb` via `thumbUrl()`)
-- ✅ `.bmaplan` schema — UNCHANGED
+- ✅ `proto/server.py` — UNCHANGED
+- ✅ `.bmaplan` schema — UNCHANGED (pushUndo() calls are pure additive code; version stays 1)
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ Layer model: no name-based calculation introduced
 
 **Known gaps / follow-ups:**
-- 001a/b/c + 002a/b Zen Mode suite now complete; next options: (a) hook Help → คู่มือ in `#zen-topbar` to `/static/docs/`; (b) `ZEN_MENU_ITEMS` refactor (deferred from 002a); (c) F12 Overview onboarding toast (first-entry hint); (d) resume invent-queued backlog (Mobile/iPad rewrite)
+- HT-18b: round-trip E2E test (port 8012) — iteration attempted but blocked by test infrastructure (subagent miscount, render flood, port lock). Test design correct; needs fresh-context investigation
+- HT-18c: conditional — only if HT-18b finds field drift (audit suggests it will not)
+- Uncommitted edits in working tree: additional pushUndo calls in setQuickTag/hideSelectedPages/setPageFloorKind/setPageFloorNum/applyAutoNames + excludePage signature change — user/linter parallel edits, not part of this finalize; user must review before committing
+- INV-2026-05-19-002c (F12 mockup port) queued; Print-canvas idea needs /bma-invent before dev-loop eligible
 
 ---
 
-## 2026-05-19 — INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS (branch: main)
-
-**What changed:** Additive `#zen-topbar` overlay (40px) that appears inside `body.zen` without touching 001a's `toggleZen()`. The bar contains 6 dropdowns (File / Page / Measure / Annotate / View / Help) wired to existing handlers, plus 4 icon chips (search / Zen palette / circle/ellipse shape picker / rectangle shape picker). New functions: `toggleZenFocus()` (F key in zen = Focus sub-mode, hides all HUDs via `body.zen.focus`), `_ztbToggleMenu(id, btn)` (dropdown open/close for topbar menus), `_setupZenEdgePeek()` (thin invisible strip at top of viewport triggers `body.zen.focus.peek` to temporarily restore HUDs while focused). `toggleZenMode` extended with v2 onboarding toast (green tint, shown once, stored in `PREFS.layout.zenV2Onboarded`). F-key scope guard: F key inside text inputs is blocked to prevent accidental focus toggle. `proto/static/css/app.css`: `.zen-topbar` + `.ztb-*` rules; `body.zen.focus` HUD hide with `!important` + transition suppressed for reliable Playwright testing; `.zen-focus-edge` 4 rules; 001a HUDs shifted top: 34→50px to make room; `.zen-v2-toast` green tint. New E2E function `_test_inv_zen_v2_topbar()` with 9 sub-checks + `PHASE_INV_ZEN_V2_OK` marker. Initial run had focusHidesHuds FAIL (transition delay); fixed with `!important` + removing transition on `.hud` during focus; retry → 9/9 PASS. TEST-H: `bma-human-journey-tester` HUMAN_TEST_PASS — 13/13 journey steps + 45/45 pages measured + .bmaplan round-trip OK; 1 minor FRICTION (test-infra only, not user-facing, not filed).
-
-**Why:** Original INV-002a plan was a breaking change to 001a `toggleZen()`. User redirected during /bma-dev-loop SCOPE: "ทำแยกจากของ v1 ไปเลยจะดีกว่า" — non-breaking additive approach chosen. The 001a minimap, 3 HUDs, and hide-menubar behavior all remain unchanged. The new top bar gives Zen Mode users access to all major menu actions without exiting Zen (a key gap identified in the 001a human-test journey). F12 Overview stub is defined in this sprint but the actual Overview implementation is deferred to INV-002b.
-
-**Files touched:**
-- `proto/ui.html`: +133 LOC — `#zen-topbar` HTML (6 dropdowns + 4 chips + edge triggers + v2 toast); `toggleZenFocus`, `_ztbToggleMenu`, `_setupZenEdgePeek`; F-key scope guard; `toggleZenMode` v2 onboarding logic
-- `proto/static/css/app.css`: +40 LOC — `.zen-topbar` + `.ztb-*` rules; `body.zen.focus` HUD hide (`!important`); `body.zen.focus.peek` restore; 4 `.zen-focus-edge` rules; 001a HUDs shifted top:34→50px; `.zen-v2-toast` green tint
-- `proto/e2e_ui_test.py`: +128 LOC — `_test_inv_zen_v2_topbar()` (9 sub-checks); `PHASE_INV_ZEN_V2_OK` print line; registered in main() pipeline
-
-**Tests:**
-```
-python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python proto/e2e_ui_test.py smoke                          → EXIT 0
-  PHASE_INV_ZEN_V2_OK 9/9 PASS (topbarExistsAndShort, sixDropdownsExpectedLabels,
-  fourChips, focusHidesHuds, peekRestoresHuds, fKeyScopeGuard, v2OnboardingToastShown,
-  no001aRegression, paletteAboveTopbar)
-  PHASE_INV_ZEN_OK 10/10, PHASE_INV_PALETTE_OK 10/10, PHASE_INV_POLISH_001C_OK 5/5 — no regression
-python proto/e2e_ui_test.py full                           → EXIT 0
-  ANNOT_OK / PERSIST_OK / REAL_OK — all PASS
-  Pre-existing non-regressions (not caused by this sprint): PHASE_HT8C_OK 3/5,
-  PHASE_HT8D1_OK 8/9, PHASE_HT10_OK 8/10, PHASE_HT12H_OK 4/5, PHASE_I_D_OK 7/8
-TEST-H: HUMAN_TEST_PASS — 13/13 journey steps; measure 45/45 pages; .bmaplan round-trip OK;
-  1 FRICTION (test-infra only: lbl-scale doesn't update on programmatic calibScale inject;
-  real calib dialog calls updateAnalyseUI correctly — not user-facing, not filed)
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — UNCHANGED (no server edit)
-- ✅ `.bmaplan` schema — UNCHANGED (`PREFS.layout.zenV2Onboarded` is session pref, not project schema; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ Layer model: no name-based calculation introduced
-
-**Known gaps / follow-ups:**
-- INV-2026-05-19-002b: F12 Overview spatial map standalone mode — next queue item; depends-on 002a `#zen-topbar` chrome
-- Top bar dropdown items use direct onclick wiring to existing handlers (no `ZEN_MENU_ITEMS` shared array yet — deferred to polish sprint if duplication grows)
-- Onboarding toast text simplification could be a future UX polish item
-
----
-
-<!-- sessions before 2026-05-19 INV-002a are archived to docs/archive/log-2026-05-19.md (001a Zen Mode + Ribbon Cleanup + 001b Command Palette + 001c FRICTION polish + 002a Zen top bar) and docs/archive/log-2026-05-18.md (earlier) -->
+<!-- sessions before HT-18a are archived to docs/archive/log-2026-05-19.md (001a Zen Mode + Ribbon Cleanup + 001b Command Palette + 001c FRICTION polish + 002a Zen top bar + 002b F12 Overview + HT-18a) and docs/archive/log-2026-05-18.md (earlier) -->

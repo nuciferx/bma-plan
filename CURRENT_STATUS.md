@@ -8,10 +8,12 @@ Date: 2026-05-19
 
 ## One-Line Status
 
-Sprint INV-002b PASS. F12 Overview standalone: `body.overview` 6-discipline card grid, lazy IO thumbs, atomic card-click loadPage; PHASE_INV_OVERVIEW_OK 9/9; full EXIT 0; Zen Mode suite 001a/b/c + 002a/b complete.
+Sprint HT-18a-ext PASS. pushUndo() coverage extended to 22 more mutation sites (+39 LOC JS); PHASE_HT18_OK now 36/36 GREEN. HUMAN_TEST_PASS. HT-18c queued (eq() test-design fix); then INV-002c.
 
 ## Latest Sprint
 
+- HT-18a-ext — Extended pushUndo() coverage (22 more sites): PASS (2026-05-19) — +22 pushUndo() insertions; PHASE_HT18_OK 36/36 (was 7/7 in HT-18a); full EXIT 0; HUMAN_TEST_PASS (3 sites found + fixed inline); HT-18c queued (eq() fix, test-only); INV-002c next after HT-18c. Sequel to HT-18a (895a9d7).
+- HT-18a — Save-state pushUndo leak fixes: PASS (2026-05-19) — `pushUndo()` inserted at 6 mutation sites; PHASE_HT18_OK 7/7; smoke EXIT 0; full + TEST-H SKIPPED (additive only; mutation sites marker-covered); audit: save schema complete, bug was missing isDirty. Commits: 895a9d7 + 1dd91c0
 - INV-2026-05-19-002b — F12 Overview standalone (C): PASS (2026-05-19) — `body.overview` 6-discipline card grid, lazy IntersectionObserver thumbs, atomic card-click + loadPage, F12 hotkey, Esc priority, `#ztb-chip-overview` unstubbed; PHASE_INV_OVERVIEW_OK 9/9; full EXIT 0; TEST-H SKIPPED (additive new mode, no measurement/canvas touch)
 - INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled): PASS (2026-05-19) — `#zen-topbar` 40px overlay, 6 dropdowns, 4 chips, Focus sub-mode (F key), edge peek, v2 onboarding toast; PHASE_INV_ZEN_V2_OK 9/9; full EXIT 0; HUMAN_TEST_PASS; 001a UNCHANGED
 - INV-2026-05-19-001c — Zen+Palette FRICTION polish: PASS (2026-05-19) — HT-Z-1 page-name direct read; HT-Z-2 amber scale chip; HT-Z-3 Thai-tag hint; PHASE_INV_POLISH_001C_OK 5/5; full EXIT 0; trilogy done
@@ -31,12 +33,11 @@ Sprint INV-002b PASS. F12 Overview standalone: `body.overview` 6-discipline card
 ## Test Baseline
 
 ```bash
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
-python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_OVERVIEW_OK 9/9 + PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing)
-python3.11 proto/e2e_ui_test.py full                           # PASS EXIT 0 (2026-05-19)
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py full                           # PASS EXIT 0 (PHASE_HT18_OK 36/36 + all 21 core markers GREEN)
 ```
 
-Last smoke run: 2026-05-19 (INV-002b; PHASE_INV_OVERVIEW_OK 9/9 + PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last full run: 2026-05-19 (HT-18a-ext; PHASE_HT18_OK 36/36 + PHASE_INV_OVERVIEW_OK 9/9 + PHASE_INV_ZEN_V2_OK 10/10 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

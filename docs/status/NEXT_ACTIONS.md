@@ -4,15 +4,19 @@ Date: 2026-05-19
 
 ## Immediate Next
 
-**INV-2026-05-19-002b PASS — Zen Mode suite 001a/b/c + 002a/b complete. Next options (user's choice):**
+**HT-18a-ext PASS — pushUndo() now covers 28 mutation sites (6 from HT-18a + 22 from HT-18a-ext). PHASE_HT18_OK 36/36. One item remains to close the HT-18 series:**
 
-- **(a) Hook Help → คู่มือ in `#zen-topbar` to `/static/docs/`** — currently `window.open` works but a dedicated panel or iframe would give better UX. Est ~30 LOC in `proto/ui.html` + a new `/bma-ui-menu` sprint to keep the "zero ui.html edits" boundary from the dev-website sprint.
-- **(b) `ZEN_MENU_ITEMS` refactor** — extract dropdown content into a shared data array driving both classic menu + zen topbar. Deferred from 002a; only useful if dropdown content ever diverges. Est ~50 LOC refactor.
-- **(c) F12 Overview onboarding hint** — toast on first F12 entry ("F12 = Overview · คลิก card เพื่อเปิดหน้า") stored in `PREFS.layout.overviewOnboarded`. Est ~15 LOC.
-- **(d) Resume invent-queued backlog** — Mobile/iPad rewrite (parked). Requires `/bma-invent-loop` pass before sprint card.
+- **(PRIORITY) HT-18c — Fix `_test_ht18b_save_load_round_trip` eq() comparison.** `PHASE_HT18B_OK` 7/13 because `eq()` deep-equality comparison is too strict: `normalizeAllObjects` mutates the pre-snapshot object before comparison, so fields that are legitimately equal appear different. Fix: replace deep `eq()` with field-by-field check on the specific fields that a save/load round-trip should preserve. ~30-50 LOC, test-only, no app code change. After HT-18c lands, `PHASE_HT18B_OK` should reach 13/13 and **HT-18 series is complete**.
+
+After HT-18c:
+- **(a) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS in `proto/ui.html` + `proto/static/css/app.css`. Run via `/loop /bma-dev-loop`.
+- **(b) Finalize pending docs sprint — Zen Mode user manual** — `proto/manual/` Thai manual files + `content.json` rebuild via `scripts/build_docs.py`. Uncommitted (`proto/manual/*` + `proto/static/docs/content.json`). Needs review before committing.
+- **(c) Promote Print-canvas idea via `/bma-invent`** — raw idea filed 2026-05-19 17:15 (invent-queued). Run 7-phase pipeline before eligible for dev-loop.
 
 ## Recently Done
 
+- **HT-18a-ext — Extended pushUndo() coverage to 22 more mutation sites** — 2026-05-19. `pushUndo()` inserted at 22 additional mutation sites (layer reorder/rename/color/lock/visibility helpers, page tag/floor/name/exclude/restore/rotate/reset helpers, `pageCtxMenu` inline `autoNamePage` call). `_test_ht18_pushundo_leaks` expanded 7 → 36 sub-checks. `PHASE_HT18_OK` 36/36 = `{'all': True}`. full EXIT 0. HUMAN_TEST_PASS (3 sites found inline: `toggleLayer`, `layerHideOthers`, `layerShowAll`). `proto/server.py` NOT touched. No schema change. `PHASE_INDEX.md`: HT-18a-ext done, HT-18b `done-with-test-design-caveat`, HT-18c upgraded to `queued`. +39 LOC JS + +295 LOC test. Sequel to HT-18a (895a9d7).
+- **HT-18a — Save-state pushUndo leak fixes** — 2026-05-19. `pushUndo()` inserted at 6 mutation sites: `toggleScaleLine`, `showLayer`, `hideLayer`, `lockLayer`, `unlockLayer`, `soloLayer`, `applyLandEdgeTag`. `PHASE_HT18_OK` 7/7; smoke EXIT 0; full + TEST-H SKIPPED (additive only; all mutation sites marker-covered). Audit confirmed save schema complete — bug was missing isDirty triggers. Sprint card split → HT-18a (done 895a9d7) + HT-18b (done-with-test-design-caveat) + HT-18c (queued). Zero forbidden-surface edits. Session addenda: `c7e9334` (002b chip fix), `d94b35e` (002a menu-bar zen fix), `5468d13` (invent GO 002c), `1f57451` (spike preview).
 - **INV-2026-05-19-002b — F12 Overview standalone (C)** — 2026-05-19. `body.overview` class; `#overview-content` 6-discipline card grid; lazy IO thumbs; `_ovBuildGrid`/`_ovCountObjects`/`_ovCardClick` atomic page-sync; F12 hotkey; Esc priority guard; `#ztb-chip-overview` unstubbed. `PHASE_INV_OVERVIEW_OK` 9/9; smoke + full EXIT 0; TEST-H SKIPPED (additive new mode). Zero forbidden-surface edits. Zen Mode suite complete.
 - **INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled)** — 2026-05-19. `#zen-topbar` 40px overlay (6 dropdowns + 4 chips); `toggleZenFocus()` Focus sub-mode; `_setupZenEdgePeek()`; v2 onboarding toast. `PHASE_INV_ZEN_V2_OK` 9/9; smoke + full EXIT 0; HUMAN_TEST_PASS. 001a `toggleZen()` UNTOUCHED. Zero forbidden-surface edits.
 - **INV-2026-05-19-001c — Zen+Palette FRICTION polish** — 2026-05-19. HT-Z-1: `_zenSyncHud()` direct `pageNames[curPage]` read (no MutationObserver lag). HT-Z-2: amber Scale chip when auto-unverified/no scale + tooltip. HT-Z-3: Thai-tag empty-state hint in palette. `PHASE_INV_POLISH_001C_OK` 5/5; smoke + full EXIT 0; TEST-H SKIPPED (sub-200-LOC, all branches marker-covered). Zero forbidden-surface edits. Trilogy complete.

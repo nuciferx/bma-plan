@@ -1034,8 +1034,8 @@ function toggleSidebar(){sidebarCollapsed=!sidebarCollapsed;document.getElementB
 // ══════════════════════════════════════════════════════
 // Quick Tag & Auto-name
 // ══════════════════════════════════════════════════════
-function setQuickTag(tag){if(selectedPages.size===0){setStatus("เลือกหน้าจาก sidebar ก่อน (Ctrl+click)");return;}for(const n of selectedPages){pageTags[n]=tag;autoNamePage(n,tag);}selectedPages.clear();buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))buildTagGrid();setStatus(`Tag ${tag} แล้ว`);}
-function hideSelectedPages(){if(selectedPages.size===0){setStatus("เลือกหน้าก่อน");return;}for(const n of selectedPages)excludePage(n);selectedPages.clear();buildSidebar();}
+function setQuickTag(tag){if(selectedPages.size===0){setStatus("เลือกหน้าจาก sidebar ก่อน (Ctrl+click)");return;}pushUndo();/* HT-18 */for(const n of selectedPages){pageTags[n]=tag;autoNamePage(n,tag);}selectedPages.clear();buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))buildTagGrid();setStatus(`Tag ${tag} แล้ว`);}
+function hideSelectedPages(){if(selectedPages.size===0){setStatus("เลือกหน้าก่อน");return;}pushUndo();/* HT-18 */for(const n of selectedPages)excludePage(n,true);selectedPages.clear();buildSidebar();}
 function autoNamePage(n,tag,force=false){if(!tag||!AUTO_TEMPLATES[tag])return;if(!force&&pageNames[n]&&pageNames[n]!==`หน้า ${n}`)return;
   // INV-2026-05-18-001b — floor sub-types for plan tag
   if(tag==='plan'&&pageFloorKind[n]){
@@ -1049,18 +1049,19 @@ function autoNamePage(n,tag,force=false){if(!tag||!AUTO_TEMPLATES[tag])return;if
   const count=countTagBefore(n,tag);pageNames[n]=AUTO_TEMPLATES[tag](count);
 }
 function setPageFloorKind(n,kind){
+  pushUndo();/* HT-18 */
   if(!kind){delete pageFloorKind[n];delete pageFloorNum[n];}
   else{pageFloorKind[n]=kind;if((kind==='basement'||kind==='normal')&&!pageFloorNum[n])pageFloorNum[n]=1;if(kind!=='custom')autoNamePage(n,'plan',true);}
   buildSidebar();buildTagGrid();touchSetupStatus();if(typeof _renderSetupInspector==='function')_renderSetupInspector();
 }
-function setPageFloorNum(n,num){pageFloorNum[n]=Math.max(1,parseInt(num,10)||1);autoNamePage(n,'plan',true);buildSidebar();buildTagGrid();touchSetupStatus();if(typeof _renderSetupInspector==='function')_renderSetupInspector();}
+function setPageFloorNum(n,num){pushUndo();/* HT-18 */pageFloorNum[n]=Math.max(1,parseInt(num,10)||1);autoNamePage(n,'plan',true);buildSidebar();buildTagGrid();touchSetupStatus();if(typeof _renderSetupInspector==='function')_renderSetupInspector();}
 function countTagBefore(n,tag){let c=0;for(let i=1;i<=n;i++){if((pageTags[i]||"")===tag&&!excludedPages.has(i))c++;}return c;}
 function inferSetupTag(n){if(pageTags[n])return pageTags[n];if(n===1)return"site";return"plan";}
-function applyAutoNames(){const counts={};for(let i=1;i<=totalPages;i++){if(excludedPages.has(i))continue;const tag=inferSetupTag(i);pageTags[i]=tag;counts[tag]=(counts[tag]||0)+1;if(AUTO_TEMPLATES[tag])pageNames[i]=AUTO_TEMPLATES[tag](counts[tag]);else if(!pageNames[i])pageNames[i]=`หน้า ${i}`;}buildSidebar();buildTagGrid();touchSetupStatus("ตั้งชื่ออัตโนมัติแล้ว");setStatus("ตั้งชื่ออัตโนมัติแล้ว");}
+function applyAutoNames(){pushUndo();/* HT-18 */const counts={};for(let i=1;i<=totalPages;i++){if(excludedPages.has(i))continue;const tag=inferSetupTag(i);pageTags[i]=tag;counts[tag]=(counts[tag]||0)+1;if(AUTO_TEMPLATES[tag])pageNames[i]=AUTO_TEMPLATES[tag](counts[tag]);else if(!pageNames[i])pageNames[i]=`หน้า ${i}`;}buildSidebar();buildTagGrid();touchSetupStatus("ตั้งชื่ออัตโนมัติแล้ว");setStatus("ตั้งชื่ออัตโนมัติแล้ว");}
 function applyAutoNamesFromSetup(){applyAutoNames();}
-function excludePage(n){excludedPages.add(n);if(curPage===n){const next=getNextPage(0)||getPrevPage(totalPages+1)||1;loadPage(next);}buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))buildTagGrid();}
-function restorePage2(n){excludedPages.delete(n);buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))buildTagGrid();}
-function pageCtxMenu(e,n){e.preventDefault();const tag=pageTags[n]||"";const menu=document.createElement("div");menu.style.cssText="position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:9px;z-index:600;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,.6);overflow:hidden";menu.style.left=Math.min(e.clientX,window.innerWidth-200)+"px";menu.style.top=Math.min(e.clientY,window.innerHeight-200)+"px";let html="";for(const opt of TAG_OPTIONS){if(opt.value===tag)html+=`<div class="ctx-item" style="background:var(--surface2);font-weight:600" onclick="this.parentElement.remove();setPageTag(${n},'${opt.value}')">✓ ${opt.label}</div>`;else html+=`<div class="ctx-item" onclick="this.parentElement.remove();setPageTag(${n},'${opt.value}')">${opt.label}</div>`;}html+=`<div class="ctx-sep"></div><div class="ctx-item" onclick="this.parentElement.remove();excludePage(${n})">🚫 ซ่อนหน้านี้</div><div class="ctx-item" onclick="this.parentElement.remove();autoNamePage(${n},pageTags[${n}]||'');buildSidebar()">🔄 ตั้งชื่ออัตโนมัติ</div>`;menu.innerHTML=html;document.body.appendChild(menu);setTimeout(()=>document.addEventListener("click",()=>menu.remove(),{once:true}),10);}
+function excludePage(n,_skipUndo){if(!_skipUndo)pushUndo();/* HT-18 — bulk callers pass true */excludedPages.add(n);if(curPage===n){const next=getNextPage(0)||getPrevPage(totalPages+1)||1;loadPage(next);}buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))buildTagGrid();}
+function restorePage2(n,_skipUndo){if(!_skipUndo)pushUndo();/* HT-18 */excludedPages.delete(n);buildSidebar();if(document.getElementById("setup-overlay")?.classList.contains("open"))buildTagGrid();}
+function pageCtxMenu(e,n){e.preventDefault();const tag=pageTags[n]||"";const menu=document.createElement("div");menu.style.cssText="position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:9px;z-index:600;min-width:180px;box-shadow:0 4px 20px rgba(0,0,0,.6);overflow:hidden";menu.style.left=Math.min(e.clientX,window.innerWidth-200)+"px";menu.style.top=Math.min(e.clientY,window.innerHeight-200)+"px";let html="";for(const opt of TAG_OPTIONS){if(opt.value===tag)html+=`<div class="ctx-item" style="background:var(--surface2);font-weight:600" onclick="this.parentElement.remove();setPageTag(${n},'${opt.value}')">✓ ${opt.label}</div>`;else html+=`<div class="ctx-item" onclick="this.parentElement.remove();setPageTag(${n},'${opt.value}')">${opt.label}</div>`;}html+=`<div class="ctx-sep"></div><div class="ctx-item" onclick="this.parentElement.remove();excludePage(${n})">🚫 ซ่อนหน้านี้</div><div class="ctx-item" onclick="this.parentElement.remove();pushUndo();/*HT-18*/autoNamePage(${n},pageTags[${n}]||'');buildSidebar()">🔄 ตั้งชื่ออัตโนมัติ</div>`;menu.innerHTML=html;document.body.appendChild(menu);setTimeout(()=>document.addEventListener("click",()=>menu.remove(),{once:true}),10);}
 // ══════════════════════════════════════════════════════
 // Upload & Load
 // ══════════════════════════════════════════════════════
@@ -1448,7 +1449,7 @@ function fitToWindow(){const W=ws.clientWidth,H=ws.clientHeight;zoom=Math.min((W
 function applyT(){cc.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;document.getElementById("zoom-val").textContent=Math.round(zoom*100)+"%";updateCanvasTopBar();}
 function adjustZoom(factor){const W=ws.clientWidth,H=ws.clientHeight;const fx=W/2,fy=H/2;const nz=Math.max(0.08,Math.min(8,zoom*factor));panX=fx-(fx-panX)*(nz/zoom);panY=fy-(fy-panY)*(nz/zoom);zoom=nz;applyT();}
 function zoomAt(factor,cx,cy){const nz=Math.max(0.08,Math.min(8,zoom*factor));if(Math.abs(nz-zoom)<0.0001)return;panX=cx-(cx-panX)*(nz/zoom);panY=cy-(cy-panY)*(nz/zoom);zoom=nz;applyT();}
-function rotatePage(delta){saveCurrentPage();const r=(getRot(curPage)+delta+360)%360;pageRotations[curPage]=r;const b=document.getElementById("rot-badge");b.style.display=r?"inline":"none";b.textContent=r+"°";reloadPageImage();}
+function rotatePage(delta){pushUndo();/* HT-18 */saveCurrentPage();const r=(getRot(curPage)+delta+360)%360;pageRotations[curPage]=r;const b=document.getElementById("rot-badge");b.style.display=r?"inline":"none";b.textContent=r+"°";reloadPageImage();}
 function reloadPageImage(){const loadToken=++pageLoadSeq;const rot=getRot(curPage);const img=new Image();const pageAtRequest=curPage;img.onload=()=>{if(loadToken!==pageLoadSeq||pageAtRequest!==curPage||rot!==getRot(curPage))return;bgImg=img;canvas.width=img.width;canvas.height=img.height;fitToWindow();redraw();};img.src=`/page/${curPage}?${caseQuery()}&scale=${RS}&rot=${rot}&v=${docVersion}&t=${Date.now()}`;fetchAnalyse(curPage);}
 // ══════════════════════════════════════════════════════
 // Snap
@@ -2653,9 +2654,10 @@ function hitTest(cx,cy){const THR=12/zoom;for(let i=mParking.length-1;i>=0;i--){
 function hitTestAll(cx,cy){const THR=12/zoom;const hits=[];const seen=new Set();const addHit=(h)=>{const k=h.type+":"+h.idx;if(!seen.has(k)){seen.add(k);hits.push(h);}};for(let i=mParking.length-1;i>=0;i--){const p=mParking[i],c=pdfToC(p.x,p.y);if(Math.hypot(cx-c.x,cy-c.y)<THR)addHit({type:"parking",idx:i});}if(layerVis.reference_geometry&&!layerLock.reference_geometry)for(let i=mRefs.length-1;i>=0;i--){for(const seg of lineSegments(mRefs[i])){const a=pdfToC(seg.a.x,seg.a.y),b=pdfToC(seg.b.x,seg.b.y);if(distToSeg(cx,cy,a.x,a.y,b.x,b.y)<THR){addHit({type:"ref",idx:i});break;}}}for(let i=mOpenings.length-1;i>=0;i--){const op=mOpenings[i];if(!op.closed||layerLock.deduction)continue;const cp=op.pts.map(p=>pdfToC(p.x,p.y));let hit=ptInPoly(cx,cy,cp);if(!hit)for(let j=0;j<cp.length;j++){const nj=(j+1)%cp.length;if(distToSeg(cx,cy,cp[j].x,cp[j].y,cp[nj].x,cp[nj].y)<THR){hit=true;break;}}if(hit)addHit({type:"opening",idx:i});}const polyHits=[];for(let i=mPolys.length-1;i>=0;i--){const poly=mPolys[i];if(!poly.closed)continue;const _pl2=areaTypeLayer(poly.areaType);if(layerLock[_pl2])continue;const cp=poly.pts.map(p=>pdfToC(p.x,p.y));let hit=ptInPoly(cx,cy,cp);if(!hit)for(let j=0;j<cp.length;j++){const nj=(j+1)%cp.length;if(distToSeg(cx,cy,cp[j].x,cp[j].y,cp[nj].x,cp[nj].y)<THR){hit=true;break;}}if(hit)polyHits.push({type:"poly",idx:i,_area:polyCanvasAreaPx(cp)});}polyHits.sort((a,b)=>a._area-b._area);polyHits.forEach(h=>addHit(h));for(let i=mLines.length-1;i>=0;i--){for(const seg of lineSegments(mLines[i])){const a=pdfToC(seg.a.x,seg.a.y),b=pdfToC(seg.b.x,seg.b.y);if(distToSeg(cx,cy,a.x,a.y,b.x,b.y)<THR){addHit({type:"line",idx:i});break;}}}return hits;}
 function showObjPicker(hits,ex,ey){const picker=document.getElementById("obj-picker");const rows=document.getElementById("obj-picker-rows");rows.innerHTML="";hits.forEach(hit=>{const obj=selectedObj(hit);if(!obj)return;let icon="⬡",name="",area="",typeLabel="";if(hit.type==="opening"){icon="🕳";name=obj.name||"ช่องว่าง";const a=polyAreaM2(obj.pts);area=a!=null?"−"+a.toFixed(2)+" ตร.ม.":"";}else if(hit.type==="poly"){icon=areaTypeLayer(obj.areaType)==="base_area"?"🏗":"📐";name=obj.name||(AREA_TYPE_LABELS[obj.areaType]||"พื้นที่");typeLabel=AREA_TYPE_LABELS[obj.areaType]||"";const m=polyMetricsAnyShape(obj,curPage);area=m.area!=null?m.area.toFixed(2)+" ตร.ม.":"";}else if(hit.type==="ref"){icon="⌁";name=obj.name||(REF_LABELS&&REF_LABELS[obj.refType])||"เส้นอ้างอิง";}else if(hit.type==="parking"){icon="🚗";name=(PARKING_LABELS&&PARKING_LABELS[obj.parkingType])||"ที่จอด";}else if(hit.type==="line"){icon="📏";name="ระยะ";}const div=document.createElement("div");div.className="opkr-row";div.innerHTML=`<span class="opkr-icon">${icon}</span><span class="opkr-name">${name||"—"}</span><span class="opkr-area">${area}</span>`;div.addEventListener("click",()=>{selItem={type:hit.type,idx:hit.idx};syncColorBar(selItem);hideObjPicker();setSidebarMode("properties");redraw();buildRightPanel();setStatus(`เลือก ${icon} ${name||hit.type} idx ${hit.idx}`);});rows.appendChild(div);});const pw=240;let lx=ex+10,ly=ey+10;if(lx+pw>window.innerWidth-10)lx=ex-pw-10;if(ly+hits.length*36+44>window.innerHeight-10)ly=ey-hits.length*36-50;picker.style.left=lx+"px";picker.style.top=ly+"px";picker.style.display="block";ignoreNextObjPickerDocumentClick=true;}
 function hideObjPicker(){document.getElementById("obj-picker").style.display="none";}
-function toggleLayer(lyr){layerVis[lyr]=!layerVis[lyr];const pl=getLayerBySlug(curPage,lyr);if(pl){pl.visible=layerVis[lyr];pl._userModified=true;}redraw();buildRightPanel();}
+function toggleLayer(lyr){pushUndo();/* HT-18 */layerVis[lyr]=!layerVis[lyr];const pl=getLayerBySlug(curPage,lyr);if(pl){pl.visible=layerVis[lyr];pl._userModified=true;}redraw();buildRightPanel();}
 // HT-8d-5a: Hide-Others / Show-All — bulk visibility toggles.
 function layerHideOthers(activeSlug){
+  pushUndo();/* HT-18 */
   if(!activeSlug){const sel=document.getElementById("active-layer-select");activeSlug=sel?.value||"base_area";}
   for(const k of Object.keys(layerVis)){layerVis[k]=(k===activeSlug);}
   try{getCurrentPageLayers().forEach(l=>{l.visible=(l.slug===activeSlug);l._userModified=true;});}catch(e){}
@@ -2663,6 +2665,7 @@ function layerHideOthers(activeSlug){
   if(typeof setStatus==="function")setStatus("⊘ ซ่อน layer อื่น (เหลือเฉพาะ "+activeSlug+")");
 }
 function layerShowAll(){
+  pushUndo();/* HT-18 */
   for(const k of Object.keys(layerVis)){layerVis[k]=true;}
   try{getCurrentPageLayers().forEach(l=>{l.visible=true;l._userModified=true;});}catch(e){}
   redraw();buildRightPanel();
@@ -2739,6 +2742,7 @@ function moveLayerUp(slug){
   const layers=getCurrentPageLayers();
   const idx=layers.findIndex(l=>l.slug===slug);
   if(idx<=0)return false;
+  pushUndo();/* HT-18 */
   const tmp=layers[idx-1];layers[idx-1]=layers[idx];layers[idx]=tmp;
   try{saveCurrentPage();}catch(e){}
   redraw();buildRightPanel();
@@ -2749,6 +2753,7 @@ function moveLayerDown(slug){
   const layers=getCurrentPageLayers();
   const idx=layers.findIndex(l=>l.slug===slug);
   if(idx<0||idx>=layers.length-1)return false;
+  pushUndo();/* HT-18 */
   const tmp=layers[idx+1];layers[idx+1]=layers[idx];layers[idx]=tmp;
   try{saveCurrentPage();}catch(e){}
   redraw();buildRightPanel();
@@ -2762,6 +2767,7 @@ function renameLayer(slug){
   if(newName===null)return false;
   const trimmed=newName.trim();
   if(!trimmed){setStatus?.("ชื่อ layer ว่าง — ไม่เปลี่ยน");return false;}
+  pushUndo();/* HT-18 */
   layer.name=trimmed;layer._userModified=true;
   try{saveCurrentPage();}catch(e){}
   buildRightPanel();
@@ -2778,6 +2784,7 @@ function setLayerFilter(q){
 }
 function setLayerColor(slug,color){
   if(!slug||!color)return;
+  pushUndo();/* HT-18 */
   const pl=(typeof getLayerBySlug==="function")?getLayerBySlug(curPage,slug):null;
   if(pl){pl.color=color;pl._userModified=true;}
   try{saveCurrentPage();}catch(e){}
@@ -2799,7 +2806,7 @@ function _layerLockGateBeforeMode(m){
   }
   return m;
 }
-function toggleLayerLock(lyr){layerLock[lyr]=!layerLock[lyr];const pl=getLayerBySlug(curPage,lyr);if(pl){pl.locked=layerLock[lyr];pl._userModified=true;}if(selItem){const obj=selectedObj(selItem);if(obj){const lt=selItem.type==="poly"?areaTypeLayer(obj.areaType):selItem.type==="opening"?"deduction":selItem.type==="ref"?"reference_geometry":null;if(lt&&layerLock[lt]){selItem=null;dragState=null;}}}redraw();buildRightPanel();}
+function toggleLayerLock(lyr){pushUndo();/* HT-18 */layerLock[lyr]=!layerLock[lyr];const pl=getLayerBySlug(curPage,lyr);if(pl){pl.locked=layerLock[lyr];pl._userModified=true;}if(selItem){const obj=selectedObj(selItem);if(obj){const lt=selItem.type==="poly"?areaTypeLayer(obj.areaType):selItem.type==="opening"?"deduction":selItem.type==="ref"?"reference_geometry":null;if(lt&&layerLock[lt]){selItem=null;dragState=null;}}}redraw();buildRightPanel();}
 function toggleOrtho(){orthoMode=!orthoMode;document.getElementById("btn-ortho").classList.toggle("active",orthoMode);setStatus(orthoMode?"⊖ ตั้งฉากเสมอ: เปิด — วาดล็อก 0°/90° ตลอด":"⊖ ตั้งฉากเสมอ: ปิด");}
 function finishCurrentArea(){if(mPts.length<3){setStatus("polygon ต้องมีอย่างน้อย 3 จุด");return;}if(polySelfIntersects(mPts)){setStatus("polygon ตัดกันเอง");return;}const area=polyAreaM2(mPts);pushUndo();if(openingMode){const op={pts:[...mPts],closed:true,name:"",id:newObjectId("opening"),color:curColor,opacity:curOpacity,semanticTag:"deduction_opening",useCategory:null};linkOpeningParent(op,mPolys);assignDefaultObjectLayer(curPage,op);mOpenings.push(op);document.getElementById("measure-result").textContent=Number.isFinite(area)?`⬡ ช่องว่าง ${fmtAreaM2(area)}`:"⬡ ช่องว่าง — ตั้ง scale ก่อนเพื่อแสดงพื้นที่";mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;openNamePanel("ชื่อช่องว่าง",(nm)=>{op.name=nm;linkOpeningParent(op,mPolys);updatePageSummary(curPage);updateWorkspaceState();redraw();buildRightPanel();},"",false);}else{const at=curAType||"room";const polyEdges=(mArcDraft.edges||[]).slice(0,mPts.length);while(polyEdges.length<mPts.length)polyEdges.push(null);const hasArc=polyEdges.some(e=>e?.edgeType==="arc");const polyLiteral={pts:[...mPts],closed:true,name:"",areaType:at,id:newObjectId("area"),color:curColor,opacity:curOpacity,semanticTag:curSiteSemanticTag||defaultSemanticTag("poly",{areaType:at}),useCategory:null,buildingHeight_m:null};if(hasArc)polyLiteral.edges=polyEdges;/* INV-2026-05-17-001: attach freeform metadata if any Alt-drag burst contributed. Optional + additive (legacy .bmaplan v1 loaders ignore). */if(mFreehandSegments>0){polyLiteral.freeform={tolerance:freehandTolerance,freehandSegments:mFreehandSegments,originalSamples:mFreehandSamplesTotal};}const poly=polyLiteral;curSiteSemanticTag=null;updateModeLabel();assignDefaultObjectLayer(curPage,poly);const polyIdx=mPolys.length;mPolys.push(poly);linkOpeningsInStore({polys:mPolys,openings:mOpenings});const finalArea=hasArc?polygonAreaWithArcsM2(poly,curPage):area;const _freeSuffix=poly.freeform?` (freeform ${poly.freeform.freehandSegments}× / ${poly.freeform.originalSamples} samples → ${poly.pts.length} pts)`:"";document.getElementById("measure-result").textContent=Number.isFinite(finalArea)?`⬡ ${fmtAreaM2(finalArea)}${hasArc?" (arc-polygon)":""}${_freeSuffix}`:"⬡ — ตั้ง scale ก่อนเพื่อแสดงพื้นที่";mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;openNamePanel("ชื่อพื้นที่",(nm,type)=>{poly.name=nm;const oldTag=poly.semanticTag;poly.areaType=type||poly.areaType||"room";const nextTag=defaultSemanticTag("poly",poly);if(oldTag===defaultSemanticTag("poly",{areaType:at}))poly.semanticTag=nextTag;normalizeSemanticFields(poly,"poly");linkOpeningsInStore({polys:mPolys,openings:mOpenings});if(poly.areaType==="land"){ensureLandEdgeTags(poly);setTimeout(()=>openLandEdgePanel(polyIdx),0);}updatePageSummary(curPage);updateWorkspaceState();redraw();buildRightPanel();},"",true,at);}updatePageSummary(curPage);updateWorkspaceState();buildRightPanel();}
 function updateDrawBar(){const bar=document.getElementById("draw-bar");const inDraw=["dist","path","ref","area"].includes(mode);bar.style.display=(inDraw&&mPts.length>0)?"flex":"none";if(inDraw&&mPts.length>0){const canFinish=(mode==="path"&&mPts.length>=2)||(mode==="ref"&&mPts.length>=2)||(mode==="area"&&mPts.length>=3);document.getElementById("dbar-finish").disabled=!canFinish;document.getElementById("dbar-pts").textContent=mPts.length+" จุด";}}
@@ -2810,7 +2817,7 @@ function drawBarCancel(){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[
 function menuLoadPrevPage(){const p=getPrevPage(curPage);if(p)loadPage(p);else setStatus("ไม่มีหน้าก่อนหน้า");}
 function menuLoadNextPage(){const n=getNextPage(curPage);if(n)loadPage(n);else setStatus("ไม่มีหน้าถัดไป");}
 function verifyScale(){openScaleManager();}
-function resetPageScale(pg){const s=getStore(pg||curPage);if(s.calibScale){delete s.calibScale;if(analyseCache[analyseKey(pg||curPage)])analyseCache[analyseKey(pg||curPage)].scale=null;if(pageData)pageData.scale=null;updateWorkspaceState();buildRightPanel();setStatus("ล้าง Scale หน้า "+(pg||curPage)+" แล้ว");}else{setStatus("หน้านี้ยังไม่มี Scale ที่จะล้าง");}}
+function resetPageScale(pg){const s=getStore(pg||curPage);if(s.calibScale){pushUndo();/* HT-18 */delete s.calibScale;if(analyseCache[analyseKey(pg||curPage)])analyseCache[analyseKey(pg||curPage)].scale=null;if(pageData)pageData.scale=null;updateWorkspaceState();buildRightPanel();setStatus("ล้าง Scale หน้า "+(pg||curPage)+" แล้ว");}else{setStatus("หน้านี้ยังไม่มี Scale ที่จะล้าง");}}
 function toggleScaleLine(){const pg=curPage;const s=getStore(pg);pushUndo();/* HT-18: was missing — user could toggle without isDirty triggering */s.showScaleLine=!s.showScaleLine;setStatus(s.showScaleLine?"แสดงเส้น Scale":"ซ่อนเส้น Scale");redraw();}
 function triggerSetupAutoTag(){openSetup();setTimeout(()=>document.getElementById("setup-auto-btn")?.click(),200);}
 function focusPropertiesTab(){setSidebarMode("properties");}
@@ -2827,10 +2834,10 @@ function hideLayer(slug){pushUndo();layerVis[slug]=false;const pl=getLayerBySlug
 function lockLayer(slug){pushUndo();layerLock[slug]=true;const pl=getLayerBySlug(curPage,slug);if(pl){pl.locked=true;pl._userModified=true;}redraw();buildRightPanel();}
 function unlockLayer(slug){pushUndo();layerLock[slug]=false;const pl=getLayerBySlug(curPage,slug);if(pl){pl.locked=false;pl._userModified=true;}redraw();buildRightPanel();}
 function soloLayer(slug){pushUndo();Object.keys(layerVis).forEach(k=>{layerVis[k]=k===slug;});ensurePageLayers(curPage).forEach(l=>{l.visible=l.slug===slug;l._userModified=true;});redraw();buildRightPanel();setStatus("Solo: "+slug);}
-function setAllLayersVisible(b){Object.keys(layerVis).forEach(k=>{layerVis[k]=b;});ensurePageLayers(curPage).forEach(l=>{l.visible=b;l._userModified=true;});redraw();buildRightPanel();}
-function hideOtherLayers(slug){Object.keys(layerVis).forEach(k=>{layerVis[k]=k===slug;});ensurePageLayers(curPage).forEach(l=>{l.visible=l.slug===slug;l._userModified=true;});redraw();buildRightPanel();}
-function lockOtherLayers(slug){Object.keys(layerLock).forEach(k=>{layerLock[k]=k!==slug;});ensurePageLayers(curPage).forEach(l=>{l.locked=l.slug!==slug;l._userModified=true;});redraw();buildRightPanel();}
-function setAllLayersLocked(b){Object.keys(layerLock).forEach(k=>{layerLock[k]=b;});ensurePageLayers(curPage).forEach(l=>{l.locked=b;l._userModified=true;});redraw();buildRightPanel();}
+function setAllLayersVisible(b){pushUndo();/* HT-18 */Object.keys(layerVis).forEach(k=>{layerVis[k]=b;});ensurePageLayers(curPage).forEach(l=>{l.visible=b;l._userModified=true;});redraw();buildRightPanel();}
+function hideOtherLayers(slug){pushUndo();/* HT-18 */Object.keys(layerVis).forEach(k=>{layerVis[k]=k===slug;});ensurePageLayers(curPage).forEach(l=>{l.visible=l.slug===slug;l._userModified=true;});redraw();buildRightPanel();}
+function lockOtherLayers(slug){pushUndo();/* HT-18 */Object.keys(layerLock).forEach(k=>{layerLock[k]=k!==slug;});ensurePageLayers(curPage).forEach(l=>{l.locked=l.slug!==slug;l._userModified=true;});redraw();buildRightPanel();}
+function setAllLayersLocked(b){pushUndo();/* HT-18 */Object.keys(layerLock).forEach(k=>{layerLock[k]=b;});ensurePageLayers(curPage).forEach(l=>{l.locked=b;l._userModified=true;});redraw();buildRightPanel();}
 function selectAllInLayer(slug){selItem=null;dragState=null;const matches=[];mPolys.forEach((p,i)=>{if(areaTypeLayer(p.areaType)===slug)matches.push({type:"poly",idx:i});});mOpenings.forEach((o,i)=>{if(slug==="deduction")matches.push({type:"opening",idx:i});});mLines.forEach((l,i)=>{if(slug==="labels")matches.push({type:"line",idx:i});});mRefs.forEach((r,i)=>{if(slug==="reference_geometry")matches.push({type:"ref",idx:i});});if(matches.length===1){selItem=matches[0];syncColorBar(selItem);}else if(matches.length>1){selItem=matches[0];syncColorBar(selItem);}buildRightPanel();redraw();setStatus(`เลือก ${matches.length} object ใน layer ${slug}`);}
 document.addEventListener("click",e=>{const picker=document.getElementById("obj-picker");if(ignoreNextObjPickerDocumentClick){ignoreNextObjPickerDocumentClick=false;return;}if(!picker.contains(e.target))hideObjPicker();});
 // ══════════════════════════════════════════════════════
@@ -3308,7 +3315,7 @@ function setSetupFilter(filter){setupFilter=filter;buildTagGrid();}
 function toggleSetupFilter(){const order=["all","categorized","uncategorized","visible","hidden"];const idx=order.indexOf(setupFilter);setupFilter=order[(idx+1+order.length)%order.length];buildTagGrid();}
 function touchSetupStatus(msg="อัปเดตข้อมูลในฟอร์มแล้ว"){const el=document.getElementById("setup-save-status");if(!el)return;const t=new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});el.textContent=`${msg} ${t}`;}
 function setPageName(n,val){pageNames[n]=val.trim();buildSidebar();updateBottomBar();touchSetupStatus();_renderSetupInspector();}
-function setPageTag(n,val){pageTags[n]=val;if(val!=='plan'){delete pageFloorKind[n];delete pageFloorNum[n];}if(val&&!pageNames[n])autoNamePage(n,val);buildSidebar();buildTagGrid();touchSetupStatus();if(n===curPage)buildSiteStepper();}
+function setPageTag(n,val){pushUndo();/* HT-18 */pageTags[n]=val;if(val!=='plan'){delete pageFloorKind[n];delete pageFloorNum[n];}if(val&&!pageNames[n])autoNamePage(n,val);buildSidebar();buildTagGrid();touchSetupStatus();if(n===curPage)buildSiteStepper();}
 function toggleExcludePage(n){if(excludedPages.has(n))excludedPages.delete(n);else excludedPages.add(n);buildSidebar();buildTagGrid();touchSetupStatus(excludedPages.has(n)?"ซ่อนหน้านี้แล้ว":"คืนหน้านี้แล้ว");}
 async function startCheck(){if(excludedPages.size>=totalPages){alert("ต้องมีอย่างน้อย 1 หน้าเพื่อเริ่มวัด");return;}syncProjectInfoFromForm();await fetch("/project",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({case_id:currentCaseId,page_tags:pageTags,project_info:projectInfo})});document.getElementById("setup-overlay").classList.remove("open");const sitePage=Object.entries(pageTags).find(([k,v])=>v==="site"&&!excludedPages.has(parseInt(k)));let target=sitePage?parseInt(sitePage[0]):1;if(excludedPages.has(target))target=getNextPage(0)||target;await loadPage(target);setStatus("พร้อมวัดพื้นที่จาก PDF");}
 // ══════════════════════════════════════════════════════

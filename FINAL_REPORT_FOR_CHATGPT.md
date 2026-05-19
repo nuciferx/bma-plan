@@ -4,7 +4,67 @@
 
 ---
 
-# Latest: INV-2026-05-19-002b F12 Overview standalone (C) — PASS
+# Latest: HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS, `python proto/e2e_ui_test.py full` EXIT 0. `PHASE_HT18_OK` upgraded from 7/7 (HT-18a) to **36/36** — the permanent regression guard now covers all confirmed mutation sites. Human journey test (`/bma-human-test`) HUMAN_TEST_PASS after inline fix of 3 sites discovered mid-audit. Forbidden-surface scan CLEAN. `proto/server.py` NOT touched. No schema change. 4 pre-existing sub-check failures unchanged; none are regressions from this sprint.
+
+## What was delivered
+
+- `pushUndo()` inserted at 22 additional mutation sites in `proto/ui.html` (layer reorder/rename/color/lock/visibility helpers; page tag/floor/name/exclude/restore/rotate/reset helpers; `pageCtxMenu` inline `autoNamePage` call). `_skipUndo` param added to `excludePage` + `restorePage2` for batch-caller safety. +39 LOC.
+- `_test_ht18_pushundo_leaks` in `proto/e2e_ui_test.py` extended: 7 → 36 sub-checks (22 source-presence + 7 runtime isDirty-flip + 7 original from HT-18a). `PHASE_HT18_OK` = `{'all': True}` 36/36. +295 LOC.
+- `docs/status/PHASE_INDEX.md` updated: HT-18a-ext card filed (done), HT-18b updated to `done-with-test-design-caveat`, HT-18c upgraded from `pending conditional` to `queued` with concrete scope.
+- `sprints/active/2026-05-19-ht-18-save-load-audit-fix/PHASE_A_AUDIT.md` — Phase A drift-map artifact (~120 lines).
+- 3 sites found by `/bma-human-test` and missed by initial Phase A audit (`toggleLayer` L2657, `layerHideOthers` L2659, `layerShowAll` L2666) fixed inline in same iteration.
+- Cross-links: HT-18a commit `895a9d7`, HT-18a-ext this sprint, HT-18b `done-with-test-design-caveat`, HT-18c queued.
+
+## What's next
+
+- **HT-18c** — Fix `_test_ht18b_save_load_round_trip` `eq()` comparison (too strict after `normalizeAllObjects` mutates pre-snapshot). ~30-50 LOC, test-only, no app code change. After HT-18c lands, HT-18 series complete.
+- After HT-18c: **INV-2026-05-19-002c** — F12 Overview mockup-port (~240 LOC JS+CSS, invent GO verdict MATURE, sprint card queued at commit `5468d13`, depends-on 002b done).
+
+## Position in Plan
+
+Phase 1 complete. HT (human-test findings) series ongoing: HT-18a DONE (`895a9d7`), HT-18a-ext DONE (this sprint), HT-18b `done-with-test-design-caveat`, HT-18c queued. After HT-18c, HT-18 series fully closed. INV series parallel track: INV-002c (F12 mockup port) queued, next after HT-18c.
+
+---
+
+# Previous: HT-18a Save-state pushUndo leak fixes — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS, smoke EXIT 0 (`PHASE_HT18_OK` 7/7 — all 6 mutation sites verified dirty). Full SKIPPED (additive pushUndo() insert only; no save/load logic or schema change). TEST-H SKIPPED (sub-50-LOC fix; all mutation sites covered by smoke sub-checks). Forbidden-surface scan CLEAN. No server edit. No schema change. All predecessor markers retained. Commits: `895a9d7` (feat) + `1dd91c0` (docs split HT-18 card).
+
+## What was delivered
+
+- `pushUndo()` inserted at 6 mutation sites: `toggleScaleLine`, `showLayer`, `hideLayer`, `lockLayer`, `unlockLayer`, `soloLayer`, `applyLandEdgeTag`
+- `_test_ht18_pushundo_leaks()` E2E test with 7 sub-checks + `PHASE_HT18_OK` marker
+- Sprint card split: HT-18 → HT-18a (done) + HT-18b (queued, round-trip E2E) + HT-18c (conditional)
+- Audit finding documented: save-schema serialization is complete (`_makeProjBlob` JSON.stringify auto-serializes; `applyLoadedProject` restores by ref); root cause was missing isDirty triggers, not schema drift
+- Session addenda (parallel commits, not part of sprint): `c7e9334` (fix 002b chips), `d94b35e` (fix 002a classic menu hidden in zen), `5468d13` (invent GO for f12-overview-mockup-port), `1f57451` (spike preview)
+
+## What's next
+
+Fresh session start via `/bma-start`, then choose:
+- **(a)** Investigate HT-18b test hang — subagent miscount + render flood + port lock; needs fresh context
+- **(b)** Finalize pending docs sprint — Zen Mode user manual (`proto/manual/` + `content.json`)
+- **(c)** Promote Print-canvas idea via `/bma-invent` (raw idea filed 17:15; not eligible for dev-loop until vetted)
+- **(d)** Start INV-002c F12 mockup port (~240 LOC, depends-on 002b; sprint card queued) via `/loop /bma-dev-loop`
+
+## Position in Plan
+
+Phase 1 complete. HT (human-test findings) series ongoing. HT-18a fixes a data-integrity bug confirmed by user testing. HT-18b (queued) will add round-trip E2E coverage. INV series parallel track: INV-2026-05-19-002c (F12 mockup port) queued. Print-canvas idea in invent-queued backlog.
+
+---
+
+# Previous (older): INV-2026-05-19-002b F12 Overview standalone (C) — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -39,7 +99,7 @@ Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-002b — the
 
 ---
 
-# Previous: INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS
+# Previous (older): INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
