@@ -32,6 +32,7 @@ BMA-Plan = เครื่องมือวัดพื้นที่จาก
 - [ตั้ง Scale ให้แม่นยำ](#manual/set-scale) — รายละเอียดการสอบเทียบ
 - [เครื่องมือวัด](#manual/measure-tools) — Polygon, Rectangle, Circle, Path, Arc-polygon
 - [การ Export](#manual/export) — XLSX, Annotated PDF, .bmaplan project file
+- [Zen Mode + Command Palette](#manual/zen-mode) — โหมด chrome-hide + ค้นหน้าด้วย Ctrl+K
 - [Keyboard Shortcuts](#manual/keyboard-shortcuts) — คีย์ลัดทั้งหมด
 
 ## ขอความช่วยเหลือ

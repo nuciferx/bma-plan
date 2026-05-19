@@ -61,6 +61,8 @@
 | Mouse wheel | Zoom in/out |
 | `Ctrl+B` | Toggle sidebar |
 | `Ctrl+P` | Toggle perpendicular snap mode |
+| `F11` | Toggle Zen Mode (ซ่อน chrome ขยาย canvas) |
+| `Ctrl+K` / `Cmd+K` | เปิด Command Palette (ค้น + jump หน้า) |
 
 ## During Draw
 
