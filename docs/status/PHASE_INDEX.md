@@ -279,7 +279,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Implementation guide: § Research → "Mockup → Live-app delta map" (row-by-row port plan)
     - Supersedes: f12-excluded-group (NOGO — folded into this port)
 
-- [ ] **Save state out of sync with canvas visual state** — `queued (→ HT-18)` — from /idea 2026-05-19, filed direct without invent (bug, not feature)
+- [x] **Save state out of sync with canvas visual state** — `done (→ HT-18a/a-ext/b/c/d, all ✅)` — from /idea 2026-05-19. Resolved by the HT-18 series: HT-18a + HT-18a-ext added pushUndo() to 28 mutation sites that previously leaked (toggle/layer/page-metadata ops); HT-18b added a 13-field save/load round-trip E2E (`PHASE_HT18B_OK`); HT-18d fixed `applyLoadedProject` wiping projectInfo on load. Root cause was pushUndo leaks (isDirty not triggering), not a render gap.
     - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-19 16:08
     - Tags: bma-plan, save, p-high, data-integrity
     - Open Qs: (1) canvas แสดงของที่ยังไม่ save (isDirty ไม่ trigger) หรือ load กลับมาแล้ว render ไม่ครบ? (2) object ประเภทไหน — poly / path / annotation / rotation?
