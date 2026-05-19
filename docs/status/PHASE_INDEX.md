@@ -246,7 +246,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **est LOC:** ~10-30 (additive; locate + reorder)
 - **success criterion:** HT-18b L_projectInfo can revert from blob-check back to post-load global check + still PASS.
 
-#### HT-18c — `_test_ht18b_save_load_round_trip` eq() comparison fix — `done` 2026-05-19
+#### HT-18c — `_test_ht18b_save_load_round_trip` eq() comparison fix — `done f1b4331` 2026-05-19
 
 - **scope skill:** `/bma-measure-scope` (touches E2E test only, not app code)
 - **diagnosis from HT-18b run 2026-05-19:** 7/13 sub-checks PASS (F-K + M = pageTags / pageNames / pageRotations / floorKind / excludedPages / siteOrientation / layerState). 6 FAIL (A-E + L = poly / opening / line / ref / parking / projectInfo). Failure mode is **test design**, not schema drift — `eq(polyL, tpoly)` uses full JSON equality but `normalizeAllObjects()` runs during save AFTER pre-snapshot is captured (adds `measurementProfile` / `objectCategory` / `reportTarget` / `lawBasis` / `countingRule` / `layerId` / linked-opening parent fields). So `tpoly` ≠ `polyL` even with perfect round-trip. The schema IS symmetric (HT-18a audit confirmed); the test is too strict.
