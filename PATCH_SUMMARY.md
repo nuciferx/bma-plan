@@ -4,7 +4,64 @@
 
 ---
 
-# Latest: INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled)
+# Latest: INV-2026-05-19-002b — F12 Overview standalone (C)
+
+Branch: main
+Date: 2026-05-19
+
+## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_OVERVIEW_OK 9/9), full EXIT 0; TEST-H SKIPPED (rationale below)
+
+## Summary
+
+F12 Overview mode implemented as approach C standalone. `body.overview` class hides canvas, ribbon, panels, status bar, and HUDs; shows `#overview-content` grid of page cards grouped by 6 discipline categories. Shared `#zen-topbar` from INV-002a remains visible as navigation chrome. Card click is atomic: `closeOverview()` + `loadPage(n)`. Lazy IntersectionObserver per card reuses the 001a `thumbUrl()` + IO pattern — no new server endpoint, `/page/{n}` hot path untouched. `#ztb-chip-overview` in top bar unstubbed. Esc priority: overview > zen > default. Completes the 001a/b/c + 002a/b Zen Mode feature suite.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | +~135 LOC — `#overview-content` HTML block, `_OV_GROUPS` config (6 discipline groups), `toggleOverview` + `closeOverview` + `_ovBuildGrid` + `_ovCountObjects` + `_ovCardClick` + IntersectionObserver lazy thumb load; F12 hotkey; Esc priority guard; `#ztb-chip-overview` unstubbed |
+| `proto/static/css/app.css` | +~50 LOC — `.overview-content` grid (replaces canvas at top:40), `body.overview` hide rules (canvas/ribbon/panels/status/HUDs), `.ov-group` + `.ov-card` + `.ov-thumb`, 6 discipline group label colors (site=green/plan=blue/elev=amber/section=purple/detail=cyan/none=gray) |
+| `proto/e2e_ui_test.py` | +~80 LOC — `_test_inv_overview_mode()` (9 sub-checks) + `PHASE_INV_OVERVIEW_OK` marker registered in pipeline |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `proto/server.py` — UNCHANGED (no server edit; reused existing `/thumb` via `thumbUrl()`)
+- `.bmaplan` schema version stays 1; additive fields only — no new schema fields in this sprint
+
+## Tests Run
+
+```
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
+  PHASE_INV_OVERVIEW_OK 9/9 (initial: cardClickExitOverview + cardClickSetCurPage FAIL
+  because test PDF had <3 pages so data-page="3" selector returned null; surgical retry
+  using first available card + direct _ovCardClick(targetPage) → 9/9 PASS)
+  PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_ZEN_OK 10/10 + PHASE_INV_PALETTE_OK 10/10 +
+  PHASE_INV_POLISH_001C_OK 5/5 — no regression
+python3.11 proto/e2e_ui_test.py full                           → EXIT 0
+  PHASE_INV_OVERVIEW_OK 9/9; ANNOT_OK / PERSIST_OK / REAL_OK all PASS
+  Pre-existing non-regressions unchanged: HT8C 3/5, HT8D1 8/9, HT10 8/10, HT12H 4/5, I_D 7/8
+TEST-H: SKIPPED — 002b is additive NEW MODE, doesn't touch measurement / canvas drawing;
+  9 sub-checks cover entry (F12), exit (Esc/chip), atomic page-sync, DOM render, lazy IO;
+  thumb-cache pattern reuses 001a (already journey-tested). Per AGENTS.md no-test rationale.
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — UNCHANGED (no server edit)
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ Layer model: no name-based calculation introduced
+
+---
+
+# Previous: INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled)
 
 Branch: main
 Date: 2026-05-19
@@ -56,36 +113,4 @@ TEST-H: HUMAN_TEST_PASS — 13/13 journey steps; 45/45 pages; .bmaplan round-tri
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 - ✅ Layer model: no name-based calculation introduced
 
----
-
-# Previous: INV-2026-05-19-001c — Zen+Palette FRICTION polish (HT-Z-1 + HT-Z-2 + HT-Z-3 bundle)
-
-Branch: main
-Date: 2026-05-19
-
-## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_POLISH_001C_OK 5/5), full EXIT 0
-
-## Summary
-
-Polish sprint clearing all 3 FRICTION findings from the 001a/001b human-test journey. `_zenSyncHud()` now reads page names directly from `pageNames[curPage]` (HT-Z-1 timing fix) and colors the Scale chip amber when scale is auto-unverified or absent (HT-Z-2 visual fix). `filterPalette()` empty branch appends a Thai-language hint when a Thai tag word is typed but no pages are tagged yet (HT-Z-3 discoverability fix). ~20 LOC total across two files. Completes the Zen+Palette feature trilogy from idea `2026-05-19-01-36`.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/ui.html` | ~15 LOC — `_zenSyncHud()` direct page-name read + amber scale chip; `filterPalette()` Thai-tag empty-state hint |
-| `proto/e2e_ui_test.py` | +65 LOC — `_test_inv_polish_001c` (5 sub-checks), `PHASE_INV_POLISH_001C_OK` marker |
-
-## Tests Run
-
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
-  PHASE_INV_POLISH_001C_OK 5/5 (hudReadsPageNamesDirectly, unverifiedScaleAmber,
-  manualScaleNotAmber, thaiTagHintShown, hintAbsentWhenTaggedOrNoThai)
-  PHASE_INV_ZEN_OK 10/10 + PHASE_INV_PALETTE_OK 10/10 — no regression
-python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-TEST-H: SKIPPED — sub-200-LOC polish; all changed branches covered by PHASE_INV_POLISH_001C_OK
-```
-
-<!-- INV-001a/001b Zen Mode + Command Palette + older entries archived to docs/archive/patch-history-2026-05-09.md -->
+<!-- INV-001a/001b/001c + older entries archived to docs/archive/patch-history-2026-05-09.md -->

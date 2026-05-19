@@ -8,10 +8,11 @@ Date: 2026-05-19
 
 ## One-Line Status
 
-Sprint INV-002a PASS. F11 Zen top bar additive: 6-dropdown topbar + Focus sub-mode + v2 onboarding toast; PHASE_INV_ZEN_V2_OK 9/9; full EXIT 0; HUMAN_TEST_PASS; 001a behavior unchanged.
+Sprint INV-002b PASS. F12 Overview standalone: `body.overview` 6-discipline card grid, lazy IO thumbs, atomic card-click loadPage; PHASE_INV_OVERVIEW_OK 9/9; full EXIT 0; Zen Mode suite 001a/b/c + 002a/b complete.
 
 ## Latest Sprint
 
+- INV-2026-05-19-002b — F12 Overview standalone (C): PASS (2026-05-19) — `body.overview` 6-discipline card grid, lazy IntersectionObserver thumbs, atomic card-click + loadPage, F12 hotkey, Esc priority, `#ztb-chip-overview` unstubbed; PHASE_INV_OVERVIEW_OK 9/9; full EXIT 0; TEST-H SKIPPED (additive new mode, no measurement/canvas touch)
 - INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled): PASS (2026-05-19) — `#zen-topbar` 40px overlay, 6 dropdowns, 4 chips, Focus sub-mode (F key), edge peek, v2 onboarding toast; PHASE_INV_ZEN_V2_OK 9/9; full EXIT 0; HUMAN_TEST_PASS; 001a UNCHANGED
 - INV-2026-05-19-001c — Zen+Palette FRICTION polish: PASS (2026-05-19) — HT-Z-1 page-name direct read; HT-Z-2 amber scale chip; HT-Z-3 Thai-tag hint; PHASE_INV_POLISH_001C_OK 5/5; full EXIT 0; trilogy done
 - INV-2026-05-19-001b — ⌘K Command Palette: PASS (2026-05-19) — Ctrl+K fuzzy page jump modal; 5 helpers; ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose; PHASE_INV_PALETTE_OK 10/10; full EXIT 0; JOURNEY_OK; HT-Z-3 filed
@@ -31,11 +32,11 @@ Sprint INV-002a PASS. F11 Zen top bar additive: 6-dropdown topbar + Focus sub-mo
 
 ```bash
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
-python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing)
+python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_OVERVIEW_OK 9/9 + PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing)
 python3.11 proto/e2e_ui_test.py full                           # PASS EXIT 0 (2026-05-19)
 ```
 
-Last smoke run: 2026-05-19 (INV-002a; PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last smoke run: 2026-05-19 (INV-002b; PHASE_INV_OVERVIEW_OK 9/9 + PHASE_INV_ZEN_V2_OK 9/9 + PHASE_INV_POLISH_001C_OK 5/5 + PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

@@ -667,7 +667,7 @@
     </div>
     <div class="ztb-spacer"></div>
     <div class="ztb-chip" id="ztb-chip-search" onclick="togglePalette()" title="ค้นหาหน้า [Ctrl+K]">🔍 ค้นหา <span class="ztb-kbd">⌘K</span></div>
-    <div class="ztb-chip ztb-chip-stub" id="ztb-chip-overview" onclick="alert('Overview mode รอใน INV-2026-05-19-002b')" title="Overview spatial map (coming in 002b)">🐦 Overview <span class="ztb-kbd">F12</span></div>
+    <div class="ztb-chip" id="ztb-chip-overview" onclick="toggleOverview()" title="Overview spatial map [F12]">🐦 Overview <span class="ztb-kbd">F12</span></div>
     <div class="ztb-chip" id="ztb-chip-focus" onclick="toggleZenFocus()" title="Focus sub-mode — ซ่อน HUDs [F]">◯ Focus <span class="ztb-kbd">F</span></div>
     <div class="ztb-chip ztb-chip-exit" id="ztb-chip-exit" onclick="toggleZenMode()" title="ออกจาก Zen Mode [F11/Esc]">◻ Exit <span class="ztb-kbd">F11</span></div>
   </div>
@@ -679,6 +679,16 @@
   <!-- v2 first-time onboarding toast (separate from v1 zenOnboarded) -->
   <div class="zen-onboarding-toast zen-v2-toast" id="zen-v2-onboarding-toast">
     <b>⛶ Zen v2</b> — Top bar เพิ่มเข้ามา · กด <span class="kbd">F</span> = Focus (ซ่อน HUDs) · เมนู File/Page/Measure ใน top bar · <span class="kbd">F11</span>/<span class="kbd">Esc</span> ออก
+  </div>
+  <!-- INV-2026-05-19-002b · F12 Overview standalone mode — spatial sheet map.
+       body.overview replaces #canvas with #overview-content (grid grouped by discipline).
+       Shares top bar from 002a. Lazy IntersectionObserver per card. -->
+  <div class="overview-content" id="overview-content">
+    <div class="ov-header">
+      <div class="ov-title">🐦 Overview — <span id="ov-total">0</span> หน้าทั้งโครงการ</div>
+      <div class="ov-meta"><span id="ov-loaded">0</span>/<span id="ov-loaded-total">0</span> thumbs loaded (lazy) · คลิก card → กลับ Zen บนหน้านั้น · กด <span class="kbd">Esc</span>/<span class="kbd">F12</span> ออก</div>
+    </div>
+    <div class="ov-groups" id="ov-groups"></div>
   </div>
   <!-- INV-2026-05-19-001b · ⌘K Command Palette — fuzzy page search.
        Composes with classic + zen mode (z-index above zen overlays). -->
@@ -3108,7 +3118,11 @@ document.addEventListener("keydown",e=>{
   if(e.key==="PageDown"){e.preventDefault();if(!anyModal)menuLoadNextPage();return;}
   // INV-2026-05-19-001a · F11 toggles Zen Mode (only when no modal open + not drawing)
   if(e.key==="F11"&&!anyModal&&!mPts.length){e.preventDefault();toggleZenMode();return;}
-  if(e.key==="Escape"){closeAllMenus();if(landEdgeState.open){closeLandEdgePanel();return;}if(namePanel.style.display==="block"){cancelName();return;}if(mode==="area"&&mArcDraft.pending){mArcDraft.pending=false;mArcDraft.throughPt=null;setStatus("ยกเลิก arc-mode (กลับสู่การวาดแบบเส้นตรง)");redraw();return;}if((mode==="path"||mode==="ref"||mode==="area"||mode==="north")&&mPts.length){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;redraw();setStatus("ยกเลิกเส้นที่กำลังวาด");return;}// INV-2026-05-19-001a: Esc exits zen mode (after other Esc consumers have had their turn)
+  // INV-2026-05-19-002b · F12 toggles Overview mode (standalone)
+  if(e.key==="F12"&&!anyModal&&!mPts.length){e.preventDefault();toggleOverview();return;}
+  if(e.key==="Escape"){closeAllMenus();if(landEdgeState.open){closeLandEdgePanel();return;}if(namePanel.style.display==="block"){cancelName();return;}if(mode==="area"&&mArcDraft.pending){mArcDraft.pending=false;mArcDraft.throughPt=null;setStatus("ยกเลิก arc-mode (กลับสู่การวาดแบบเส้นตรง)");redraw();return;}if((mode==="path"||mode==="ref"||mode==="area"||mode==="north")&&mPts.length){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;redraw();setStatus("ยกเลิกเส้นที่กำลังวาด");return;}// INV-2026-05-19-002b: Esc exits overview mode (highest priority over zen)
+  if(document.body.classList.contains("overview")){closeOverview();return;}
+  // INV-2026-05-19-001a: Esc exits zen mode (after other Esc consumers have had their turn)
   if(document.body.classList.contains("zen")){toggleZenMode();return;}
   setMode("pan");namePanel.style.display="none";ctxMenu.style.display="none";closePgMgr();}
   if((e.key==="Delete"||e.key==="Backspace")&&mode==="sel"&&selItem){pushUndo();if(selItem.type==="line")mLines.splice(selItem.idx,1);else if(selItem.type==="poly")mPolys.splice(selItem.idx,1);else if(selItem.type==="opening")mOpenings.splice(selItem.idx,1);else if(selItem.type==="ref")mRefs.splice(selItem.idx,1);else if(selItem.type==="parking")mParking.splice(selItem.idx,1);selItem=null;dragState=null;updatePageSummary(curPage);redraw();}
@@ -3525,6 +3539,109 @@ function _zenUpdateMinimapActive(){
 function _zenToggleMinimap(){
   const m=document.getElementById("zen-minimap");
   if(m)m.classList.toggle("collapsed");
+}
+// INV-2026-05-19-002b · F12 Overview mode — spatial sheet map standalone.
+// body.overview replaces canvas with 45-page grid grouped by pageTags discipline.
+// Click card → atomic exit + loadPage(n). Shares topbar with body.zen.
+const _OV_GROUPS=[
+  {key:"site",label:"🌳 ผังบริเวณ",cls:"gb-site"},
+  {key:"plan",label:"📐 ผังพื้น",cls:"gb-plan"},
+  {key:"elev",label:"🏢 รูปด้าน",cls:"gb-elev"},
+  {key:"section",label:"✂ รูปตัด",cls:"gb-section"},
+  {key:"detail",label:"🔧 รายละเอียด",cls:"gb-detail"},
+  {key:"none",label:"📄 ยังไม่จัดกลุ่ม",cls:"gb-none"}
+];
+let _ovIO=null;
+let _ovLoadedCount=0;
+function toggleOverview(){
+  if(!totalPages){if(typeof setStatus==="function")setStatus("เปิด PDF ก่อนใช้ Overview");return;}
+  const open=document.body.classList.toggle("overview");
+  // F12 from Zen: stay zen-marked-off; F12 is standalone mode, NOT zen sub-mode
+  if(open){document.body.classList.remove("zen","focus","peek");}
+  const chip=document.getElementById("ztb-chip-overview");
+  if(chip)chip.classList.toggle("active",open);
+  if(open){_ovBuildGrid();if(typeof setStatus==="function")setStatus("🐦 Overview — กด Esc/F12 ออก หรือคลิก card");}
+  else{if(typeof setStatus==="function")setStatus("ออกจาก Overview");}
+}
+function closeOverview(){
+  if(document.body.classList.contains("overview")){
+    document.body.classList.remove("overview");
+    const chip=document.getElementById("ztb-chip-overview");
+    if(chip)chip.classList.remove("active");
+  }
+}
+function _ovBuildGrid(){
+  const root=document.getElementById("ov-groups");
+  if(!root)return;
+  root.innerHTML="";
+  _ovLoadedCount=0;
+  if(_ovIO){_ovIO.disconnect();_ovIO=null;}
+  // Compute group → pages
+  const grouped={};
+  _OV_GROUPS.forEach(g=>grouped[g.key]=[]);
+  for(let i=1;i<=totalPages;i++){
+    if(excludedPages&&excludedPages.has&&excludedPages.has(i))continue;
+    const tag=(pageTags && pageTags[i])||"none";
+    const key=grouped[tag]?tag:"none";
+    grouped[key].push(i);
+  }
+  // Lazy thumb IntersectionObserver (reuses 001a pattern; uses /thumb endpoint)
+  _ovIO=new IntersectionObserver(ents=>{
+    ents.forEach(en=>{
+      if(en.isIntersecting&&!en.target.dataset.loaded){
+        en.target.dataset.loaded="1";
+        const n=+en.target.dataset.page;
+        const img=document.createElement("img");
+        img.loading="lazy";img.src=thumbUrl(n);
+        img.onload=()=>{_ovLoadedCount++;const lbl=document.getElementById("ov-loaded");if(lbl)lbl.textContent=_ovLoadedCount;};
+        img.onerror=()=>{_ovLoadedCount++;const lbl=document.getElementById("ov-loaded");if(lbl)lbl.textContent=_ovLoadedCount;};
+        en.target.innerHTML="";en.target.appendChild(img);
+        // Re-add chips on top of img
+        const sc=typeof getScaleForPage==="function"?getScaleForPage(n):null;
+        const dotCls=sc?(sc.state==="manual"?"green":"amber"):"red";
+        const dot=document.createElement("span");dot.className=`ov-dot ${dotCls}`;en.target.appendChild(dot);
+        const objCnt=_ovCountObjects(n);
+        if(objCnt>0){const oc=document.createElement("span");oc.className="ov-obj";oc.textContent=objCnt;en.target.appendChild(oc);}
+      }
+    });
+  },{root:document.getElementById("overview-content"),rootMargin:"80px"});
+  // Build groups
+  let totalRendered=0;
+  _OV_GROUPS.forEach(g=>{
+    const pages=grouped[g.key];
+    if(!pages.length)return;
+    const band=document.createElement("div");band.className=`ov-group ${g.cls}`;
+    band.innerHTML=`<div class="ov-group-label">${g.label}<span class="ov-group-count">${pages.length} หน้า</span></div><div class="ov-group-grid"></div>`;
+    const grid=band.querySelector(".ov-group-grid");
+    pages.forEach(n=>{
+      const card=document.createElement("div");card.className="ov-card"+(n===curPage?" active":"");card.dataset.page=n;
+      const name=(pageNames && pageNames[n])||`หน้า ${n}`;
+      card.innerHTML=`<div class="ov-thumb" data-page="${n}"><span style="color:var(--text3)">loading…</span></div><div class="ov-meta-row"><span class="ov-num">${n}</span><span class="ov-name">${name}</span></div>`;
+      card.onclick=()=>{_ovCardClick(n);};
+      grid.appendChild(card);
+      _ovIO.observe(card.querySelector(".ov-thumb"));
+      totalRendered++;
+    });
+    root.appendChild(band);
+  });
+  const t=document.getElementById("ov-total");if(t)t.textContent=totalRendered;
+  const lt=document.getElementById("ov-loaded-total");if(lt)lt.textContent=totalRendered;
+  const ll=document.getElementById("ov-loaded");if(ll)ll.textContent="0";
+}
+function _ovCountObjects(n){
+  // Match the page-card pattern: count polys + openings + lines + refs + parking for this page
+  try{
+    const st=(typeof getPageStore==="function")?getPageStore(n):null;
+    if(!st)return 0;
+    return (st.polys?.length||0)+(st.openings?.length||0)+(st.lines?.length||0)+(st.refs?.length||0)+(st.parking?.length||0);
+  }catch(e){return 0;}
+}
+function _ovCardClick(n){
+  // Atomic: exit overview + load page → land on F11 Zen-eligible state.
+  // Per RESHAPE decision: card click → enter Zen + jump page (not Classic + jump).
+  closeOverview();
+  if(typeof loadPage==="function")loadPage(n);
+  // After page loads, if user wants zen they can F11. Don't auto-enter zen here (spike said atomic exit + loadPage, which lands in *Classic*-or-Zen-by-preference).
 }
 // INV-2026-05-19-001b · ⌘K Command Palette — fuzzy page jump.
 // Composes with zen mode (z-index above zen HUDs) and classic mode.

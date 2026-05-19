@@ -4,14 +4,16 @@ Date: 2026-05-19
 
 ## Immediate Next
 
-**INV-2026-05-19-002a PASS — commit pending (main agent handles). Next: INV-2026-05-19-002b F12 Overview spatial map standalone mode.**
+**INV-2026-05-19-002b PASS — Zen Mode suite 001a/b/c + 002a/b complete. Next options (user's choice):**
 
-1. **Commit INV-2026-05-19-002a** (main agent fills hash, flips PHASE_INDEX row to `done`).
-
-2. **INV-2026-05-19-002b — F12 Overview spatial map standalone mode**: `body.overview` class replaces canvas with a 45-card grid grouped by discipline. Lazy `IntersectionObserver` per card (malloc-safe). Card click → atomic exit + `loadPage()`. Depends-on 002a (shares `#zen-topbar` chrome as navigation fallback). Est ~180 LOC.
+- **(a) Hook Help → คู่มือ in `#zen-topbar` to `/static/docs/`** — currently `window.open` works but a dedicated panel or iframe would give better UX. Est ~30 LOC in `proto/ui.html` + a new `/bma-ui-menu` sprint to keep the "zero ui.html edits" boundary from the dev-website sprint.
+- **(b) `ZEN_MENU_ITEMS` refactor** — extract dropdown content into a shared data array driving both classic menu + zen topbar. Deferred from 002a; only useful if dropdown content ever diverges. Est ~50 LOC refactor.
+- **(c) F12 Overview onboarding hint** — toast on first F12 entry ("F12 = Overview · คลิก card เพื่อเปิดหน้า") stored in `PREFS.layout.overviewOnboarded`. Est ~15 LOC.
+- **(d) Resume invent-queued backlog** — Mobile/iPad rewrite (parked). Requires `/bma-invent-loop` pass before sprint card.
 
 ## Recently Done
 
+- **INV-2026-05-19-002b — F12 Overview standalone (C)** — 2026-05-19. `body.overview` class; `#overview-content` 6-discipline card grid; lazy IO thumbs; `_ovBuildGrid`/`_ovCountObjects`/`_ovCardClick` atomic page-sync; F12 hotkey; Esc priority guard; `#ztb-chip-overview` unstubbed. `PHASE_INV_OVERVIEW_OK` 9/9; smoke + full EXIT 0; TEST-H SKIPPED (additive new mode). Zero forbidden-surface edits. Zen Mode suite complete.
 - **INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled)** — 2026-05-19. `#zen-topbar` 40px overlay (6 dropdowns + 4 chips); `toggleZenFocus()` Focus sub-mode; `_setupZenEdgePeek()`; v2 onboarding toast. `PHASE_INV_ZEN_V2_OK` 9/9; smoke + full EXIT 0; HUMAN_TEST_PASS. 001a `toggleZen()` UNTOUCHED. Zero forbidden-surface edits.
 - **INV-2026-05-19-001c — Zen+Palette FRICTION polish** — 2026-05-19. HT-Z-1: `_zenSyncHud()` direct `pageNames[curPage]` read (no MutationObserver lag). HT-Z-2: amber Scale chip when auto-unverified/no scale + tooltip. HT-Z-3: Thai-tag empty-state hint in palette. `PHASE_INV_POLISH_001C_OK` 5/5; smoke + full EXIT 0; TEST-H SKIPPED (sub-200-LOC, all branches marker-covered). Zero forbidden-surface edits. Trilogy complete.
 - **INV-2026-05-19-001b — ⌘K Command Palette** — 2026-05-19. Ctrl+K fuzzy page jump modal; 5 helpers (`togglePalette`/`closePalette`/`filterPalette`/`_palJumpToIdx`/`_palMoveSel`); ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose (z-index 9500); color-coded tag chips. `PHASE_INV_PALETTE_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK 13/13 steps; 0 JS errors. HT-Z-3 filed. Idea `2026-05-19-01-36`, sprint 001b of 3.

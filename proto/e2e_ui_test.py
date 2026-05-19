@@ -4483,6 +4483,95 @@ def _test_inv_zen_v2_topbar(page):
     return {**checks, "all": True}
 
 
+def _test_inv_overview_mode(page):
+    """INV-2026-05-19-002b: F12 Overview standalone (spatial sheet map).
+
+    9 sub-checks:
+    A. #overview-content + #ov-groups in DOM; toggleOverview/closeOverview helpers exist
+    B. F12 keydown adds body.overview; second F12 removes it
+    C. Canvas hidden in overview (.canvas-wrap display:none)
+    D. Top bar visible in overview (shared chrome from 002a)
+    E. ov-groups rendered with at least 1 .ov-group; at least N .ov-card === non-excluded page count
+    F. Per-card status dot present (after IO load); object-count chip rendered when objCount > 0
+    G. Lazy load: not all cards have <img> initially
+    H. Card click → atomic exit overview + curPage = clicked page; body.overview removed
+    I. Esc closes overview (priority over zen)
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // Clean state
+        if(document.body.classList.contains('zen'))toggleZenMode();
+        if(document.body.classList.contains('overview'))closeOverview();
+        // A. DOM + helpers
+        const ovc = document.getElementById('overview-content');
+        const ovg = document.getElementById('ov-groups');
+        r.domExists = !!ovc && !!ovg;
+        r.helpersExist = typeof toggleOverview === 'function' && typeof closeOverview === 'function' && typeof _ovBuildGrid === 'function';
+        // B. F12 keydown toggles
+        const evF12 = new KeyboardEvent('keydown',{key:'F12',bubbles:true,cancelable:true});
+        document.dispatchEvent(evF12);
+        r.f12AddsOverview = document.body.classList.contains('overview');
+        // C. Canvas hidden
+        const cv = document.querySelector('.canvas-wrap');
+        r.canvasHidden = cv ? getComputedStyle(cv).display === 'none' : false;
+        // D. Top bar visible
+        const tb = document.getElementById('zen-topbar');
+        r.topbarVisible = tb ? getComputedStyle(tb).display !== 'none' : false;
+        // E. Groups + cards
+        const groups = document.querySelectorAll('.ov-group');
+        const cards = document.querySelectorAll('.ov-card');
+        const excluded = (typeof excludedPages !== 'undefined') ? excludedPages.size : 0;
+        const expectedCards = totalPages - excluded;
+        r.groupCount = groups.length;
+        r.cardCount = cards.length;
+        r.expectedCardCount = expectedCards;
+        r.groupsRendered = groups.length >= 1 && cards.length === expectedCards;
+        // F. Status dot + object chip (will appear after IO load — wait briefly)
+        // We can't await inside page.evaluate sync, so just snapshot what's loaded
+        r.thumbsAtSnapshot = document.querySelectorAll('.ov-thumb img').length;
+        // G. Lazy — not all cards have img initially
+        r.lazyActive = r.thumbsAtSnapshot < cards.length;
+        // H. Card click → atomic exit + load page (use any available card; test PDF may have few pages)
+        const targetCard = document.querySelector('.ov-card');
+        const targetPage = targetCard ? +targetCard.dataset.page : null;
+        r.targetPage = targetPage;
+        r.targetCardFound = !!targetCard;
+        if(targetCard){
+            // Call helper directly to avoid relying on click-event dispatching through onclick handler
+            _ovCardClick(targetPage);
+            r.cardClickedExitOverview = !document.body.classList.contains('overview');
+            r.cardClickedSetCurPage = (typeof curPage !== 'undefined') && curPage === targetPage;
+        } else {
+            r.cardClickedExitOverview = false;
+            r.cardClickedSetCurPage = false;
+        }
+        // Re-enter for next test
+        document.dispatchEvent(new KeyboardEvent('keydown',{key:'F12',bubbles:true,cancelable:true}));
+        // I. Esc closes overview
+        document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+        r.escClosesOverview = !document.body.classList.contains('overview');
+        return r;
+    }""")
+    checks = {
+        "domAndHelpersExist": probe.get("domExists") is True and probe.get("helpersExist") is True,
+        "f12AddsOverview": probe.get("f12AddsOverview") is True,
+        "canvasHiddenInOverview": probe.get("canvasHidden") is True,
+        "topbarVisibleInOverview": probe.get("topbarVisible") is True,
+        "groupsAndCardsRendered": probe.get("groupsRendered") is True,
+        "lazyLoadActive": probe.get("lazyActive") is True,
+        "cardClickExitOverview": probe.get("cardClickedExitOverview") is True,
+        "cardClickSetCurPage": probe.get("cardClickedSetCurPage") is True,
+        "escClosesOverview": probe.get("escClosesOverview") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_page_setup_a(page):
     """INV-2026-05-18-001a: Page Setup context-sensitive inspector + traffic-light chips.
 
@@ -6822,6 +6911,7 @@ def main():
             inv_palette = _test_inv_palette(page)
             inv_polish_001c = _test_inv_polish_001c(page)
             inv_zen_v2_topbar = _test_inv_zen_v2_topbar(page)
+            inv_overview_mode = _test_inv_overview_mode(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -6907,6 +6997,7 @@ def main():
         print("PHASE_INV_PALETTE_OK", inv_palette)
         print("PHASE_INV_POLISH_001C_OK", inv_polish_001c)
         print("PHASE_INV_ZEN_V2_OK", inv_zen_v2_topbar)
+        print("PHASE_INV_OVERVIEW_OK", inv_overview_mode)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)

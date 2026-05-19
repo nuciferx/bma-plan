@@ -734,6 +734,49 @@ body.zen.focus .zen-focus-edge{display:block;pointer-events:auto}
 /* v2 onboarding toast — green tint to distinguish from v1 (blue) */
 .zen-v2-toast{border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.18);color:#bbf7d0}
 .zen-v2-toast b{color:#fff}
+/* ── INV-2026-05-19-002b · F12 Overview mode — spatial sheet map standalone ── */
+/* Overview replaces canvas; shares topbar with body.zen. */
+.overview-content{display:none;position:fixed;top:40px;left:0;right:0;bottom:0;background:#0f1115;z-index:1450;overflow-y:auto;padding:24px 36px 40px;font-family:inherit}
+body.overview .overview-content{display:block}
+body.overview #topbar,
+body.overview .ribbon,
+body.overview .left-panel,
+body.overview .right-panel,
+body.overview .status-bar,
+body.overview .panel-restore-tab{display:none !important}
+body.overview .canvas-wrap{display:none}
+body.overview .zen-topbar{display:flex}
+body.overview .zen-minimap,
+body.overview .zen-hud{display:none !important}
+.ov-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;gap:18px;flex-wrap:wrap}
+.ov-title{font-size:18px;font-weight:600;color:var(--text)}
+.ov-meta{font-size:11px;color:var(--text3)}
+.ov-meta .kbd{background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--text2);font-family:'SF Mono',Consolas,monospace;margin:0 2px}
+.ov-groups{display:flex;flex-direction:column;gap:28px}
+.ov-group{display:flex;flex-direction:column;gap:10px}
+.ov-group-label{display:flex;align-items:baseline;gap:12px;font-size:13.5px;font-weight:600;color:var(--text)}
+.ov-group-count{font-size:10px;color:var(--text3);font-weight:400;background:var(--surface3);padding:2px 8px;border-radius:10px}
+.ov-group-grid{display:grid;grid-template-columns:repeat(auto-fill,170px);gap:12px}
+.ov-card{width:170px;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;transition:transform .1s,border-color .1s,box-shadow .15s}
+.ov-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 18px rgba(10,132,255,.25);z-index:5}
+.ov-card.active{border-color:var(--green);box-shadow:0 0 0 2px rgba(34,197,94,.35)}
+.ov-thumb{width:100%;height:108px;background:#0a0c10;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:10.5px;position:relative;overflow:hidden}
+.ov-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ov-thumb .ov-dot{position:absolute;top:5px;left:5px;width:8px;height:8px;border-radius:50%;border:1px solid rgba(0,0,0,.4)}
+.ov-thumb .ov-dot.green{background:var(--green)}
+.ov-thumb .ov-dot.amber{background:var(--orange)}
+.ov-thumb .ov-dot.red{background:var(--red)}
+.ov-thumb .ov-obj{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:9.5px;padding:1px 5px;border-radius:8px;font-family:'SF Mono',Consolas,monospace}
+.ov-meta-row{padding:5px 8px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.ov-num{font-weight:600;color:var(--text3);font-size:10px;background:var(--surface3);padding:1px 5px;border-radius:3px;font-family:'SF Mono',Consolas,monospace}
+.ov-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+/* Group label colors — match site (green), plan (blue), elev (amber), section (purple), detail (cyan), none (gray) */
+.ov-group.gb-site .ov-group-label{color:#22c55e}
+.ov-group.gb-plan .ov-group-label{color:#3b82f6}
+.ov-group.gb-elev .ov-group-label{color:#f59e0b}
+.ov-group.gb-section .ov-group-label{color:#a855f7}
+.ov-group.gb-detail .ov-group-label{color:#06b6d4}
+.ov-group.gb-none .ov-group-label{color:#9ca3af}
 /* ── INV-2026-05-19-001b · ⌘K Command Palette (fast page jump) ── */
 .cmd-palette{display:none;position:fixed;top:90px;left:50%;transform:translateX(-50%);width:520px;max-width:92vw;background:var(--surface);border:1px solid var(--accent);border-radius:10px;box-shadow:0 28px 70px rgba(0,0,0,.65),0 0 0 4px rgba(10,132,255,.18);z-index:9500;overflow:hidden;font-family:inherit}
 .cmd-palette.show{display:block}

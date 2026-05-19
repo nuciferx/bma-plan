@@ -4,7 +4,42 @@
 
 ---
 
-# Latest: INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS
+# Latest: INV-2026-05-19-002b F12 Overview standalone (C) — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_OVERVIEW_OK` 9/9 after surgical test-PDF fix for card-click selector), full EXIT 0 (`ANNOT_OK` / `PERSIST_OK` / `REAL_OK`). All predecessor markers retained: `PHASE_INV_ZEN_V2_OK` 9/9, `PHASE_INV_ZEN_OK` 10/10, `PHASE_INV_PALETTE_OK` 10/10, `PHASE_INV_POLISH_001C_OK` 5/5. Forbidden-surface scan CLEAN. No server edit. No schema change. TEST-H SKIPPED with rationale (additive new mode; 9 sub-checks cover all entry/exit/interaction paths; thumb pattern reuses 001a already journey-tested).
+
+## What was delivered
+
+- `body.overview` class: hides canvas, ribbon, panels, status bar, and all HUDs; shows `#overview-content` grid
+- `_OV_GROUPS` config: 6 discipline groups (site=green / plan=blue / elev=amber / section=purple / detail=cyan / none=gray)
+- `_ovBuildGrid()`: builds page-card grid grouped by discipline from `pageTags`
+- `_ovCountObjects()`: per-page object count badge on each card
+- `_ovCardClick(n)`: atomic `closeOverview()` + `loadPage(n)` — no intermediate state
+- Lazy IntersectionObserver per card: fetches thumb via `thumbUrl(n)` only when card enters viewport (malloc-safe, reuses 001a pattern)
+- `toggleOverview()` + `closeOverview()` functions; F12 hotkey; Esc priority guard (overview > zen > default)
+- `#ztb-chip-overview` in `#zen-topbar` unstubbed — now calls `toggleOverview()`
+- CSS: `.overview-content` grid at `top:40px`, `body.overview` hide rules for all chrome, `.ov-group` + `.ov-card` + `.ov-thumb`, group label colors
+- `PHASE_INV_OVERVIEW_OK` E2E marker (9 sub-checks)
+
+## What's next
+
+- (a) Hook Help → คู่มือ in `#zen-topbar` to `/static/docs/` (currently `window.open` — works but could be polished)
+- (b) `ZEN_MENU_ITEMS` refactor — extract dropdown content into shared array driving both classic menu + zen topbar (deferred from 002a; only useful if dropdown content diverges)
+- (c) F12 Overview onboarding hint (toast on first F12 entry)
+- (d) Resume invent-queued backlog (Mobile/iPad rewrite)
+
+## Position in Plan
+
+Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-002b — the second and final sprint of the 002 sub-series (Zen chrome upgrade). Together with 001a/b/c + 002a/b, the full Zen Mode suite is now shipped: focus-mode distraction-free canvas, palette jump, friction polish, top bar chrome, and spatial sheet overview.
+
+---
+
+# Previous: INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -33,31 +68,4 @@ PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_ZEN_V2_OK` 9/9, `PHASE_INV_ZEN_O
 
 Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-002a — first sprint of the 002 sub-series (Zen chrome upgrade). 002b (F12 Overview) is the next dependent sprint. The 001a/001b/001c trilogy is fully shipped; 002a extends the Zen feature set additively.
 
----
-
-# Previous: INV-2026-05-19-001c Zen+Palette FRICTION polish — PASS
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_POLISH_001C_OK` 5/5, `PHASE_INV_ZEN_OK` 10/10, `PHASE_INV_PALETTE_OK` 10/10, all pre-existing GREEN), full EXIT 0. TEST-H skipped — sub-200-LOC polish with full marker coverage of all changed branches. Forbidden-surface scan CLEAN. No schema change.
-
-## What was delivered
-
-- HT-Z-1 fix: `_zenSyncHud()` reads `pageNames[curPage]` directly — eliminates MutationObserver timing lag on fast minimap navigation
-- HT-Z-2 fix: Scale chip in Zen HUD turns amber when scale is `auto-unverified` or absent; tooltip explains state
-- HT-Z-3 fix: `filterPalette()` empty-state appends Thai-tag discoverability hint when no pages are tagged yet
-- `PHASE_INV_POLISH_001C_OK` E2E marker (5 sub-checks) covering all 3 fixes
-- HT-Z queue fully cleared; Zen+Palette trilogy complete
-
-## What's next
-
-- INV-2026-05-19-002a — F11 Zen top bar (A+D additive bundled) — non-breaking additive `#zen-topbar` overlay
-
-## Position in Plan
-
-Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-001c — polish companion to 001a (Zen Mode) + 001b (Command Palette), all from idea `2026-05-19-01-36`. The 001a/001b/001c trilogy is fully shipped and polished.
-
-<!-- 001a/001b Zen Mode + Command Palette + older entries archived to docs/archive/reports-2026-05-09.md -->
+<!-- 001a/001b/001c + older entries archived to docs/archive/reports-2026-05-09.md -->
