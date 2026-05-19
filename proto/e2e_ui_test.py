@@ -4809,6 +4809,154 @@ def _test_inv_overview_mode(page):
     return {**checks, "all": True}
 
 
+def _test_inv_sticky_notes(page):
+    """INV-2026-05-19-005: Sticky-note (post-it) annotations per PDF page.
+    Approach B per invent pipeline — new ann_sticky type rendered as HTML div
+    overlay positioned via pdfToC(). 10 sub-checks.
+
+    A. Mode 'ann_sticky' registered in MODE_BASE_LABELS + setMode status text
+    B. Toolbar button #btn-ann-sticky exists + onclick wires setMode('ann_sticky')
+    C. Menu item exists (annotate menu has dd-item for ann_sticky)
+    D. #sticky-layer container exists in DOM
+    E. renderStickyCards function defined
+    F. Clicking canvas in ann_sticky mode creates annotation with type:'sticky'
+       in pageStore[curPage].annotations
+    G. HTML .sticky-card div renders with correct page-coord position
+    H. Card has textarea + delete button + drag header
+    I. Save .bmaplan → reload → sticky round-trips position + text
+    J. Backward-compat: legacy ann_comment still renders via drawAnnotations
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // A. MODE_BASE_LABELS + status text
+        r.A_modeLabelExists = typeof MODE_BASE_LABELS === 'object' && MODE_BASE_LABELS.ann_sticky !== undefined;
+        r.A_modeLabelValue = MODE_BASE_LABELS.ann_sticky || '';
+        const setModeSrc = setMode.toString();
+        r.A_setModeHasStickyStatus = setModeSrc.includes('ann_sticky') && setModeSrc.includes('post-it');
+        // B. Toolbar button
+        const btn = document.getElementById('btn-ann-sticky');
+        r.B_btnExists = !!btn;
+        r.B_btnOnclickWired = btn ? (btn.getAttribute('onclick') || '').includes("setMode('ann_sticky')") : false;
+        // C. Menu item
+        const menuItems = Array.from(document.querySelectorAll('.dd-item'));
+        const stickyMenu = menuItems.find(m => (m.getAttribute('onclick') || '').includes("setMode('ann_sticky')"));
+        r.C_menuItemExists = !!stickyMenu;
+        // D. Sticky layer container
+        const layer = document.getElementById('sticky-layer');
+        r.D_layerExists = !!layer;
+        // E. Function exists
+        r.E_renderFnExists = typeof renderStickyCards === 'function';
+        r.E_createFnExists = typeof _createStickyCard === 'function';
+        // F. Click canvas in ann_sticky mode creates annotation
+        // Switch ribbon to annotate first; then setMode
+        if(typeof switchRibbonTab === 'function') switchRibbonTab('annotate');
+        setMode('ann_sticky');
+        // Simulate mousedown handler logic synchronously: add a sticky manually via addAnnotation
+        // (the real workflow goes through the canvas mousedown which requires Playwright clicks;
+        //  we test the data-model path here, then verify HTML render)
+        const initialCount = (getStore(1)?.annotations || []).filter(a => a.type === 'sticky').length;
+        const testAnn = {
+            id: 'test_sticky_e2e_' + Date.now(),
+            type: 'sticky',
+            pts: [{ x: 150, y: 200 }],
+            text: 'E2E test note ทดสอบ',
+            color: '#fef3a6',
+            width: 120,
+            height: 80,
+            createdAt: new Date().toISOString()
+        };
+        addAnnotation(testAnn);
+        const stickyAnns = (getStore(1)?.annotations || []).filter(a => a.type === 'sticky');
+        r.F_annotationCreated = stickyAnns.length === initialCount + 1;
+        r.F_annotationHasType = stickyAnns[stickyAnns.length - 1]?.type === 'sticky';
+        // G. HTML .sticky-card rendered
+        renderStickyCards();
+        const card = document.querySelector(`.sticky-card[data-id="${testAnn.id}"]`);
+        r.G_cardRendered = !!card;
+        r.G_cardHasLeftTop = card ? (card.style.left !== '' && card.style.top !== '') : false;
+        // H. Card subparts
+        r.H_hasTextarea = card ? !!card.querySelector('textarea.sticky-body') : false;
+        r.H_hasDeleteBtn = card ? !!card.querySelector('.sticky-delete-btn') : false;
+        r.H_hasDragHeader = card ? !!card.querySelector('.sticky-header') : false;
+        r.H_textareaValueMatches = card ? card.querySelector('textarea').value === 'E2E test note ทดสอบ' : false;
+        // I. Round-trip via _makeProjBlob + applyLoadedProject
+        try {
+            syncProjectInfoFromForm();
+            const proj = JSON.parse(JSON.stringify({
+                version: 1, pdfName: currentFileName, totalPages,
+                pageStore, pageRotations, pageTags, pageNames, projectInfo,
+                siteOrientation, excludedPages: [...excludedPages],
+                pageFloorKind, pageFloorNum
+            }));
+            // Clear and reload
+            for(const k of Object.keys(pageStore)) delete pageStore[k];
+            const _ov = document.getElementById('setup-overlay');
+            if(_ov) _ov.classList.remove('open');
+            applyLoadedProject(proj);
+            const restored = (getStore(1)?.annotations || []).find(a => a.id === testAnn.id);
+            r.I_restoredExists = !!restored;
+            r.I_textPreserved = restored ? restored.text === 'E2E test note ทดสอบ' : false;
+            r.I_pageCoordPreserved = restored ? (restored.pts?.[0]?.x === 150 && restored.pts?.[0]?.y === 200) : false;
+            r.I_typePreserved = restored ? restored.type === 'sticky' : false;
+        } catch(e) {
+            r.I_error = String(e);
+            r.I_restoredExists = false;
+            r.I_textPreserved = false;
+            r.I_pageCoordPreserved = false;
+            r.I_typePreserved = false;
+        }
+        // J. Backward-compat — add legacy ann_comment, verify it still renders via canvas
+        const commentAnn = {
+            id: 'test_comment_e2e_' + Date.now(),
+            type: 'comment',
+            pts: [{ x: 300, y: 400 }],
+            text: 'legacy comment',
+            color: '#ef4444',
+            createdAt: new Date().toISOString()
+        };
+        addAnnotation(commentAnn);
+        // drawAnnotations should still process type==='comment' — check source
+        const drawAnnSrc = drawAnnotations.toString();
+        r.J_drawAnnHandlesComment = drawAnnSrc.includes('"comment"') || drawAnnSrc.includes("'comment'");
+        r.J_drawAnnSkipsSticky = !drawAnnSrc.includes('"sticky"') && !drawAnnSrc.includes("'sticky'");  // sticky NOT in canvas drawer (HTML only)
+        const legacyExists = (getStore(1)?.annotations || []).some(a => a.type === 'comment' && a.id === commentAnn.id);
+        r.J_legacyExists = legacyExists;
+        // Cleanup
+        const st = getStore(1);
+        if(st?.annotations) st.annotations = st.annotations.filter(a => a.id !== testAnn.id && a.id !== commentAnn.id);
+        renderStickyCards();
+        setMode('sel');
+        return r;
+    }""")
+    checks = {
+        "A_modeRegistered": probe.get("A_modeLabelExists") is True and probe.get("A_setModeHasStickyStatus") is True,
+        "B_toolbarButton": probe.get("B_btnExists") is True and probe.get("B_btnOnclickWired") is True,
+        "C_menuItem": probe.get("C_menuItemExists") is True,
+        "D_layerContainer": probe.get("D_layerExists") is True,
+        "E_renderFunctions": probe.get("E_renderFnExists") is True and probe.get("E_createFnExists") is True,
+        "F_annotationCreated": probe.get("F_annotationCreated") is True and probe.get("F_annotationHasType") is True,
+        "G_htmlCardRendered": probe.get("G_cardRendered") is True and probe.get("G_cardHasLeftTop") is True,
+        "H_cardSubparts": (probe.get("H_hasTextarea") is True
+                           and probe.get("H_hasDeleteBtn") is True
+                           and probe.get("H_hasDragHeader") is True
+                           and probe.get("H_textareaValueMatches") is True),
+        "I_roundTrip": (probe.get("I_restoredExists") is True
+                        and probe.get("I_textPreserved") is True
+                        and probe.get("I_pageCoordPreserved") is True
+                        and probe.get("I_typePreserved") is True),
+        "J_backwardCompat": (probe.get("J_drawAnnHandlesComment") is True
+                              and probe.get("J_drawAnnSkipsSticky") is True
+                              and probe.get("J_legacyExists") is True),
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_ht8_menu_clarity(page):
     """HT-8: Drawing-tool menu clarity. From user-test 2026-05-17 — ribbon
     had 13 flat buttons + 23-item Measure menu, sub-modes (Arc/Freeform/Opening)
@@ -7775,6 +7923,7 @@ def main():
             inv_overview_mode = _test_inv_overview_mode(page)
             inv_overview_port = _test_inv_overview_port(page)
             ht8_menu_clarity = _test_ht8_menu_clarity(page)
+            inv_sticky_notes = _test_inv_sticky_notes(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
             ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
@@ -7867,6 +8016,7 @@ def main():
         print("PHASE_INV_OVERVIEW_OK", inv_overview_mode)
         print("PHASE_INV_OVERVIEW_PORT_OK", inv_overview_port)
         print("PHASE_HT8_OK", ht8_menu_clarity)
+        print("PHASE_INV_STICKY_OK", inv_sticky_notes)
         print("PHASE_HT18_OK", ht18_pushundo)
         print("PHASE_HT18B_OK", ht18b_round_trip)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)

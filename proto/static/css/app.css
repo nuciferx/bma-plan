@@ -786,6 +786,24 @@ body.overview .zen-hud{display:none !important}
 /* Banner above grid (mockup port) */
 .ov-banner{background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.28);color:var(--text);padding:10px 14px;border-radius:8px;font-size:12px;margin:0 0 24px 0;text-align:center;line-height:1.5}
 .ov-banner b{color:var(--accent);font-weight:600}
+/* INV-2026-05-19-005: Sticky-note (post-it) annotation overlay.
+   HTML layer over #cc canvas. Each .sticky-card positioned via JS using pdfToC().
+   Pointer-events:none on layer so canvas drawing/snap stays unaffected; cards
+   themselves re-enable pointer-events. */
+#sticky-layer{position:absolute;inset:0;pointer-events:none;z-index:60}
+.sticky-card{position:absolute;background:#fef3a6;box-shadow:0 4px 12px rgba(0,0,0,.22),0 1px 3px rgba(0,0,0,.15);border-radius:2px;font-family:"Marker Felt","Comic Sans MS",-apple-system,sans-serif;font-size:12px;color:#1f2937;display:flex;flex-direction:column;transform:rotate(-1deg);transition:box-shadow .15s,transform .15s;user-select:none;pointer-events:auto}
+.sticky-card:hover{box-shadow:0 8px 20px rgba(0,0,0,.3),0 2px 4px rgba(0,0,0,.18);transform:rotate(-1deg) scale(1.02)}
+.sticky-card.selected{box-shadow:0 0 0 2px #3b82f6,0 8px 20px rgba(0,0,0,.35)}
+.sticky-header{height:16px;background:rgba(0,0,0,.06);border-bottom:1px solid rgba(0,0,0,.08);cursor:move;display:flex;align-items:center;justify-content:space-between;padding:0 5px;font-size:10px;color:#6b7280;flex-shrink:0;user-select:none}
+.sticky-drag-handle{letter-spacing:-2px;color:#9ca3af}
+.sticky-delete-btn{cursor:pointer;padding:0 4px;color:#9ca3af;user-select:none}
+.sticky-delete-btn:hover{color:#ef4444}
+.sticky-body{flex:1;border:none;outline:none;resize:none;background:transparent;font:inherit;color:inherit;padding:6px 8px;width:100%;overflow-y:auto;user-select:text;line-height:1.35}
+.sticky-body:focus{background:rgba(255,255,255,.32)}
+.sticky-body::placeholder{color:rgba(31,41,55,.4)}
+/* Hide stickies in zen / overview / focus modes where canvas is in alt-mode */
+body.overview #sticky-layer,body.focus #sticky-layer{display:none}
+
 /* HT-8 (b): Area button sub-mode badge — visible when Arc-pending or Freeform-active */
 #btn-area{position:relative}
 .rbtn-area-badge{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.25;min-width:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.35);pointer-events:none;border:1px solid rgba(255,255,255,.22)}
