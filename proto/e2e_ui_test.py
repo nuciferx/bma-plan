@@ -4809,6 +4809,104 @@ def _test_inv_overview_mode(page):
     return {**checks, "all": True}
 
 
+def _test_ht8_menu_clarity(page):
+    """HT-8: Drawing-tool menu clarity. From user-test 2026-05-17 — ribbon
+    had 13 flat buttons + 23-item Measure menu, sub-modes (Arc/Freeform/Opening)
+    invisible until discovered.
+
+    8 sub-checks across 4 fixes:
+    A. Ribbon dividers exist (.rdiv between ribbon-group rsection) — visual separation
+    B. All 6 expected ribbon-group sections labeled (TOOL / SCALE / พื้นที่ / LINES / MARKER / HELPERS)
+    C. Status bar has #status-mode-prefix element with "📐 วัด" prefix when in measure tab
+    D. _updateAreaSubmodeBadge function exists
+    E. After arc-pending=true → btn-area has .rbtn-area-badge with text "A"
+    F. After freehand active → badge text "✎"
+    G. After state cleared → badge removed
+    H. btn-area tooltip mentions A=Arc, Alt=Freeform shortcuts
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // Make sure we're in measure tab
+        if(typeof switchRibbonTab === 'function') switchRibbonTab('measure');
+        // A. Dividers between sections
+        const divs = document.querySelectorAll('.ribbon-tab-content[data-tab="measure"] .rdiv');
+        r.A_dividerCount = divs.length;
+        r.A_hasDividers = divs.length >= 5;
+        // B. Section labels
+        const lbls = Array.from(document.querySelectorAll('.ribbon-tab-content[data-tab="measure"] .rlbl')).map(el=>el.textContent.trim());
+        r.B_labelTexts = lbls;
+        r.B_hasToolSection = lbls.some(t => t.includes('TOOL'));
+        r.B_hasScaleSection = lbls.some(t => t.includes('SCALE'));
+        r.B_hasAreaSection = lbls.some(t => t.includes('พื้นที่'));
+        r.B_hasLinesSection = lbls.some(t => t.includes('LINES'));
+        r.B_hasMarkerSection = lbls.some(t => t.includes('MARKER'));
+        r.B_hasHelpersSection = lbls.some(t => t.includes('HELPERS'));
+        // C. status-mode-prefix
+        const pref = document.getElementById('status-mode-prefix');
+        r.C_prefixExists = !!pref;
+        r.C_prefixText = pref ? pref.textContent.trim() : '';
+        r.C_prefixIsMeasure = pref ? pref.textContent.includes('วัด') : false;
+        // D. Function exists
+        r.D_fnExists = typeof _updateAreaSubmodeBadge === 'function';
+        // E-G. Badge state transitions
+        if(typeof activateAreaTool === 'function') activateAreaTool('room');
+        mPts = [{x:100,y:100}]; // simulate at-least-one-vertex precondition
+        mArcDraft.pending = true; mArcDraft.throughPt = null;
+        _updateAreaSubmodeBadge();
+        const btn = document.getElementById('btn-area');
+        let badge = btn ? btn.querySelector('.rbtn-area-badge') : null;
+        r.E_arcBadgeExists = !!badge;
+        r.E_arcBadgeText = badge ? badge.textContent : '';
+        // Now switch to freehand
+        mArcDraft.pending = false; mArcDraft.throughPt = null;
+        mFreehandActive = true;
+        _updateAreaSubmodeBadge();
+        badge = btn ? btn.querySelector('.rbtn-area-badge') : null;
+        r.F_freehandBadgeExists = !!badge;
+        r.F_freehandBadgeText = badge ? badge.textContent : '';
+        // Now clear both
+        mFreehandActive = false; mArcDraft.pending = false;
+        _updateAreaSubmodeBadge();
+        badge = btn ? btn.querySelector('.rbtn-area-badge') : null;
+        r.G_badgeCleared = !badge;
+        // Restore clean state
+        mPts = [];
+        // H. Tooltip mentions shortcuts
+        const tip = btn ? (btn.getAttribute('title') || '') : '';
+        r.H_tooltipHasA = tip.includes('A');
+        r.H_tooltipHasArc = tip.includes('Arc');
+        r.H_tooltipHasAlt = tip.includes('Alt');
+        r.H_tooltipHasFreeform = tip.includes('Freeform');
+        return r;
+    }""")
+    checks = {
+        "A_dividersPresent": probe.get("A_hasDividers") is True,
+        "B_sixSectionsLabeled": (probe.get("B_hasToolSection") is True
+                                  and probe.get("B_hasScaleSection") is True
+                                  and probe.get("B_hasAreaSection") is True
+                                  and probe.get("B_hasLinesSection") is True
+                                  and probe.get("B_hasMarkerSection") is True
+                                  and probe.get("B_hasHelpersSection") is True),
+        "C_statusPrefixIsMeasure": probe.get("C_prefixExists") is True
+                                   and probe.get("C_prefixIsMeasure") is True,
+        "D_updateBadgeFnExists": probe.get("D_fnExists") is True,
+        "E_arcBadgeShowsA": probe.get("E_arcBadgeExists") is True
+                            and probe.get("E_arcBadgeText") == "A",
+        "F_freehandBadgeShowsPencil": probe.get("F_freehandBadgeExists") is True
+                                       and probe.get("F_freehandBadgeText") == "✎",
+        "G_badgeRemovedWhenClear": probe.get("G_badgeCleared") is True,
+        "H_tooltipMentionsSubmodes": (probe.get("H_tooltipHasArc") is True
+                                       and probe.get("H_tooltipHasFreeform") is True),
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_overview_port(page):
     """INV-2026-05-19-002c: F12 Overview mockup port (faithful).
     Supersedes 002b's PHASE_INV_OVERVIEW_OK with port-specific assertions per
@@ -7676,6 +7774,7 @@ def main():
             inv_zen_v2_topbar = _test_inv_zen_v2_topbar(page)
             inv_overview_mode = _test_inv_overview_mode(page)
             inv_overview_port = _test_inv_overview_port(page)
+            ht8_menu_clarity = _test_ht8_menu_clarity(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
             ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
@@ -7767,6 +7866,7 @@ def main():
         print("PHASE_INV_ZEN_V2_OK", inv_zen_v2_topbar)
         print("PHASE_INV_OVERVIEW_OK", inv_overview_mode)
         print("PHASE_INV_OVERVIEW_PORT_OK", inv_overview_port)
+        print("PHASE_HT8_OK", ht8_menu_clarity)
         print("PHASE_HT18_OK", ht18_pushundo)
         print("PHASE_HT18B_OK", ht18b_round_trip)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
