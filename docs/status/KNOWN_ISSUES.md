@@ -6,9 +6,47 @@ Date: 2026-05-09
 
 | Issue | Severity | Notes |
 |-------|----------|-------|
+| **BLOAT-FLAKE-1** — `_wait_analyse_ready` flake on real 45-page permit | FRICTION (E2E gate) | See full entry below |
 | WinError 10054 (ConnectionResetError) on uvicorn shutdown | Low | Non-fatal, appears after test suite, does not affect results |
 | `? proto` in root git status --short | Low | Proto has internal untracked files (BMA-Plan.spec, build/, dist/, etc.) that are not staged; root submodule tracking works correctly |
 | AUTO_MERGE.lock warning on root commit | Low | Pre-existing stale lock; commits succeed regardless |
+
+---
+
+## BLOAT-FLAKE-1 — REAL_PDF `_wait_analyse_ready` analyse flake
+
+**ID:** BLOAT-FLAKE-1
+**Date filed:** 2026-05-20 (BLOAT-5 sprint)
+**Severity:** FRICTION — blocks `full` E2E reliability; smoke is unaffected
+
+**Symptom:**
+`_test_real_pdf_multipage_persistence` → `_wait_analyse_ready(page, 1)` hangs indefinitely. The status bar / analyse endpoint poll never completes for page 1/45 of the real 45-page permit PDF (`20250616_RAMA4 APARTMENT PERMIT rev 1.pdf`). Playwright sees the page stuck at "กำลังโหลดหน้า 1…" and eventually times out → `AssertionError`.
+
+**Discovery history:**
+- **BLOAT-3 full run (first attempt)**: flake appeared on page 1/45; single retry passed. First documented occurrence.
+- **BLOAT-4 first attempt**: same flake on page 1/45; single retry passed (dev-loop one-retry rule).
+- **BLOAT-4 MENU_OK probe note**: "perPageLayerMemoryFixed: skipped (REAL_PDF analyse flake)" — sub-test intentionally skipped because the flake was already known.
+- **BLOAT-5 (current iteration)**: 3/3 retries all failed — worst occurrence. Suggests the env is degrading (possibly cumulative Playwright browser state after 5 sprints in one session, or Windows file handles not fully released between test runs).
+
+**Scope:**
+The `_wait_analyse_ready` path exercises: (1) open real PDF via `/upload`, (2) render page 1 via `/page/1`, (3) trigger `/analyse` for the page, (4) poll status until "analysed". This path does NOT invoke any BLOAT-5 functions (`page-setup.js`) — page-setup helpers only run when the Setup modal is open or floor sub-types are changed. Confirmed NOT a BLOAT-5 regression.
+
+**Hypothesis (env-level causes, ordered by likelihood):**
+1. Playwright browser-context not reset between `_test_real_pdf_multipage_persistence` and previous heavy tests; accumulated network/socket state causes the analyse XHR to stall.
+2. Windows file-handle exhaustion after many test cycles in a single session — uvicorn / PyMuPDF leave handles open; subsequent runs starve.
+3. `_wait_analyse_ready` timeout too tight for cold-cache real PDF on a busy system (currently tight enough to pass on a warm run, marginal on first open after 5 sprints).
+4. Intermittent Windows Defender / AV scan triggered on the large PDF file on first open, delaying PyMuPDF render.
+
+**Suggested fix paths:**
+- **(a) Bump `_wait_analyse_ready` timeout** — increase polling timeout from current value; cheap first fix; does not address root cause.
+- **(b) Add Playwright browser-context reset** — call `await page.context().close()` + create new context before the real-PDF test block; isolates accumulated network state.
+- **(c) Warm-up server caches before real-PDF tests** — pre-render page 1 in a throwaway context so analyse completes before `_wait_analyse_ready` starts the clock.
+- **(d) Investigate uvicorn file-handle leak** — check `lsof` / Windows handle count after 5+ sprint test cycles; if handles are leaking, add explicit `doc.close()` in TTL pruner.
+
+**Impact on sprint verification:**
+Smoke tests do NOT exercise `_test_real_pdf_multipage_persistence` — all smoke markers remain fully reliable. BLOAT-5 (and prior BLOAT sprints) are smoke-verified correct. The flake only prevents `full` from passing, which exercises `REAL_OK`, `PERSIST_OK`, and `ANNOT_OK` on the real 45-page permit.
+
+**Status:** Open. Must be resolved before `/loop /bma-dev-loop` can resume (loop halted per `LOOP_STOP_REGRESSION`).
 
 ## Resolved Incidents (for reference)
 

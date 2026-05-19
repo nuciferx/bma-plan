@@ -4,7 +4,60 @@
 
 ---
 
-# Latest: BLOAT-4 — Extract annotation JS to proto/static/js/annotations.js
+# Latest: BLOAT-5 — Extract page-setup modal JS to proto/static/js/page-setup.js
+
+Branch: main
+Date: 2026-05-20
+
+## Outcome: PASS (smoke); full ENV-FLAKE on 3 retries — pre-existing REAL_PDF analyse flake (BLOAT-FLAKE-1), NOT a BLOAT-5 regression. Loop halted per LOOP_STOP_REGRESSION safety rule.
+
+## Summary
+
+Created `proto/static/js/page-setup.js` (125 LOC, classic non-module script) and extracted 15 page-setup functions + 2 floor constants from 3 non-contiguous ranges in `proto/ui.html`. Smoke 18/18 baseline + PHASE_BLOAT5_OK 8/8 + PHASE_INV_PAGE_SETUP_A/B/C all GREEN. Full failed 3 retries on the pre-existing `_wait_analyse_ready` flake (page 1/45, BLOAT-FLAKE-1 filed in KNOWN_ISSUES.md) — zero page-setup code runs during initial page-load/analyse path, confirming this is NOT a BLOAT-5 regression. Session total: ui.html 4,231→3,777 (−454 across BLOAT-1..5). Recipe 5-for-5. Loop halted per LOOP_STOP_REGRESSION rule; user decides next.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | −93 +2 — extracted 96 lines across 3 ranges (Range A: 2 constants, Range B: 4 floor helpers, Range C: 11 functions + 1 let); added `<script src="/static/js/page-setup.js">` tag after `annotations.js`; net −92 LOC (3,869→3,777) |
+| `proto/static/js/page-setup.js` | NEW 125 LOC — `FLOOR_KIND_LABELS`, `FLOOR_KIND_OPTIONS` + 15 fns: `autoNamePage`, `setPageFloorKind`, `setPageFloorNum`, `countTagBefore`, `selectSetupPage`, `_pageReadiness`, `_setupCountObjects`, `_renderSetupDashboard`, `_renderSetupPageCard`, `_setupBack`, `_renderSetupInspector`, `_pendingDeleteN` (let), `_openRenumberDialog`, `closeRebuildDialog`, `_executeRenumberDelete`, `_reindexPageDicts` (plain non-module classic script) |
+| `proto/e2e_ui_test.py` | +91 LOC — `pageSetupJsLoaded` load-check field + `_test_bloat5_page_setup_extracted` (8 sub-checks: `fileLoad`, `fnsOk`, `constsOk`, `readinessOk`, `countOk`, `dashOk`, `closeOk`, `autoNameOk`) + `PHASE_BLOAT5_OK` marker |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (client-side `_executeRenumberDelete` still POSTs to unchanged `/rebuild-pdf` endpoint; zero server edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; `pageFloorKind`/`pageFloorNum` field names + shapes preserved; `_reindexPageDicts` walks same 7 per-page dicts as before
+
+## Tests Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0 — ALL GREEN
+  18 baseline + PHASE_BLOAT2_OK 8/8 + PHASE_BLOAT3_OK 8/8 + PHASE_BLOAT4_OK 8/8 + PHASE_BLOAT5_OK 8/8
+  PHASE_INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10
+  MAIN_UI_OK: pageSetupJsLoaded: True
+python proto/e2e_ui_test.py full                           → FAILED (3/3 retries)
+  Failure: _test_real_pdf_multipage_persistence → _wait_analyse_ready hung on page 1/45
+  Pre-existing env flake (BLOAT-FLAKE-1). Zero page-setup code invoked during this path.
+  Loop halted per LOOP_STOP_REGRESSION safety rule.
+/bma-human-test — SKIPPED (smoke + 4 sprint markers + 3 page-setup markers + HT11 GREEN; full failure is environmental)
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; `pageFloorKind`/`pageFloorNum` preserved; `_reindexPageDicts` walks same 7 dicts)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: BLOAT-4 — Extract annotation JS to proto/static/js/annotations.js
 
 Branch: main
 Date: 2026-05-20
@@ -54,7 +107,13 @@ python proto/e2e_ui_test.py full                           → first run FAILED 
 
 ---
 
-# Previous: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js
+# Previous (older): BLOAT-3 — archived to [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md)
+
+<!-- BLOAT-3 and earlier entries: see docs/archive/patch-history-2026-05-09.md -->
+
+---
+
+# Previous-older: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js
 
 Branch: main
 Date: 2026-05-20

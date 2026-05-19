@@ -439,6 +439,7 @@ def _test_main_measurement_ui_cleanup(page):
                 statusBarJsLoaded: typeof updateBottomBar === "function" && typeof updateModeLabel === "function" && typeof _markSaved === "function" && typeof MODE_BASE_LABELS !== "undefined",
                 exportSaveJsLoaded: typeof exportJSON === "function" && typeof saveProject === "function" && typeof _makeProjBlob === "function" && typeof buildRows === "function" && typeof COL_PAGE !== "undefined" && typeof TYPE_AREA !== "undefined",
                 annotationsJsLoaded: typeof addAnnotation === "function" && typeof drawAnnotations === "function" && typeof annotationHitTest === "function" && typeof deleteAnnotation === "function" && typeof openAnnotationEditModal === "function" && typeof renderStickyCards === "function" && typeof _annColor === "function",
+                pageSetupJsLoaded: typeof autoNamePage === "function" && typeof setPageFloorKind === "function" && typeof _renderSetupDashboard === "function" && typeof _renderSetupPageCard === "function" && typeof _pageReadiness === "function" && typeof _openRenumberDialog === "function" && typeof _reindexPageDicts === "function" && typeof FLOOR_KIND_LABELS !== "undefined" && typeof FLOOR_KIND_OPTIONS !== "undefined",
                 canvasTopBarVisible: isVisible(canvasTopBar),
                 canvasTopBarInsideWorkspace: !!document.querySelector("#workspace #canvas-top-bar"),
                 canvasTopBarNotBlockingCanvas: getComputedStyle(canvasTopBar).pointerEvents === "none",
@@ -596,6 +597,8 @@ def _test_main_measurement_ui_cleanup(page):
         raise AssertionError(f"export-save.js may not have loaded (BLOAT-3): {result}")
     if not result.get("annotationsJsLoaded"):
         raise AssertionError(f"annotations.js may not have loaded (BLOAT-4): {result}")
+    if not result.get("pageSetupJsLoaded"):
+        raise AssertionError(f"page-setup.js may not have loaded (BLOAT-5): {result}")
     if not result.get("canvasTopBarVisible") or not result.get("canvasTopBarInsideWorkspace"):
         raise AssertionError(f"canvas top info bar is not visible inside #workspace: {result}")
     if not result.get("canvasTopBarNotBlockingCanvas"):
@@ -7535,6 +7538,92 @@ def _test_ht4_name_panel_dismissal(page):
     return {**result, "all": True}
 
 
+def _test_bloat5_page_setup_extracted(page):
+    """BLOAT-5 acceptance — page-setup modal helpers live in
+    /static/js/page-setup.js and still work after extraction.
+
+    Sub-checks:
+      1. /static/js/page-setup.js HTTP 200 + contains key fn defs
+      2. All key extracted functions defined globally
+      3. FLOOR_KIND_LABELS + FLOOR_KIND_OPTIONS defined with right shape
+      4. _pageReadiness(curPage) returns one of gray/red/amber/green
+      5. _setupCountObjects(curPage) returns Number
+      6. _renderSetupDashboard() returns non-empty HTML string
+      7. closeRebuildDialog doesn't throw
+      8. autoNamePage callable on a fresh page
+    """
+    js_text = page.evaluate("""async () => {
+        const r = await fetch('/static/js/page-setup.js');
+        return { status: r.status, body: await r.text() };
+    }""")
+    body = js_text.get("body", "")
+    fileLoad = (
+        js_text.get("status") == 200
+        and "function autoNamePage" in body
+        and "function _renderSetupDashboard" in body
+        and "function _executeRenumberDelete" in body
+        and "function _reindexPageDicts" in body
+    )
+
+    result = page.evaluate("""() => {
+        const fnsOk = typeof autoNamePage === 'function'
+                   && typeof countTagBefore === 'function'
+                   && typeof setPageFloorKind === 'function'
+                   && typeof setPageFloorNum === 'function'
+                   && typeof selectSetupPage === 'function'
+                   && typeof _pageReadiness === 'function'
+                   && typeof _setupCountObjects === 'function'
+                   && typeof _renderSetupDashboard === 'function'
+                   && typeof _renderSetupPageCard === 'function'
+                   && typeof _setupBack === 'function'
+                   && typeof _renderSetupInspector === 'function'
+                   && typeof _openRenumberDialog === 'function'
+                   && typeof closeRebuildDialog === 'function'
+                   && typeof _executeRenumberDelete === 'function'
+                   && typeof _reindexPageDicts === 'function';
+
+        const constsOk = typeof FLOOR_KIND_LABELS !== 'undefined'
+                      && typeof FLOOR_KIND_OPTIONS !== 'undefined'
+                      && FLOOR_KIND_LABELS.basement === 'ชั้นใต้ดิน'
+                      && FLOOR_KIND_LABELS.normal === 'ชั้น'
+                      && Array.isArray(FLOOR_KIND_OPTIONS)
+                      && FLOOR_KIND_OPTIONS.length === 6;
+
+        // _pageReadiness — one of gray/red/amber/green for curPage
+        const ready = _pageReadiness(curPage);
+        const readinessOk = ['gray','red','amber','green'].includes(ready);
+
+        // _setupCountObjects — Number for curPage
+        const cnt = _setupCountObjects(curPage);
+        const countOk = typeof cnt === 'number' && cnt >= 0;
+
+        // _renderSetupDashboard — non-empty HTML string
+        const html = _renderSetupDashboard();
+        const dashOk = typeof html === 'string' && html.length > 50 && html.includes('Project Readiness');
+
+        // closeRebuildDialog — must not throw even if overlay not open
+        let closeOk = false;
+        try { closeRebuildDialog(); closeOk = true; } catch(e) {}
+
+        // autoNamePage callable — test on a dummy never-tagged scratch page index 99999
+        let autoNameOk = false;
+        try {
+            autoNamePage(99999, 'plan', false);
+            autoNameOk = true;
+            // cleanup
+            delete pageNames[99999];
+        } catch(e) { autoNameOk = false; }
+
+        return { fnsOk, constsOk, readinessOk, countOk, dashOk, closeOk, autoNameOk };
+    }""")
+
+    out = {"fileLoad": fileLoad, **result, "all": True}
+    failed = [k for k, v in out.items() if k != "all" and v is not True]
+    if failed:
+        raise AssertionError(f"BLOAT-5 page-setup extraction failed: {failed} — got {out}")
+    return out
+
+
 def _test_bloat4_annotations_extracted(page):
     """BLOAT-4 acceptance — annotation helpers live in
     /static/js/annotations.js and still work after extraction.
@@ -8226,6 +8315,7 @@ def main():
             bloat2_status_bar = _test_bloat2_status_bar_extracted(page)
             bloat3_export_save = _test_bloat3_export_save_extracted(page)
             bloat4_annotations = _test_bloat4_annotations_extracted(page)
+            bloat5_page_setup = _test_bloat5_page_setup_extracted(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
             ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
@@ -8352,6 +8442,7 @@ def main():
         print("PHASE_BLOAT2_OK", bloat2_status_bar)
         print("PHASE_BLOAT3_OK", bloat3_export_save)
         print("PHASE_BLOAT4_OK", bloat4_annotations)
+        print("PHASE_BLOAT5_OK", bloat5_page_setup)
         if mode == "full":
             print("ANNOT_OK", annotated)
             print("PERSIST_OK", real_persist)

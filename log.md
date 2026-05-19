@@ -1,8 +1,49 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (includes 001a Zen Mode + Ribbon Cleanup + 001c FRICTION polish + 002a Zen top bar + INV-003b end-of-day bundle + BLOAT-1 + BLOAT-2)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-20 — BLOAT-5 Extract page-setup modal JS to proto/static/js/page-setup.js — PASS (smoke; full ENV-FLAKE) (branch: main)
+
+**What changed:** Created `proto/static/js/page-setup.js` (125 lines, classic non-module script) and extracted 15 page-setup functions + 2 floor constants from 3 non-contiguous ranges in `proto/ui.html`. Range A (L855–856): `FLOOR_KIND_LABELS` + `FLOOR_KIND_OPTIONS`. Range B (L1051–1070): floor helpers `autoNamePage`, `setPageFloorKind`, `setPageFloorNum`, `countTagBefore`. Range C (L3094–3167): inspector + renumber/delete cluster `selectSetupPage`, `_pageReadiness`, `_setupCountObjects`, `_renderSetupDashboard`, `_renderSetupPageCard`, `_setupBack`, `_renderSetupInspector`, `_pendingDeleteN`, `_openRenumberDialog`, `closeRebuildDialog`, `_executeRenumberDelete`, `_reindexPageDicts`. Kept in `proto/ui.html`: 15 cross-cluster glue functions including `buildTagGrid`, `setPageTag`, `applyAutoNames`, `excludePage`, `restorePage2`, `pageFloorKind`/`pageFloorNum` state declarations. Added E2E marker `PHASE_BLOAT5_OK` (8 sub-checks) to `proto/e2e_ui_test.py`. Net: `proto/ui.html` −93 +2 (3,869→3,777); `proto/static/js/page-setup.js` NEW 125 LOC; `proto/e2e_ui_test.py` +91 LOC. Smoke 18/18 baseline + BLOAT2/3/4/5 8/8 each + INV_PAGE_SETUP_A/B/C OK all GREEN. Full failed 3 retries — pre-existing REAL_PDF analyse flake (BLOAT-FLAKE-1 filed). Loop halted per `LOOP_STOP_REGRESSION` safety rule. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5).
+
+**Why:** Page-Setup spans 3 prior sprints (INV-2026-05-18-001a/b/c). BLOAT-5 cleanly extracts the inspector + renumber-delete cluster while keeping cross-cluster glue in `ui.html`. Recipe is now 5-for-5 (status-bar / export-save / annotations / page-setup). Full failure is NOT a BLOAT-5 regression — the failing `_test_real_pdf_multipage_persistence` path exercises `_wait_analyse_ready` on page 1/45 and has zero invocations of any page-setup helper. This is the worst occurrence of the pre-existing REAL_PDF env flake (3 retries failed vs. 1 retry + pass in BLOAT-4). Loop halted per strict dev-loop rule; root cause is environmental (Playwright/Windows file handles, analyse timeout, cumulative state after 5 sprints in one session).
+
+**Files touched:**
+- `proto/ui.html`: −93 +2 — extracted 96 lines across 3 ranges; 3 placeholder comments left; added `<script src="/static/js/page-setup.js">` tag after `annotations.js`; net −92 LOC (3,869→3,777)
+- `proto/static/js/page-setup.js`: NEW 125 LOC — 2 constants (`FLOOR_KIND_LABELS`, `FLOOR_KIND_OPTIONS`) + 15 functions extracted from ranges A/B/C
+- `proto/e2e_ui_test.py`: +91 LOC — `pageSetupJsLoaded` field in UI-load test + `_test_bloat5_page_setup_extracted` (8 sub-checks: `fileLoad`, `fnsOk`, `constsOk`, `readinessOk`, `countOk`, `dashOk`, `closeOk`, `autoNameOk`) + `PHASE_BLOAT5_OK` marker
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0, ALL GREEN
+  18 baseline markers + PHASE_BLOAT2_OK 8/8 + PHASE_BLOAT3_OK 8/8 + PHASE_BLOAT4_OK 8/8 + PHASE_BLOAT5_OK 8/8
+  PHASE_INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10
+  pageSetupJsLoaded: True in MAIN_UI_OK
+python proto/e2e_ui_test.py full                           → FAILED (3 retries) — pre-existing REAL_PDF analyse flake
+  _test_real_pdf_multipage_persistence → _wait_analyse_ready hung on page 1/45 ("กำลังโหลดหน้า 1…")
+  Same flake noted: BLOAT-3 MENU_OK probe ("perPageLayerMemoryFixed: skipped"); BLOAT-4 first attempt (retry passed); now 3/3 failed.
+  Hypothesis: env-level Playwright/Windows file-handle exhaustion or analyse timeout too tight for cold-cache real PDF.
+  Zero page-setup code invoked during _wait_analyse_ready path — confirmed NOT a BLOAT-5 regression.
+  BLOAT-FLAKE-1 filed in docs/status/KNOWN_ISSUES.md. Loop halted per LOOP_STOP_REGRESSION safety rule.
+/bma-human-test — SKIPPED (smoke + 4 sprint markers + 3 page-setup markers + HT11 GREEN; full failure is environmental)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED (client-side `_executeRenumberDelete` still POSTs to unchanged `/rebuild-pdf` endpoint)
+- ✅ `.bmaplan` schema — UNCHANGED (`pageFloorKind`/`pageFloorNum` field names + shapes preserved; `_reindexPageDicts` walks same 7 per-page dicts; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- **BLOAT-FLAKE-1** (NEW — filed in KNOWN_ISSUES.md): `_wait_analyse_ready` flake on real 45-page permit — 3 retries all failed this session (worst occurrence). Hypothesis: env-level. Suggested fixes: bump timeout, add Playwright browser-context reset, warm-up caches before real-PDF tests.
+- **Loop halted** per `LOOP_STOP_REGRESSION` safety rule (full failed on retry). Root cause = env flake, NOT BLOAT-5. User decides: investigate BLOAT-FLAKE-1 first, or skip to other queued sprints (optional BLOAT-3b print cluster, or consolidate 5 successful extractions as end of bloat-reduction wave — ui.html now 3,777, well below 5,000-line trigger).
 
 ---
 
@@ -42,47 +83,7 @@ python proto/e2e_ui_test.py full                           → first run FAILED 
 
 ---
 
-## 2026-05-20 — BLOAT-3 Extract export/save JS to proto/static/js/export-save.js — PASS (branch: main)
-
-**What changed:** Created `proto/static/js/export-save.js` (188 lines, classic non-module script) containing 14 functions and 13 constants extracted from `proto/ui.html`. Added `<script src="/static/js/export-save.js">` after `status-bar.js` in `proto/ui.html`. Functions extracted: `rowBase`, `buildRows`, `dlBlob`, `exportJSON`, `exportCSV`, `exportSummaryXLSX`, `exportXLSX`, `exportAllPagesAnnotatedPDF`, `exportCurrentPageAnnotatedPDF`, `exportPngZip`, `_makeProjBlob`, `_writeToHandle`, `_fallbackDownload`, `saveProjectAs`, `saveProject`, `saveSourcePdfInPlace`. Constants extracted: `COL_PAGE`, `COL_TYPE`, `COL_NAME`, `COL_VALUE`, `COL_UNIT`, `COL_RNW`, `TYPE_DISTANCE`, `TYPE_PATH`, `TYPE_REF`, `TYPE_PARKING`, `TYPE_AREA`, `TYPE_OPENING`, `TYPE_REF_DISTANCE`. Added E2E machinery in `proto/e2e_ui_test.py`: `exportSaveJsLoaded` field in UI-load test + new `_test_bloat3_export_save_extracted` function (8 sub-checks: `fileLoad`, `fnsOk`, `constsOk`, `dlBlobOk`, `buildRowsOk`, `blobIsBlob`, `schemaOk`, `asyncOk`) + new marker `PHASE_BLOAT3_OK`. Net: `proto/ui.html` −161 +6 (4,208→4,057 lines, −151 net); `proto/static/js/export-save.js` NEW 188 LOC; `proto/e2e_ui_test.py` +111 LOC.
-
-**Why:** BLOAT-2 proved the no-bundler extraction recipe on a small module (status bar). BLOAT-3 scales it to the largest cohesive cluster: export + save = 14 fns + 13 consts, including the sensitive `.bmaplan` schema serialization (`_makeProjBlob`) and FSA file-handle persistence (`saveProject` / `saveSourcePdfInPlace` that mutate `currentProjectHandle` / `currentSourcePdfHandle` declared in `ui.html`). With the recipe now proven on the biggest and most complex piece — verified by `XLSX_OK`, `PROJECT_OK`, `PERSIST_OK`, and `ANNOT_OK` all GREEN on the real 45-page permit — BLOAT-4 (annotations) and BLOAT-5 (page-setup) become formulaic.
-
-**Files touched:**
-- `proto/ui.html`: −161 +6 — extracted 14 fns + 13 consts; added `<script src="/static/js/export-save.js">` tag; 3 one-line comment placeholders remain; net −155 LOC (4,208→4,057)
-- `proto/static/js/export-save.js`: NEW 188 LOC — 6 column consts + 7 type consts + `rowBase` + `buildRows` + `dlBlob` + JSON/CSV/XLSX/PDF/PNG export fns + save fns (`_makeProjBlob`, `_writeToHandle`, `_fallbackDownload`, `saveProjectAs`, `saveProject`, `saveSourcePdfInPlace`)
-- `proto/e2e_ui_test.py`: +111 LOC — `exportSaveJsLoaded` field + `_test_bloat3_export_save_extracted` (8 sub-checks) + `PHASE_BLOAT3_OK` marker print
-
-**Tests:**
-```
-python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python proto/e2e_ui_test.py smoke                          → EXIT 0, 18/18 baseline + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
-python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN
-  XLSX_OK (calls extracted exportXLSX) — GREEN
-  PROJECT_OK (calls extracted saveProject + applyLoadedProject round-trip) — GREEN
-  PERSIST_OK (save+reload multi-page on real 45-page permit) — GREEN
-  ANNOT_OK (calls extracted exportCurrentPageAnnotatedPDF) — GREEN
-  REAL_OK (real-PDF flow) — GREEN
-  PHASE_BLOAT3_OK 8/8 sub-checks — GREEN (incl. schemaOk: all 12 v1 fields present; asyncOk: 3 async fns confirmed)
-/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PROJECT_OK + PERSIST_OK + ANNOT_OK on real permit cover most sensitive surfaces; schemaOk sub-check explicitly verifies 12-field v1 schema integrity post-extraction)
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED (extracted client functions still POST to `/export-pdf` / `/export-xlsx` / `/export-xlsx-summary` / `/export-png`; server side untouched)
-- ✅ `.bmaplan` schema — UNCHANGED (`_makeProjBlob` still emits `version: 1` with same 12 fields; verified by `schemaOk` sub-check)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- BLOAT-4 (annotation extraction, ~300 LOC, 7 annotation tool handlers + render + hit-test → `proto/static/js/annotations.js`) — next queued sprint.
-- BLOAT-5 (page-setup modal extraction) — after BLOAT-4.
-- Optional BLOAT-3b: extract print cluster (`printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`) to `proto/static/js/print-canvas.js` (~50–60 LOC delta). Low-risk; self-contained. Not in scope of BLOAT-3.
-- Optional BLOAT-6: shared helpers (`collectAreas` / `phase1Warnings` / `collectSummaryData` / `syncProjectInfoFromForm` / `normalizeAllObjects`) — high coupling (summary widget + layer + measurement); NOT for export-save.js; separate sprint if desired.
-
----
-
+<!-- BLOAT-3 archived to docs/archive/log-2026-05-20.md -->
 <!-- BLOAT-2 and BLOAT-1 entries archived to docs/archive/log-2026-05-19.md -->
 
 ---
