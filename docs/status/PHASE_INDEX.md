@@ -195,7 +195,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Invent artifact: docs/invent/post-it-page-notes.md
     - Sandbox: proto/sandbox/invent-post-it-page-notes.html
 
-#### INV-2026-05-19-005 — Sticky-note (post-it) annotations — `queued` (invent done 789ee6b)
+#### INV-2026-05-19-005 — Sticky-note (post-it) annotations — `done 7c4f96a` 2026-05-19 (invent 789ee6b → impl 7c4f96a)
 
 - **scope skill:** `/bma-ui-scope` (UI region: canvas overlay + annotate ribbon — additive, no measurement-math touch)
 - **depends-on:** none (additive — existing 7 annotation types unaffected)
