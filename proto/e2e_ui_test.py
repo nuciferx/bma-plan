@@ -4583,6 +4583,63 @@ def _test_inv_overview_mode(page):
     return {**checks, "all": True}
 
 
+def _test_ht18_pushundo_leaks(page):
+    """HT-18a: verify pushUndo() is called on mutations that previously leaked
+    (caused save-state out of sync with canvas — user thinks saved but no isDirty).
+
+    7 sub-checks. Each: reset isDirty to false → invoke mutation → check isDirty=true.
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // Reset isDirty before each check
+        function reset(){ isDirty = false; }
+        // 1. toggleScaleLine
+        reset(); toggleScaleLine();
+        r.toggleScaleLineSetsDirty = isDirty === true;
+        // 2. hideLayer
+        reset();
+        try{ hideLayer('measurement'); r.hideLayerSetsDirty = isDirty === true; }
+        catch(e){ r.hideLayerSetsDirty = false; r.hideLayerErr = String(e); }
+        // 3. showLayer
+        reset();
+        try{ showLayer('measurement'); r.showLayerSetsDirty = isDirty === true; }
+        catch(e){ r.showLayerSetsDirty = false; }
+        // 4. lockLayer
+        reset();
+        try{ lockLayer('measurement'); r.lockLayerSetsDirty = isDirty === true; }
+        catch(e){ r.lockLayerSetsDirty = false; }
+        // 5. unlockLayer
+        reset();
+        try{ unlockLayer('measurement'); r.unlockLayerSetsDirty = isDirty === true; }
+        catch(e){ r.unlockLayerSetsDirty = false; }
+        // 6. soloLayer
+        reset();
+        try{ soloLayer('measurement'); r.soloLayerSetsDirty = isDirty === true; }
+        catch(e){ r.soloLayerSetsDirty = false; }
+        // 7. applyLandEdgeTag — requires a land poly + landEdgeState set; skip via reset+check function exists
+        // We verify the function source contains pushUndo() rather than triggering it (requires UI setup)
+        const src = applyLandEdgeTag.toString();
+        r.applyLandEdgeTagHasPushUndo = src.includes('pushUndo');
+        return r;
+    }""")
+    checks = {
+        "toggleScaleLineSetsDirty": probe.get("toggleScaleLineSetsDirty") is True,
+        "hideLayerSetsDirty": probe.get("hideLayerSetsDirty") is True,
+        "showLayerSetsDirty": probe.get("showLayerSetsDirty") is True,
+        "lockLayerSetsDirty": probe.get("lockLayerSetsDirty") is True,
+        "unlockLayerSetsDirty": probe.get("unlockLayerSetsDirty") is True,
+        "soloLayerSetsDirty": probe.get("soloLayerSetsDirty") is True,
+        "applyLandEdgeTagHasPushUndo": probe.get("applyLandEdgeTagHasPushUndo") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_page_setup_a(page):
     """INV-2026-05-18-001a: Page Setup context-sensitive inspector + traffic-light chips.
 
@@ -6923,6 +6980,7 @@ def main():
             inv_polish_001c = _test_inv_polish_001c(page)
             inv_zen_v2_topbar = _test_inv_zen_v2_topbar(page)
             inv_overview_mode = _test_inv_overview_mode(page)
+            ht18_pushundo = _test_ht18_pushundo_leaks(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -7009,6 +7067,7 @@ def main():
         print("PHASE_INV_POLISH_001C_OK", inv_polish_001c)
         print("PHASE_INV_ZEN_V2_OK", inv_zen_v2_topbar)
         print("PHASE_INV_OVERVIEW_OK", inv_overview_mode)
+        print("PHASE_HT18_OK", ht18_pushundo)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)
