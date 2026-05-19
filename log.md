@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-05-20 — BLOAT-2 Extract status-bar JS to proto/static/js/status-bar.js — PASS (branch: main)
+
+**What changed:** Created `proto/static/js/status-bar.js` (49 LOC, plain non-module classic script) containing 8 functions (`updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar`, `updateModeLabel`, `_markSaved`, `_setDirty`) and 2 constants (`MODE_BASE_LABELS`, `SITE_TAG_THAI_LABELS`) extracted from `proto/ui.html`. Added `<script src="/static/js/status-bar.js"></script>` in `proto/ui.html` (line 822) between `opening-parent.js` and the main inline `<script>` block. Removed the extracted code from `proto/ui.html`'s inline `<script>` (replaced with 3 one-line comment placeholders). Added new E2E machinery in `proto/e2e_ui_test.py`: `statusBarJsLoaded` field in the main UI-load test (asserts all 8 globals are defined) + new function `_test_bloat2_status_bar_extracted` with 8 sub-checks + new marker `PHASE_BLOAT2_OK`. Net delta: `proto/ui.html` −29 +6 (4,231→4,208 lines), `proto/static/js/status-bar.js` NEW 49 LOC, `proto/e2e_ui_test.py` +95 LOC.
+
+**Why:** BLOAT-1 added the consolidation trigger rule (CLAUDE.md, 2026-05-19) — discipline only, no proof the extraction pattern works for non-trivial cases. BLOAT-2 executes the recipe on the smallest cohesive module (status bar) and demonstrates: (a) cross-script `let`/`const` binding access works in classic non-module scripts, (b) save/load round-trip survives (`PERSIST_OK` GREEN on real 45-page permit proves `_setDirty`/`_markSaved` extraction safe), (c) `_setDirty`/`_markSaved` written from the external file correctly mutate the `let isDirty=false` binding declared in ui.html. With recipe proven, BLOAT-3 (export-save, ~400–500 LOC) and BLOAT-4..5 unblocked.
+
+**Files touched:**
+- `proto/ui.html`: −29 +6 — removed 8 fns + 2 consts from inline `<script>`; added `<script src="/static/js/status-bar.js">` tag; 3 one-line comment placeholders remain
+- `proto/static/js/status-bar.js`: NEW 49 LOC — `updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar`, `MODE_BASE_LABELS`, `SITE_TAG_THAI_LABELS`, `updateModeLabel`, `_markSaved`, `_setDirty`
+- `proto/e2e_ui_test.py`: +95 LOC — `statusBarJsLoaded` field + `_test_bloat2_status_bar_extracted` (8 sub-checks) + `PHASE_BLOAT2_OK` marker print
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0, 18/18 baseline markers + PHASE_BLOAT2_OK GREEN
+python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 markers + PHASE_BLOAT2_OK GREEN
+  (incl. PERSIST_OK save/load round-trip on real 45-page permit — proves _setDirty/_markSaved extraction safe)
+/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PERSIST_OK on real permit covers the most sensitive surface)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED (zero edits this sprint)
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; no field rename or removal)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- BLOAT-3 (export-save extraction, ~400–500 LOC delta: `saveProject`/`saveProjectAs`/`exportCSV`/`exportJSON`/`exportXLSX`/`exportPngZip`/`saveSourcePdfInPlace`/`_makeProjBlob`/`_writeToHandle`/`_fallbackDownload` → `proto/static/js/export-save.js`) — next queued sprint, depends-on BLOAT-2 (now satisfied).
+- BLOAT-4 (annotations) + BLOAT-5 (page-setup) unblocked once BLOAT-3 ships.
+- `_fallbackDownload` deliberately left in ui.html (part of save-flow chain; moving it would expand scope to BLOAT-3 territory).
+
+---
+
 ## 2026-05-19 — BLOAT-1 CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only) — DOCS-ONLY (branch: main)
 
 **What changed:** Corrected stale LOC baselines in `CLAUDE.md` (Architecture section + bma-explorer subagent table) — `proto/ui.html` was recorded as ~1,700 lines but had grown to ~4,230 (+149%); `proto/server.py` was recorded as ~1,370 but had grown to ~1,750. Added a new "Size discipline" paragraph after the architecture block documenting the drift history and a hard rule: if `proto/ui.html` crosses 5,000 lines the next sprint MUST be a consolidation sprint extracting one cohesive JS region to `static/js/<region>.js` (following the existing `semantic-meta.js` / `opening-parent.js` pattern). Inserted BLOAT-1..5 sprint rows into `docs/status/PHASE_INDEX.md` active queue and a `### bloat-audit 2026-05-19` block in the Discovered backlog.

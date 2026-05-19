@@ -1,19 +1,22 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-19 (updated: BLOAT-1 shipped)
+Date: 2026-05-20 (updated: BLOAT-2 shipped)
 
 ## Immediate Next
 
-**BLOAT-1 docs-only sprint shipped. Immediate next sprint is BLOAT-2.**
+**BLOAT-2 shipped. Immediate next sprint is BLOAT-3.**
 
-- **(PRIORITY a) BLOAT-2 — Extract status-bar JS to `static/js/status-bar.js`** — Smallest extractable cohesive JS module in `proto/ui.html`. Proves the no-bundler extraction pattern (following `semantic-meta.js` + `opening-parent.js`). Validated by `bma-status-bar-specialist`. Sprint discipline: start with `/bma-ui-scope` → `/bma-ui-status` chain, end with `/bma-ui-regression`. After BLOAT-2 PASS, BLOAT-3..5 (export-save / annotations / page-setup modules) become eligible in parallel. `/loop /bma-dev-loop` will pick BLOAT-2 automatically on next iteration (it is next `queued` item in `docs/status/PHASE_INDEX.md` after BLOAT-1).
+- **(PRIORITY a) BLOAT-3 — Extract export/save JS to `proto/static/js/export-save.js`** — Largest single module remaining in `proto/ui.html`. Functions to extract: `saveProject`, `saveProjectAs`, `exportCSV`, `exportJSON`, `exportXLSX`, `exportPngZip`, `saveSourcePdfInPlace`, `_makeProjBlob`, `_writeToHandle`, `_fallbackDownload`. Estimated −400 to −500 LOC from ui.html. Pre-flight: `/bma-ui-scope` → `/bma-check-forbidden` (save format unchanged — additive extraction only; `.bmaplan` schema unaffected). Depends-on BLOAT-2 (done). Full test required after (touches save/export path): py_compile + smoke + full. `/loop /bma-dev-loop` will pick BLOAT-3 automatically (it is next `queued` item in `docs/status/PHASE_INDEX.md` after BLOAT-2).
 
-- **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Ports spike preview (`proto/sandbox/invent-f12-overview-mockup-port.html`) into live app. Can run after BLOAT-2 or in parallel if the LOC concern is addressed first.
+- **(b) BLOAT-4 + BLOAT-5** — Annotations extraction and Page-setup extraction. Both unblocked by BLOAT-2. Can run after BLOAT-3 or in parallel if BLOAT-3 ships cleanly.
 
-- **(c) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits, last push before the session). User decision required — do not auto-merge.
+- **(c) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Can run after BLOAT-3 or in parallel.
+
+- **(d) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
 
 ## Recently Done
 
+- **BLOAT-2 — Extract status-bar JS to `proto/static/js/status-bar.js`** — 2026-05-20. PASS. NEW `proto/static/js/status-bar.js` (49 LOC): 8 status-bar functions + 2 constants extracted from `proto/ui.html` inline `<script>`. ui.html 4,231→4,208 lines (−23). smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK GREEN. PERSIST_OK on real 45-page permit confirms save/load integrity. Recipe proven: cross-script `let`/`const` binding access works in classic non-module scripts. BLOAT-3..5 unblocked.
 - **BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule** — 2026-05-19. DOCS-ONLY. Corrected `proto/ui.html` LOC in `CLAUDE.md` (~1,700→~4,230) and `proto/server.py` (~1,370→~1,750). Added Size discipline trigger rule (>5,000 lines → must extract). BLOAT-2..5 queued in PHASE_INDEX.md active queue. py_compile PASS; no E2E.
 - **INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)** — 2026-05-19. NEW `/export-png` POST endpoint in `proto/server.py` (additive). PyMuPDF render per selected page at requested DPI scale. ZIP bundle. Export menu wired. `PHASE_INV_EXPORT_PNG_OK` PASS. full EXIT 0. Commits: `612de96` feat + `7f0300f` docs.
 - **HT-18c — Save/load round-trip 13/13 GREEN** — 2026-05-19. Fixed `_test_ht18b_save_load_round_trip` eq() over-strict comparison + `applyLoadedProject` `_projInfoSnap` restoration bug. `PHASE_HT18B_OK` 13/13 GREEN. **HT-18 series complete.** Commits: `f1b4331` fix + `9297ed4` docs.

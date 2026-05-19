@@ -4,7 +4,34 @@
 
 ---
 
-# Latest: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule — DOCS-ONLY
+# Latest: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js — PASS
+
+**Date:** 2026-05-20
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS. smoke 18/18 + PHASE_BLOAT2_OK GREEN. full 21/21 + PHASE_BLOAT2_OK GREEN. New file `proto/static/js/status-bar.js` (49 LOC) holds the extracted status-bar module. `proto/ui.html` dropped from 4,231 to 4,208 lines (−23). No forbidden surfaces touched. `PERSIST_OK` on real 45-page permit confirms save/load round-trip integrity after the `_setDirty`/`_markSaved` extraction.
+
+## What was delivered
+
+- **`proto/static/js/status-bar.js`** — NEW 49 LOC file containing: `updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar` (L1095–1099 cluster); `MODE_BASE_LABELS` const, `SITE_TAG_THAI_LABELS` const, `updateModeLabel` (L2378–2399 cluster); `_markSaved`, `_setDirty` (L3388/L3390). Plain classic script tag, no bundler needed.
+- **`proto/ui.html`** — `<script src="/static/js/status-bar.js">` tag inserted at line 822 between `opening-parent.js` and the main inline `<script>` block. Extracted code replaced with 3 one-line comment placeholders. Net −23 LOC (4,231→4,208).
+- **`proto/e2e_ui_test.py`** — `statusBarJsLoaded` field in UI-load test; new `_test_bloat2_status_bar_extracted` function (8 sub-checks: fileLoad, fnsOk, constsOk, modeLabelOk, bottomBarOk, setDirtyOk, markSavedOk, crossScriptOk); new `PHASE_BLOAT2_OK` marker.
+- **Recipe proven**: cross-script `let`/`const` binding access works in classic non-module scripts; `_setDirty` from external file correctly mutates `let isDirty=false` declared in ui.html.
+
+## What's next
+
+- **BLOAT-3** — Extract export/save JS (`saveProject` / `saveProjectAs` / `exportCSV` / `exportJSON` / `exportXLSX` / `exportPngZip` / `saveSourcePdfInPlace` / `_makeProjBlob` / `_writeToHandle` / `_fallbackDownload`) to `proto/static/js/export-save.js`. Largest single module; est −400 to −500 LOC from ui.html. Pre-flight: `/bma-ui-scope` → `/bma-check-forbidden` (save format unchanged — additive extraction only). Depends-on BLOAT-2 (now satisfied).
+- BLOAT-4 (annotations) + BLOAT-5 (page-setup) also unblocked; can run after BLOAT-3.
+
+## Position in Plan
+
+Phase 1 complete. BLOAT-2 is the second sprint of the BLOAT maintenance track (BLOAT-1..5). BLOAT-1 added the consolidation trigger rule; BLOAT-2 proves the extraction recipe works on the first non-trivial module (status bar). With the recipe validated, BLOAT-3..5 can proceed. Long-term target: bring `proto/ui.html` back toward ~3,000 lines.
+
+---
+
+# Previous: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule — DOCS-ONLY
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -23,16 +50,15 @@ DOCS-ONLY sprint. No code, tests, or schema changed. Sprint result is PASS by no
 
 ## What's next
 
-- **BLOAT-2** — Extract status-bar JS to `static/js/status-bar.js` (smallest extractable module, proves the no-bundler extraction pattern, validates with `bma-status-bar-specialist`). Preceded by `/bma-ui-scope` → `/bma-ui-status` chain. `/loop /bma-dev-loop` will pick this automatically on next iteration.
-- After BLOAT-2: BLOAT-3..5 (export-save / annotations / page-setup modules) can run in parallel or sequence to bring `proto/ui.html` back toward the ~3,000-line target.
+- After BLOAT-2 (now done): BLOAT-3..5 (export-save / annotations / page-setup modules).
 
 ## Position in Plan
 
-Phase 1 complete. This sprint is the first of the BLOAT series (BLOAT-1..5), which is a maintenance track aimed at reducing `proto/ui.html` file size to maintain developer velocity and browser parse performance. The BLOAT track runs in parallel with any remaining INV/HT items in the active queue. The 5,000-line consolidation trigger rule acts as a self-enforcing guard going forward.
+Phase 1 complete. First sprint of the BLOAT maintenance track (BLOAT-1..5). The 5,000-line consolidation trigger rule acts as a self-enforcing guard going forward.
 
 ---
 
-# Previous: INV-2026-05-19-003b /export-png ZIP endpoint (end-of-day bundle) — PASS
+> Older sprint reports archived to [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md).
 
 **Date:** 2026-05-19
 **Branch:** main

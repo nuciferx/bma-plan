@@ -4,7 +4,45 @@
 
 ---
 
-# Latest: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
+# Latest: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
+
+Branch: main
+Date: 2026-05-20
+
+## Result: PASS — py_compile PASS, smoke 18/18 + PHASE_BLOAT2_OK, full 21/21 + PHASE_BLOAT2_OK GREEN
+
+## Commands
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py smoke                          # EXIT 0 — 18/18 + PHASE_BLOAT2_OK
+python proto/e2e_ui_test.py full                           # EXIT 0 — 21/21 + PHASE_BLOAT2_OK
+```
+
+## New Marker — PHASE_BLOAT2_OK (8 sub-checks)
+
+| Sub-check | Result |
+|---|---|
+| fileLoad (HTTP 200 + file contains expected fn defs) | PASS |
+| fnsOk (all 8 functions defined as typeof === "function") | PASS |
+| constsOk (both consts defined + values correct) | PASS |
+| modeLabelOk (`updateModeLabel("area")` → writes `'วัดพื้นที่ ⬡'` to `#lbl-mode`) | PASS |
+| bottomBarOk (`updateBottomBar()` → writes 4 fields) | PASS |
+| setDirtyOk (`_setDirty()` → flips `isDirty=true` + writes label) | PASS |
+| markSavedOk (`_markSaved()` → flips `isDirty=false` + writes label) | PASS |
+| crossScriptOk (inline ui.html script can read moved `MODE_BASE_LABELS` const) | PASS |
+
+## Baseline Markers Retained (no regression)
+
+All 21 core markers GREEN: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK.
+
+PERSIST_OK on real 45-page permit confirms `_setDirty`/`_markSaved` extraction is safe across a full save/reload cycle.
+
+`/bma-human-test` — SKIPPED. Rationale: mechanical extraction with zero user-visible change; PERSIST_OK on real permit covers the most sensitive surface (_setDirty/_markSaved round-trip).
+
+---
+
+# Previous: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
 
 Branch: main
 Date: 2026-05-19
@@ -34,7 +72,7 @@ Markers: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_O
 
 ---
 
-# Previous: INV-2026-05-19-003b — /export-png ZIP endpoint (end-of-day bundle)
+# Previous (older): INV-2026-05-19-003b — /export-png ZIP endpoint (end-of-day bundle)
 
 Branch: main
 Date: 2026-05-19

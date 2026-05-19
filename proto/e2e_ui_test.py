@@ -436,6 +436,7 @@ def _test_main_measurement_ui_cleanup(page):
                 cssVarLoaded: !!getComputedStyle(document.documentElement).getPropertyValue("--blue").trim(),
                 semanticMetaJsLoaded: typeof AREA_SEMANTIC_TAGS !== "undefined",
                 openingParentJsLoaded: typeof openingProbePoints !== "undefined",
+                statusBarJsLoaded: typeof updateBottomBar === "function" && typeof updateModeLabel === "function" && typeof _markSaved === "function" && typeof MODE_BASE_LABELS !== "undefined",
                 canvasTopBarVisible: isVisible(canvasTopBar),
                 canvasTopBarInsideWorkspace: !!document.querySelector("#workspace #canvas-top-bar"),
                 canvasTopBarNotBlockingCanvas: getComputedStyle(canvasTopBar).pointerEvents === "none",
@@ -587,6 +588,8 @@ def _test_main_measurement_ui_cleanup(page):
         raise AssertionError(f"AREA_SEMANTIC_TAGS undefined: semantic-meta.js may not have loaded: {result}")
     if not result.get("openingParentJsLoaded"):
         raise AssertionError(f"openingProbePoints undefined: opening-parent.js may not have loaded: {result}")
+    if not result.get("statusBarJsLoaded"):
+        raise AssertionError(f"status-bar.js may not have loaded (BLOAT-2): {result}")
     if not result.get("canvasTopBarVisible") or not result.get("canvasTopBarInsideWorkspace"):
         raise AssertionError(f"canvas top info bar is not visible inside #workspace: {result}")
     if not result.get("canvasTopBarNotBlockingCanvas"):
@@ -7526,6 +7529,96 @@ def _test_ht4_name_panel_dismissal(page):
     return {**result, "all": True}
 
 
+def _test_bloat2_status_bar_extracted(page):
+    """BLOAT-2 acceptance — status-bar functions live in /static/js/status-bar.js
+    and still work after extraction. Mirrors the existing semantic-meta.js /
+    opening-parent.js extraction pattern.
+
+    Sub-checks:
+      1. /static/js/status-bar.js HTTP 200 + contains 'function updateBottomBar'
+      2. All 8 extracted functions defined globally
+      3. Both extracted constants defined (MODE_BASE_LABELS, SITE_TAG_THAI_LABELS)
+      4. updateModeLabel('area') writes 'วัดพื้นที่ ⬡' to #lbl-mode
+      5. updateBottomBar() writes object/warning/layer/page labels
+      6. _setDirty() flips isDirty=true + writes '● Unsaved changes' to #lbl-save-state
+      7. _markSaved('overwrite') flips isDirty=false + writes '✓ Saved'
+      8. ui.html inline script can still see the moved const MODE_BASE_LABELS
+    """
+    js_text = page.evaluate("""async () => {
+        const r = await fetch('/static/js/status-bar.js');
+        return { status: r.status, body: await r.text() };
+    }""")
+    fileLoad = js_text.get("status") == 200 and "function updateBottomBar" in js_text.get("body", "") and "function updateModeLabel" in js_text.get("body", "")
+
+    result = page.evaluate("""() => {
+        const fnsOk = typeof updateBottomBar === 'function'
+                   && typeof updateModeLabel === 'function'
+                   && typeof updateAnalyseUI === 'function'
+                   && typeof activeLayerLabel === 'function'
+                   && typeof currentObjectCount === 'function'
+                   && typeof currentWarningCount === 'function'
+                   && typeof _markSaved === 'function'
+                   && typeof _setDirty === 'function';
+
+        const constsOk = typeof MODE_BASE_LABELS !== 'undefined'
+                      && typeof SITE_TAG_THAI_LABELS !== 'undefined'
+                      && MODE_BASE_LABELS.area === 'วัดพื้นที่ ⬡'
+                      && SITE_TAG_THAI_LABELS.building_coverage === 'ปกคลุมอาคาร';
+
+        // Save/restore state
+        const savedMode = mode;
+        const savedDirty = isDirty;
+        const lblMode = document.getElementById('lbl-mode');
+        const lblObj = document.getElementById('lbl-objects');
+        const lblWarn = document.getElementById('lbl-warnings');
+        const lblLayer = document.getElementById('lbl-layer');
+        const lblPage = document.getElementById('bb-page-name');
+        const lblSave = document.getElementById('lbl-save-state');
+        const savedSaveText = lblSave ? lblSave.textContent : '';
+
+        // 4. updateModeLabel still writes to lbl-mode
+        mode = 'area';
+        curSiteSemanticTag = null;
+        updateModeLabel('area');
+        const modeLabelOk = lblMode.textContent === 'วัดพื้นที่ ⬡';
+
+        // 5. updateBottomBar still writes the 4 footer fields
+        updateBottomBar();
+        const bottomBarOk = lblObj.textContent !== '' && lblWarn.textContent !== ''
+                         && lblLayer.textContent !== '' && lblPage.textContent !== '';
+
+        // 6. _setDirty still flips state + writes lbl-save-state
+        // (Use a clean dummy text first so we exercise the rewrite branch.)
+        if (lblSave) lblSave.textContent = '✓ Saved';
+        isDirty = false;
+        _setDirty();
+        const setDirtyOk = isDirty === true
+                         && lblSave
+                         && lblSave.textContent === '● Unsaved changes';
+
+        // 7. _markSaved still flips state + writes label
+        _markSaved('overwrite');
+        const markSavedOk = isDirty === false
+                         && lblSave
+                         && lblSave.textContent === '✓ Saved';
+
+        // 8. Cross-script binding access — inline script can read MODE_BASE_LABELS
+        //    via setMode() which calls updateModeLabel()
+        mode = savedMode;
+        isDirty = savedDirty;
+        if (lblSave) lblSave.textContent = savedSaveText;
+        const crossScriptOk = typeof MODE_BASE_LABELS === 'object' && MODE_BASE_LABELS.pan === 'Pan ✋';
+
+        return { fnsOk, constsOk, modeLabelOk, bottomBarOk, setDirtyOk, markSavedOk, crossScriptOk };
+    }""")
+
+    out = {"fileLoad": fileLoad, **result, "all": True}
+    failed = [k for k, v in out.items() if k != "all" and v is not True]
+    if failed:
+        raise AssertionError(f"BLOAT-2 status-bar extraction failed: {failed} — got {out}")
+    return out
+
+
 def _test_ht3_lbl_mode_site_context(page):
     """HT-3 acceptance — lbl-mode shows site-tag context when site area tool active.
 
@@ -7924,6 +8017,7 @@ def main():
             inv_overview_port = _test_inv_overview_port(page)
             ht8_menu_clarity = _test_ht8_menu_clarity(page)
             inv_sticky_notes = _test_inv_sticky_notes(page)
+            bloat2_status_bar = _test_bloat2_status_bar_extracted(page)
             ht18_pushundo = _test_ht18_pushundo_leaks(page)
             ht18b_round_trip = _test_ht18b_save_load_round_trip(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
@@ -8047,6 +8141,7 @@ def main():
         print("PHASE_HT3_OK", ht3_lbl_mode)
         print("PHASE_HT4_OK", ht4_name_dismiss)
         print("PHASE_HT5_OK", ht5_overflow)
+        print("PHASE_BLOAT2_OK", bloat2_status_bar)
         if mode == "full":
             print("ANNOT_OK", annotated)
             print("PERSIST_OK", real_persist)

@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-19 (updated: BLOAT-1)
+Date: 2026-05-20 (updated: BLOAT-2)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-19 (updated: BLOAT-1)
 
 ## One-Line Status
 
-2026-05-19 — BLOAT-1 docs-only sprint shipped: CLAUDE.md ui.html LOC drift fixed (~1,700→~4,230) + consolidation trigger rule added (>5,000 lines → must extract). BLOAT-2..5 queued.
+2026-05-20 — BLOAT-2 shipped: status-bar JS extracted to /static/js/status-bar.js. ui.html 4231→4208 (-23). smoke + full GREEN + PHASE_BLOAT2_OK. BLOAT-3..5 queued.
 
 ## Latest Sprint
 
+- BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js: PASS (2026-05-20) — NEW status-bar.js 49 LOC (8 fns + 2 consts); ui.html −23 LOC (4231→4208); smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK GREEN; PERSIST_OK on real 45-page permit (proves _setDirty/_markSaved safe). BLOAT-3..5 unblocked.
 - BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule: DOCS-ONLY (2026-05-19) — corrected ui.html ~1700→~4230 + server.py ~1370→~1750 in CLAUDE.md; added Size discipline trigger rule (>5,000 lines → extract); BLOAT-2..5 queued in PHASE_INDEX.md. py_compile PASS; no E2E (docs-only).
 - INV-2026-05-19-003b — /export-png ZIP endpoint (Path C): PASS (2026-05-19) — NEW /export-png server endpoint; PyMuPDF per-page render + ZIP bundle; Export menu wired; PHASE_INV_EXPORT_PNG_OK PASS; full EXIT 0; server.py additive (no existing endpoint modified). Commits: 612de96 + 7f0300f
 - HT-18c — Save/load round-trip 13/13 GREEN: PASS (2026-05-19) — fixed _test_ht18b_save_load_round_trip eq() over-strict comparison + applyLoadedProject _projInfoSnap bug; PHASE_HT18B_OK 13/13; HT-18 series complete. Commits: f1b4331 + 9297ed4
@@ -37,10 +38,11 @@ Date: 2026-05-19 (updated: BLOAT-1)
 
 ```bash
 python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
-python proto/e2e_ui_test.py full                           # PASS EXIT 0 (PHASE_INV_EXPORT_PNG_OK + PHASE_INV_PRINT_CANVAS_OK + PHASE_HT18B_OK 13/13 + PHASE_HT18_OK 36/36 + all 21 core markers GREEN)
+python proto/e2e_ui_test.py smoke                          # PASS EXIT 0 (18/18 + PHASE_BLOAT2_OK)
+python proto/e2e_ui_test.py full                           # PASS EXIT 0 (21/21 + PHASE_BLOAT2_OK; PERSIST_OK on real 45-page permit)
 ```
 
-Last full run: 2026-05-19 (INV-003b bundle; new markers PHASE_INV_EXPORT_PNG_OK + PHASE_INV_PRINT_CANVAS_OK; PHASE_HT18B_OK 13/13; all predecessor markers retained). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last full run: 2026-05-20 (BLOAT-2; new marker PHASE_BLOAT2_OK; all 21 core markers + prior sprint markers retained). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

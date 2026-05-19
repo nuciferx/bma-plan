@@ -4,7 +4,55 @@
 
 ---
 
-# Latest: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
+# Latest: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
+
+Branch: main
+Date: 2026-05-20
+
+## Outcome: PASS — py_compile PASS, smoke 18/18 + PHASE_BLOAT2_OK, full 21/21 + PHASE_BLOAT2_OK GREEN
+
+## Summary
+
+Extracted 8 status-bar functions (`updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar`, `updateModeLabel`, `_markSaved`, `_setDirty`) and 2 constants (`MODE_BASE_LABELS`, `SITE_TAG_THAI_LABELS`) from `proto/ui.html`'s inline `<script>` block into a new file `proto/static/js/status-bar.js` (49 LOC, plain non-module classic script). `proto/ui.html` shrunk from 4,231 to 4,208 lines (−23). Proves the no-bundler extraction recipe: cross-script binding access works; `PERSIST_OK` on real 45-page permit confirms `_setDirty`/`_markSaved` extraction is safe. New E2E marker `PHASE_BLOAT2_OK` added. BLOAT-3..5 are now unblocked.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | −29 +6 — removed 8 fns + 2 consts from inline `<script>`; added `<script src="/static/js/status-bar.js">` tag (line 822); 3 one-line comment placeholders remain |
+| `proto/static/js/status-bar.js` | NEW 49 LOC — 8 status-bar functions + 2 constants (plain non-module classic script) |
+| `proto/e2e_ui_test.py` | +95 LOC — `statusBarJsLoaded` field + `_test_bloat2_status_bar_extracted` (8 sub-checks) + `PHASE_BLOAT2_OK` marker |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — UNCHANGED (zero edits this sprint)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; no field added, renamed, or removed
+
+## Tests Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → EXIT 0, 18/18 + PHASE_BLOAT2_OK GREEN
+python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 + PHASE_BLOAT2_OK GREEN
+  (PERSIST_OK on real 45-page permit — proves _setDirty/_markSaved extraction safe across save/reload)
+/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PERSIST_OK covers most sensitive surface)
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; no field rename or removal)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
 
 Branch: main
 Date: 2026-05-19
@@ -46,7 +94,7 @@ None. Docs-only sprint. `python -m py_compile proto/server.py` → PASS (sanity 
 
 ---
 
-# Previous: INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)
+# Previous (older): INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)
 
 Branch: main
 Date: 2026-05-19
