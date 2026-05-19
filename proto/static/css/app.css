@@ -644,13 +644,17 @@ body.right-collapsed .rp-panel-footer{display:none}
 .sheet-item-meta{display:flex;gap:4px;align-items:center;flex-shrink:0}
 .sheet-page-num{font-size:10px;color:var(--text3);padding:1px 5px;background:var(--surface3);border-radius:3px}
 /* ── INV-2026-05-19-001a · Zen Mode (fullscreen canvas, HUD + minimap replaces panels) ── */
-/* Hide non-canvas chrome when body.zen is set. Menu bar stays (per user spec
-   "เหลือแต่ canva และมีแค่ top เมนู ( เมนูที่จำเป็น )"). */
-body.zen #topbar,
+/* Hide non-canvas chrome when body.zen is set.
+   INV-2026-05-19-002a updated: classic .menu-bar + .canvas-top-bar also hidden
+   (the new #zen-topbar replaces the classic menu-bar; original 001a CSS used
+   the wrong #topbar selector — fixed here). */
+body.zen .menu-bar,
+body.zen #menuBar,
 body.zen .ribbon,
 body.zen .left-panel,
 body.zen .right-panel,
 body.zen .status-bar,
+body.zen .canvas-top-bar,
 body.zen .panel-restore-tab{display:none !important}
 body.zen #app{height:100vh}
 body.zen .main{flex:1}
@@ -739,11 +743,13 @@ body.zen.focus .zen-focus-edge{display:block;pointer-events:auto}
 /* Overview replaces canvas; shares topbar with body.zen. */
 .overview-content{display:none;position:fixed;top:40px;left:0;right:0;bottom:0;background:#0f1115;z-index:1450;overflow-y:auto;padding:24px 36px 40px;font-family:inherit}
 body.overview .overview-content{display:block}
-body.overview #topbar,
+body.overview .menu-bar,
+body.overview #menuBar,
 body.overview .ribbon,
 body.overview .left-panel,
 body.overview .right-panel,
 body.overview .status-bar,
+body.overview .canvas-top-bar,
 body.overview .panel-restore-tab{display:none !important}
 body.overview .canvas-wrap{display:none}
 body.overview .zen-topbar{display:flex}

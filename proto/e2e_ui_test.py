@@ -4455,6 +4455,15 @@ def _test_inv_zen_v2_topbar(page):
         r.hudVisibleInZen = hudVisible;
         r.minimapVisibleInZen = mmVisible;
         r.no001aRegression = hudVisible && mmVisible;
+        // G2. Classic chrome HIDDEN when zen on — fixes 001a's broken #topbar selector
+        // (which never matched the actual .menu-bar / #menuBar element)
+        const menuBar = document.getElementById('menuBar') || document.querySelector('.menu-bar');
+        const canvasTopBar = document.querySelector('.canvas-top-bar');
+        const menuHidden = menuBar ? getComputedStyle(menuBar).display === 'none' : true;
+        const ctbHidden = canvasTopBar ? getComputedStyle(canvasTopBar).display === 'none' : true;
+        r.classicMenuHiddenInZen = menuHidden;
+        r.canvasTopBarHiddenInZen = ctbHidden;
+        r.noClassicChromeOverlap = menuHidden && ctbHidden;
         // H. Palette z-index > topbar z-index
         const tbZ = parseInt(getComputedStyle(tb).zIndex,10) || 0;
         const pal = document.getElementById('cmd-palette');
@@ -4476,6 +4485,7 @@ def _test_inv_zen_v2_topbar(page):
         "v2OnboardingToastShown": probe.get("v2ToastShown") is True and probe.get("zenV2OnboardedFlipped") is True,
         "no001aRegression": probe.get("no001aRegression") is True,
         "paletteAboveTopbar": probe.get("paletteAboveTopbar") is True,
+        "noClassicChromeOverlap": probe.get("noClassicChromeOverlap") is True,
     }
     all_pass = all(checks.values())
     failed = [k for k, v in checks.items() if not v]
