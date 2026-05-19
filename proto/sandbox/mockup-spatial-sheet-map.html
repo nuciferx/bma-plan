@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>BMA-Plan Mockup — Spatial Sheet Map (fullscreen canvas-only)</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;font-family:-apple-system,"Segoe UI","Noto Sans Thai",sans-serif;background:#15171c;color:#e7eaf0;overflow:hidden;}
+
+  /* ─── top menu bar (เมนูจำเป็นเท่านั้น) ─── */
+  .topbar{
+    position:fixed;top:0;left:0;right:0;height:40px;
+    display:flex;align-items:center;padding:0 14px;gap:2px;
+    background:rgba(20,22,28,0.92);backdrop-filter:blur(14px);
+    border-bottom:1px solid #2a2f37;z-index:100;font-size:13px;
+  }
+  .logo{font-weight:700;color:#3b82f6;letter-spacing:0.5px;margin-right:14px;font-size:14px;}
+  .menu-item{padding:7px 12px;border-radius:5px;cursor:pointer;color:#c4c9d4;transition:all 0.12s;}
+  .menu-item:hover{background:#2a2f37;color:#fff;}
+  .spacer{flex:1;}
+  .tool-btn{
+    padding:6px 11px;margin-left:4px;border-radius:5px;cursor:pointer;
+    color:#c4c9d4;font-size:12px;display:flex;align-items:center;gap:6px;
+    border:1px solid transparent;
+  }
+  .tool-btn:hover{background:#2a2f37;color:#fff;}
+  .tool-btn.active{background:#3b82f6;color:#fff;}
+  .kbd{
+    background:#2a2f37;border:1px solid #3a3f47;border-radius:3px;
+    padding:1px 5px;font-size:10px;color:#9ca3af;font-family:'SF Mono',monospace;
+  }
+
+  /* ─── canvas area (whole page = spatial map) ─── */
+  .canvas-area{
+    position:absolute;top:40px;left:0;right:0;bottom:0;
+    overflow:auto;
+    background:
+      radial-gradient(circle at 20% 30%, #1f232b 1px, transparent 1.5px),
+      radial-gradient(circle at 70% 60%, #1f232b 1px, transparent 1.5px),
+      #0f1115;
+    background-size: 32px 32px, 32px 32px;
+  }
+
+  .spatial-map{padding:60px 80px 100px;min-width:max-content;}
+
+  .group-band{margin-bottom:54px;}
+  .group-label{
+    display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    font-size:15px;font-weight:600;
+  }
+  .group-count{font-size:11px;color:#6b7280;font-weight:400;
+    background:#1f232b;padding:2px 8px;border-radius:10px;}
+  .group-grid{display:grid;grid-template-columns:repeat(auto-fit, 180px);gap:16px;}
+
+  /* sheet card */
+  .sheet{
+    width:180px;background:#fff;border:1px solid #2a2f37;
+    border-radius:5px;overflow:hidden;cursor:pointer;
+    transition:all 0.15s ease-out;position:relative;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  }
+  .sheet:hover{
+    transform:translateY(-4px) scale(1.04);
+    box-shadow:0 10px 28px rgba(59,130,246,0.35);
+    border-color:#3b82f6;z-index:10;
+  }
+  .sheet.active{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.35);}
+  .sheet-thumb{
+    width:100%;height:124px;background:#f6f7f9;position:relative;
+    border-bottom:1px solid #e5e7eb;overflow:hidden;
+  }
+  .sheet-meta{padding:7px 9px;color:#1f2937;font-size:11px;background:#fff;}
+  .sheet-num{font-weight:600;color:#374151;}
+  .sheet-name{color:#6b7280;margin-top:2px;font-size:10px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* status chips on each sheet */
+  .chip{
+    position:absolute;top:6px;left:6px;
+    display:flex;gap:4px;align-items:center;
+    background:rgba(255,255,255,0.96);border-radius:10px;
+    padding:2px 7px;font-size:10px;color:#374151;font-weight:600;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;}
+  .dot-green{background:#22c55e;}
+  .dot-amber{background:#f59e0b;}
+  .dot-red{background:#ef4444;}
+  .obj-chip{
+    position:absolute;top:6px;right:6px;
+    background:rgba(59,130,246,0.95);color:#fff;
+    border-radius:10px;padding:2px 7px;font-size:10px;font-weight:600;
+  }
+
+  /* fake architectural drawings inside thumbs */
+  .d-site::before{content:'';position:absolute;inset:14px;
+    border:2px solid #4b5563;background:
+      linear-gradient(135deg,transparent 47%,#cbd5e1 47%,#cbd5e1 53%,transparent 53%);}
+  .d-site::after{content:'';position:absolute;left:30px;top:38px;
+    width:54px;height:42px;border:1.5px solid #1f2937;background:#94a3b8;}
+  .d-plan::before{content:'';position:absolute;left:16px;top:16px;
+    right:16px;bottom:20px;border:2px solid #374151;background:#fff;}
+  .d-plan::after{content:'';position:absolute;left:34px;top:32px;
+    width:46px;height:36px;border:1.5px solid #6b7280;background:#e5e7eb;}
+  .d-plan-2::before{content:'';position:absolute;left:14px;top:14px;
+    right:14px;bottom:18px;border:2px solid #374151;}
+  .d-plan-2::after{content:'';position:absolute;left:30px;top:28px;
+    width:80px;height:50px;border:1.5px solid #6b7280;
+    background:linear-gradient(0deg,#e5e7eb 50%,transparent 50%) 0 0/100% 16px;}
+  .d-elev::before{content:'';position:absolute;left:18px;bottom:24px;
+    right:18px;height:78px;border:1.5px solid #4b5563;
+    background:linear-gradient(to top,#9ca3af 0,#9ca3af 26%,#d1d5db 26%,#d1d5db 100%);}
+  .d-elev::after{content:'';position:absolute;left:28px;top:32px;
+    width:10px;height:80px;background:#cbd5e1;border:1px solid #6b7280;}
+  .d-section::before{content:'';position:absolute;inset:18px;
+    background:repeating-linear-gradient(0deg,#e5e7eb,#e5e7eb 9px,#9ca3af 9px,#9ca3af 11px);
+    border:1.5px solid #4b5563;}
+  .d-detail::before{content:'';position:absolute;left:30px;top:24px;
+    width:70px;height:70px;border-radius:50%;border:2px solid #4b5563;background:#f1f5f9;}
+  .d-detail::after{content:'';position:absolute;left:50px;top:44px;
+    width:30px;height:30px;border:1.5px dashed #6b7280;border-radius:50%;}
+  .d-systems::before{content:'';position:absolute;left:20px;top:20px;
+    right:20px;bottom:20px;
+    background:repeating-linear-gradient(90deg,transparent 0,transparent 10px,#9ca3af 10px,#9ca3af 12px);
+    border:1.5px solid #4b5563;}
+  .d-title::before{content:'';position:absolute;inset:18px;
+    background:linear-gradient(to bottom,#cbd5e1 0,#cbd5e1 38px,transparent 38px,transparent 100%);
+    border:1.5px solid #4b5563;}
+  .d-title::after{content:'';position:absolute;left:30px;top:60px;
+    right:30px;height:36px;
+    background:linear-gradient(to bottom,#9ca3af 0,#9ca3af 3px,transparent 3px,transparent 8px,#9ca3af 8px,#9ca3af 11px,transparent 11px,transparent 16px,#9ca3af 16px,#9ca3af 19px,transparent 19px,transparent 24px,#9ca3af 24px,#9ca3af 27px);}
+
+  /* ─── corner HUDs (replaces status bar) ─── */
+  .hud{
+    position:fixed;
+    background:rgba(15,17,22,0.90);backdrop-filter:blur(10px);
+    border:1px solid #2a2f37;border-radius:6px;
+    padding:8px 12px;font-size:12px;color:#c4c9d4;
+    z-index:50;display:flex;align-items:center;gap:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  }
+  .hud-tl{top:52px;left:14px;}
+  .hud-tr{top:52px;right:14px;}
+  .hud-bl{bottom:14px;left:14px;}
+  .hud-br{bottom:14px;right:14px;}
+  .hud-label{color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;}
+  .hud-value{color:#fff;font-weight:600;}
+  .hud-sep{color:#3a3f47;}
+
+  /* ─── floating mode-toggle bar (bottom-center) ─── */
+  .mode-bar{
+    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+    display:flex;gap:2px;
+    background:rgba(15,17,22,0.92);backdrop-filter:blur(10px);
+    border:1px solid #2a2f37;border-radius:8px;padding:4px;z-index:50;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+  .mode-btn{
+    padding:8px 14px;border-radius:5px;cursor:pointer;
+    color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:6px;
+  }
+  .mode-btn:hover{color:#fff;background:#2a2f37;}
+  .mode-btn.active{background:#3b82f6;color:#fff;}
+
+  /* ─── focus mode (single sheet, fullscreen) ─── */
+  .focus-overlay{
+    display:none;position:fixed;top:40px;left:0;right:0;bottom:0;
+    background:#0f1115;z-index:30;padding:36px;overflow:hidden;
+    align-items:flex-start;justify-content:center;
+  }
+  .focus-overlay.show{display:flex;}
+  .focus-canvas{
+    width:min(92%, 1100px);aspect-ratio:1.414/1;background:#fff;
+    border-radius:4px;box-shadow:0 24px 70px rgba(0,0,0,0.7);
+    position:relative;overflow:hidden;
+  }
+  .focus-canvas .d-plan-2::before{inset:50px;}
+  .focus-canvas .d-plan-2::after{left:90px;top:90px;width:280px;height:180px;}
+  .focus-canvas-label{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:#374151;font-size:18px;font-weight:500;
+    text-align:center;line-height:1.6;
+  }
+  .focus-canvas-label small{color:#9ca3af;font-size:13px;font-weight:400;display:block;margin-top:8px;}
+
+  /* edge peek thumbnails (adjacent page preview) */
+  .peek{
+    position:fixed;top:50%;transform:translateY(-50%);
+    width:54px;height:78px;background:#fff;border-radius:4px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.5);opacity:0.55;cursor:pointer;
+    transition:opacity 0.2s, width 0.2s, height 0.2s;z-index:40;
+    display:none;overflow:hidden;border:1px solid rgba(255,255,255,0.1);
+  }
+  .focus-overlay.show .peek{display:block;}
+  .peek:hover{opacity:1;width:160px;height:115px;}
+  .peek-l{left:14px;}
+  .peek-r{right:14px;}
+  .peek::after{
+    content:attr(data-label);position:absolute;bottom:-22px;
+    left:0;right:0;text-align:center;font-size:10.5px;color:#9ca3af;
+    background:rgba(15,17,22,0.85);border-radius:3px;padding:2px 4px;
+  }
+
+  /* ─── ⌘K palette ─── */
+  .palette{
+    display:none;position:fixed;top:90px;left:50%;transform:translateX(-50%);
+    width:520px;max-width:92vw;
+    background:#1a1d23;border:1px solid #3b82f6;border-radius:10px;
+    box-shadow:0 28px 70px rgba(0,0,0,0.7),0 0 0 5px rgba(59,130,246,0.18);
+    z-index:200;overflow:hidden;
+  }
+  .palette.show{display:block;}
+  .palette-input{
+    width:100%;background:transparent;border:none;outline:none;
+    padding:16px 20px;color:#fff;font-size:15px;
+    border-bottom:1px solid #2a2f37;
+  }
+  .palette-input::placeholder{color:#6b7280;}
+  .palette-results{max-height:360px;overflow-y:auto;}
+  .palette-row{
+    padding:10px 20px;display:flex;align-items:center;gap:12px;
+    cursor:pointer;color:#c4c9d4;font-size:13px;
+    border-bottom:1px solid #1f2329;
+  }
+  .palette-row.sel,.palette-row:hover{background:rgba(59,130,246,0.18);color:#fff;}
+  .palette-row .num{
+    color:#6b7280;font-size:11px;width:32px;
+    background:#1f232b;border-radius:4px;padding:2px 6px;text-align:center;font-family:monospace;
+  }
+  .palette-row .nm{flex:1;}
+  .palette-row .tg{
+    background:#2a2f37;border-radius:10px;padding:2px 8px;
+    font-size:10px;color:#a8b0c0;
+  }
+  .palette-hint{
+    padding:8px 20px;display:flex;gap:12px;color:#6b7280;font-size:10px;
+    background:#15171c;border-top:1px solid #2a2f37;
+  }
+  .palette-hint .kbd{background:#2a2f37;}
+
+  /* annotation banner */
+  .banner{
+    position:fixed;top:54px;left:50%;transform:translateX(-50%);
+    background:rgba(59,130,246,0.18);
+    border:1px solid rgba(59,130,246,0.4);
+    color:#bfdbfe;
+    border-radius:20px;padding:6px 16px;font-size:11.5px;z-index:90;
+    box-shadow:0 2px 12px rgba(59,130,246,0.2);
+  }
+  .banner b{color:#fff;}
+
+  /* group label colors */
+  .group-band.gb-site .group-label{color:#22c55e;}
+  .group-band.gb-plan .group-label{color:#3b82f6;}
+  .group-band.gb-elev .group-label{color:#f59e0b;}
+  .group-band.gb-section .group-label{color:#a855f7;}
+  .group-band.gb-detail .group-label{color:#06b6d4;}
+  .group-band.gb-sys .group-label{color:#ef4444;}
+  .group-band.gb-title .group-label{color:#9ca3af;}
+
+  /* zoom hint near cursor */
+  .ghost-overlay{
+    position:fixed;pointer-events:none;
+    bottom:62px;left:50%;transform:translateX(-50%);
+    color:#6b7280;font-size:11px;z-index:45;
+    display:flex;gap:8px;align-items:center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════ TOP MENU (เมนูจำเป็น 6 รายการ) ════════ -->
+<div class="topbar">
+  <div class="logo">⬡ BMA-Plan</div>
+  <div class="menu-item">📁 File</div>
+  <div class="menu-item">📄 Page</div>
+  <div class="menu-item">📐 Measure</div>
+  <div class="menu-item">📝 Annotate</div>
+  <div class="menu-item">👁 View</div>
+  <div class="menu-item">❓ Help</div>
+  <div class="spacer"></div>
+  <div class="tool-btn" onclick="togglePalette()">🔍 ค้นหาหน้า <span class="kbd">⌘K</span></div>
+  <div class="tool-btn active">🗺 Overview</div>
+  <div class="tool-btn">⛶ Focus <span class="kbd">F</span></div>
+</div>
+
+<!-- ════════ BANNER ════════ -->
+<div class="banner">💡 <b>Mockup — Spatial Sheet Map</b> · 45 หน้าทั้งโครงการบน infinite canvas เดียว · คลิก sheet ใดก็ได้เพื่อ zoom เข้า · กด ⌘K เพื่อค้นหา</div>
+
+<!-- ════════ SPATIAL MAP (overview = ทั้ง 45 หน้า) ════════ -->
+<div class="canvas-area" id="overview">
+  <div class="spatial-map">
+
+    <!-- ─── ผังบริเวณ (1) ─── -->
+    <div class="group-band gb-site">
+      <div class="group-label">🌳 ผังบริเวณ <span class="group-count">1 หน้า</span></div>
+      <div class="group-grid">
+        <div class="sheet active" onclick="enterFocus(1)">
+          <div class="sheet-thumb d-site">
+            <div class="chip"><div class="dot dot-green"></div>พร้อม</div>
+            <div class="obj-chip">12</div>
+          </div>
+          <div class="sheet-meta">
+            <div class="sheet-num">1</div>
+            <div class="sheet-name">A-01 ผังบริเวณ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ปกและสารบัญ (3) ─── -->
+    <div class="group-band gb-title">
+      <div class="group-label">📋 ปก / สารบัญ <span class="group-count">3 หน้า · ยกเว้นจากการวัด</span></div>
+      <div class="group-grid">
+        <div class="sheet" onclick="enterFocus(2)">
+          <div class="sheet-thumb d-title">
+            <div class="chip" style="background:rgba(220,220,220,0.95);"><div class="dot dot-red"></div>ยกเว้น</div>
+          </div>
+          <div class="sheet-meta"><div class="sheet-num">2</div><div class="sheet-name">หน้าปก</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(3)">
+          <div class="sheet-thumb d-title">
+            <div class="chip" style="background:rgba(220,220,220,0.95);"><div class="dot dot-red"></div>ยกเว้น</div>
+          </div>
+          <div class="sheet-meta"><div class="sheet-num">3</div><div class="sheet-name">สารบัญ</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(4)">
+          <div class="sheet-thumb d-title">
+            <div class="chip" style="background:rgba(220,220,220,0.95);"><div class="dot dot-red"></div>ยกเว้น</div>
+          </div>
+          <div class="sheet-meta"><div class="sheet-num">4</div><div class="sheet-name">บันทึกแก้ไข</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ผังพื้น (14: ใต้ดิน + ชั้น1-12 + ดาดฟ้า) ─── -->
+    <div class="group-band gb-plan">
+      <div class="group-label">📐 ผังพื้น <span class="group-count">14 หน้า · ชั้นใต้ดิน → ดาดฟ้า</span></div>
+      <div class="group-grid">
+        <div class="sheet" onclick="enterFocus(5)">
+          <div class="sheet-thumb d-plan"><div class="chip"><div class="dot dot-green"></div>พร้อม</div><div class="obj-chip">8</div></div>
+          <div class="sheet-meta"><div class="sheet-num">5</div><div class="sheet-name">A-10 ชั้นใต้ดิน</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(6)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-green"></div>พร้อม</div><div class="obj-chip">15</div></div>
+          <div class="sheet-meta"><div class="sheet-num">6</div><div class="sheet-name">A-11 ชั้น 1</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(7)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-green"></div>พร้อม</div><div class="obj-chip">14</div></div>
+          <div class="sheet-meta"><div class="sheet-num">7</div><div class="sheet-name">A-12 ชั้น 2</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(8)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-green"></div>พร้อม</div><div class="obj-chip">14</div></div>
+          <div class="sheet-meta"><div class="sheet-num">8</div><div class="sheet-name">A-13 ชั้น 3</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(9)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-amber"></div>ตรวจ scale</div><div class="obj-chip">2</div></div>
+          <div class="sheet-meta"><div class="sheet-num">9</div><div class="sheet-name">A-14 ชั้น 4</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(10)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">10</div><div class="sheet-name">A-15 ชั้น 5</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(11)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">11</div><div class="sheet-name">A-16 ชั้น 6</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(12)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">12</div><div class="sheet-name">A-17 ชั้น 7</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(13)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">13</div><div class="sheet-name">A-18 ชั้น 8</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(14)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">14</div><div class="sheet-name">A-19 ชั้น 9</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(15)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">15</div><div class="sheet-name">A-20 ชั้น 10</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(16)">
+          <div class="sheet-thumb d-plan-2"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">16</div><div class="sheet-name">A-21 ชั้นห้องเครื่อง</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(17)">
+          <div class="sheet-thumb d-plan"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">17</div><div class="sheet-name">A-22 ดาดฟ้า</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(18)">
+          <div class="sheet-thumb d-plan"><div class="chip"><div class="dot dot-amber"></div>auto scale</div></div>
+          <div class="sheet-meta"><div class="sheet-num">18</div><div class="sheet-name">A-23 ผังหลังคา</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── รูปด้าน (4) ─── -->
+    <div class="group-band gb-elev">
+      <div class="group-label">🏢 รูปด้าน <span class="group-count">4 หน้า</span></div>
+      <div class="group-grid">
+        <div class="sheet" onclick="enterFocus(19)">
+          <div class="sheet-thumb d-elev"><div class="chip"><div class="dot dot-green"></div>พร้อม</div><div class="obj-chip">3</div></div>
+          <div class="sheet-meta"><div class="sheet-num">19</div><div class="sheet-name">A-30 รูปด้านทิศเหนือ</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(20)">
+          <div class="sheet-thumb d-elev"><div class="chip"><div class="dot dot-green"></div>พร้อม</div><div class="obj-chip">3</div></div>
+          <div class="sheet-meta"><div class="sheet-num">20</div><div class="sheet-name">A-31 รูปด้านทิศใต้</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(21)">
+          <div class="sheet-thumb d-elev"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">21</div><div class="sheet-name">A-32 รูปด้านทิศตะวันออก</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(22)">
+          <div class="sheet-thumb d-elev"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">22</div><div class="sheet-name">A-33 รูปด้านทิศตะวันตก</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── รูปตัด (3) ─── -->
+    <div class="group-band gb-section">
+      <div class="group-label">✂ รูปตัด <span class="group-count">3 หน้า</span></div>
+      <div class="group-grid">
+        <div class="sheet" onclick="enterFocus(23)">
+          <div class="sheet-thumb d-section"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">23</div><div class="sheet-name">A-40 รูปตัด A-A</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(24)">
+          <div class="sheet-thumb d-section"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">24</div><div class="sheet-name">A-41 รูปตัด B-B</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(25)">
+          <div class="sheet-thumb d-section"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">25</div><div class="sheet-name">A-42 รูปตัด C-C</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── รายละเอียดสถาปัตย์ (8) ─── -->
+    <div class="group-band gb-detail">
+      <div class="group-label">🔧 รายละเอียดสถาปัตย์ <span class="group-count">8 หน้า</span></div>
+      <div class="group-grid">
+        <div class="sheet" onclick="enterFocus(26)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-amber"></div>auto</div></div>
+          <div class="sheet-meta"><div class="sheet-num">26</div><div class="sheet-name">A-50 บันได</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(27)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">27</div><div class="sheet-name">A-51 ลิฟต์</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(28)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">28</div><div class="sheet-name">A-52 ห้องน้ำ</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(29)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">29</div><div class="sheet-name">A-53 ประตู-หน้าต่าง</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(30)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">30</div><div class="sheet-name">A-54 ผนัง</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(31)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">31</div><div class="sheet-name">A-55 พื้น-ฝ้า</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(32)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">32</div><div class="sheet-name">A-56 ราวกันตก</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(33)">
+          <div class="sheet-thumb d-detail"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">33</div><div class="sheet-name">A-57 หลังคา</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── งานระบบ (12) ─── -->
+    <div class="group-band gb-sys">
+      <div class="group-label">⚡ งานระบบ <span class="group-count">12 หน้า · ไฟฟ้า / ประปา / สุขาภิบาล</span></div>
+      <div class="group-grid">
+        <div class="sheet" onclick="enterFocus(34)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">34</div><div class="sheet-name">E-01 ผังไฟฟ้า ชั้น 1</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(35)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">35</div><div class="sheet-name">E-02 ผังไฟฟ้า ชั้น 2-10</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(36)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">36</div><div class="sheet-name">E-03 ผังสายเมน</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(37)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">37</div><div class="sheet-name">E-04 single line</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(38)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">38</div><div class="sheet-name">S-01 ผังประปา</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(39)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">39</div><div class="sheet-name">S-02 ผังท่อน้ำเสีย</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(40)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">40</div><div class="sheet-name">S-03 ผังถังน้ำ</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(41)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">41</div><div class="sheet-name">S-04 ผังบ่อบำบัด</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(42)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">42</div><div class="sheet-name">M-01 ผังเครื่องกล</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(43)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">43</div><div class="sheet-name">M-02 ผังท่อแอร์</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(44)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">44</div><div class="sheet-name">F-01 ผังหนีไฟ</div></div>
+        </div>
+        <div class="sheet" onclick="enterFocus(45)">
+          <div class="sheet-thumb d-systems"><div class="chip"><div class="dot dot-red"></div>ยังไม่วัด</div></div>
+          <div class="sheet-meta"><div class="sheet-num">45</div><div class="sheet-name">F-02 ผังถังดับเพลิง</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════ FOCUS MODE (zoomed into single sheet) ════════ -->
+<div class="focus-overlay" id="focus">
+  <div class="peek peek-l d-plan-2" data-label="← หน้า 5: ชั้นใต้ดิน" onclick="prevPage()"></div>
+  <div class="focus-canvas">
+    <div class="d-plan-2" style="position:absolute;inset:0;"></div>
+    <div class="focus-canvas-label">
+      ⬡ Canvas Measurement Surface
+      <small>หน้า <b id="focus-num">6</b> · <b id="focus-name">A-11 ชั้น 1</b> · เต็มจอ, ไม่มี panel หรือ ribbon รอบข้าง<br>(กด Esc / F / 🗺 Overview เพื่อกลับไปแผนที่)</small>
+    </div>
+  </div>
+  <div class="peek peek-r d-plan-2" data-label="หน้า 7: ชั้น 2 →" onclick="nextPage()"></div>
+</div>
+
+<!-- ════════ CORNER HUDs (replaces 7-field status bar) ════════ -->
+<div class="hud hud-tl">
+  <span><span class="hud-label">Scale</span> <span class="hud-value">1:100</span></span>
+  <span class="hud-sep">·</span>
+  <span><span class="hud-label">Tool</span> <span class="hud-value">⬡ พื้นที่</span></span>
+</div>
+<div class="hud hud-tr">
+  <span><span class="hud-label">Page</span> <span class="hud-value" id="hud-page">1 / 45</span></span>
+</div>
+<div class="hud hud-bl">
+  <span><span class="hud-label">Layer</span> <span class="hud-value">🟦 พื้นที่อาคาร</span></span>
+  <span class="hud-sep">·</span>
+  <span><span class="hud-label">Save</span> <span class="hud-value" style="color:#22c55e">●</span></span>
+</div>
+<div class="hud hud-br">
+  <span><span class="hud-label">Objects</span> <span class="hud-value">87</span></span>
+  <span class="hud-sep">·</span>
+  <span><span class="hud-label">⚠</span> <span class="hud-value" style="color:#f59e0b">2</span></span>
+</div>
+
+<!-- ════════ MODE BAR (overview ⇄ focus toggle) ════════ -->
+<div class="mode-bar">
+  <div class="mode-btn active" id="mb-over" onclick="showOverview()">🗺 Overview · 45 หน้า</div>
+  <div class="mode-btn" id="mb-foc" onclick="enterFocus(6)">⛶ Focus · หน้าเดียว</div>
+  <div class="mode-btn" onclick="togglePalette()">🔍 ⌘K</div>
+</div>
+
+<!-- ════════ ⌘K PALETTE ════════ -->
+<div class="palette" id="palette">
+  <input class="palette-input" placeholder="ค้นหา: หมายเลขหน้า · ชื่อ · แท็ก (เช่น 'ชั้น 3', 'ผังบริเวณ', 'รูปด้าน')" autofocus>
+  <div class="palette-results">
+    <div class="palette-row sel">
+      <div class="num">1</div>
+      <div class="nm">ผังบริเวณ A-01</div>
+      <div class="tg">🌳 ผังบริเวณ</div>
+    </div>
+    <div class="palette-row">
+      <div class="num">6</div>
+      <div class="nm">ชั้น 1 — A-11</div>
+      <div class="tg">📐 ผังพื้น</div>
+    </div>
+    <div class="palette-row">
+      <div class="num">8</div>
+      <div class="nm">ชั้น 3 — A-13</div>
+      <div class="tg">📐 ผังพื้น</div>
+    </div>
+    <div class="palette-row">
+      <div class="num">17</div>
+      <div class="nm">ดาดฟ้า — A-22</div>
+      <div class="tg">📐 ผังพื้น</div>
+    </div>
+    <div class="palette-row">
+      <div class="num">19</div>
+      <div class="nm">รูปด้านทิศเหนือ — A-30</div>
+      <div class="tg">🏢 รูปด้าน</div>
+    </div>
+    <div class="palette-row">
+      <div class="num">26</div>
+      <div class="nm">บันได — A-50</div>
+      <div class="tg">🔧 รายละเอียด</div>
+    </div>
+  </div>
+  <div class="palette-hint">
+    <span><span class="kbd">↑↓</span> เลือก</span>
+    <span><span class="kbd">↵</span> เปิด</span>
+    <span><span class="kbd">esc</span> ปิด</span>
+    <span style="margin-left:auto;">6 ผลลัพธ์ จาก 45 หน้า</span>
+  </div>
+</div>
+
+<script>
+const overview = document.getElementById('overview');
+const focus = document.getElementById('focus');
+const palette = document.getElementById('palette');
+const hudPage = document.getElementById('hud-page');
+const fNum = document.getElementById('focus-num');
+const fName = document.getElementById('focus-name');
+let curPage = 1;
+
+const pages = {};
+document.querySelectorAll('.sheet').forEach(s=>{
+  const n = +s.querySelector('.sheet-num').textContent;
+  const nm = s.querySelector('.sheet-name').textContent;
+  pages[n] = nm;
+});
+
+function enterFocus(n){
+  curPage = n;
+  fNum.textContent = n;
+  fName.textContent = pages[n] || `หน้า ${n}`;
+  hudPage.textContent = `${n} / 45`;
+  focus.classList.add('show');
+  document.getElementById('mb-over').classList.remove('active');
+  document.getElementById('mb-foc').classList.add('active');
+}
+function showOverview(){
+  focus.classList.remove('show');
+  hudPage.textContent = `1 / 45`;
+  document.getElementById('mb-over').classList.add('active');
+  document.getElementById('mb-foc').classList.remove('active');
+}
+function nextPage(){enterFocus(Math.min(45, curPage+1));}
+function prevPage(){enterFocus(Math.max(1, curPage-1));}
+function togglePalette(){palette.classList.toggle('show');
+  if(palette.classList.contains('show')) palette.querySelector('input').focus();
+}
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey) && e.key==='k'){e.preventDefault();togglePalette();}
+  else if(e.key==='Escape'){
+    if(palette.classList.contains('show')) togglePalette();
+    else if(focus.classList.contains('show')) showOverview();
+  }
+  else if(e.key==='f' || e.key==='F'){
+    if(!focus.classList.contains('show')) enterFocus(curPage||1);
+  }
+});
+</script>
+</body>
+</html>
