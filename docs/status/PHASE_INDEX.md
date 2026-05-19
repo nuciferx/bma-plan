@@ -205,7 +205,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **forbidden surfaces touched:** NONE
 - **link:** `docs/invent/zen-mode-v2-topbar.md` (§ Decision: 002a, reshape note added)
 
-#### INV-2026-05-19-002b — F12 Overview standalone (C) — `queued` (depends-on 002a)
+#### INV-2026-05-19-002b — F12 Overview standalone (C) — `done d59a782` (depends-on 002a ✅)
 
 - **scope skill:** `/bma-ui-scope` (UI region: new full-canvas mode + shared top bar from 002a)
 - **depends-on:** **002a** (shares `#zen-topbar` chrome; cannot ship before)
