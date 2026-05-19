@@ -4,7 +4,34 @@
 
 ---
 
-# Latest: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js — PASS
+# Latest: BLOAT-4 — Extract annotation JS to proto/static/js/annotations.js — PASS
+
+**Date:** 2026-05-20
+**Branch:** main
+
+## Outcome
+
+PASS. py_compile PASS. Full retry GREEN: all 22 baseline markers + PHASE_BLOAT4_OK 8/8 + PHASE_INV_STICKY_OK 10/10 + PHASE_HT11_OK 10/10. First full run failed on the known intermittent REAL_PDF analyse flake (page 1/45, unrelated to BLOAT-4); dev-loop one-retry rule applied; retry EXIT 0. No forbidden surfaces touched. No user-visible change. `proto/ui.html` dropped from 4,057 to 3,869 lines (−188 net). Session total across BLOAT-1..4: ui.html 4,231→3,869 (−362 lines).
+
+## What was delivered
+
+- **`proto/static/js/annotations.js`** — NEW 205 LOC: 13 annotation helper functions extracted from `proto/ui.html` (L1680–1869): `ensureAnnotations` (lazy array init), `newAnnotationId` (id factory), `addAnnotation` (append + save + redraw + sticky if applicable), `renderStickyCards` (HTML overlay sync from INV-2026-05-19-005), `_createStickyCard` (DOM builder + drag/edit/delete event wiring), `clearAnnotations` (with confirm), `annotationHitTest` (returns array index at canvas coords for all 7 ann types), `deleteAnnotation` (splice with pushUndo), `openAnnotationEditModal` (HT-11 modal — color picker + textarea + delete button), `closeAnnotationEditModal`, `saveAnnotationEdit` (writes text + color, pushUndo), `_annColor` (default-color helper), `drawAnnotations` (canvas render dispatcher for 7 non-sticky types). Plain classic script tag, no bundler.
+- **`proto/ui.html`** — `<script src="/static/js/annotations.js">` tag added after `export-save.js`. Extracted block replaced with 1 placeholder comment. Net −188 LOC (4,057→3,869). Kept in scope: 7 per-mode mousedown branches (tightly coupled to unified pointer state; call extracted helpers via global scope).
+- **`proto/e2e_ui_test.py`** — `annotationsJsLoaded` field in UI-load test; new `_test_bloat4_annotations_extracted` function (8 sub-checks: `fileLoad`, `fnsOk`, `addOk`, `hitMissOk`, `drawOk`, `stickyOk`, `colorOk`, `clearOk`); new `PHASE_BLOAT4_OK` marker.
+- **Recipe 4-for-4**: status-bar / export-save / annotations all proven in this session. Pattern now includes cross-script DOM-builder helpers (`_createStickyCard`) and event-wiring (sticky drag) — confirms the recipe applies to interactive annotation UI, not just stateless computation.
+
+## What's next
+
+- **BLOAT-5** — Extract page-setup modal JS (`_renderSetupDashboard` / `_renderSetupPageCard` / `_openRenumberDialog` / `_executeRenumberDelete` / `_reindexPageDicts` / floor-kind helpers / setup-inspector switching) to `proto/static/js/page-setup.js`. Est. ~300 LOC delta. Scope skill: `/bma-ui-scope` → `/bma-ui-panel`. Critical markers to preserve: `PHASE_INV_PAGE_SETUP_A_OK` / `_B_OK` / `_C_OK`. Depends-on BLOAT-2 (done) + BLOAT-3 (done).
+- Optional BLOAT-3b: extract print cluster to `proto/static/js/print-canvas.js` (~50–60 LOC delta). Self-contained; low-risk.
+
+## Position in Plan
+
+Phase 1 complete. BLOAT-4 is the fourth sprint of the BLOAT maintenance track (BLOAT-1..5). BLOAT-1 added the discipline rule; BLOAT-2 proved the recipe; BLOAT-3 scaled it to the largest cluster (export+save); BLOAT-4 proves the recipe extends to interactive DOM-builder + event-wiring cases (sticky notes, edit modal). With annotations extracted, BLOAT-5 (page-setup modal) is the final planned extraction. Long-term target: bring `proto/ui.html` toward ~3,500 lines (currently 3,869; −362 from session start).
+
+---
+
+# Previous: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js — PASS
 
 **Date:** 2026-05-20
 **Branch:** main
@@ -32,61 +59,7 @@ Phase 1 complete. BLOAT-3 is the third sprint of the BLOAT maintenance track (BL
 
 ---
 
-# Previous: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js — PASS
-
-**Date:** 2026-05-20
-**Branch:** main
-
-## Outcome
-
-PASS. py_compile PASS. smoke 18/18 + PHASE_BLOAT2_OK GREEN. full 21/21 + PHASE_BLOAT2_OK GREEN. New file `proto/static/js/status-bar.js` (49 LOC) holds the extracted status-bar module. `proto/ui.html` dropped from 4,231 to 4,208 lines (−23). No forbidden surfaces touched. `PERSIST_OK` on real 45-page permit confirms save/load round-trip integrity after the `_setDirty`/`_markSaved` extraction.
-
-## What was delivered
-
-- **`proto/static/js/status-bar.js`** — NEW 49 LOC file containing: `updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar` (L1095–1099 cluster); `MODE_BASE_LABELS` const, `SITE_TAG_THAI_LABELS` const, `updateModeLabel` (L2378–2399 cluster); `_markSaved`, `_setDirty` (L3388/L3390). Plain classic script tag, no bundler needed.
-- **`proto/ui.html`** — `<script src="/static/js/status-bar.js">` tag inserted at line 822 between `opening-parent.js` and the main inline `<script>` block. Extracted code replaced with 3 one-line comment placeholders. Net −23 LOC (4,231→4,208).
-- **`proto/e2e_ui_test.py`** — `statusBarJsLoaded` field in UI-load test; new `_test_bloat2_status_bar_extracted` function (8 sub-checks: fileLoad, fnsOk, constsOk, modeLabelOk, bottomBarOk, setDirtyOk, markSavedOk, crossScriptOk); new `PHASE_BLOAT2_OK` marker.
-- **Recipe proven**: cross-script `let`/`const` binding access works in classic non-module scripts; `_setDirty` from external file correctly mutates `let isDirty=false` declared in ui.html.
-
-## What's next
-
-- **BLOAT-3** — Extract export/save JS (`saveProject` / `saveProjectAs` / `exportCSV` / `exportJSON` / `exportXLSX` / `exportPngZip` / `saveSourcePdfInPlace` / `_makeProjBlob` / `_writeToHandle` / `_fallbackDownload`) to `proto/static/js/export-save.js`. Largest single module; est −400 to −500 LOC from ui.html. Pre-flight: `/bma-ui-scope` → `/bma-check-forbidden` (save format unchanged — additive extraction only). Depends-on BLOAT-2 (now satisfied).
-- BLOAT-4 (annotations) + BLOAT-5 (page-setup) also unblocked; can run after BLOAT-3.
-
-## Position in Plan
-
-Phase 1 complete. BLOAT-2 is the second sprint of the BLOAT maintenance track (BLOAT-1..5). BLOAT-1 added the consolidation trigger rule; BLOAT-2 proves the extraction recipe works on the first non-trivial module (status bar). With the recipe validated, BLOAT-3..5 can proceed. Long-term target: bring `proto/ui.html` back toward ~3,000 lines.
-
----
-
-# Previous (older): BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule — DOCS-ONLY
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-DOCS-ONLY sprint. No code, tests, or schema changed. Sprint result is PASS by no-test rationale. Two files touched: `CLAUDE.md` and `docs/status/PHASE_INDEX.md`. This sprint was triggered by a manual bloat audit performed before invoking `/bma-dev-loop` — user asked "โปรแกรม เริ่ม ทำงานได้ช้าไหม ไฟล์อ้วนไหม", which surfaced that `proto/ui.html` had grown 149% above its documented baseline without any consolidation mechanism in place.
-
-## What was delivered
-
-- Corrected `CLAUDE.md` Architecture section LOC numbers: `proto/ui.html` ~1,700 → ~4,230 lines; `proto/server.py` ~1,370 → ~1,750 lines.
-- Added "Size discipline" paragraph to `CLAUDE.md`: documents drift history (360 KB inline JS, 483 functions) and establishes a hard trigger rule — if `proto/ui.html` crosses 5,000 lines, the next sprint MUST be a consolidation sprint extracting one cohesive JS region to `static/js/<region>.js`. Pattern already proven by `semantic-meta.js` and `opening-parent.js`.
-- Corrected LOC numbers in the `bma-explorer` subagent table row in `CLAUDE.md`.
-- Inserted BLOAT-1..5 sprint cards into `docs/status/PHASE_INDEX.md` active queue (after INV-2026-05-19-003b). Sequence: BLOAT-1 (this, docs-only) → BLOAT-2 (status-bar JS extraction, proves pattern) → BLOAT-3..5 (export-save / annotations / page-setup extraction, can parallel after BLOAT-2).
-- Added `### bloat-audit 2026-05-19 (user-initiated, manual analysis pre-loop)` block to the PHASE_INDEX.md Discovered backlog explaining findings and sequencing rationale.
-
-## What's next
-
-- After BLOAT-2 (now done): BLOAT-3..5 (export-save / annotations / page-setup modules).
-
-## Position in Plan
-
-Phase 1 complete. First sprint of the BLOAT maintenance track (BLOAT-1..5). The 5,000-line consolidation trigger rule acts as a self-enforcing guard going forward.
-
----
-
-> Older sprint reports archived to [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md).
+<!-- Previous (older) BLOAT-2 and BLOAT-1 reports archived to docs/archive/reports-2026-05-09.md -->
 
 **Date:** 2026-05-19
 **Branch:** main

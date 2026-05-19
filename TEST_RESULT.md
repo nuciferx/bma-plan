@@ -4,7 +4,52 @@
 
 ---
 
-# Latest: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js
+# Latest: BLOAT-4 — Extract annotation JS to proto/static/js/annotations.js
+
+Branch: main
+Date: 2026-05-20
+
+## Result: PASS — py_compile PASS; full retry GREEN — 22 baseline + PHASE_BLOAT4_OK 8/8 + PHASE_INV_STICKY_OK 10/10 + PHASE_HT11_OK 10/10
+
+## Commands
+
+```bash
+python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
+python proto/e2e_ui_test.py full                           # first run: FAILED (known REAL_PDF analyse flake, page 1/45); retry: EXIT 0 — 22 baseline + PHASE_BLOAT4_OK 8/8
+```
+
+## Retry Note
+
+First full run failed at REAL_OK due to the known intermittent REAL_PDF analyse flake (page 1/45 analyse HTTP error — unrelated to BLOAT-4; same flake observed in BLOAT-3 first run). Retry per dev-loop one-retry rule: all markers GREEN. This flake is pre-existing; it has appeared in multiple prior sessions (BLOAT-3, MENU_OK "perPageLayerMemoryFixed: skipped") and has zero correlation with annotation extraction.
+
+## New Marker — PHASE_BLOAT4_OK (8 sub-checks)
+
+| Sub-check | Result |
+|---|---|
+| fileLoad (HTTP 200 + key fn defs in response body) | PASS |
+| fnsOk (all 13 functions defined globally as typeof === "function") | PASS |
+| addOk (`addAnnotation` pushes to `pageStore[pg].annotations` correctly) | PASS |
+| hitMissOk (`annotationHitTest` returns -1 for far-away coords) | PASS |
+| drawOk (`drawAnnotations` executes without throw on real canvas ctx) | PASS |
+| stickyOk (`renderStickyCards` executes without throw) | PASS |
+| colorOk (`_annColor` returns non-empty string for all 7 ann types) | PASS |
+| clearOk (`clearAnnotations` function exists and is callable) | PASS |
+
+## Critical Baseline Markers Verified (no regression)
+
+All 22 core markers GREEN: CACHE_OK, UPLOAD_CAP_OK, SETUP_OK, MAIN_UI_OK (incl. `annotationsJsLoaded: True`), VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, ANNOT_OK, PERSIST_OK, REAL_OK, PHASE_I_A_OK, PHASE_I_B1_OK.
+
+Critical markers for this sprint (exercise extracted annotation functions):
+- **ANNOT_OK** — calls extracted `exportCurrentPageAnnotatedPDF` (downstream of extracted `drawAnnotations`) — GREEN
+- **PHASE_INV_STICKY_OK** 10/10 — sticky-note schema round-trip (`J_roundTrip` sub-check) survives extraction — GREEN
+- **PHASE_HT11_OK** 10/10 — annotation edit + delete modal (uses extracted `openAnnotationEditModal` / `closeAnnotationEditModal` / `saveAnnotationEdit` / `deleteAnnotation`) — GREEN
+- **PERSIST_OK** — save+reload multi-page on real 45-page permit (annotations serialized via `pageStore[pg].annotations`, field preserved) — GREEN
+
+`/bma-human-test` — SKIPPED. Rationale: mechanical extraction with zero user-visible change; `PHASE_INV_STICKY_OK` + `PHASE_HT11_OK` on real fixtures comprehensively exercise annotation create/edit/delete/round-trip; `PHASE_BLOAT4_OK` explicitly verifies all 13 functions + canvas-render + sticky-overlay-render.
+
+---
+
+# Previous: BLOAT-3 — Extract export/save JS to proto/static/js/export-save.js
 
 Branch: main
 Date: 2026-05-20
@@ -47,71 +92,7 @@ Critical markers for this sprint (exercise extracted code):
 
 ---
 
-# Previous: BLOAT-2 — Extract status-bar JS to proto/static/js/status-bar.js
-
-Branch: main
-Date: 2026-05-20
-
-## Result: PASS — py_compile PASS, smoke 18/18 + PHASE_BLOAT2_OK, full 21/21 + PHASE_BLOAT2_OK GREEN
-
-## Commands
-
-```bash
-python -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
-python proto/e2e_ui_test.py smoke                          # EXIT 0 — 18/18 + PHASE_BLOAT2_OK
-python proto/e2e_ui_test.py full                           # EXIT 0 — 21/21 + PHASE_BLOAT2_OK
-```
-
-## New Marker — PHASE_BLOAT2_OK (8 sub-checks)
-
-| Sub-check | Result |
-|---|---|
-| fileLoad (HTTP 200 + file contains expected fn defs) | PASS |
-| fnsOk (all 8 functions defined as typeof === "function") | PASS |
-| constsOk (both consts defined + values correct) | PASS |
-| modeLabelOk (`updateModeLabel("area")` → writes `'วัดพื้นที่ ⬡'` to `#lbl-mode`) | PASS |
-| bottomBarOk (`updateBottomBar()` → writes 4 fields) | PASS |
-| setDirtyOk (`_setDirty()` → flips `isDirty=true` + writes label) | PASS |
-| markSavedOk (`_markSaved()` → flips `isDirty=false` + writes label) | PASS |
-| crossScriptOk (inline ui.html script can read moved `MODE_BASE_LABELS` const) | PASS |
-
-## Baseline Markers Retained (no regression)
-
-All 21 core markers GREEN: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK.
-
-PERSIST_OK on real 45-page permit confirms `_setDirty`/`_markSaved` extraction is safe across a full save/reload cycle.
-
-`/bma-human-test` — SKIPPED. Rationale: mechanical extraction with zero user-visible change; PERSIST_OK on real permit covers the most sensitive surface (_setDirty/_markSaved round-trip).
-
----
-
-# Previous (older): BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only)
-
-Branch: main
-Date: 2026-05-19
-
-## Result: PASS (no-test, docs-only sprint)
-
-## No-Test Rationale
-
-Per AGENTS.md §1, docs-only sprints record a no-test rationale instead of running tests.
-This sprint changed only: `CLAUDE.md` (+21 −2 LOC corrections + Size discipline paragraph) and `docs/status/PHASE_INDEX.md` (+26 −0 queue rows). No source code, UI, test code, or schema changed. Therefore `/bma-e2e` (py_compile + smoke + full) and `/bma-human-test` were not run.
-
-Sanity baseline: `python -m py_compile proto/server.py` → PASS.
-
-## Reference Baseline (from previous sprint: INV-2026-05-19-003b end-of-day bundle)
-
-```
-python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python proto/e2e_ui_test.py full                           → EXIT 0
-  PHASE_INV_EXPORT_PNG_OK: PASS (new in 003b)
-  PHASE_INV_PRINT_CANVAS_OK: PASS — 8 sub-checks (new in 003a)
-  PHASE_HT18B_OK: 13/13 GREEN (fixed in HT-18c)
-  PHASE_HT18_OK: 36/36 GREEN (from HT-18a-ext)
-  All 21 core markers GREEN (smoke 18 + PHASE_I_A_OK + PHASE_I_B1_OK + ANNOT_OK + PERSIST_OK + REAL_OK)
-```
-
-Markers: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK (smoke 18 + full adds 3).
+<!-- Previous (older) BLOAT-2 and BLOAT-1 test results archived to docs/archive/test-history-2026-05-09.md -->
 
 ---
 

@@ -1,8 +1,44 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (includes 001a Zen Mode + Ribbon Cleanup + 001c FRICTION polish + 002a Zen top bar + INV-003b end-of-day bundle)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (includes 001a Zen Mode + Ribbon Cleanup + 001c FRICTION polish + 002a Zen top bar + INV-003b end-of-day bundle + BLOAT-1 + BLOAT-2)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-20 — BLOAT-4 Extract annotation JS to proto/static/js/annotations.js — PASS (branch: main)
+
+**What changed:** Created `proto/static/js/annotations.js` (205 lines, plain non-module classic script) containing 13 annotation helper functions extracted from `proto/ui.html` (L1680–1869): `ensureAnnotations`, `newAnnotationId`, `addAnnotation`, `renderStickyCards`, `_createStickyCard`, `clearAnnotations`, `annotationHitTest`, `deleteAnnotation`, `openAnnotationEditModal`, `closeAnnotationEditModal`, `saveAnnotationEdit`, `_annColor`, `drawAnnotations`. Added `<script src="/static/js/annotations.js">` after `export-save.js` in `proto/ui.html`. The 7 per-mode mousedown branches for annotation tool dispatch remain in `proto/ui.html` (tightly coupled to the unified pointer state; kept out of scope). Added E2E machinery in `proto/e2e_ui_test.py`: `annotationsJsLoaded` field in UI-load test + new `_test_bloat4_annotations_extracted` function (8 sub-checks: `fileLoad`, `fnsOk`, `addOk`, `hitMissOk`, `drawOk`, `stickyOk`, `colorOk`, `clearOk`) + new marker `PHASE_BLOAT4_OK`. Net: `proto/ui.html` −190 +2 (4,057→3,869 lines; −188 net); `proto/static/js/annotations.js` NEW 205 LOC; `proto/e2e_ui_test.py` +99 LOC. Session total: ui.html 4,231→3,869 (−362 lines across BLOAT-1..4).
+
+**Why:** Annotations were the third-largest cohesive cluster in ui.html — 7 annotation types (comment/sticky/text/highlight/rect/circle/cloud/arrow) + sticky HTML overlay + HT-11 edit modal + hit-test + canvas render dispatcher. Extracting them removes 188 LOC and isolates a self-contained domain from the measurement core. The recipe is now 4-for-4 (status-bar / export-save / annotations + the older semantic-meta / opening-parent). Pattern validation: cross-script binding access for state (`curPage` / `pageStore` / `zoom` / `ctx`), DOM-builder helpers, and event wiring (sticky drag) all work cleanly across the script boundary.
+
+**Files touched:**
+- `proto/ui.html`: −190 +2 — replaced extracted annotation block with 1 placeholder comment; added `<script src="/static/js/annotations.js">` tag; net −188 LOC (4,057→3,869)
+- `proto/static/js/annotations.js`: NEW 205 LOC — 13 annotation functions (ensureAnnotations + newAnnotationId + addAnnotation + renderStickyCards + _createStickyCard + clearAnnotations + annotationHitTest + deleteAnnotation + openAnnotationEditModal + closeAnnotationEditModal + saveAnnotationEdit + _annColor + drawAnnotations)
+- `proto/e2e_ui_test.py`: +99 LOC — `annotationsJsLoaded` field + `_test_bloat4_annotations_extracted` (8 sub-checks) + `PHASE_BLOAT4_OK` marker print
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py full                           → first run FAILED (intermittent REAL_PDF analyse flake on page 1/45 — known, unrelated to BLOAT-4); retry GREEN
+  All 22 baseline markers GREEN: CACHE_OK / UPLOAD_CAP_OK / SETUP_OK / MAIN_UI_OK (annotationsJsLoaded: True) / VECTOR_OK / RECAL_OK / SITE_UI_OK / XLSX_OK / PROJECT_OK / RASTER_OK / WHEEL_OK / SNAP_OK / SELECT_OK / SETBACK_OK / EXT_MEASURE_OK / MENU_OK / PATH_GEOMETRY_OK / ANNOT_OK / PERSIST_OK / REAL_OK
+  PHASE_INV_STICKY_OK 10/10 (J_roundTrip ✓ — sticky-note schema round-trip survives extraction)
+  PHASE_HT11_OK 10/10 (annotation edit + delete modal still functional)
+  PHASE_BLOAT2_OK 8/8 + PHASE_BLOAT3_OK 8/8 + PHASE_BLOAT4_OK 8/8
+/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PHASE_INV_STICKY_OK + PHASE_HT11_OK on real fixtures cover annotation create/edit/delete/round-trip; PHASE_BLOAT4_OK verifies all 13 fns + canvas-render + sticky-overlay-render)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (annotations READ pdfToC/cToPdf for coordinate conversion only; never edit)
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED (zero edits this sprint)
+- ✅ `.bmaplan` schema — UNCHANGED (`pageStore[pg].annotations` field name, shape, items, and id format all preserved; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- BLOAT-5 (page-setup modal extraction: `_renderSetupDashboard` / `_renderSetupPageCard` / `_openRenumberDialog` / `_executeRenumberDelete` / `_reindexPageDicts` / floor-kind helpers → `proto/static/js/page-setup.js`, est. ~300 LOC) — next queued sprint; depends-on BLOAT-2 (now satisfied).
+- The 7 per-mode mousedown branches stay in ui.html — they call extracted helpers via global scope. A future BLOAT-4b could extract the entire pointer-event handler into `/static/js/pointer.js`, but that unified handler does mPts/measurement/annotation/drag in one switch — out of scope here.
 
 ---
 
@@ -47,69 +83,7 @@ python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 + P
 
 ---
 
-## 2026-05-20 — BLOAT-2 Extract status-bar JS to proto/static/js/status-bar.js — PASS (branch: main)
-
-**What changed:** Created `proto/static/js/status-bar.js` (49 LOC, plain non-module classic script) containing 8 functions (`updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar`, `updateModeLabel`, `_markSaved`, `_setDirty`) and 2 constants (`MODE_BASE_LABELS`, `SITE_TAG_THAI_LABELS`) extracted from `proto/ui.html`. Added `<script src="/static/js/status-bar.js"></script>` in `proto/ui.html` (line 822) between `opening-parent.js` and the main inline `<script>` block. Removed the extracted code from `proto/ui.html`'s inline `<script>` (replaced with 3 one-line comment placeholders). Added new E2E machinery in `proto/e2e_ui_test.py`: `statusBarJsLoaded` field in the main UI-load test (asserts all 8 globals are defined) + new function `_test_bloat2_status_bar_extracted` with 8 sub-checks + new marker `PHASE_BLOAT2_OK`. Net delta: `proto/ui.html` −29 +6 (4,231→4,208 lines), `proto/static/js/status-bar.js` NEW 49 LOC, `proto/e2e_ui_test.py` +95 LOC.
-
-**Why:** BLOAT-1 added the consolidation trigger rule (CLAUDE.md, 2026-05-19) — discipline only, no proof the extraction pattern works for non-trivial cases. BLOAT-2 executes the recipe on the smallest cohesive module (status bar) and demonstrates: (a) cross-script `let`/`const` binding access works in classic non-module scripts, (b) save/load round-trip survives (`PERSIST_OK` GREEN on real 45-page permit proves `_setDirty`/`_markSaved` extraction safe), (c) `_setDirty`/`_markSaved` written from the external file correctly mutate the `let isDirty=false` binding declared in ui.html. With recipe proven, BLOAT-3 (export-save, ~400–500 LOC) and BLOAT-4..5 unblocked.
-
-**Files touched:**
-- `proto/ui.html`: −29 +6 — removed 8 fns + 2 consts from inline `<script>`; added `<script src="/static/js/status-bar.js">` tag; 3 one-line comment placeholders remain
-- `proto/static/js/status-bar.js`: NEW 49 LOC — `updateAnalyseUI`, `activeLayerLabel`, `currentObjectCount`, `currentWarningCount`, `updateBottomBar`, `MODE_BASE_LABELS`, `SITE_TAG_THAI_LABELS`, `updateModeLabel`, `_markSaved`, `_setDirty`
-- `proto/e2e_ui_test.py`: +95 LOC — `statusBarJsLoaded` field + `_test_bloat2_status_bar_extracted` (8 sub-checks) + `PHASE_BLOAT2_OK` marker print
-
-**Tests:**
-```
-python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python proto/e2e_ui_test.py smoke                          → EXIT 0, 18/18 baseline markers + PHASE_BLOAT2_OK GREEN
-python proto/e2e_ui_test.py full                           → EXIT 0, 21/21 markers + PHASE_BLOAT2_OK GREEN
-  (incl. PERSIST_OK save/load round-trip on real 45-page permit — proves _setDirty/_markSaved extraction safe)
-/bma-human-test — SKIPPED (mechanical extraction, zero user-visible change; PERSIST_OK on real permit covers the most sensitive surface)
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED (zero edits this sprint)
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; no field rename or removal)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- BLOAT-3 (export-save extraction, ~400–500 LOC delta: `saveProject`/`saveProjectAs`/`exportCSV`/`exportJSON`/`exportXLSX`/`exportPngZip`/`saveSourcePdfInPlace`/`_makeProjBlob`/`_writeToHandle`/`_fallbackDownload` → `proto/static/js/export-save.js`) — next queued sprint, depends-on BLOAT-2 (now satisfied).
-- BLOAT-4 (annotations) + BLOAT-5 (page-setup) unblocked once BLOAT-3 ships.
-- `_fallbackDownload` deliberately left in ui.html (part of save-flow chain; moving it would expand scope to BLOAT-3 territory).
-
----
-
-## 2026-05-19 — BLOAT-1 CLAUDE.md LOC drift fix + consolidation trigger rule (docs-only) — DOCS-ONLY (branch: main)
-
-**What changed:** Corrected stale LOC baselines in `CLAUDE.md` (Architecture section + bma-explorer subagent table) — `proto/ui.html` was recorded as ~1,700 lines but had grown to ~4,230 (+149%); `proto/server.py` was recorded as ~1,370 but had grown to ~1,750. Added a new "Size discipline" paragraph after the architecture block documenting the drift history and a hard rule: if `proto/ui.html` crosses 5,000 lines the next sprint MUST be a consolidation sprint extracting one cohesive JS region to `static/js/<region>.js` (following the existing `semantic-meta.js` / `opening-parent.js` pattern). Inserted BLOAT-1..5 sprint rows into `docs/status/PHASE_INDEX.md` active queue and a `### bloat-audit 2026-05-19` block in the Discovered backlog.
-
-**Why:** Pre-loop bloat audit (user-initiated, 2026-05-19): "โปรแกรม เริ่ม ทำงานได้ช้าไหม ไฟล์อ้วนไหม". Manual analysis found `proto/ui.html` at 4,231 lines / 360 KB / 483 functions — 2.5× the baseline recorded in `CLAUDE.md`. The `/bma-dev-loop` has no consolidation phase (always adds, never re-flattens), so drift will continue. Correcting the baseline prevents future agents from anchoring size-budget decisions on a stale number. The consolidation trigger rule (>5,000 lines → must extract) creates a self-enforcing size discipline without requiring manual oversight every sprint.
-
-**Files touched:**
-- `CLAUDE.md`: +21 −2 — LOC correction in Architecture section (3 edits: server.py ~1370→~1750, ui.html ~1700→~4230) + new Size discipline paragraph + bma-explorer subagent row LOC correction
-- `docs/status/PHASE_INDEX.md`: +26 −0 — BLOAT-1..5 active-queue rows + `### bloat-audit 2026-05-19` Discovered-backlog block
-
-**Tests:**
-```
-python -m py_compile proto/server.py  → PASS (sanity baseline only)
-/bma-e2e skipped — docs-only sprint; CLAUDE.md is not imported by any runtime; no code path touched.
-/bma-human-test skipped — docs-only sprint.
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; no field rename or removal)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- BLOAT-2..5 queued in active queue. BLOAT-2 (status-bar JS extraction to `static/js/status-bar.js`) is next; `/loop /bma-dev-loop` will pick it automatically.
-- Target: bring `proto/ui.html` back under 5,000-line trigger after BLOAT-2..5; long-term goal ~3,000 lines.
+<!-- BLOAT-2 and BLOAT-1 entries archived to docs/archive/log-2026-05-19.md -->
 
 ---
 

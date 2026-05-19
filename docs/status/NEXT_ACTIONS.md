@@ -1,24 +1,23 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: BLOAT-3 shipped)
+Date: 2026-05-20 (updated: BLOAT-4 shipped)
 
 ## Immediate Next
 
-**BLOAT-3 shipped. Immediate next sprint is BLOAT-4.**
+**BLOAT-4 shipped. Immediate next sprint is BLOAT-5.**
 
-- **(PRIORITY a) BLOAT-4 — Extract annotation JS to `proto/static/js/annotations.js`** — 7 annotation tool handlers (`ann_text` / `ann_highlight` / `ann_rect` / `ann_circle` / `ann_cloud` / `ann_arrow` / `ann_sticky`) + annotation render + hit-test. Est. ~300 LOC delta from ui.html. Pre-flight: `/bma-ui-scope`. Depends-on BLOAT-2 (done) and BLOAT-3 (done). Full test required after (touches annotation render + ANNOT_OK surface): py_compile + smoke + full. `/loop /bma-dev-loop` will pick BLOAT-4 automatically (next `queued` item in `docs/status/PHASE_INDEX.md` after BLOAT-3).
+- **(PRIORITY a) BLOAT-5 — Extract page-setup modal JS to `proto/static/js/page-setup.js`** — Functions: `_renderSetupDashboard` / `_renderSetupPageCard` / `_openRenumberDialog` / `_executeRenumberDelete` / `_reindexPageDicts` / floor-kind helpers / setup-inspector switching. Est. ~300 LOC delta from ui.html. Scope skill: `/bma-ui-scope` → `/bma-ui-panel`. Full test required. Critical markers to preserve: `PHASE_INV_PAGE_SETUP_A_OK` / `_B_OK` / `_C_OK`. Depends-on BLOAT-2 (done) + BLOAT-3 (done) + BLOAT-4 (done). `/loop /bma-dev-loop` will pick BLOAT-5 automatically (next `queued` item in `docs/status/PHASE_INDEX.md`).
 
-- **(b) BLOAT-5 — Page-setup modal extraction** — Can run after BLOAT-4 or in parallel.
+- **(b) Optional BLOAT-3b — Extract print cluster to `proto/static/js/print-canvas.js`** — `printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`. ~50–60 LOC delta. Low-risk; self-contained. Can run before or after BLOAT-5.
 
-- **(c) Optional BLOAT-3b — Extract print cluster to `proto/static/js/print-canvas.js`** — `printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`. ~50–60 LOC delta. Low-risk; self-contained. Not blocking BLOAT-4.
+- **(c) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Can run after BLOAT-5 or in parallel.
 
-- **(d) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Can run after BLOAT-4 or in parallel.
-
-- **(e) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
+- **(d) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
 
 ## Recently Done
 
-- **BLOAT-3 — Extract export/save JS to `proto/static/js/export-save.js`** — 2026-05-20. PASS. NEW `proto/static/js/export-save.js` (188 LOC): 14 fns + 13 consts extracted from `proto/ui.html` inline `<script>`. ui.html 4,208→4,057 lines (−151 net). smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN. XLSX_OK + PROJECT_OK + PERSIST_OK + ANNOT_OK all GREEN on real 45-page permit. `schemaOk` verifies 12-field `.bmaplan` v1 schema intact. BLOAT-4 + BLOAT-5 formulaic.
+- **BLOAT-4 — Extract annotation JS to `proto/static/js/annotations.js`** — 2026-05-20. PASS. NEW `proto/static/js/annotations.js` (205 LOC): 13 fns extracted from `proto/ui.html` (L1680–1869). ui.html 4,057→3,869 lines (−188 net). full 22/22 + PHASE_BLOAT4_OK 8/8 + PHASE_INV_STICKY_OK 10/10 + PHASE_HT11_OK 10/10 GREEN. Sticky-note round-trip + annotation edit/delete modal verified. Recipe 4-for-4. Session total ui.html 4,231→3,869 (−362 across BLOAT-1..4).
+- **BLOAT-3 — Extract export/save JS to `proto/static/js/export-save.js`** — 2026-05-20. PASS. NEW `proto/static/js/export-save.js` (188 LOC): 14 fns + 13 consts extracted from `proto/ui.html` inline `<script>`. ui.html 4,208→4,057 lines (−151 net). smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK + PHASE_BLOAT3_OK GREEN. XLSX_OK + PROJECT_OK + PERSIST_OK + ANNOT_OK all GREEN on real 45-page permit. `schemaOk` verifies 12-field `.bmaplan` v1 schema intact.
 - **BLOAT-2 — Extract status-bar JS to `proto/static/js/status-bar.js`** — 2026-05-20. PASS. NEW `proto/static/js/status-bar.js` (49 LOC): 8 status-bar functions + 2 constants extracted from `proto/ui.html` inline `<script>`. ui.html 4,231→4,208 lines (−23). smoke 18/18 + full 21/21 + PHASE_BLOAT2_OK GREEN. PERSIST_OK on real 45-page permit confirms save/load integrity. Recipe proven: cross-script `let`/`const` binding access works in classic non-module scripts.
 - **BLOAT-1 — CLAUDE.md LOC drift fix + consolidation trigger rule** — 2026-05-19. DOCS-ONLY. Corrected `proto/ui.html` LOC in `CLAUDE.md` (~1,700→~4,230) and `proto/server.py` (~1,370→~1,750). Added Size discipline trigger rule (>5,000 lines → must extract). BLOAT-2..5 queued in PHASE_INDEX.md active queue. py_compile PASS; no E2E.
 - **INV-2026-05-19-003b — /export-png ZIP endpoint (Path C)** — 2026-05-19. NEW `/export-png` POST endpoint in `proto/server.py` (additive). PyMuPDF render per selected page at requested DPI scale. ZIP bundle. Export menu wired. `PHASE_INV_EXPORT_PNG_OK` PASS. full EXIT 0. Commits: `612de96` feat + `7f0300f` docs.
