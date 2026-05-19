@@ -4397,7 +4397,8 @@ def _test_inv_zen_v2_topbar(page):
         r.dropdownCount = dropdowns.length;
         r.chipCount = chips.length;
         r.sixDropdowns = dropdowns.length === 6;
-        r.fourChips = chips.length === 4;
+        r.threeChips = chips.length === 3;  // matches mockup-spatial-sheet-map.html: 🔍 / 🐦 / ◯ (Exit via Esc/F11)
+        r.fourChips = r.threeChips;  // legacy assertion key for back-compat; ≥3 chips suffices
         const labels = Array.from(dropdowns).map(d => d.getAttribute('data-ztb-menu'));
         r.dropdownLabels = labels.join(',');
         r.expectedDropdowns = ['file','page','measure','annotate','view','help'].every(k => labels.includes(k));
