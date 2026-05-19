@@ -258,7 +258,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 
 > **Note 2026-05-19:** A duplicate INV-2026-05-19-002c entry was filed here with HT-18's scope content (misfile). Cleaned up. The authoritative INV-002c card is the next entry below.
 
-#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `done` (depends-on 002b ✅ — replaces in-place)
+#### INV-2026-05-19-002c — F12 Overview mockup-port (faithful) — `done c9b8aa9` (depends-on 002b ✅ — replaces in-place)
 
 - **scope skill:** `/bma-ui-scope` (UI region: canvas-ui standalone mode — same surface as 002b)
 - **depends-on:** **002b** (in-place replacement of `_OV_GROUPS`, `_ovBuildGrid` chip logic, `.ov-*` CSS; F12 hotkey + body.overview class kept)
