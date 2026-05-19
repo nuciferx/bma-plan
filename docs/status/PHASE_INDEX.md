@@ -237,7 +237,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **est LOC:** ~150 (mostly E2E test)
 - **success criterion:** if any field doesn't round-trip → file HT-18c with that specific field fix; if all round-trip → HT-18b PASS and HT-18 series complete
 
-#### HT-18d — applyLoadedProject wipes projectInfo on load — `queued` 2026-05-19 ⚠️ **data-integrity** (newly discovered)
+#### HT-18d — applyLoadedProject wipes projectInfo on load — `done` 2026-05-19 ⚠️ **data-integrity** (real user-data-loss fix)
 
 - **scope skill:** `/bma-check-forbidden` (touches `applyLoadedProject` in `proto/ui.html` — save/load surface)
 - **discovered by:** HT-18c's `_test_ht18b_save_load_round_trip` diagnostic. `stepTrace.before_apply: '{}'` (cleared) → `stepTrace.after_apply: '{"reqNo":"","cls":""}'` (still empty strings after applyLoadedProject completes). Blob HAS the values (`projectInfo_blob_reqNo: 'HT18B-TEST-001'`) so save side works. Load side wipes them — likely a syncProjectInfoFromForm call inside applyLoadedProject's call chain (buildSidebar / buildTagGrid / buildRightPanel) reads empty form fields back into projectInfo, undoing the `projectInfo=proj.projectInfo||{}` assignment.

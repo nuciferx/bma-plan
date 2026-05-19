@@ -5038,9 +5038,9 @@ def _test_ht18b_save_load_round_trip(page):
                                        source:'manual', status:'verified',
                                        semanticTag:'north_arrow', useCategory:null}};
         projectInfo.reqNo = 'HT18B-TEST-001';
-        projectInfo.buildingClassification = 'A1';
+        projectInfo.buildingClassification = 'general';  // HT-18d: must be valid pi-bclass option
         projectInfo.userDefinedLimits = projectInfo.userDefinedLimits || {};
-        projectInfo.userDefinedLimits.farPct = 350;
+        projectInfo.userDefinedLimits.far_max = 3.5;  // HT-18d: correct field name (was farPct)
         // ─── snapshot pre-save state ───
         const preSnapshot = JSON.stringify({
             poly: s.polys[0],
@@ -5145,16 +5145,15 @@ def _test_ht18b_save_load_round_trip(page):
         r.K_siteOrientation = siteOrientation[1] && siteOrientation[1].north
                               && siteOrientation[1].north.angleDeg === 45
                               && siteOrientation[1].north.source === 'manual';
-        // HT-18c: verify projectInfo schema fidelity via BLOB (what _makeProjBlob would
-        // write). The post-load global state is wiped by applyLoadedProject's downstream
-        // call chain (real bug, filed as HT-18d). HT-18b's stated scope is "save/load
-        // round-trip preserves every field" — schema fidelity. The blob HAS the values;
-        // restore not propagating to globals is a SEPARATE app-code bug.
-        r.L_projectInfo = proj.projectInfo
-                          && proj.projectInfo.reqNo === 'HT18B-TEST-001'
-                          && proj.projectInfo.buildingClassification === 'A1'
-                          && proj.projectInfo.userDefinedLimits
-                          && proj.projectInfo.userDefinedLimits.farPct === 350;
+        // HT-18d (fix applied): verify the post-load GLOBAL projectInfo retains the
+        // values restored by applyLoadedProject. The HT-18c blob-only workaround is
+        // no longer needed — applyLoadedProject now calls populateProjectInfoForm()
+        // so that subsequent syncProjectInfoFromForm calls (in unrelated code paths)
+        // read the populated form back into projectInfo identical to what was loaded.
+        r.L_projectInfo = _projInfoSnap.reqNo === 'HT18B-TEST-001'
+                          && _projInfoSnap.buildingClassification === 'general'
+                          && _projInfoSnap.userDefinedLimits
+                          && _projInfoSnap.userDefinedLimits.far_max === 3.5;
         r.M_layerState = layerL && layerL.visible === false && layerL.locked === true
                          && layerL.color === '#13579b'
                          && layerL._userModified === true;
