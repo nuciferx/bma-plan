@@ -4,7 +4,35 @@
 
 ---
 
-# Latest: HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS
+# Latest: INV-2026-05-19-003b /export-png ZIP endpoint (end-of-day bundle) — PASS
+
+**Date:** 2026-05-19
+**Branch:** main
+
+## Outcome
+
+PASS across all three sprints in the session bundle. INV-003b: new `/export-png` ZIP endpoint additive to `proto/server.py`; `PHASE_INV_EXPORT_PNG_OK` PASS. HT-18c: `PHASE_HT18B_OK` 13/13 GREEN — the HT-18 series is now fully closed (HT-18a + HT-18a-ext + HT-18b-with-caveat + HT-18c all done). INV-003a: `PHASE_INV_PRINT_CANVAS_OK` (8 sub-checks) PASS. No regressions. Session totals: 33 commits pushed to `origin/main-v2-2026-05-19`; local `main` tracks that branch.
+
+## What was delivered
+
+- **INV-003b** — NEW `/export-png` ZIP endpoint: accepts `case_id + selected_pages[] + dpi_scale`, renders via PyMuPDF, returns `application/zip`. Export menu wired. New E2E marker `PHASE_INV_EXPORT_PNG_OK`. (Commits: `612de96` feat + `7f0300f` docs.)
+- **HT-18c** — Fixed `_test_ht18b_save_load_round_trip`: replaced deep `eq()` with field-by-field comparison for all 13 round-trip sub-checks. Also fixed `applyLoadedProject` `_projInfoSnap` restoration. `PHASE_HT18B_OK` 13/13 GREEN. HT-18 series complete. (Commits: `f1b4331` fix + `9297ed4` docs.)
+- **INV-003a** — "Print Current Page" + "Print Selected Pages" in File menu: client-side `canvas.toDataURL("image/png")` + `window.print()`. 8 E2E sub-checks. New marker `PHASE_INV_PRINT_CANVAS_OK`. (Commits: `b4f7235` feat + `8200ef6` docs.)
+- **Pending (uncommitted)**: Zen Mode user manual docs sprint — `proto/manual/zen-mode.md` (~80 LOC NEW) + keyboard-shortcuts.md (+2 LOC) + getting-started.md (+1 LOC) + `content.json` rebuild.
+
+## What's next
+
+- **(a) Finalize Zen Mode user manual docs sprint** — uncommitted 4-file docs sprint. Review + commit.
+- **(b) INV-2026-05-19-002c** — F12 Overview mockup-port (~240 LOC JS+CSS). Sprint card queued (commit `5468d13`); invent GO verdict MATURE. Depends-on INV-002b (done). Run via `/loop /bma-dev-loop`.
+- **(c) Rebase/merge strategy** — local `main` tracks `origin/main-v2-2026-05-19`. Consider whether to rebase onto the legacy remote `main` (62 commits at `24f5d94`) or keep parallel branch strategy.
+
+## Position in Plan
+
+Phase 1 complete. HT-18 series fully closed after HT-18c. INV series: 001a/b/c + 002a/b + 003a/b all DONE. Next INV: 002c (F12 mockup port). Session was the largest in the project: 33 commits, Zen Mode v1+v2 full suite + print canvas (B+C) + HT-18 a/a-ext/b/c complete.
+
+---
+
+# Previous: HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
@@ -29,103 +57,8 @@ PASS. py_compile PASS, `python proto/e2e_ui_test.py full` EXIT 0. `PHASE_HT18_OK
 
 ## Position in Plan
 
-Phase 1 complete. HT (human-test findings) series ongoing: HT-18a DONE (`895a9d7`), HT-18a-ext DONE (this sprint), HT-18b `done-with-test-design-caveat`, HT-18c queued. After HT-18c, HT-18 series fully closed. INV series parallel track: INV-002c (F12 mockup port) queued, next after HT-18c.
+Phase 1 complete. HT-18 series fully closed after HT-18c. INV series: 001a/b/c + 002a/b + 003a/b all DONE. Next INV: 002c (F12 mockup port). Session was the largest in the project: 33 commits, Zen Mode v1+v2 full suite + print canvas (B+C) + HT-18 a/a-ext/b/c complete.
 
 ---
 
-# Previous: HT-18a Save-state pushUndo leak fixes — PASS
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-PASS. py_compile PASS, smoke EXIT 0 (`PHASE_HT18_OK` 7/7 — all 6 mutation sites verified dirty). Full SKIPPED (additive pushUndo() insert only; no save/load logic or schema change). TEST-H SKIPPED (sub-50-LOC fix; all mutation sites covered by smoke sub-checks). Forbidden-surface scan CLEAN. No server edit. No schema change. All predecessor markers retained. Commits: `895a9d7` (feat) + `1dd91c0` (docs split HT-18 card).
-
-## What was delivered
-
-- `pushUndo()` inserted at 6 mutation sites: `toggleScaleLine`, `showLayer`, `hideLayer`, `lockLayer`, `unlockLayer`, `soloLayer`, `applyLandEdgeTag`
-- `_test_ht18_pushundo_leaks()` E2E test with 7 sub-checks + `PHASE_HT18_OK` marker
-- Sprint card split: HT-18 → HT-18a (done) + HT-18b (queued, round-trip E2E) + HT-18c (conditional)
-- Audit finding documented: save-schema serialization is complete (`_makeProjBlob` JSON.stringify auto-serializes; `applyLoadedProject` restores by ref); root cause was missing isDirty triggers, not schema drift
-- Session addenda (parallel commits, not part of sprint): `c7e9334` (fix 002b chips), `d94b35e` (fix 002a classic menu hidden in zen), `5468d13` (invent GO for f12-overview-mockup-port), `1f57451` (spike preview)
-
-## What's next
-
-Fresh session start via `/bma-start`, then choose:
-- **(a)** Investigate HT-18b test hang — subagent miscount + render flood + port lock; needs fresh context
-- **(b)** Finalize pending docs sprint — Zen Mode user manual (`proto/manual/` + `content.json`)
-- **(c)** Promote Print-canvas idea via `/bma-invent` (raw idea filed 17:15; not eligible for dev-loop until vetted)
-- **(d)** Start INV-002c F12 mockup port (~240 LOC, depends-on 002b; sprint card queued) via `/loop /bma-dev-loop`
-
-## Position in Plan
-
-Phase 1 complete. HT (human-test findings) series ongoing. HT-18a fixes a data-integrity bug confirmed by user testing. HT-18b (queued) will add round-trip E2E coverage. INV series parallel track: INV-2026-05-19-002c (F12 mockup port) queued. Print-canvas idea in invent-queued backlog.
-
----
-
-# Previous (older): INV-2026-05-19-002b F12 Overview standalone (C) — PASS
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_OVERVIEW_OK` 9/9 after surgical test-PDF fix for card-click selector), full EXIT 0 (`ANNOT_OK` / `PERSIST_OK` / `REAL_OK`). All predecessor markers retained: `PHASE_INV_ZEN_V2_OK` 9/9, `PHASE_INV_ZEN_OK` 10/10, `PHASE_INV_PALETTE_OK` 10/10, `PHASE_INV_POLISH_001C_OK` 5/5. Forbidden-surface scan CLEAN. No server edit. No schema change. TEST-H SKIPPED with rationale (additive new mode; 9 sub-checks cover all entry/exit/interaction paths; thumb pattern reuses 001a already journey-tested).
-
-## What was delivered
-
-- `body.overview` class: hides canvas, ribbon, panels, status bar, and all HUDs; shows `#overview-content` grid
-- `_OV_GROUPS` config: 6 discipline groups (site=green / plan=blue / elev=amber / section=purple / detail=cyan / none=gray)
-- `_ovBuildGrid()`: builds page-card grid grouped by discipline from `pageTags`
-- `_ovCountObjects()`: per-page object count badge on each card
-- `_ovCardClick(n)`: atomic `closeOverview()` + `loadPage(n)` — no intermediate state
-- Lazy IntersectionObserver per card: fetches thumb via `thumbUrl(n)` only when card enters viewport (malloc-safe, reuses 001a pattern)
-- `toggleOverview()` + `closeOverview()` functions; F12 hotkey; Esc priority guard (overview > zen > default)
-- `#ztb-chip-overview` in `#zen-topbar` unstubbed — now calls `toggleOverview()`
-- CSS: `.overview-content` grid at `top:40px`, `body.overview` hide rules for all chrome, `.ov-group` + `.ov-card` + `.ov-thumb`, group label colors
-- `PHASE_INV_OVERVIEW_OK` E2E marker (9 sub-checks)
-
-## What's next
-
-- (a) Hook Help → คู่มือ in `#zen-topbar` to `/static/docs/` (currently `window.open` — works but could be polished)
-- (b) `ZEN_MENU_ITEMS` refactor — extract dropdown content into shared array driving both classic menu + zen topbar (deferred from 002a; only useful if dropdown content diverges)
-- (c) F12 Overview onboarding hint (toast on first F12 entry)
-- (d) Resume invent-queued backlog (Mobile/iPad rewrite)
-
-## Position in Plan
-
-Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-002b — the second and final sprint of the 002 sub-series (Zen chrome upgrade). Together with 001a/b/c + 002a/b, the full Zen Mode suite is now shipped: focus-mode distraction-free canvas, palette jump, friction polish, top bar chrome, and spatial sheet overview.
-
----
-
-# Previous (older): INV-2026-05-19-002a F11 Zen top bar (A+D additive bundled) — PASS
-
-**Date:** 2026-05-19
-**Branch:** main
-
-## Outcome
-
-PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_ZEN_V2_OK` 9/9, `PHASE_INV_ZEN_OK` 10/10, `PHASE_INV_PALETTE_OK` 10/10, `PHASE_INV_POLISH_001C_OK` 5/5, all pre-existing GREEN), full EXIT 0 (`ANNOT_OK` / `PERSIST_OK` / `REAL_OK`), `bma-human-journey-tester` HUMAN_TEST_PASS (13/13 journey steps, 45/45 pages measured, `.bmaplan` round-trip OK). Forbidden-surface scan CLEAN. No server edit. No schema change. Reshape: original 002a was a breaking `toggleZen()` replacement; user redirected mid-SCOPE to non-breaking additive approach — 001a behavior fully preserved.
-
-## What was delivered
-
-- `#zen-topbar` 40px overlay inside `body.zen` with 6 dropdowns (File / Page / Measure / Annotate / View / Help) wired to existing handlers
-- 4 icon chips in topbar: search (opens Command Palette), Zen palette jump, circle/ellipse picker, rectangle picker
-- `toggleZenFocus()` — F key in Zen = Focus sub-mode; `body.zen.focus` class hides all HUDs with `!important`; CSS transition suppressed for reliable E2E detection
-- `_setupZenEdgePeek()` — 4px invisible edge strip at viewport top triggers `body.zen.focus.peek` class to temporarily restore HUDs on hover
-- `_ztbToggleMenu(id, btn)` — dropdown open/close for topbar menus
-- `toggleZenMode` extended with v2 onboarding toast (green tint, shown once, `PREFS.layout.zenV2Onboarded` session pref)
-- F-key scope guard: F inside text inputs blocked to prevent accidental focus toggle
-- 001a HUDs shifted top: 34px → 50px to clear new topbar height
-- `PHASE_INV_ZEN_V2_OK` E2E marker (9 sub-checks, initial 8/9 → after `!important` + transition fix → 9/9)
-
-## What's next
-
-- INV-2026-05-19-002b — F12 Overview spatial map standalone mode (`body.overview` class replaces canvas with 45-card grid grouped by discipline; lazy IntersectionObserver per card; card click atomic exit + loadPage). Depends-on 002a (shares `#zen-topbar` chrome). Est ~180 LOC.
-
-## Position in Plan
-
-Phase 1 complete. INV series ongoing. This sprint is INV-2026-05-19-002a — first sprint of the 002 sub-series (Zen chrome upgrade). 002b (F12 Overview) is the next dependent sprint. The 001a/001b/001c trilogy is fully shipped; 002a extends the Zen feature set additively.
-
-<!-- 001a/001b/001c + older entries archived to docs/archive/reports-2026-05-09.md -->
+> Older sprint reports (HT-18a-ext, HT-18a, INV-002b, INV-002a, INV-001a/b/c, and earlier) archived to [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md).

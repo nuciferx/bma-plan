@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-05-19 — End-of-day bundle: INV-003b /export-png ZIP + HT-18c round-trip 13/13 + INV-003a Print canvas — PASS (branch: main)
+
+**What changed:** Three committed sprints shipped in this session. (1) **INV-2026-05-19-003b** (`612de96` feat + `7f0300f` docs): NEW `/export-png` ZIP endpoint in `proto/server.py` — accepts `case_id + selected_pages[] + dpi_scale`, renders each page via PyMuPDF at requested scale, bundles PNGs into a ZIP archive returned as `application/zip`. Export menu in `proto/ui.html` wired with "Export PNG (ZIP)" option. New E2E test `_test_inv_export_png` + marker `PHASE_INV_EXPORT_PNG_OK`. (2) **HT-18c** (`f1b4331` fix + `9297ed4` docs): Fixed `_test_ht18b_save_load_round_trip` — replaced over-strict deep `eq()` comparison (fails after `normalizeAllObjects` mutates pre-snapshot) with field-by-field checks on the 13 round-trip properties. Also fixed a bug in `applyLoadedProject` (HT-18d-equivalent): `_projInfoSnap` was not fully restored from blob; fix ensures `projectInfo` round-trip is symmetric. `PHASE_HT18B_OK` now 13/13 GREEN. (3) **INV-2026-05-19-003a** (`b4f7235` feat + `8200ef6` docs): "Print Current Page" + "Print Selected Pages" in File menu — client-side `canvas.toDataURL("image/png")` → synthetic print window + `window.print()` trigger (Path B). New E2E test `_test_inv_print_canvas` (8 sub-checks) + marker `PHASE_INV_PRINT_CANVAS_OK`. In addition, a ~10 LOC uncommitted test refinement for `_test_ht18b_save_load_round_trip` (HT-18b `_projInfoSnap` direct global check) is pending fold into next commit.
+
+**Why:** INV-003a/003b deliver the "print-canvas-per-page" invention (originally a raw `/idea` entry, promoted via `/bma-invent` 7-phase pipeline, GO verdict MATURE). Path B (003a) gives fast single-page print via browser's native print dialog. Path C (003b) provides high-DPI archival PNG export bundled as ZIP — useful for sending annotated plans by email or attaching to permit submissions. HT-18c was the final item in the HT-18 series: the save/load round-trip test was gated on fixing the `eq()` comparison that was too strict after `normalizeAllObjects` transformed the pre-snapshot object; with that fix plus the `applyLoadedProject` `_projInfoSnap` restoration, the full 13-sub-check round-trip is now GREEN and the HT-18 series is complete.
+
+**Files touched:**
+- `proto/server.py`: NEW `/export-png` endpoint (additive — no rename or removal of existing endpoints; case isolation preserved) [INV-003b]
+- `proto/ui.html`: Export menu `/export-png` wiring + "Print Current Page" / "Print Selected Pages" File menu items + `printCurrentPage()` / `printSelectedPages()` helpers [INV-003a + INV-003b]
+- `proto/e2e_ui_test.py`: `_test_inv_export_png` (PHASE_INV_EXPORT_PNG_OK) + `_test_inv_print_canvas` (PHASE_INV_PRINT_CANVAS_OK) + `_test_ht18b_save_load_round_trip` 13/13 field-by-field fix [INV-003b + INV-003a + HT-18c]
+- `docs/status/PHASE_INDEX.md`: queue rows flipped for INV-003a, HT-18c, INV-003b [all three]
+
+**Tests:**
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS (all three sprints)
+
+INV-003b: python proto/e2e_ui_test.py full → EXIT 0
+  PHASE_INV_EXPORT_PNG_OK: PASS (new marker)
+  All prior markers retained (no regression)
+
+HT-18c: python proto/e2e_ui_test.py smoke → EXIT 0
+  PHASE_HT18B_OK: 13/13 GREEN (was 7/13 — test design issue now fixed)
+
+INV-003a: python proto/e2e_ui_test.py full → EXIT 0
+  PHASE_INV_PRINT_CANVAS_OK: PASS (8 sub-checks)
+  All prior markers retained (no regression)
+
+Predecessor markers confirmed retained: PHASE_HT18_OK 36/36,
+PHASE_INV_ZEN_V2_OK 10/10, PHASE_INV_OVERVIEW_OK 9/9,
+PHASE_INV_ZEN_OK 10/10, PHASE_INV_PALETTE_OK 10/10,
+PHASE_INV_POLISH_001C_OK 5/5
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ⚠️ `proto/server.py` — INV-003b added `/export-png` endpoint (additive new endpoint; no rename or removal of existing endpoints; case isolation preserved; no schema change)
+- ✅ `.bmaplan` schema — UNCHANGED (version stays 1; no field rename or removal)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- ~10 LOC uncommitted HT-18b test refinement (`_projInfoSnap` direct global check) pending fold into next commit
+- Zen Mode user manual docs sprint still uncommitted (`proto/manual/zen-mode.md` NEW ~80 LOC + keyboard-shortcuts.md +2 LOC + getting-started.md +1 LOC + content.json rebuild) — pending user finalize
+- INV-2026-05-19-002c (F12 Overview mockup-port) still queued — next after docs sprint
+- Session totals: 33 local commits pushed to `origin/main-v2-2026-05-19` (local `main` tracking that branch)
+
+---
+
 ## 2026-05-19 — HT-18a-ext Extended pushUndo() coverage to 22 more mutation sites — PASS (branch: main)
 
 **What changed:** Extended HT-18a (`895a9d7`) by inserting `pushUndo()` at 22 additional mutation sites found via Phase A audit + `/bma-human-test` discovery pass: layer reorder (`moveLayerUp`/`moveLayerDown`), `renameLayer`, `setLayerColor`, `toggleLayerLock`, `setAllLayersVisible`, `hideOtherLayers`, `lockOtherLayers`, `setAllLayersLocked`, `toggleLayer`, `layerHideOthers`, `layerShowAll`, `setQuickTag`, `setPageTag`, `setPageFloorKind`, `setPageFloorNum`, `applyAutoNames`, `excludePage` (+ `_skipUndo` param), `restorePage2` (+ `_skipUndo` param), `hideSelectedPages`, `rotatePage`, `resetPageScale`, `pageCtxMenu` inline `autoNamePage` call. The E2E test `_test_ht18_pushundo_leaks` was extended from 7 sub-checks to **36 sub-checks** (22 source-presence + 7 runtime isDirty-flip + 7 original from HT-18a). `PHASE_HT18_OK` is now `{'all': True}` with 36/36 GREEN. Human journey test (`/bma-human-test`) discovered 3 sites initially missed in Phase A audit (`toggleLayer`, `layerHideOthers`, `layerShowAll`); fixed inline in the same iteration. `setQuickTag` and `resetPageScale` were reported as "leaks" but are early-exit code paths — correct that `isDirty` stays false when preconditions unmet. `PHASE_INDEX.md` updated: HT-18a-ext card filed (done), HT-18b updated to `done-with-test-design-caveat`, HT-18c upgraded from `pending conditional` to `queued` with concrete fix scope. New drift-map artifact `sprints/active/2026-05-19-ht-18-save-load-audit-fix/PHASE_A_AUDIT.md` (~120 lines). +39 LOC JS, +295 LOC test.
@@ -48,45 +97,4 @@ Human journey test: HUMAN_TEST_PASS after inline fix of 3 initially-missed sites
 
 ---
 
-## 2026-05-19 — HT-18a Save-state pushUndo leak fixes — PASS (branch: main)
-
-**What changed:** Inserted `pushUndo()` calls at 6 mutation sites that previously set data without marking the project dirty, causing the "save ไม่ตรงกับ canvas" data-integrity bug: `toggleScaleLine` (L2814), `showLayer` / `hideLayer` / `lockLayer` / `unlockLayer` / `soloLayer` (L2824-2828), and `applyLandEdgeTag` (L1788). Added new E2E test function `_test_ht18_pushundo_leaks()` (7 sub-checks) + `PHASE_HT18_OK` marker. Sprint card split: HT-18 → HT-18a (done, commit 895a9d7) + HT-18b (queued, round-trip E2E) + HT-18c (conditional). Session addenda (parallel commits, not part of this sprint): `c7e9334` (fix 002b chip alignment), `d94b35e` (fix 002a classic menu-bar hidden under body.zen), `5468d13` (invent GO verdict for f12-overview-mockup-port), `1f57451` (spike preview proto/sandbox/invent-f12-overview-mockup-port.html), `b6ba232` + `23ba929` (precursor docs for HT-18 card).
-
-**Why:** User reported that closing the app after certain operations (layer toggles, scale line toggle, land-edge tag apply) resulted in changes being lost because the browser did not prompt to save. The root cause was confirmed via `bma-explorer` audit: `_makeProjBlob` uses `JSON.stringify(pageStore)` which auto-serializes all fields (save schema is complete), and `applyLoadedProject` restores by ref (no field drift). The bug was purely missing `pushUndo()` calls — mutations were not setting `isDirty` — so the user believed the project was saved when it was not, and closed without Ctrl+S.
-
-**Files touched:**
-- `proto/ui.html`: +~10 LOC — `pushUndo()` inserted at: `toggleScaleLine` (L2814), `showLayer` (L2824), `hideLayer` (L2825), `lockLayer` (L2826), `unlockLayer` (L2827), `soloLayer` (L2828), `applyLandEdgeTag` (L1788)
-- `proto/e2e_ui_test.py`: +~70 LOC — `_test_ht18_pushundo_leaks()` with 7 sub-checks; `PHASE_HT18_OK` marker registered in pipeline
-- `docs/status/PHASE_INDEX.md`: sprint card split HT-18 → HT-18a (done 895a9d7) + HT-18b (queued) + HT-18c (conditional)
-
-**Tests:**
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
-  PHASE_HT18_OK 7/7 PASS (toggleScaleLineSetsDirty, hideLayerSetsDirty,
-  showLayerSetsDirty, lockLayerSetsDirty, unlockLayerSetsDirty, soloLayerSetsDirty,
-  applyLandEdgeTagHasPushUndo)
-  PHASE_INV_ZEN_V2_OK 10/10, PHASE_INV_OVERVIEW_OK 9/9, PHASE_INV_ZEN_OK 10/10,
-  PHASE_INV_PALETTE_OK 10/10, PHASE_INV_POLISH_001C_OK 5/5 — no regression
-full → SKIPPED (additive pushUndo() insert only; no save/load logic, no .bmaplan schema change,
-  no field rename; PROJECT_OK + PERSIST_OK test save/load round-trip not isDirty trigger)
-TEST-H → SKIPPED (sub-50-LOC additive fix; all 7 mutation sites marker-covered by PHASE_HT18_OK)
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — UNCHANGED
-- ✅ `.bmaplan` schema — UNCHANGED (pushUndo() calls are pure additive code; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- HT-18b: round-trip E2E test (port 8012) — iteration attempted but blocked by test infrastructure (subagent miscount, render flood, port lock). Test design correct; needs fresh-context investigation
-- HT-18c: conditional — only if HT-18b finds field drift (audit suggests it will not)
-- Uncommitted edits in working tree: additional pushUndo calls in setQuickTag/hideSelectedPages/setPageFloorKind/setPageFloorNum/applyAutoNames + excludePage signature change — user/linter parallel edits, not part of this finalize; user must review before committing
-- INV-2026-05-19-002c (F12 mockup port) queued; Print-canvas idea needs /bma-invent before dev-loop eligible
-
----
-
-<!-- sessions before HT-18a are archived to docs/archive/log-2026-05-19.md (001a Zen Mode + Ribbon Cleanup + 001b Command Palette + 001c FRICTION polish + 002a Zen top bar + 002b F12 Overview + HT-18a) and docs/archive/log-2026-05-18.md (earlier) -->
+<!-- sessions before the current top-2 are archived to docs/archive/log-2026-05-19.md (001a Zen Mode + Ribbon Cleanup + 001b Command Palette + 001c FRICTION polish + 002a Zen top bar + 002b F12 Overview + HT-18a + HT-18a-ext) and docs/archive/log-2026-05-18.md (earlier) -->
