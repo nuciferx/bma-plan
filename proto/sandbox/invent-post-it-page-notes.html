@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<!-- INV: post-it-page-notes — Approach B (new ann_sticky type + HTML div overlay).
+     Standalone sandbox prototype. Open directly in browser; no server, no build.
+     Spike acceptance criteria (from docs/invent/post-it-page-notes.md ## Frame):
+       1. Click "Sticky Note" → cursor enters placement mode
+       2. Click canvas → yellow card appears at click coord (~120×80px)
+       3. Card is inline-editable (textarea inside card)
+       4. Drag card by header → moves, position persists
+       5. Esc/click-outside → exits edit mode, saved
+       6. Save (JSON dump) → reload → round-trip preserves coord + text
+       7. Backward-compat with existing ann_comment annotations (unchanged dots still render)
+       8. Export simulation — note text appears in serialized JSON for PDF inheritance
+-->
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>INV: post-it-page-notes (Approach B spike)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1115; color: #e5e7eb; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 18px; background: #1a1d23; border-bottom: 1px solid #2c303a; }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  header .badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #3b82f6; color: #fff; }
+  .toolbar { display: flex; gap: 8px; padding: 8px 18px; background: #15181e; border-bottom: 1px solid #2c303a; }
+  .toolbar button { padding: 6px 14px; background: #2c303a; border: 1px solid #3b4250; color: #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .toolbar button:hover { background: #3b4250; }
+  .toolbar button.active { background: #3b82f6; border-color: #3b82f6; }
+  .toolbar .info { margin-left: auto; font-size: 11px; color: #9ca3af; align-self: center; }
+  .stage { position: relative; width: 100%; height: calc(100vh - 100px); overflow: hidden; }
+  #canvas-area { position: absolute; inset: 0; cursor: default; }
+  body.mode-sticky #canvas-area { cursor: crosshair; }
+  #fake-pdf { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 600px; height: 800px; background: #fff;
+              background-image: repeating-linear-gradient(0deg, #f3f4f6 0px, #f3f4f6 1px, transparent 1px, transparent 40px),
+                                repeating-linear-gradient(90deg, #f3f4f6 0px, #f3f4f6 1px, transparent 1px, transparent 40px);
+              color: #6b7280; padding: 20px; font-size: 14px;
+              box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+  #fake-pdf h2 { font-size: 16px; margin: 0 0 10px 0; color: #374151; }
+
+  /* Sticky note card — HTML div overlay, page-coord anchored.
+     Pure approach B: card lives in HTML, not canvas. Browser handles
+     text input / IME / line-wrap / selection natively. */
+  .sticky-card {
+    position: absolute;
+    width: 120px;
+    min-height: 80px;
+    background: #fef3a6; /* post-it yellow */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12);
+    border-radius: 2px;
+    font-family: "Marker Felt", "Comic Sans MS", -apple-system, sans-serif;
+    font-size: 12px;
+    color: #1f2937;
+    display: flex;
+    flex-direction: column;
+    transform: rotate(-1deg); /* slight tilt for post-it feel */
+    transition: box-shadow 0.15s, transform 0.15s;
+    user-select: none;
+  }
+  .sticky-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.24), 0 2px 4px rgba(0,0,0,0.16); transform: rotate(-1deg) scale(1.02); }
+  .sticky-card.selected { box-shadow: 0 0 0 2px #3b82f6, 0 8px 20px rgba(0,0,0,0.3); }
+  .sticky-header {
+    height: 14px;
+    background: rgba(0,0,0,0.06);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    cursor: move;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+    font-size: 10px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+  .sticky-header .drag-handle::before { content: "⋮⋮"; letter-spacing: -2px; }
+  .sticky-header .delete-btn { cursor: pointer; padding: 0 4px; color: #9ca3af; user-select: none; }
+  .sticky-header .delete-btn:hover { color: #ef4444; }
+  .sticky-body {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    padding: 6px 8px;
+    width: 100%;
+    overflow-y: auto;
+    user-select: text;
+  }
+  .sticky-body:focus { background: rgba(255,255,255,0.3); }
+
+  /* Backward-compat: existing ann_comment annotations render as small canvas dots.
+     This sandbox simulates them as red dots on canvas to prove they coexist. */
+  #legacy-canvas { position: absolute; inset: 0; pointer-events: none; }
+
+  .summary { padding: 12px 18px; background: #1a1d23; border-top: 1px solid #2c303a; font-size: 11px; color: #9ca3af; }
+  .summary code { background: #0f1115; padding: 2px 6px; border-radius: 3px; color: #93c5fd; font-family: "SF Mono", Consolas, monospace; }
+  #dump-area { position: fixed; bottom: 0; right: 0; width: 360px; max-height: 240px; overflow-y: auto; background: rgba(15,17,21,0.95); border: 1px solid #2c303a; border-radius: 6px 0 0 0; padding: 10px; font-family: "SF Mono", Consolas, monospace; font-size: 10px; color: #d1d5db; }
+  #dump-area h3 { font-size: 11px; margin: 0 0 6px 0; color: #93c5fd; }
+  #dump-area pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>📌 Sticky Note Annotation (Approach B spike)</h1>
+    <span class="badge">INV: post-it-page-notes</span>
+    <span style="font-size: 11px; color: #9ca3af;">New <code style="background:#0f1115;padding:1px 4px;border-radius:3px;color:#fde68a;font-family:SF Mono,Consolas,monospace;">ann_sticky</code> type + HTML div overlay (page-coord anchored)</span>
+  </header>
+  <div class="toolbar">
+    <button id="btn-mode-sticky">📌 Place Sticky Note</button>
+    <button id="btn-clear">🗑 Clear All</button>
+    <button id="btn-save">💾 Save (JSON)</button>
+    <button id="btn-load">📂 Load (last save)</button>
+    <button id="btn-add-legacy">+ Add legacy ann_comment</button>
+    <span class="info" id="info-status">Click "Place Sticky Note" then click anywhere on the page</span>
+  </div>
+  <div class="stage" id="stage">
+    <div id="canvas-area">
+      <div id="fake-pdf">
+        <h2>📄 Fake PDF page (600×800 page-coord space)</h2>
+        <p>This sandbox simulates the BMA-Plan page canvas. Click <b>📌 Place Sticky Note</b>, then click anywhere on this gray-grid area to drop a yellow post-it. Drag by the top handle. Click the × to delete. Click body to edit text.</p>
+        <p style="margin-top: 20px;"><i>The note position is stored in page-coord (top-left of this rectangle = 0,0). Pan/zoom would survive via the same <code>pdfToC</code> translation as the live app.</i></p>
+        <p style="margin-top: 20px; font-size: 11px;"><b>Spike success criteria:</b></p>
+        <ol style="font-size: 11px; color: #4b5563;">
+          <li>Place sticky → yellow card appears at click coord</li>
+          <li>Inline-editable (click body, type)</li>
+          <li>Drag by header → position updates</li>
+          <li>Save → reload → round-trips position + text</li>
+          <li>Coexists with legacy ann_comment (red dot)</li>
+        </ol>
+      </div>
+      <canvas id="legacy-canvas" width="2000" height="2000"></canvas>
+    </div>
+  </div>
+  <div class="summary">
+    <b>Approach B</b>: HTML div absolute-positioned via <code>pdfToC()</code> (simulated). Browser-native textarea = correct Thai IME + selection + line-wrap. Backward-compat with existing 7 annotation types (red dots = legacy <code>ann_comment</code>).
+    <br>State: <code>annotations[]</code> with new <code>type: "sticky"</code> entries alongside legacy types.
+  </div>
+  <div id="dump-area">
+    <h3>📊 annotations[] dump</h3>
+    <pre id="dump-json">[]</pre>
+  </div>
+
+<script>
+/* ─── In-memory page-store simulation (mirrors pageStore[pg].annotations[]) ─── */
+let annotations = [];
+let mode = "sel"; // sel | ann_sticky
+let pdfRect = null; // bounding rect of #fake-pdf (= page-coord origin)
+let selectedSticky = null;
+let dragState = null;
+
+/* ─── Coordinate transforms (mirrors live app's pdfToC / cToPdf) ─── */
+function clientToPageCoord(clientX, clientY) {
+  if (!pdfRect) pdfRect = document.getElementById("fake-pdf").getBoundingClientRect();
+  return { x: clientX - pdfRect.left, y: clientY - pdfRect.top };
+}
+function pageCoordToClient(px, py) {
+  if (!pdfRect) pdfRect = document.getElementById("fake-pdf").getBoundingClientRect();
+  return { x: pdfRect.left + px, y: pdfRect.top + py };
+}
+function nid() { return "ann_sticky_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,5); }
+
+/* ─── Mode handling ─── */
+function setMode(m) {
+  mode = m;
+  document.body.classList.toggle("mode-sticky", m === "ann_sticky");
+  document.getElementById("btn-mode-sticky").classList.toggle("active", m === "ann_sticky");
+  document.getElementById("info-status").textContent = m === "ann_sticky"
+    ? "Click anywhere on the PDF page to place a sticky note"
+    : "Click 'Place Sticky Note' then click on page";
+}
+
+/* ─── Create sticky DOM ─── */
+function renderSticky(ann) {
+  const card = document.createElement("div");
+  card.className = "sticky-card";
+  card.dataset.id = ann.id;
+  const clientPos = pageCoordToClient(ann.pts[0].x, ann.pts[0].y);
+  card.style.left = clientPos.x + "px";
+  card.style.top = clientPos.y + "px";
+
+  const header = document.createElement("div");
+  header.className = "sticky-header";
+  header.innerHTML = '<span class="drag-handle"></span><span class="delete-btn" title="Delete">×</span>';
+  card.appendChild(header);
+
+  const body = document.createElement("textarea");
+  body.className = "sticky-body";
+  body.value = ann.text || "";
+  body.placeholder = "เขียน note…";
+  body.spellcheck = false;
+  card.appendChild(body);
+
+  /* Edit — inline textarea + save on blur/Esc */
+  body.addEventListener("input", () => {
+    ann.text = body.value;
+    refreshDump();
+  });
+  body.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { body.blur(); }
+  });
+
+  /* Delete */
+  header.querySelector(".delete-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    annotations = annotations.filter(a => a.id !== ann.id);
+    card.remove();
+    refreshDump();
+  });
+
+  /* Drag by header */
+  header.addEventListener("pointerdown", (e) => {
+    if (e.target.classList.contains("delete-btn")) return;
+    selectedSticky = ann.id;
+    document.querySelectorAll(".sticky-card").forEach(c => c.classList.remove("selected"));
+    card.classList.add("selected");
+    const start = clientToPageCoord(e.clientX, e.clientY);
+    const orig = { x: ann.pts[0].x, y: ann.pts[0].y };
+    dragState = { ann, start, orig };
+    e.preventDefault();
+    header.setPointerCapture(e.pointerId);
+  });
+  header.addEventListener("pointermove", (e) => {
+    if (!dragState || dragState.ann.id !== ann.id) return;
+    const cur = clientToPageCoord(e.clientX, e.clientY);
+    const dx = cur.x - dragState.start.x;
+    const dy = cur.y - dragState.start.y;
+    ann.pts[0] = { x: dragState.orig.x + dx, y: dragState.orig.y + dy };
+    const clientPos = pageCoordToClient(ann.pts[0].x, ann.pts[0].y);
+    card.style.left = clientPos.x + "px";
+    card.style.top = clientPos.y + "px";
+  });
+  header.addEventListener("pointerup", (e) => {
+    if (dragState && dragState.ann.id === ann.id) {
+      dragState = null;
+      refreshDump();
+    }
+  });
+
+  document.getElementById("stage").appendChild(card);
+  return card;
+}
+
+function rerenderAll() {
+  document.querySelectorAll(".sticky-card").forEach(c => c.remove());
+  for (const a of annotations) {
+    if (a.type === "sticky") renderSticky(a);
+  }
+  drawLegacyCanvas();
+  refreshDump();
+}
+
+/* ─── Legacy canvas — proves backward compat with existing ann_comment ─── */
+function drawLegacyCanvas() {
+  const canvas = document.getElementById("legacy-canvas");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const a of annotations) {
+    if (a.type === "comment") {
+      const cp = pageCoordToClient(a.pts[0].x, a.pts[0].y);
+      const rect = canvas.getBoundingClientRect();
+      const cx = cp.x - rect.left;
+      const cy = cp.y - rect.top;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#ef4444";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = "11px sans-serif";
+      ctx.fillStyle = "#fff";
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 3;
+      ctx.strokeText(a.text || "", cx + 12, cy + 4);
+      ctx.fillText(a.text || "", cx + 12, cy + 4);
+    }
+  }
+}
+
+/* ─── Click on page to place sticky ─── */
+document.getElementById("canvas-area").addEventListener("click", (e) => {
+  if (mode !== "ann_sticky") return;
+  if (e.target.closest(".sticky-card")) return;
+  const pageCoord = clientToPageCoord(e.clientX, e.clientY);
+  const ann = {
+    id: nid(),
+    type: "sticky",
+    pts: [pageCoord],
+    text: "",
+    color: "#fef3a6",
+    createdAt: new Date().toISOString()
+  };
+  annotations.push(ann);
+  const card = renderSticky(ann);
+  setTimeout(() => card.querySelector("textarea").focus(), 0);
+  refreshDump();
+  setMode("sel"); // auto-exit place mode after one drop
+});
+
+/* ─── Toolbar buttons ─── */
+document.getElementById("btn-mode-sticky").addEventListener("click", () => {
+  setMode(mode === "ann_sticky" ? "sel" : "ann_sticky");
+});
+document.getElementById("btn-clear").addEventListener("click", () => {
+  annotations = [];
+  rerenderAll();
+});
+document.getElementById("btn-save").addEventListener("click", () => {
+  localStorage.setItem("invent-post-it-spike-save", JSON.stringify(annotations));
+  document.getElementById("info-status").textContent = `💾 Saved ${annotations.length} annotation(s) to localStorage`;
+});
+document.getElementById("btn-load").addEventListener("click", () => {
+  try {
+    const raw = localStorage.getItem("invent-post-it-spike-save");
+    if (!raw) { document.getElementById("info-status").textContent = "No saved state"; return; }
+    annotations = JSON.parse(raw);
+    rerenderAll();
+    document.getElementById("info-status").textContent = `📂 Loaded ${annotations.length} annotation(s) from localStorage`;
+  } catch (err) {
+    document.getElementById("info-status").textContent = "Load failed: " + err.message;
+  }
+});
+document.getElementById("btn-add-legacy").addEventListener("click", () => {
+  /* Adds a legacy ann_comment to prove backward-compat coexistence */
+  const cx = 100 + Math.random() * 300;
+  const cy = 200 + Math.random() * 300;
+  annotations.push({
+    id: "ann_comment_" + Date.now(),
+    type: "comment",
+    pts: [{ x: cx, y: cy }],
+    text: "legacy comment " + (annotations.filter(a => a.type === "comment").length + 1),
+    color: "#ef4444",
+    createdAt: new Date().toISOString()
+  });
+  rerenderAll();
+});
+
+/* ─── Dump panel — proves round-trip serialization ─── */
+function refreshDump() {
+  document.getElementById("dump-json").textContent = JSON.stringify(annotations, null, 2);
+}
+
+/* ─── Window resize — keep cards anchored to page-coord ─── */
+window.addEventListener("resize", () => {
+  pdfRect = document.getElementById("fake-pdf").getBoundingClientRect();
+  rerenderAll();
+});
+
+/* Init: drop one sample sticky + one legacy comment to demo coexistence */
+window.addEventListener("DOMContentLoaded", () => {
+  pdfRect = document.getElementById("fake-pdf").getBoundingClientRect();
+  annotations = [
+    { id: "demo_sticky_1", type: "sticky", pts: [{ x: 380, y: 120 }], text: "ตรงนี้ scale ผิด?\nถามวิศวกร", color: "#fef3a6", createdAt: new Date().toISOString() },
+    { id: "demo_comment_1", type: "comment", pts: [{ x: 150, y: 400 }], text: "legacy ann_comment", color: "#ef4444", createdAt: new Date().toISOString() }
+  ];
+  rerenderAll();
+});
+</script>
+</body>
+</html>

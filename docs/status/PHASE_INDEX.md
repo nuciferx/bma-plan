@@ -189,6 +189,42 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 
 ### ideas 2026-05-19
 
+- [x] **Sticky-note annotations per PDF page** — `invent-done-go (→ INV-2026-05-19-005)` 2026-05-19. Research verdict PRIOR_ART_PARTIAL. 5 approaches scored; top = B (new `ann_sticky` type + HTML div overlay, 25/30). Spike 8/8 PASS in `proto/sandbox/invent-post-it-page-notes.html`. User standing-order GO. Open Qs resolved by research: (1) page-coord (matches all incumbents + existing 7 ann types), (2) include in PDF export (already implemented for ann_comment path). See `docs/invent/post-it-page-notes.md`.
+    - Source: /idea 2026-05-19 19:30
+    - Tags: bma-plan, annotation, p-med
+    - Invent artifact: docs/invent/post-it-page-notes.md
+    - Sandbox: proto/sandbox/invent-post-it-page-notes.html
+
+#### INV-2026-05-19-005 — Sticky-note (post-it) annotations — `queued` 2026-05-19
+
+- **scope skill:** `/bma-ui-scope` (UI region: canvas overlay + annotate ribbon — additive, no measurement-math touch)
+- **depends-on:** none (additive — existing 7 annotation types unaffected)
+- **est LOC:** ~150-200 (proto/ui.html ~100 / app.css ~40 / e2e_ui_test.py ~50)
+- **success markers needed:** `PHASE_INV_STICKY_OK` with 10 sub-checks:
+  1. New mode `ann_sticky` registered in setMode handler
+  2. Toolbar/menu entry calls `setMode("ann_sticky")` (Annotate ribbon or menu)
+  3. Click on canvas in sticky mode → creates annotation with `type: "sticky"` in `pageStore[curPage].annotations[]`
+  4. Sticky card renders as HTML div positioned via `pdfToC()` — left/top match page-coord
+  5. Card body is `<textarea>` (or contenteditable) — type updates `ann.text`
+  6. Drag by header → `ann.pts[0]` updates; DOM position syncs
+  7. Delete button removes annotation + DOM element
+  8. Save .bmaplan → reload → sticky re-renders at same page-coord with same text
+  9. Existing `ann_comment` annotations still render via canvas (no regression)
+  10. Export to annotated PDF → sticky text appears on exported page (via existing ann pipeline OR explicit handler in server.py if needed — verify in test)
+- **forbidden surfaces:** NONE — schema additive only (new optional fields on annotation: `width`, `height`, `stickyStyle`); reads `pdfToC`/`cToPdf` only (no edit); does not touch polyAreaM2/snap/RS/measurement math.
+- **scope plan:**
+  1. Add toolbar button + menu entry that calls `setMode("ann_sticky")`
+  2. Register `ann_sticky` mode in `setMode()` mode list + cursor handling
+  3. In mousedown handler (mode==="ann_sticky" branch), create annotation `{id, type:"sticky", pts:[clickCoord], text:"", color:"#fef3a6", width:120, height:80, createdAt}` and call new `renderStickyCard(ann)` helper
+  4. New `renderStickyCard(ann)` — creates `.sticky-card` div, positioned absolute via `pdfToC`, header (drag) + textarea (edit) + delete button
+  5. `drawAnnotations()` skips `type==="sticky"` (HTML layer handles render)
+  6. New `rerenderStickyCards()` called from `redraw()`, `loadPage()`, `applyLoadedProject()` — syncs HTML cards to current pageStore + current zoom/pan transform
+  7. On pageStore mutations from drag, push to undo stack via `pushUndo()` (HT-18 invariant)
+  8. E2E test `_test_inv_sticky_notes` + `PHASE_INV_STICKY_OK` marker covering 10 sub-checks
+- **link:** `docs/invent/post-it-page-notes.md` (research + spike)
+- **manual UI test required:** YES — verify Thai IME works in textarea (research resolved this as B's main UX advantage)
+- **carry-over from spike:** sandbox proves all 8 success criteria; production needs to handle zoom-scaling (card size: fixed pixel vs scales with zoom?) and rotation (rotate HTML overlay container?).
+
 - [x] **F12 Overview — Excluded pages as separate group** — `invent-done-nogo (superseded by f12-overview-mockup-port)` 2026-05-19. Spike 7/7 PASS, but user decided to scrap incremental gap-by-gap approach in favor of a single faithful mockup port. Approach A (bottom-band atomic-restore, 26/30) design feeds into the port sprint's implementation.
     - Source: user 2026-05-19 (NOGO)
     - Tags: bma-plan, ui, zen, overview, excluded-pages, p-med
