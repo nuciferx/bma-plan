@@ -329,19 +329,22 @@ def _test_main_measurement_ui_cleanup(page):
                     return bg.includes("48, 209, 88") || bg.includes("53, 208, 127");
                 })(),
                 bodyNoHorizontalOverflow: document.documentElement.scrollWidth <= innerWidth + 1,
+                // INV-2026-05-19-001a: #active-layer-select intentionally hidden by polish commit 0e4e851
+                // ("polish(ribbon): hide scale-badge + active-layer-select") — removed from required-visible list
+                // to match the current Layers-panel-driven active-layer UX.
                 primaryToolIds: [
                     "#btn-pan", "#btn-sel", "#btn-area", "#btn-opening", "#btn-parcel-boundary",
-                    "#btn-ref", "#btn-dist", "#btn-scale-current", "#btn-north", "#active-layer-select",
+                    "#btn-ref", "#btn-dist", "#btn-scale-current", "#btn-north",
                     "#btn-undo", "#btn-redo", "#btn-delete-selected"
                 ],
                 primaryToolsVisible: (()=>{ if(typeof switchRibbonTab==='function') switchRibbonTab('measure'); return [
                     "#btn-pan", "#btn-sel", "#btn-area", "#btn-opening", "#btn-parcel-boundary",
-                    "#btn-ref", "#btn-dist", "#btn-scale-current", "#btn-north", "#active-layer-select",
+                    "#btn-ref", "#btn-dist", "#btn-scale-current", "#btn-north",
                     "#btn-undo", "#btn-redo", "#btn-delete-selected"
                 ].every(sel => isVisible(document.querySelector(sel))); })(),
                 primaryToolCount: (()=>{ if(typeof switchRibbonTab==='function') switchRibbonTab('measure'); return [
                     "#btn-pan", "#btn-sel", "#btn-area", "#btn-opening", "#btn-parcel-boundary",
-                    "#btn-ref", "#btn-dist", "#btn-scale-current", "#btn-north", "#active-layer-select",
+                    "#btn-ref", "#btn-dist", "#btn-scale-current", "#btn-north",
                     "#btn-undo", "#btn-redo", "#btn-delete-selected"
                 ].filter(sel => isVisible(document.querySelector(sel))).length; })(),
                 activeHighlightOk: activeBg.includes("10, 132, 255"),
@@ -350,7 +353,8 @@ def _test_main_measurement_ui_cleanup(page):
                     .every(sel => !!document.querySelector(sel)),
                 moreMenuOpen: true,
                 secondaryNotInPrimaryRow: true,
-                activeLayerControl: (()=>{ if(typeof switchRibbonTab==='function') switchRibbonTab('measure'); return isVisible(document.querySelector("#active-layer-select")); })(),
+                // INV-2026-05-19-001a: active layer now lives in right-panel Layers tab, not as ribbon control
+                activeLayerControl: true,
                 editActionsVisible: (()=>{ if(typeof switchRibbonTab==='function') switchRibbonTab('measure'); return ["#btn-undo", "#btn-redo", "#btn-delete-selected"]
                     .every(sel => isVisible(document.querySelector(sel))); })(),
                 headerActionsVisible: _visibleAnywhere(["#upload-btn", "#top-open-project", "#btn-sample-pdf"]) &&
@@ -422,7 +426,11 @@ def _test_main_measurement_ui_cleanup(page):
                     const sheetsRestored = document.getElementById("sidebar-content")?.style.display !== "none";
                     return !!(objVisible && sheetsHidden && propsVisible && objHidden && sheetsRestored);
                 })(),
-                scaleStatusWidgetVisible: isVisible(document.querySelector("#scale-badge")),
+                // INV-2026-05-19-001a: #scale-badge intentionally hidden by polish commit 0e4e851
+                // ("polish(ribbon): hide scale-badge + active-layer-select"). Scale state now lives
+                // in status bar + ribbon "Set Scale" HERO button. Check element exists in DOM,
+                // do not require visibility.
+                scaleStatusWidgetVisible: !!document.querySelector("#scale-badge"),
                 pageInfoWidgetVisible: isVisible(document.querySelector("#lp-page-info")),
                 cssLinkPresent: !!document.querySelector('link[href="/static/css/app.css"]'),
                 cssVarLoaded: !!getComputedStyle(document.documentElement).getPropertyValue("--blue").trim(),
@@ -538,7 +546,7 @@ def _test_main_measurement_ui_cleanup(page):
     if not result["topbarHeightOk"] or not result["directHeaderActions"] or not result["openDropdownNeutralized"] or not result["exportRightAligned"] or not result["exportGreen"]:
         raise AssertionError(f"restored top header contract failed: {result}")
     if not result["primaryToolsVisible"] or result["primaryToolCount"] < 12:
-        raise AssertionError(f"measurement toolbar is missing visible primary tools: {result}")
+        raise AssertionError(f"measurement toolbar is missing visible primary tools (expected 12 after #active-layer-select hidden by polish 0e4e851): {result}")
     if not result["activeHighlightOk"] or not result["toolbarHasDividers"]:
         raise AssertionError(f"toolbar visual contract failed: {result}")
     if not result["editActionsVisible"] or not result["headerActionsVisible"]:
@@ -4027,6 +4035,112 @@ def _test_ht16_restore_tab(page):
     return {**checks, "all": True}
 
 
+def _test_inv_zen_mode(page):
+    """INV-2026-05-19-001a: Zen Mode + Sheet Minimap.
+
+    10 sub-checks:
+    A. toggleZenMode helper + DOM elements exist
+    B. body.zen class added after toggle
+    C. canvas-wrap height >= 92% of viewport when in zen mode
+    D. all 3 HUD corners visible (TL/TR/BL with required state keys)
+    E. zen-minimap visible + has cells equal to non-excluded page count
+    F. IntersectionObserver lazy-loads — only some cells have <img> initially (not all 45)
+    G. F11 keydown toggles zen (entered after first keypress)
+    H. Esc exits zen (when active and no other Esc consumer)
+    I. PREFS round-trip: PREFS.layout.zenMode persists after toggle
+    J. status-bar hidden when zen on, visible when zen off
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const results = {};
+        // A. Required helpers + DOM
+        const helpersExist = typeof toggleZenMode === 'function'
+            && typeof _zenBuildMinimapIfNeeded === 'function'
+            && typeof _zenSyncHud === 'function';
+        const domExist = !!document.getElementById('zen-hud-tl')
+            && !!document.getElementById('zen-hud-tr')
+            && !!document.getElementById('zen-hud-bl')
+            && !!document.getElementById('zen-minimap')
+            && !!document.getElementById('zen-mm-grid');
+        results.helpersAndDomExist = helpersExist && domExist;
+        // Ensure we start NOT in zen
+        if(document.body.classList.contains('zen')) toggleZenMode();
+        // J pre-check: status bar visible classically
+        const statusBefore = getComputedStyle(document.getElementById('bottombar')).display;
+        results.statusVisibleClassically = statusBefore !== 'none';
+        // B. Toggle on
+        toggleZenMode();
+        results.bodyZenClassAdded = document.body.classList.contains('zen');
+        // C. Canvas height >= 92% vh
+        const canvas = document.getElementById('workspace');
+        const cvRect = canvas.getBoundingClientRect();
+        const vh = window.innerHeight;
+        const pct = (cvRect.height / vh) * 100;
+        results.canvasHeightPct = pct;
+        results.canvasGE92Pct = pct >= 92;
+        // D. HUD content
+        const tl = (document.getElementById('zen-hud-tl').textContent||'').toLowerCase();
+        const tr = (document.getElementById('zen-hud-tr').textContent||'').toLowerCase();
+        const bl = (document.getElementById('zen-hud-bl').textContent||'').toLowerCase();
+        results.hudHasScale = tl.includes('scale');
+        results.hudHasTool = tl.includes('tool');
+        results.hudHasPage = tr.includes('page');
+        results.hudHasExit = tr.includes('exit');
+        results.hudHasLayer = bl.includes('layer');
+        results.hudHasSave = bl.includes('save');
+        // E. Minimap cells = non-excluded pages
+        const cells = document.querySelectorAll('.zen-mm-cell');
+        const excluded = (typeof excludedPages !== 'undefined') ? excludedPages.size : 0;
+        const expected = totalPages - excluded;
+        results.minimapCellCount = cells.length;
+        results.minimapExpected = expected;
+        results.minimapCellCountMatch = cells.length === expected;
+        // F. Lazy-load — most cells should not have <img> yet (IntersectionObserver pending)
+        const cellsWithImg = document.querySelectorAll('.zen-mm-cell img').length;
+        results.cellsWithImgInitial = cellsWithImg;
+        results.lazyLoadActive = cellsWithImg < cells.length;
+        // I. PREFS persisted
+        results.prefsZenModeTrue = !!(PREFS && PREFS.layout && PREFS.layout.zenMode);
+        // J. Status bar hidden in zen
+        const statusInZen = getComputedStyle(document.getElementById('bottombar')).display;
+        results.statusHiddenInZen = statusInZen === 'none';
+        // G. F11 keydown exits zen
+        const evF11 = new KeyboardEvent('keydown', {key:'F11', bubbles:true, cancelable:true});
+        document.dispatchEvent(evF11);
+        results.f11ExitsZen = !document.body.classList.contains('zen');
+        results.prefsZenModeFalseAfter = !(PREFS && PREFS.layout && PREFS.layout.zenMode);
+        // H. Esc exits when zen on
+        toggleZenMode();
+        const wasOn = document.body.classList.contains('zen');
+        const evEsc = new KeyboardEvent('keydown', {key:'Escape', bubbles:true, cancelable:true});
+        document.dispatchEvent(evEsc);
+        results.escExitsZen = wasOn && !document.body.classList.contains('zen');
+        return results;
+    }""")
+    checks = {
+        "helpersAndDomExist": probe.get("helpersAndDomExist") is True,
+        "bodyZenClassAdded": probe.get("bodyZenClassAdded") is True,
+        "canvasGE92Pct": probe.get("canvasGE92Pct") is True,
+        "hudHasScaleToolPageSaveLayer": all([
+            probe.get("hudHasScale"), probe.get("hudHasTool"),
+            probe.get("hudHasPage"), probe.get("hudHasExit"),
+            probe.get("hudHasLayer"), probe.get("hudHasSave"),
+        ]),
+        "minimapCellCountMatch": probe.get("minimapCellCountMatch") is True,
+        "lazyLoadActive": probe.get("lazyLoadActive") is True,
+        "f11ExitsZen": probe.get("f11ExitsZen") is True,
+        "escExitsZen": probe.get("escExitsZen") is True,
+        "statusHiddenInZen": probe.get("statusHiddenInZen") is True,
+        "prefsRoundTrip": probe.get("prefsZenModeFalseAfter") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True, "canvasHeightPct": probe.get("canvasHeightPct")}
+
+
 def _test_ht17_enter_finishes_area(page):
     """HT-17: Enter key in area mode finishes polygon (matches menu hint "Finish Drawing — Enter").
 
@@ -6403,6 +6517,7 @@ def main():
             ht15a_sheets_tab = _test_ht15a_sheets_tab(page)
             ht16_restore_tab = _test_ht16_restore_tab(page)
             ht17_enter_area = _test_ht17_enter_finishes_area(page)
+            inv_zen_mode = _test_inv_zen_mode(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -6484,6 +6599,7 @@ def main():
         print("PHASE_HT15A_OK", ht15a_sheets_tab)
         print("PHASE_HT16_OK", ht16_restore_tab)
         print("PHASE_HT17_OK", ht17_enter_area)
+        print("PHASE_INV_ZEN_OK", inv_zen_mode)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)

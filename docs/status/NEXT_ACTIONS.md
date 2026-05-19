@@ -4,21 +4,19 @@ Date: 2026-05-19
 
 ## Immediate Next
 
-**Ribbon Cleanup Polish PASS — ready to commit. Three follow-up steps:**
+**INV-2026-05-19-001a Zen Mode PASS — commit pending (main agent handles). Next loop iteration: INV-2026-05-19-001b ⌘K Command Palette.**
 
-1. **Commit this sprint** (user decision) — `git add proto/static/css/app.css proto/ui.html` and commit. All 7 mandatory doc files updated by this sprint writer run.
+1. **Commit INV-2026-05-19-001a** (main agent fills hash, flips PHASE_INDEX row to `done`).
 
-2. **Test in real Chrome on a 45-page PDF** — open browser (not headless), confirm ribbon row reads `TOOL | SCALE | พื้นที่ | LINES | MARKER | HELPERS | EDIT | REVIEW` with no gap where Layer select used to be. Verify Review button renders at the same height as other ribbon groups.
+2. **INV-2026-05-19-001b — ⌘K Command Palette** — companion to this sprint (SPLIT_REQUIRED boundary). Idea: quick fuzzy-search command launcher accessible from Zen Mode + normal mode. Status: `queued` in `PHASE_INDEX.md`. Next `/loop /bma-dev-loop` iteration picks this up automatically.
 
-3. **Verify Right panel Layers tab can still change active layer via row click** — `<select id="active-layer-select">` is hidden but preserved in DOM; `setActiveLayerMenu()`, `getActiveLayer()`, `updateActiveLayerControl()` all still reference it. Quick open-PDF + draw polygon + change layer via Right panel row click confirms JS refs remain wired.
+3. **HT-Z-1 follow-up** — MutationObserver timing for minimap HUD page-name sync; FRICTION, low priority, can batch with 001b polish.
 
-After commit, active queue is empty. Eligible next work:
-- `/bma-human-test` — realistic 45-page permit journey on new Page Setup inspector + Settings v2 (recommended before release; deferred from overnight session by user choice)
-- `/bma-invent` on Comment/Annotation system redesign (filed `invent-queued` 2026-05-17)
-- Pre-existing failure cleanup — 3 baseline-drift failures (HT-8C.objectsTabRenamed / HT-10.compactIsSmallerThanSpacious / HT-12H.cssCascadeChangesButtonSize) as small CSS/density polish sprint
+4. **HT-Z-2 follow-up** — amber HUD chip styling when `scaleMode === 'auto-unverified'`; FRICTION, can fold into 001b or polish sprint.
 
 ## Recently Done
 
+- **INV-2026-05-19-001a — Zen Mode + Sheet Minimap** — 2026-05-19. `body.zen` chrome-hide; 3 corner HUDs; lazy minimap (IntersectionObserver, malloc-safe); F11/Esc toggle; PREFS additive; `PHASE_INV_ZEN_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK (45-page permit). HT-Z-1/HT-Z-2 filed. Idea `2026-05-19-01-36`, sprint 001a of 2.
 - **Ribbon Cleanup Polish** — 2026-05-19. `body { font-size }` 16px → 14px (revert after Chrome layout shift). `#scale-badge` hidden from ribbon. `#active-layer-select` ribbon-group hidden (preserved in DOM). `#btn-report` rewrapped in `.rsection` + `.rlbl` + `.rrow` (uniform 60px height). py_compile PASS, smoke PASS (all pre-existing markers GREEN). Zero forbidden-surface edits.
 - **INV-2026-05-18-002 — Settings v2: export defaults + loupe prefs** — 2026-05-19. 4 new PREFS additive in settings.v1: csvSeparator / includeLawBasis / loupe.radius / loupe.zoomFactor. exportCSV separator-aware; updateLoupe zoom-factor-driven. SETTINGS_V2_OK 6/6; SETTINGS_OK (v1) still GREEN. Commit `3e71865`.
 - **INV-2026-05-18-001c — Page delete + renumber-map + /rebuild-pdf** — 2026-05-19. NEW /rebuild-pdf endpoint. PyMuPDF doc.delete_page() reverse-order. _reindexPageDicts across 7 per-page dicts. Hard-block during draw, last-page guard, pushUndo(), Foxit-style warning. PHASE_INV_PAGE_SETUP_C_OK 7/7. Commit `ebb521c`. Research: `afd4e71` Q1-Q4 locked in `docs/invent/page-setup-redesign.md`.

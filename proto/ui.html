@@ -46,8 +46,9 @@
         <div class="dd-item" onclick="rotatePage(-90)">↺ Rotate Left 90°</div>
         <div class="dd-item" onclick="rotatePage(90)">↻ Rotate Right 90°</div>
         <div class="dd-sep"></div>
-        <div class="dd-item" onclick="toggleLeftPanel()">◀ Toggle Left Panel</div>
-        <div class="dd-item" onclick="toggleRightPanel()">▶ Toggle Right Panel</div>
+        <div class="dd-item" onclick="toggleLeftPanel()">◀ Toggle Left Panel<span class="shortcut">F9</span></div>
+        <div class="dd-item" onclick="toggleRightPanel()">▶ Toggle Right Panel<span class="shortcut">F10</span></div>
+        <div class="dd-item" id="dd-view-zen" onclick="toggleZenMode()">⛶ Zen Mode (Fullscreen Canvas)<span class="shortcut">F11</span></div>
         <div class="dd-sep"></div>
         <div class="dd-item dd-submenu-trigger">⚙ UI Density
           <div class="dd-submenu" id="dd-view-density-submenu">
@@ -572,6 +573,41 @@
     </div>
     <span class="bb-item" id="page-summary">ยังไม่มีรายการพื้นที่</span>
     <span class="bb-measure" id="measure-result"></span>
+  </div>
+  <!-- INV-2026-05-19-001a · Zen Mode overlays. Visible only when body.zen is set.
+       Replaces the status bar (corner HUDs) + Pages sidebar (minimap) during zen mode.
+       Top menu stays visible per user spec "เหลือแต่ canva และมีแค่ top เมนู". -->
+  <div class="zen-hud zen-hud-tl" id="zen-hud-tl">
+    <span><span class="hud-lbl">Scale</span><span class="hud-val" id="zen-hud-scale">—</span></span>
+    <span class="hud-sep">·</span>
+    <span><span class="hud-lbl">Tool</span><span class="hud-val" id="zen-hud-tool">—</span></span>
+  </div>
+  <div class="zen-hud zen-hud-tr" id="zen-hud-tr">
+    <span><span class="hud-lbl">Page</span><span class="hud-val" id="zen-hud-page">—</span></span>
+    <span class="hud-sep">·</span>
+    <span class="zen-exit-chip" onclick="toggleZenMode()" title="ออกจาก Zen Mode [F11/Esc]">◻ Exit Zen<span style="opacity:0.6;margin-left:4px;font-size:9px">F11</span></span>
+  </div>
+  <div class="zen-hud zen-hud-bl" id="zen-hud-bl">
+    <span><span class="hud-lbl">Layer</span><span class="hud-val" id="zen-hud-layer">—</span></span>
+    <span class="hud-sep">·</span>
+    <span><span class="hud-lbl">Save</span><span class="hud-val" id="zen-hud-save" style="color:var(--green)">●</span></span>
+    <span class="hud-sep">·</span>
+    <span><span class="hud-lbl">Obj</span><span class="hud-val" id="zen-hud-obj">0</span></span>
+    <span class="hud-sep">·</span>
+    <span><span class="hud-lbl">⚠</span><span class="hud-val" id="zen-hud-warn" style="color:var(--orange)">0</span></span>
+  </div>
+  <!-- Sheet minimap — bottom-right floating strip with lazy-loaded thumbs -->
+  <div class="zen-minimap" id="zen-minimap">
+    <div class="zen-mm-header">
+      <b>📑 Sheets</b>
+      <span id="zen-mm-count">— หน้า</span>
+      <span class="zen-mm-toggle" onclick="_zenToggleMinimap()" title="พับ/ขยาย minimap">−</span>
+    </div>
+    <div class="zen-mm-grid" id="zen-mm-grid"></div>
+  </div>
+  <!-- First-time onboarding toast (auto-dismisses; never shown twice) -->
+  <div class="zen-onboarding-toast" id="zen-onboarding-toast">
+    <b>⛶ Zen Mode</b> — canvas เต็มจอ · กด <span class="kbd">F11</span> หรือ <span class="kbd">Esc</span> ออก · มี Sheets minimap มุมขวาล่าง
   </div>
 </div>
 <div id="snap-cur"></div><div id="snap-lbl"></div>
@@ -2974,7 +3010,11 @@ document.addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft"){const p=getPrevPage(curPage);if(p)loadPage(p);}
   if(e.key==="PageUp"){e.preventDefault();if(!anyModal)menuLoadPrevPage();return;}
   if(e.key==="PageDown"){e.preventDefault();if(!anyModal)menuLoadNextPage();return;}
-  if(e.key==="Escape"){closeAllMenus();if(landEdgeState.open){closeLandEdgePanel();return;}if(namePanel.style.display==="block"){cancelName();return;}if(mode==="area"&&mArcDraft.pending){mArcDraft.pending=false;mArcDraft.throughPt=null;setStatus("ยกเลิก arc-mode (กลับสู่การวาดแบบเส้นตรง)");redraw();return;}if((mode==="path"||mode==="ref"||mode==="area"||mode==="north")&&mPts.length){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;redraw();setStatus("ยกเลิกเส้นที่กำลังวาด");return;}setMode("pan");namePanel.style.display="none";ctxMenu.style.display="none";closePgMgr();}
+  // INV-2026-05-19-001a · F11 toggles Zen Mode (only when no modal open + not drawing)
+  if(e.key==="F11"&&!anyModal&&!mPts.length){e.preventDefault();toggleZenMode();return;}
+  if(e.key==="Escape"){closeAllMenus();if(landEdgeState.open){closeLandEdgePanel();return;}if(namePanel.style.display==="block"){cancelName();return;}if(mode==="area"&&mArcDraft.pending){mArcDraft.pending=false;mArcDraft.throughPt=null;setStatus("ยกเลิก arc-mode (กลับสู่การวาดแบบเส้นตรง)");redraw();return;}if((mode==="path"||mode==="ref"||mode==="area"||mode==="north")&&mPts.length){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;redraw();setStatus("ยกเลิกเส้นที่กำลังวาด");return;}// INV-2026-05-19-001a: Esc exits zen mode (after other Esc consumers have had their turn)
+  if(document.body.classList.contains("zen")){toggleZenMode();return;}
+  setMode("pan");namePanel.style.display="none";ctxMenu.style.display="none";closePgMgr();}
   if((e.key==="Delete"||e.key==="Backspace")&&mode==="sel"&&selItem){pushUndo();if(selItem.type==="line")mLines.splice(selItem.idx,1);else if(selItem.type==="poly")mPolys.splice(selItem.idx,1);else if(selItem.type==="opening")mOpenings.splice(selItem.idx,1);else if(selItem.type==="ref")mRefs.splice(selItem.idx,1);else if(selItem.type==="parking")mParking.splice(selItem.idx,1);selItem=null;dragState=null;updatePageSummary(curPage);redraw();}
   if(e.key==="F2"){if(!anyModal)renameSelectedObject();return;}
   if(e.key==="Delete"&&ctxTarget)ctxDelete();
@@ -3191,7 +3231,7 @@ const PREF_DEFAULTS={
   snap:{enabled:true,threshold:10},
   tool:{default:"pan"},
   unit:{area:"sqm",decimals:2},
-  layout:{preset:"current-stable",density:"comfortable",hideLeftPanel:false,hideRightPanel:false},
+  layout:{preset:"current-stable",density:"comfortable",hideLeftPanel:false,hideRightPanel:false,zenMode:false,zenOnboarded:false},
   widgets:{visible:{}},
   // INV-2026-05-18-002 — Settings v2 export defaults + loupe prefs (additive)
   export:{csvSeparator:",",includeLawBasis:true},
@@ -3251,6 +3291,115 @@ function applyLayoutPrefs(){
       b.classList.toggle("active",b.dataset.density===density);
     });
   }catch(e){}
+  // INV-2026-05-19-001a: Zen Mode — hide all UI chrome except menu bar + canvas.
+  // Builds minimap on first entry, syncs HUD state. Restores prior panel collapse state on exit.
+  const zenOn=!!lay.zenMode;
+  document.body.classList.toggle("zen",zenOn);
+  if(zenOn){
+    try{_zenBuildMinimapIfNeeded();_zenSyncHud();}catch(e){console.warn("[zen] init failed",e);}
+    // Re-sync HUD on entry — picks up current scale/page/save/layer state
+  }
+  // Mark View menu zen item as active when zen is on
+  try{
+    const zItem=document.getElementById("dd-view-zen");
+    if(zItem)zItem.classList.toggle("on",zenOn);
+  }catch(e){}
+}
+// INV-2026-05-19-001a · Zen Mode toggle — flips PREFS.layout.zenMode + persists.
+function toggleZenMode(){
+  if(!PREFS)loadPrefs();
+  if(!PREFS.layout)PREFS.layout={};
+  PREFS.layout.zenMode=!PREFS.layout.zenMode;
+  savePrefs();
+  applyLayoutPrefs();
+  if(PREFS.layout.zenMode){
+    // First-time onboarding toast (auto-dismiss 5 s, never shown again)
+    if(!PREFS.layout.zenOnboarded){
+      const t=document.getElementById("zen-onboarding-toast");
+      if(t){t.classList.add("show");setTimeout(()=>t.classList.remove("show"),5000);}
+      PREFS.layout.zenOnboarded=true;
+      savePrefs();
+    }
+    if(typeof setStatus==="function")setStatus("⛶ Zen Mode — F11 ออก");
+  }else{
+    if(typeof setStatus==="function")setStatus("ออกจาก Zen Mode แล้ว");
+  }
+}
+// Build the 45-cell minimap once, then reuse. IntersectionObserver lazy-loads thumbs.
+let _zenMinimapBuilt=false;
+let _zenMinimapIO=null;
+function _zenBuildMinimapIfNeeded(){
+  const grid=document.getElementById("zen-mm-grid");
+  if(!grid)return;
+  if(_zenMinimapBuilt&&grid.children.length===totalPages){_zenUpdateMinimapActive();return;}
+  grid.innerHTML="";
+  if(!totalPages)return;
+  if(_zenMinimapIO){_zenMinimapIO.disconnect();_zenMinimapIO=null;}
+  _zenMinimapIO=new IntersectionObserver(ents=>{
+    ents.forEach(en=>{
+      if(en.isIntersecting&&!en.target.dataset.loaded){
+        en.target.dataset.loaded="1";
+        const n=+en.target.dataset.page;
+        const img=document.createElement("img");
+        img.loading="lazy";img.src=thumbUrl(n);
+        en.target.appendChild(img);
+      }
+    });
+  },{root:grid,rootMargin:"40px"});
+  for(let i=1;i<=totalPages;i++){
+    if(excludedPages&&excludedPages.has&&excludedPages.has(i))continue;
+    const cell=document.createElement("div");
+    cell.className="zen-mm-cell"+(i===curPage?" active":"");
+    cell.dataset.page=i;
+    cell.title=`หน้า ${i}${pageNames[i]?": "+pageNames[i]:""}`;
+    // Status dot — derive from scale state (HT-7 readiness)
+    const sc=typeof getScaleForPage==="function"?getScaleForPage(i):null;
+    const dotCls=sc?(sc.state==="manual"?"green":"amber"):"red";
+    cell.innerHTML=`<div class="mm-dot ${dotCls}"></div><div class="mm-num">${i}</div>`;
+    cell.addEventListener("click",()=>{loadPage(i);_zenUpdateMinimapActive();});
+    grid.appendChild(cell);
+    _zenMinimapIO.observe(cell);
+  }
+  _zenMinimapBuilt=true;
+  const cnt=document.getElementById("zen-mm-count");
+  if(cnt)cnt.textContent=`${totalPages} หน้า`;
+}
+function _zenUpdateMinimapActive(){
+  document.querySelectorAll(".zen-mm-cell").forEach(c=>{
+    c.classList.toggle("active",+c.dataset.page===curPage);
+  });
+}
+function _zenToggleMinimap(){
+  const m=document.getElementById("zen-minimap");
+  if(m)m.classList.toggle("collapsed");
+}
+// Sync HUD chips with status bar values. Called on zen entry + page change + scale change.
+function _zenSyncHud(){
+  if(!document.body.classList.contains("zen"))return;
+  const get=id=>{const el=document.getElementById(id);return el?(el.textContent||"").trim():"";};
+  const hud={
+    tool:get("lbl-mode")||"—",
+    scale:get("lbl-scale")||"—",
+    page:get("bb-page-name")||(curPage?`${curPage}/${totalPages||"?"}`:"—"),
+    layer:get("lbl-layer")||"—",
+    save:get("lbl-save-state")||"—",
+    obj:get("lbl-objects")||"0",
+    warn:get("lbl-warnings")||"0"
+  };
+  const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  setT("zen-hud-tool",hud.tool);
+  setT("zen-hud-scale",hud.scale);
+  setT("zen-hud-page",hud.page);
+  setT("zen-hud-layer",(hud.layer||"").replace(/^Layer:\s*/,""));
+  setT("zen-hud-save",hud.save);
+  setT("zen-hud-obj",hud.obj);
+  setT("zen-hud-warn",hud.warn);
+  // Color-code save dot
+  const saveEl=document.getElementById("zen-hud-save");
+  if(saveEl){
+    const dirty=(hud.save||"").includes("Unsaved")||(hud.save||"").includes("Manual");
+    saveEl.style.color=dirty?"var(--orange)":"var(--green)";
+  }
 }
 // HT-12a: menu-bar density picker shortcut — writes PREFS.layout.density + applies.
 // Bridge with existing HT-10 settings modal (same field, same persist key).
@@ -3476,6 +3625,19 @@ _applyLoupePrefs();
 document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key===","){e.preventDefault();openSettings();}
 });
+// INV-2026-05-19-001a · MutationObserver mirrors status-bar updates into zen HUD.
+// Guard in _zenSyncHud() bails when not in zen, so observer is essentially free outside zen.
+(function _initZenHudObserver(){
+  const bb=document.getElementById("bottombar");
+  if(!bb||typeof MutationObserver==="undefined")return;
+  const mo=new MutationObserver(()=>{
+    if(document.body.classList.contains("zen")){
+      _zenSyncHud();
+      _zenUpdateMinimapActive();
+    }
+  });
+  mo.observe(bb,{subtree:true,childList:true,characterData:true});
+})();
 </script>
 </body>
 </html>

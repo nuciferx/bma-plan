@@ -165,6 +165,17 @@ User direction: "ทำระบบเมนูให้ชัดเจนก่
 |---|---|---|---|---|
 | HT-8 | FRICTION | drawing-tool menu clarity — ribbon has 13 flat measure buttons, Measure menu has 23 items, sub-modes (Arc via 'A', Freeform via Alt-drag, Opening toggle) are invisible until discovered. **Fix:** (a) ribbon split into labeled sections with visual dividers: 🔍Select · 🟩พื้นที่ (Area/Rect/Circle/Ellipse/Opening) · 📏เส้น/ระยะ (Distance/Path/Ref) · 📍Marker (Parking/North) · 📐Calibrate · ↩Edit; (b) Area button shows sub-mode badge when Arc-pending or Freeform-active; (c) status bar `lbl-mode` prefix `[📐 วัด]` so user sees they're in measure layer; (d) tooltip rewrite mentioning sub-mode shortcuts (e.g. Area tooltip: "A — กด 'A' ระหว่างวาด=Arc edge, Alt+drag=Freeform"). ~120 LOC + CSS dividers + PHASE_HT8_OK marker. | user-test 2026-05-17 | `/bma-ui-scope` → `/bma-ui-ribbon` + `/bma-ui-menu` + `/bma-ui-status` |
 
+### zen-mode 2026-05-19 (post INV-2026-05-19-001a human-test)
+
+Human-test on real 45-page permit PDF passed — zero CRASH/BROKEN. `PHASE_INV_ZEN_OK` 10/10 GREEN. Two FRICTION items surfaced:
+
+| id | severity | category | source | scope skill |
+|---|---|---|---|---|
+| HT-Z-1 | FRICTION | Transient stale HUD page name during fast minimap navigation — MutationObserver fires on `setStatus("กำลังโหลดหน้า…")` BEFORE `updateBottomBar()` writes `bb-page-name`, so HUD briefly shows old page name during transition. Self-corrects ~1.2s later. **Fix:** in `_zenSyncHud()`, read `pageNames[curPage]\|\|(curPage+"/"+totalPages)` directly from JS state instead of from `bb-page-name` element. ~5 LOC. | `bma-human-journey-tester` 2026-05-19 (INV-2026-05-19-001a) | `/bma-ui-scope` → `/bma-ui-canvas` |
+| HT-Z-2 | FRICTION | Auto-unverified scale not visually distinguished in HUD chip — Scale chip shows `1:2567 ?` but the `?` suffix is small (10px) and meaning not obvious. **Fix:** color HUD Scale value amber/orange when scale state is `auto-unverified`; manual = white (current behavior). ~10 LOC in `_zenSyncHud()`. | `bma-human-journey-tester` 2026-05-19 (INV-2026-05-19-001a) | `/bma-ui-scope` → `/bma-ui-canvas` |
+
+Both are non-blocking — the underlying mechanism works correctly. Filed at end of queue (FRICTION rank per loop spec).
+
 ### user-test 2026-05-17 (post-loop, on INV-001 Arc-polygon)
 
 User tested arc-polygon drawing, reported "ทำได้ โอเค มาก" (works well). One UX gap noted:
