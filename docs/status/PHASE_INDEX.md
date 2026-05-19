@@ -187,6 +187,43 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 
 ### ideas 2026-05-19
 
+- [x] **Zen Mode v2 — swap menu bar for spatial-sheet-map top bar** — `invent-done-go (→ INV-2026-05-19-002a + 002b)` 2026-05-19. Verdict `PRIOR_ART_PARTIAL` (top-bar + dropdowns + ⌘K mature individually; composition novel for PDF). 5 approaches on 5 axes; **2 attempts** — v1 framed as extension (rejected), **v2 RESHAPED** as dual-mode (F11+F12 separate). Top approach v2: F11 = A (top bar) + D (Focus) bundled; F12 = C (standalone spatial grid). Spike v2 PASS 8/8 (top bar 40px, F11 actions ≤2 clicks, 7 HUD fields visible, F12 per-card status + lazy load, F12↔F11 roundtrip page sync, Focus + edge peek, HT-7 gate, onboarding toast). 001a F11 behavior deprecated (breaking change + mandatory onboarding). User GO 2026-05-19. 2 sprint cards in active queue (002a→002b). See `docs/invent/zen-mode-v2-topbar.md` + spike `proto/sandbox/invent-zen-mode-v2-topbar.html`.
+    - Source: user 2026-05-19 11:39 + screenshot `proto/ui/Screenshot 2026-05-18 221940.png`
+    - Tags: bma-plan, ui, zen, top-bar, overview, focus, p-med
+    - Sprint split rationale: ~410 total LOC at upper boundary → 002a (F11 ~230 LOC, breaking change) + 002b (F12 ~180 LOC, depends-on 002a)
+    - Carry-over: 001a minimap deprecated; ZEN_MENU_ITEMS shared handler array; F-key scope guard; onboarding `PREFS.layout.zenV2Onboarded`; modal z-index audit
+
+#### INV-2026-05-19-002a — F11 Zen + top bar (A + D bundled) — `queued`
+
+- **scope skill:** `/bma-ui-scope` (UI region: menu bar + canvas + new top bar + HUDs)
+- **depends-on:** 001a (must remain in tree; 002a replaces its F11 toggleZen behavior)
+- **est LOC:** ~230 (HTML ~40, CSS ~70, JS ~80, E2E test ~40)
+- **success markers needed:** `PHASE_INV_ZEN_V2_OK` (8 sub-checks per spike criteria 1-3 + 6-8); `PHASE_INV_ZEN_OK` 10/10 retained (re-baselined for new behavior); `PHASE_INV_PALETTE_OK` 10/10 (no regression); `PHASE_INV_POLISH_001C_OK` 5/5 (no regression)
+- **scope:** Replace `toggleZen()` to swap menu bar for `#zen-topbar` (40px). Build `ZEN_MENU_ITEMS` shared handler array (File/Page/Measure/Annotate/View/Help dropdowns). Keep 3 corner HUDs from 001a. Add F = Focus sub-mode (`body.zen.focus` hides HUDs + 4 edge-trigger strips for hover-peek with 800ms debounce). F-key scope guard (F = Fit outside Zen). Mandatory onboarding toast on first F11 (gated by `PREFS.layout.zenV2Onboarded` additive bool). Deprecate 001a minimap. Annotate dropdown stub "Coming soon".
+- **forbidden surfaces touched:** NONE (no polyAreaM2/pdfToC/RS/snap/server.py edits; PREFS layout key additive)
+- **link:** `docs/invent/zen-mode-v2-topbar.md` (§ Decision: 002a)
+
+#### INV-2026-05-19-002b — F12 Overview standalone (C) — `queued` (depends-on 002a)
+
+- **scope skill:** `/bma-ui-scope` (UI region: new full-canvas mode + shared top bar from 002a)
+- **depends-on:** **002a** (shares `#zen-topbar` chrome; cannot ship before)
+- **est LOC:** ~180 (HTML ~30, CSS ~50, JS ~70, E2E test ~30)
+- **success markers needed:** `PHASE_INV_OVERVIEW_OK` (criteria 4 + 5 per spike: per-card status dot + object count chip + page name + tag; lazy IntersectionObserver < 45 on init; F12 ↔ F11 atomic roundtrip with `curPage` sync); 002a markers retained
+- **scope:** `body.overview` class. `#overview-content` replaces `#canvas` (display:none on canvas when overview). Spatial grid grouped by `pageTags` discipline (site/title/plan/elev/sec/detail/sys) with color-coded group labels. 45 `.ov-card` with status dot (green/amber/red per scale state) + object-count chip + page name + tag. Lazy IntersectionObserver per card; reuses 001a thumb-cache pattern (no new server endpoint — `/page/{n}` not edited). F12 hotkey + `#tb-overview` button. Card click → atomic exit + `loadPage(n)` → land in 002a F11. No measurement / no editing in F12 grid (out-of-scope).
+- **forbidden surfaces touched:** NONE (no server endpoint changes; reuses cached pixmap)
+- **link:** `docs/invent/zen-mode-v2-topbar.md` (§ Decision: 002b)
+
+    - Source: user 2026-05-19, ชอบ top bar ของ `proto/sandbox/mockup-spatial-sheet-map.html` (logo + 6 dropdowns File/Page/Measure/Annotate/View/Help + ขวามือ 🔍 ค้นหาหน้า ⌘K / 🐦 Overview / ◯ Focus F) — เอามาใช้แทน menu bar เก่าใน Zen Mode
+    - Tags: bma-plan, ui, zen, top-bar, overview, focus, p-med
+    - Open behavior decisions (to be resolved by `/bma-invent`):
+        - 3 corner HUDs ของ INV-001a → merge เข้า top bar / คงลอย / ลบทิ้ง?
+        - "Overview" button → spatial sheet map overlay (Approach D ที่แพ้ใน 2026-05-19-01-36)?
+        - "Focus" `F` button → ซ่อนแม้แต่ top bar เหลือ canvas อย่างเดียว?
+        - "Annotate" dropdown → สร้างใหม่ หรือ trim ออก (current app ไม่มี Annotate menu)?
+    - Related: `docs/invent/fullscreen-canvas-ui.md` (Approach D fallback ที่ตัดทิ้ง), INV-2026-05-19-001a/b/c (Zen+Palette trilogy ที่ลงแล้ว), `proto/sandbox/mockup-spatial-sheet-map.html`
+    - Scope skill: pending (`/bma-invent` decides after research)
+    - Forbidden-surface profile: unknown — `/bma-invent` checks during RESEARCH
+
 - [x] **Fullscreen canvas-only UI + researched sheet navigator** — `invent-done-go (→ INV-2026-05-19-001a + 001b)` 2026-05-19. Verdict `PRIOR_ART_PARTIAL` (Bluebeam F11/AutoCAD Clean Screen/VSCode Zen mature; spatial-map novel for PDF measurement). 5 approaches diverged on different axes (chrome-elim / interaction / persistence / sheet-surface / data-model). Approach A zen+minimap (27/30) selected as top after P5 override (inventor's B-first reco missed criterion #1 "canvas≥92%vh"); B ⌘K palette (28/30) bundled as companion. Spike PASS 6/6 (canvas 96.7% vh, jump in 2 keys, lazy-load 20-25/45 thumbs, F11/Esc/chip exit, HT-7 gate survived). User GO 2026-05-19. Sprint cards in active queue. See `docs/invent/fullscreen-canvas-ui.md` + spike `proto/sandbox/invent-fullscreen-canvas-ui.html` + mockup `proto/sandbox/mockup-spatial-sheet-map.html`.
     - Source: user 2026-05-19, "ทำ ui แบบ fullscreen ให้เหลือแต่ canva และมีแค่ top เมนู ( เมนูที่จำเป็น ) ในแคนว่าเท่านั้น ส่วนเนวิเกต แผ่นงาน ลองทำวิจัยดู"
     - Tags: bma-plan, ui, fullscreen, layout, navigation, p-med
