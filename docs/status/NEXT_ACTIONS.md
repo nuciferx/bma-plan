@@ -4,18 +4,21 @@ Date: 2026-05-19
 
 ## Immediate Next
 
-**INV-2026-05-19-001a Zen Mode PASS — commit pending (main agent handles). Next loop iteration: INV-2026-05-19-001b ⌘K Command Palette.**
+**INV-2026-05-19-001b ⌘K Command Palette PASS — commit pending (main agent handles). Pair 001a+001b complete. Next: Zen polish sprint (HT-Z batch) or next invent-queued idea.**
 
-1. **Commit INV-2026-05-19-001a** (main agent fills hash, flips PHASE_INDEX row to `done`).
+1. **Commit INV-2026-05-19-001b** (main agent fills hash, flips PHASE_INDEX row to `done`).
 
-2. **INV-2026-05-19-001b — ⌘K Command Palette** — companion to this sprint (SPLIT_REQUIRED boundary). Idea: quick fuzzy-search command launcher accessible from Zen Mode + normal mode. Status: `queued` in `PHASE_INDEX.md`. Next `/loop /bma-dev-loop` iteration picks this up automatically.
+2. **Zen polish sprint (HT-Z-1 + HT-Z-2 + HT-Z-3 batch)** — three FRICTION findings from the 001a/001b journey tests:
+   - HT-Z-1: transient stale HUD page name during fast minimap nav (MutationObserver timing lag)
+   - HT-Z-2: auto-unverified scale not visually distinguished in HUD chip (amber styling missing)
+   - HT-Z-3: empty-state when filtering by Thai tag on untagged PDF lacks hint that Page Setup tagging is needed first
+   All three are FRICTION, not BROKEN. Can be batched into one polish sprint. Filed to `PHASE_INDEX.md` `### zen-mode 2026-05-19`.
 
-3. **HT-Z-1 follow-up** — MutationObserver timing for minimap HUD page-name sync; FRICTION, low priority, can batch with 001b polish.
-
-4. **HT-Z-2 follow-up** — amber HUD chip styling when `scaleMode === 'auto-unverified'`; FRICTION, can fold into 001b or polish sprint.
+3. **Next invent-queued idea** from `PHASE_INDEX.md` discovered backlog — after HT-Z polish sprint is cleared (or concurrently if separate sprint track).
 
 ## Recently Done
 
+- **INV-2026-05-19-001b — ⌘K Command Palette** — 2026-05-19. Ctrl+K fuzzy page jump modal; 5 helpers (`togglePalette`/`closePalette`/`filterPalette`/`_palJumpToIdx`/`_palMoveSel`); ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose (z-index 9500); color-coded tag chips. `PHASE_INV_PALETTE_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK 13/13 steps; 0 JS errors. HT-Z-3 filed. Zero forbidden-surface edits. Idea `2026-05-19-01-36`, sprint 001b of 2.
 - **INV-2026-05-19-001a — Zen Mode + Sheet Minimap** — 2026-05-19. `body.zen` chrome-hide; 3 corner HUDs; lazy minimap (IntersectionObserver, malloc-safe); F11/Esc toggle; PREFS additive; `PHASE_INV_ZEN_OK` 10/10; smoke + full EXIT 0; JOURNEY_OK (45-page permit). HT-Z-1/HT-Z-2 filed. Idea `2026-05-19-01-36`, sprint 001a of 2.
 - **Ribbon Cleanup Polish** — 2026-05-19. `body { font-size }` 16px → 14px (revert after Chrome layout shift). `#scale-badge` hidden from ribbon. `#active-layer-select` ribbon-group hidden (preserved in DOM). `#btn-report` rewrapped in `.rsection` + `.rlbl` + `.rrow` (uniform 60px height). py_compile PASS, smoke PASS (all pre-existing markers GREEN). Zero forbidden-surface edits.
 - **INV-2026-05-18-002 — Settings v2: export defaults + loupe prefs** — 2026-05-19. 4 new PREFS additive in settings.v1: csvSeparator / includeLawBasis / loupe.radius / loupe.zoomFactor. exportCSV separator-aware; updateLoupe zoom-factor-driven. SETTINGS_V2_OK 6/6; SETTINGS_OK (v1) still GREEN. Commit `3e71865`.

@@ -1,8 +1,48 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-19 — INV-2026-05-19-001b ⌘K Command Palette — PASS (branch: main)
+
+**What changed:** Additive ⌘K Command Palette feature across three files. `proto/static/css/app.css`: `.cmd-palette` fixed-center modal (z-index 9500, above zen overlays at 1500), input field, results list, hint bar, color-coded tag chips (site/plan/elev/section/detail) — ~35 LOC appended. `proto/ui.html`: 5 new helpers (`togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`); `Ctrl+K`/`Cmd+K` keybind with mid-draw guard (`mPts.length===0`); ArrowDown/Up/Enter/Esc keydown branch placed BEFORE inInput guard so palette input does not swallow nav keys; View menu "🔍 ค้นหาหน้า (Command Palette) Ctrl+K" item; `#cmd-palette` modal HTML block — ~120 LOC additive. `proto/e2e_ui_test.py`: new `_test_inv_palette(page)` with 10 sub-checks + `PHASE_INV_PALETTE_OK` marker registered in main() — ~95 LOC.
+
+**Why:** Companion sprint to INV-2026-05-19-001a (Zen Mode). The original idea `2026-05-19-01-36` was SPLIT_REQUIRED at the invent checkpoint into 001a (canvas chrome-hide + HUDs + minimap) and 001b (quick page search/jump). In Zen Mode the left-panel Sheets tab is hidden, so a keyboard-first page-jump mechanism becomes essential for high-density multi-page workflows. The palette is purely transient UI state — no schema changes, no server changes, composes cleanly above the zen z-index layer.
+
+**Files touched:**
+- `proto/static/css/app.css`: ~35 LOC — `.cmd-palette` modal, input, results list, hint bar, tag-chip colors
+- `proto/ui.html`: ~120 LOC — `togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`, Ctrl+K keybind, ArrowDown/Up/Enter/Esc palette input handlers, View menu item, `#cmd-palette` DOM
+- `proto/e2e_ui_test.py`: ~95 LOC — `_test_inv_palette` (10 sub-checks), `PHASE_INV_PALETTE_OK` marker
+
+**Tests:**
+```
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0
+  PHASE_INV_PALETTE_OK 10/10 PASS (helpersAndDomExist, paletteShownAndFocused,
+  defaultPrefilterShows, numberFilterWorks, nameFilterWorks, tagFilterWorks,
+  moveSelWorks, jumpClosesPalette, midDrawGuard, escClosesPalette)
+  PHASE_INV_ZEN_OK still 10/10 — no regression
+python3.11 proto/e2e_ui_test.py full                           → EXIT 0
+bma-human-journey-tester (real 45-page permit PDF)             → JOURNEY_OK
+  13/13 spec steps PASS; 0 JS errors
+  HT-Z-3 filed: empty-state when filtering by Thai tag on untagged PDF
+    lacks hint that Page Setup tagging is needed first (FRICTION)
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` core endpoints — UNCHANGED (no server edit)
+- ✅ `.bmaplan` schema — UNCHANGED (palette is purely transient UI state; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- HT-Z-3: empty-state hint missing when filtering by Thai tag on an untagged PDF; filed to `PHASE_INDEX.md`
+- HT-Z-1 + HT-Z-2 (from 001a) still open — can batch into a Zen polish sprint
 
 ---
 
@@ -42,38 +82,4 @@ bma-human-journey-tester: JOURNEY_OK (real 45-page permit, zero CRASH/BROKEN)
 - HT-Z-2: auto-unverified scale not visually distinguished in HUD chip — amber styling deferred to 001b or polish sprint
 - INV-2026-05-19-001b (⌘K command palette) queued as next sprint for the loop
 
----
-
-## 2026-05-19 — Ribbon Cleanup Polish — PASS (branch: main)
-
-**What changed:** Pure cosmetic ribbon cleanup in two files. `proto/static/css/app.css`: `body { font-size: 16px }` reverted to `14px` (16px caused inherited-element layout shifts). `proto/ui.html`: (1) `#scale-badge` hidden via `style="display:none"` — stays in DOM for `updateAnalyseUI()` and status bar already shows scale state; (2) `#active-layer-select` ribbon-group hidden via `style="display:none"` on wrapping `.ribbon-group`, flanking `<div class="rdiv">` dividers removed — the `<select>` element preserved for `activeLayerLabel()` / `getActiveLayer()` / `setActiveLayerMenu()` / `updateActiveLayerControl()` / draw functions; (3) `#btn-report` Review button rewrapped from bare `.ribbon-group` into `.ribbon-group.rsection` with `.rlbl` + `.rrow` to match all other ribbon groups and prevent flex-stretch to full 78px height.
-
-**Why:** Real-Chrome browser testing exposed three visual defects: the "ยังไม่ตั้ง Scale" red pill in the ribbon duplicated info already in the status bar Scale field (post-HT-19 reorder); the "Layer: พื้นที่ย่อย ⌄" dropdown in the ribbon broke the uniform 60px button row and is redundant with the Right panel Layers tab; the Review button icon appeared disproportionately large because it sat in a bare `.ribbon-group` without `.rsection`/`.rrow` wrapper. Body 16px (set earlier the same session to match mockup default) caused text in inherited-font-size elements to push past their container bounds — 14px is the safe baseline.
-
-**Files touched:**
-- `proto/static/css/app.css`: `body { font-size: 16px }` → `14px` (1-line revert)
-- `proto/ui.html`: `#scale-badge` `display:none`; `.ribbon-group` wrapping `#active-layer-select` `display:none` + 2 `rdiv` dividers removed; `#btn-report` rewrapped in `.rsection` + `.rlbl "📊 REVIEW"` + `.rrow` + leading `rdiv`
-
-**Tests:**
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS (no syntax errors)
-python3.11 proto/e2e_ui_test.py smoke  → PASS (earlier in session; env port-8011 bind conflict
-  developed later from leftover python processes; resolved via taskkill but env remains flaky).
-  All 18 markers GREEN incl. MAIN_UI_OK / MENU_OK / PROJECT_OK / SELECT_OK / PATH_GEOMETRY_OK.
-full not required: no export/save-load/rotation/real-PDF/snap/layer-model changes.
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` core endpoints — UNCHANGED (no server.py edit)
-- ✅ `.bmaplan` schema — UNCHANGED (no schema edit)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- Smoke env flakiness (port 8011 hangs from leftover processes) — file as separate `dev-env-cleanup` follow-up; not blocking.
-- Active-layer-select hidden — verify Right panel Layers tab `setActiveLayer` flow on real 45-page PDF still works (HT-25 should cover).
-- Manual test: open in real Chrome, confirm ribbon row reads `TOOL | SCALE | พื้นที่ | LINES | MARKER | HELPERS | EDIT | REVIEW` with no gap where Layer select used to be.
-
-<!-- sessions before 2026-05-19 Ribbon Cleanup are archived to docs/archive/log-2026-05-18.md -->
+<!-- sessions before 2026-05-19 INV-001a are archived to docs/archive/log-2026-05-19.md (Ribbon Cleanup) and docs/archive/log-2026-05-18.md (earlier) -->

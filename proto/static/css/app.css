@@ -694,3 +694,26 @@ body.zen .zen-minimap{display:block}
 .zen-onboarding-toast .kbd{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:3px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:10px;margin:0 2px}
 /* Menu item shortcut hint (reuses existing .shortcut style) */
 .menu-item-zen-on .caret::after{content:" ⛶";color:var(--green);margin-left:4px}
+/* ── INV-2026-05-19-001b · ⌘K Command Palette (fast page jump) ── */
+.cmd-palette{display:none;position:fixed;top:90px;left:50%;transform:translateX(-50%);width:520px;max-width:92vw;background:var(--surface);border:1px solid var(--accent);border-radius:10px;box-shadow:0 28px 70px rgba(0,0,0,.65),0 0 0 4px rgba(10,132,255,.18);z-index:9500;overflow:hidden;font-family:inherit}
+.cmd-palette.show{display:block}
+.cmd-palette-input{width:100%;background:transparent;border:none;outline:none;padding:14px 18px;color:var(--text);font-size:14px;border-bottom:1px solid var(--border);font-family:inherit}
+.cmd-palette-input::placeholder{color:var(--text3)}
+.cmd-palette-results{max-height:320px;overflow-y:auto}
+.cmd-palette-results::-webkit-scrollbar{width:5px}
+.cmd-palette-results::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.cmd-palette-row{padding:8px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;color:var(--text2);font-size:12.5px;border-bottom:1px solid var(--surface2);transition:background .08s}
+.cmd-palette-row.sel,.cmd-palette-row:hover{background:rgba(10,132,255,.18);color:var(--text)}
+.cmd-palette-row .cp-pn{color:var(--text3);font-size:10px;min-width:32px;text-align:center;background:var(--surface2);border-radius:3px;padding:2px 6px;font-family:'SF Mono',Consolas,monospace}
+.cmd-palette-row .cp-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd-palette-row .cp-tag{background:var(--surface3);border-radius:9px;padding:2px 8px;font-size:10px;color:var(--text2);flex-shrink:0}
+.cmd-palette-row .cp-tag.tag-site{color:var(--green);background:rgba(48,209,88,.12)}
+.cmd-palette-row .cp-tag.tag-plan{color:var(--accent);background:rgba(10,132,255,.12)}
+.cmd-palette-row .cp-tag.tag-elev{color:var(--purple);background:rgba(191,90,242,.12)}
+.cmd-palette-row .cp-tag.tag-section{color:var(--cyan);background:rgba(90,200,250,.12)}
+.cmd-palette-row .cp-tag.tag-detail{color:var(--orange);background:rgba(255,159,10,.12)}
+.cmd-palette-empty{padding:20px 18px;text-align:center;color:var(--text3);font-size:12px}
+.cmd-palette-hint{padding:7px 18px;display:flex;gap:12px;color:var(--text3);font-size:10px;background:var(--bg);border-top:1px solid var(--border);align-items:center}
+.cmd-palette-hint .kbd{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:'SF Mono',Consolas,monospace;color:var(--text2)}
+.cmd-palette-hint .spacer{margin-left:auto}
+/* Palette works in both classic + zen mode (z-index 9500 > zen overlays 1500) */

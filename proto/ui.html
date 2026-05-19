@@ -49,6 +49,7 @@
         <div class="dd-item" onclick="toggleLeftPanel()">◀ Toggle Left Panel<span class="shortcut">F9</span></div>
         <div class="dd-item" onclick="toggleRightPanel()">▶ Toggle Right Panel<span class="shortcut">F10</span></div>
         <div class="dd-item" id="dd-view-zen" onclick="toggleZenMode()">⛶ Zen Mode (Fullscreen Canvas)<span class="shortcut">F11</span></div>
+        <div class="dd-item" onclick="togglePalette()">🔍 ค้นหาหน้า (Command Palette)<span class="shortcut">Ctrl+K</span></div>
         <div class="dd-sep"></div>
         <div class="dd-item dd-submenu-trigger">⚙ UI Density
           <div class="dd-submenu" id="dd-view-density-submenu">
@@ -608,6 +609,20 @@
   <!-- First-time onboarding toast (auto-dismisses; never shown twice) -->
   <div class="zen-onboarding-toast" id="zen-onboarding-toast">
     <b>⛶ Zen Mode</b> — canvas เต็มจอ · กด <span class="kbd">F11</span> หรือ <span class="kbd">Esc</span> ออก · มี Sheets minimap มุมขวาล่าง
+  </div>
+  <!-- INV-2026-05-19-001b · ⌘K Command Palette — fuzzy page search.
+       Composes with classic + zen mode (z-index above zen overlays). -->
+  <div id="cmd-palette" class="cmd-palette">
+    <input id="cmd-palette-input" class="cmd-palette-input" type="text"
+           placeholder="ค้นหา: เลขหน้า · ชื่อหน้า · แท็ก (เช่น 'ชั้น 3', 'ผังบริเวณ')"
+           oninput="filterPalette()" autocomplete="off">
+    <div id="cmd-palette-results" class="cmd-palette-results"></div>
+    <div class="cmd-palette-hint">
+      <span><span class="kbd">↑↓</span> เลือก</span>
+      <span><span class="kbd">↵</span> เปิด</span>
+      <span><span class="kbd">esc</span> ปิด</span>
+      <span class="spacer" id="cmd-palette-count">0 ผลลัพธ์</span>
+    </div>
   </div>
 </div>
 <div id="snap-cur"></div><div id="snap-lbl"></div>
@@ -2990,6 +3005,15 @@ function closeCheckPanel(){document.getElementById('check-panel').classList.remo
 // ══════════════════════════════════════════════════════
 document.addEventListener("keydown",e=>{
   const inInput=["INPUT","SELECT","TEXTAREA"].includes(e.target.tagName);
+  // INV-2026-05-19-001b · Palette key nav — handle BEFORE inInput guard so the palette input
+  // (which has focus) doesn't swallow ArrowDown/Up/Enter/Esc.
+  const _palOpen=document.getElementById("cmd-palette")?.classList.contains("show");
+  if(_palOpen&&e.target&&e.target.id==="cmd-palette-input"){
+    if(e.key==="ArrowDown"){e.preventDefault();_palMoveSel(1);return;}
+    if(e.key==="ArrowUp"){e.preventDefault();_palMoveSel(-1);return;}
+    if(e.key==="Enter"){e.preventDefault();_palJumpToIdx(_palSel);return;}
+    if(e.key==="Escape"){e.preventDefault();closePalette();return;}
+  }
   if(e.key==="Shift"&&!inInput){shiftDown=true;/* INV-2026-05-17-001: Shift while drawing freehand = coarser tolerance */if(mFreehandActive&&mode==="area"){freehandTolerance=Math.min(20,freehandTolerance+1);freehandSampleStepPx=Math.min(20,freehandSampleStepPx+1);setStatus(`✎ tol=${freehandTolerance}px gate=${freehandSampleStepPx}px`);}redraw();return;}
   if(e.key==="Control"&&!inInput&&mFreehandActive&&mode==="area"){freehandTolerance=Math.max(1,freehandTolerance-1);freehandSampleStepPx=Math.max(2,freehandSampleStepPx-1);setStatus(`✎ tol=${freehandTolerance}px gate=${freehandSampleStepPx}px`);return;}
   if(e.key===" "&&!spaceDown&&!inInput){e.preventDefault();spaceDown=true;preSpaceMode=mode;ws.style.cursor="grab";return;}
@@ -3001,6 +3025,8 @@ document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&(e.key==="S"||(e.key==="s"&&e.shiftKey))&&e.shiftKey){e.preventDefault();saveSourcePdfInPlace();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==="o"){e.preventDefault();if(!anyModal)openProjectBtnClick();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==="p"){e.preventDefault();if(!anyModal)togglePerp();return;}
+  // INV-2026-05-19-001b · ⌘K Command Palette — page jump. Guard against mid-draw hijack.
+  if((e.ctrlKey||e.metaKey)&&(e.key==="k"||e.key==="K")){e.preventDefault();if(mPts.length===0&&!anyModal)togglePalette();return;}
   if(e.key==="b"&&(e.ctrlKey||e.metaKey)){e.preventDefault();toggleSidebar();return;}
   if(e.key==="Enter"&&(mode==="path"||mode==="ref")&&mPts.length){e.preventDefault();finishPathLike(mode==="ref"?"ref":"path");return;}
   // HT-17: Enter in area mode finishes polygon. Menu shows "Finish Drawing — Enter" so this was a docs mismatch.
@@ -3372,6 +3398,67 @@ function _zenUpdateMinimapActive(){
 function _zenToggleMinimap(){
   const m=document.getElementById("zen-minimap");
   if(m)m.classList.toggle("collapsed");
+}
+// INV-2026-05-19-001b · ⌘K Command Palette — fuzzy page jump.
+// Composes with zen mode (z-index above zen HUDs) and classic mode.
+let _palSel=0;
+let _palMatches=[];
+function togglePalette(){
+  const p=document.getElementById("cmd-palette");
+  if(!p)return;
+  if(p.classList.contains("show")){closePalette();return;}
+  p.classList.add("show");
+  const inp=document.getElementById("cmd-palette-input");
+  if(inp){inp.value="";inp.focus();}
+  filterPalette();
+}
+function closePalette(){
+  const p=document.getElementById("cmd-palette");
+  if(p)p.classList.remove("show");
+}
+function filterPalette(){
+  const inp=document.getElementById("cmd-palette-input");
+  const results=document.getElementById("cmd-palette-results");
+  const cnt=document.getElementById("cmd-palette-count");
+  if(!inp||!results)return;
+  const q=(inp.value||"").trim().toLowerCase();
+  const all=[];
+  for(let i=1;i<=totalPages;i++){
+    if(excludedPages&&excludedPages.has&&excludedPages.has(i))continue;
+    const nm=pageNames[i]||`หน้า ${i}`;
+    const tg=pageTags[i]||"";
+    const tgLabel=(typeof TAG_LABELS!=="undefined"&&TAG_LABELS[tg])?TAG_LABELS[tg]:"";
+    all.push({n:i,name:nm,tag:tg,tagLabel:tgLabel});
+  }
+  const matches=q
+    ? all.filter(p=>String(p.n).includes(q)||p.name.toLowerCase().includes(q)||(p.tag&&p.tag.toLowerCase().includes(q))||(p.tagLabel&&p.tagLabel.toLowerCase().includes(q)))
+    : all.slice(0,12);
+  _palMatches=matches;
+  _palSel=0;
+  if(!matches.length){
+    results.innerHTML='<div class="cmd-palette-empty">ไม่พบหน้าที่ตรงกับ "'+_palEsc(q)+'"</div>';
+    if(cnt)cnt.textContent="0 ผลลัพธ์";
+    return;
+  }
+  results.innerHTML=matches.slice(0,40).map((p,i)=>
+    `<div class="cmd-palette-row${i===0?" sel":""}" data-idx="${i}" onclick="_palJumpToIdx(${i})">
+      <div class="cp-pn">${p.n}</div>
+      <div class="cp-name">${_palEsc(p.name)}</div>${p.tagLabel?`<div class="cp-tag tag-${p.tag}">${_palEsc(p.tagLabel)}</div>`:""}
+    </div>`).join("");
+  if(cnt)cnt.textContent=q?`${matches.length} ผลลัพธ์`:`${all.length} หน้า`;
+}
+function _palEsc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function _palJumpToIdx(i){
+  const m=_palMatches[i];if(!m)return;
+  closePalette();
+  loadPage(m.n);
+}
+function _palMoveSel(delta){
+  if(!_palMatches.length)return;
+  _palSel=Math.max(0,Math.min(_palMatches.length-1,_palSel+delta));
+  const rows=document.querySelectorAll("#cmd-palette-results .cmd-palette-row");
+  rows.forEach((r,i)=>r.classList.toggle("sel",i===_palSel));
+  if(rows[_palSel])rows[_palSel].scrollIntoView({block:"nearest"});
 }
 // Sync HUD chips with status bar values. Called on zen entry + page change + scale change.
 function _zenSyncHud(){

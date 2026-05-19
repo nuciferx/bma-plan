@@ -8,12 +8,12 @@ Date: 2026-05-19
 
 ## One-Line Status
 
-INV-2026-05-19-001a Zen Mode + Sheet Minimap — PASS. Canvas 94.44% vh; F11/Esc; lazy minimap; PHASE_INV_ZEN_OK 10/10; JOURNEY_OK. Next: 001b ⌘K palette.
+INV-2026-05-19-001b ⌘K Command Palette — PASS. Ctrl+K fuzzy page jump; PHASE_INV_PALETTE_OK 10/10; composes with Zen Mode (z-index 9500); JOURNEY_OK 13/13 steps. 001a+001b pair complete.
 
 ## Latest Sprint
 
+- INV-2026-05-19-001b — ⌘K Command Palette: PASS (2026-05-19) — Ctrl+K fuzzy page jump modal; 5 helpers; ArrowDown/Up/Enter/Esc nav; mid-draw guard; Zen Mode compose; PHASE_INV_PALETTE_OK 10/10; full EXIT 0; JOURNEY_OK; HT-Z-3 filed
 - INV-2026-05-19-001a — Zen Mode + Sheet Minimap: PASS (2026-05-19) — body.zen chrome-hide, 3 HUDs, lazy minimap, F11/Esc, PHASE_INV_ZEN_OK 10/10, full EXIT 0, JOURNEY_OK; forbidden-surface scan CLEAN
-- Ribbon Cleanup Polish — scale-badge/layer-select hidden + Review rsection + font 16→14px: PASS (2026-05-19) — pure CSS+DOM cosmetic; py_compile PASS; smoke PASS; no JS logic change; no forbidden surfaces
 - INV-2026-05-18-002 — Settings v2 export defaults + loupe prefs: PASS (2026-05-19) — 4 new PREFS (csvSeparator/includeLawBasis/loupe.radius/loupe.zoomFactor) additive in settings.v1; SETTINGS_V2_OK 6/6; v1 SETTINGS_OK still GREEN [commit 3e71865]
 - INV-2026-05-18-001c — Page delete + renumber-map + /rebuild-pdf: PASS (2026-05-19) — NEW /rebuild-pdf endpoint; _openRenumberDialog preview table; _reindexPageDicts across 7 dicts; hard-block during draw; last-page guard; PHASE_INV_PAGE_SETUP_C_OK 7/7 [commit ebb521c]
 - INV-2026-05-18-001b — Floor sub-types for plan pages: PASS (2026-05-19) — pageFloorKind/pageFloorNum additive schema; autoNamePage floor-aware; PHASE_INV_PAGE_SETUP_B_OK 9/9 (incl. save/load round-trip, tag-change clear) [commit 798e5c3]
@@ -29,14 +29,15 @@ INV-2026-05-19-001a Zen Mode + Sheet Minimap — PASS. Canvas 94.44% vh; F11/Esc
 
 ```bash
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
-python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_ZEN_OK 10/10 + all pre-existing)
+python3.11 proto/e2e_ui_test.py smoke                          # PASS GREEN (PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing)
 python3.11 proto/e2e_ui_test.py full                           # PASS EXIT 0 (2026-05-19)
 ```
 
-Last smoke run: 2026-05-19 (INV-001a Zen Mode; PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last smoke run: 2026-05-19 (INV-001b Palette; PHASE_INV_PALETTE_OK 10/10 + PHASE_INV_ZEN_OK 10/10 + all pre-existing GREEN). Last full run: 2026-05-19. Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 
+- `<COMMIT_HASH_PENDING>` — INV-2026-05-19-001b: ⌘K Command Palette (commit pending)
 - `<COMMIT_HASH_PENDING>` — INV-2026-05-19-001a: Zen Mode + Sheet Minimap (commit pending)
 - `0e4e851` — polish(ribbon): hide scale-badge + active-layer-select, wrap Review in rsection, revert body font 14px
 - `3e71865` — INV-002 Settings v2: export defaults + loupe prefs

@@ -4,60 +4,63 @@
 
 ---
 
-# Latest: INV-2026-05-19-001a Zen Mode + Sheet Minimap — PASS
+# Latest: INV-2026-05-19-001b ⌘K Command Palette (fuzzy page jump) — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
 
 ## Outcome
 
-PASS. All three test tiers passed: py_compile PASS, smoke EXIT 0 (new marker `PHASE_INV_ZEN_OK` 10/10, all pre-existing GREEN), full EXIT 0, and `bma-human-journey-tester` JOURNEY_OK on real 45-page permit (zero CRASH/BROKEN, two FRICTION findings filed as follow-ups). Forbidden-surface scan CLEAN. PREFS schema additive only; version stays 1.
+PASS. All three test tiers passed: py_compile PASS, smoke EXIT 0 (`PHASE_INV_PALETTE_OK` 10/10, `PHASE_INV_ZEN_OK` 10/10, all pre-existing GREEN), full EXIT 0, and `bma-human-journey-tester` JOURNEY_OK on real 45-page permit (13/13 spec steps PASS, zero JS errors, one FRICTION finding HT-Z-3 filed). Forbidden-surface scan CLEAN. No schema change; palette is purely transient UI state. Composes correctly above Zen Mode z-index layer.
 
 ## What was delivered
 
-- `body.zen` class system: hides ribbon, left/right panels, status bar, summary widget — canvas expands to ~94% viewport height
-- Three corner HUDs replacing hidden chrome: TL (scale + tool), TR (objects + layer), BL (save state), synced via MutationObserver watching status-bar `textContent`
-- Lazy-loaded 5-column sheet minimap (`#zen-minimap`) using IntersectionObserver — only visible cells trigger thumb fetch, preventing concurrent render overload (malloc anti-pattern explicitly avoided per `AGENTS.md`)
-- F11 toggle (enter/exit Zen Mode) + Esc-exit-zen keydown branch
-- `PREFS.layout.zenMode` + `PREFS.layout.zenOnboarded` (additive, defaults false)
-- View menu "⛶ Zen Mode" item between Toggle panels and Density
-- Auto-dismiss onboarding toast on first activation
-- `PHASE_INV_ZEN_OK` E2E marker (10 sub-checks) + 2 pre-existing baseline drift fixes in test file
+- `.cmd-palette` fixed-center modal (z-index 9500, above Zen HUDs at 1500) — CSS in `proto/static/css/app.css`
+- Color-coded tag chips (site/plan/elev/section/detail) in results rows
+- 5 new helpers: `togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`
+- Ctrl+K / Cmd+K keybind with mid-draw guard (`mPts.length===0` check)
+- Arrow key + Enter + Esc navigation placed before `inInput` guard so palette input receives nav keys correctly
+- View menu "🔍 ค้นหาหน้า (Command Palette) Ctrl+K" item
+- `#cmd-palette` modal DOM block with filter input, results list, hint bar
+- `PHASE_INV_PALETTE_OK` E2E marker (10 sub-checks)
+- HT-Z-3 FRICTION finding filed: empty-state hint missing when filtering by Thai tag on untagged PDF
 
 ## What's next
 
-- INV-2026-05-19-001b (⌘K command palette) — queued, next loop iteration. Companion to this sprint (SPLIT_REQUIRED boundary from the original 001 idea)
-- HT-Z-1 follow-up: MutationObserver timing for minimap page-name HUD sync
-- HT-Z-2 follow-up: amber HUD chip styling for auto-unverified scale state
+- Zen polish sprint (HT-Z-1, HT-Z-2, HT-Z-3 batch) — MutationObserver timing, amber HUD chip for auto-unverified scale, empty-state hint in palette
+- Next `invent-queued` ideas from `PHASE_INDEX.md` discovered backlog
 
 ## Position in Plan
 
-Phase 1 complete. INV series ongoing (invent-loop). This sprint is INV-2026-05-19-001a from idea `2026-05-19-01-36` (fullscreen canvas UI). 001b (⌘K palette) is queued next. After 001b, the invention backlog continues per `PHASE_INDEX.md`.
+Phase 1 complete. INV series ongoing (invent-loop). This sprint is INV-2026-05-19-001b — companion to 001a Zen Mode (both from idea `2026-05-19-01-36`, SPLIT_REQUIRED boundary). The 001a/001b pair is now complete. Next loop iteration picks the next `invent-done-go` item from `PHASE_INDEX.md`.
 
 ---
 
-# Previous: Ribbon Cleanup Polish — PASS
+# Previous: INV-2026-05-19-001a Zen Mode + Sheet Minimap — PASS
 
 **Date:** 2026-05-19
 **Branch:** main
 
 ## Outcome
 
-PASS. Pure cosmetic sprint — two files changed, zero JS logic changed, zero forbidden surfaces touched. py_compile PASS. Smoke PASS (earlier in session; env flakiness noted, not a code regression). Ready to commit.
+PASS. py_compile PASS, smoke EXIT 0 (`PHASE_INV_ZEN_OK` 10/10, all pre-existing GREEN), full EXIT 0, JOURNEY_OK (zero CRASH/BROKEN; HT-Z-1 + HT-Z-2 filed). Forbidden-surface scan CLEAN. PREFS schema additive only.
 
 ## What was delivered
 
-- `body { font-size }` reverted 16px → 14px in `proto/static/css/app.css` — 16px caused layout shifts in inherited-font-size elements during real-Chrome testing.
-- `#scale-badge` (ribbon Scale group) hidden via `display:none` — element stays in DOM for JS (`updateAnalyseUI()` writes to `.textContent`); status bar Scale field already shows this information.
-- `#active-layer-select` ribbon-group hidden via `display:none` on wrapper; two flanking `rdiv` dividers removed — `<select>` element preserved for `activeLayerLabel()`, `getActiveLayer()`, `setActiveLayerMenu()`, `updateActiveLayerControl()`, draw functions. Right panel Layers tab is the primary user path.
-- `#btn-report` Review button rewrapped: bare `.ribbon-group` → `.ribbon-group.rsection` with `.rlbl "📊 REVIEW"` + `.rrow` + leading `rdiv` divider — prevents flex-stretch to 78px, renders at uniform 60px matching all other ribbon groups.
+- `body.zen` class system hiding ribbon, left/right panels, status bar, summary widget — canvas ~94% viewport height
+- Three corner HUDs (TL: scale + tool, TR: objects + layer, BL: save state) synced via MutationObserver
+- Lazy-loaded 5-column sheet minimap (`#zen-minimap`) with IntersectionObserver per cell (malloc-safe)
+- F11 toggle + Esc-exit-zen keydown branch
+- `PREFS.layout.zenMode` + `PREFS.layout.zenOnboarded` (additive, defaults false)
+- View menu "⛶ Zen Mode" item; auto-dismiss onboarding toast
+- `PHASE_INV_ZEN_OK` E2E marker (10 sub-checks) + 2 pre-existing baseline drift fixes
 
 ## What's next
 
-This sprint was committed as `0e4e851`. INV-2026-05-19-001a (Zen Mode) followed immediately after.
+INV-2026-05-19-001b (⌘K palette) was the immediate next sprint — now DONE.
 
 ## Position in Plan
 
-Phase 1 complete. Cosmetic polish from working-tree tweaks noted in the previous session's known gaps. No Phase 2 scope.
+Phase 1 complete. INV series, idea `2026-05-19-01-36`, sprint 1 of 2.
 
-<!-- older Previous (Page Setup trilogy) archived to docs/archive/reports-2026-05-09.md -->
+<!-- older Previous (Ribbon Cleanup + Page Setup trilogy) archived to docs/archive/reports-2026-05-09.md -->

@@ -4,24 +4,24 @@
 
 ---
 
-# Latest: INV-2026-05-19-001a — Zen Mode + Sheet Minimap
+# Latest: INV-2026-05-19-001b — ⌘K Command Palette (fuzzy page jump)
 
 Branch: main
 Date: 2026-05-19
 
-## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_ZEN_OK 10/10), full EXIT 0, JOURNEY_OK
+## Outcome: PASS — py_compile PASS, smoke EXIT 0 (PHASE_INV_PALETTE_OK 10/10), full EXIT 0, JOURNEY_OK
 
 ## Summary
 
-Additive fullscreen-canvas Zen Mode. `body.zen` class toggle hides ribbon, left/right panels, status bar, and summary widget, expanding canvas to ~94% viewport height. Three corner HUDs (TL = scale + tool, TR = objects + layer, BL = save state) replace the hidden chrome. A lazy-loaded 5-column sheet minimap (IntersectionObserver, one thumb fetch per visible cell) provides page navigation without triggering concurrent render overload. F11 and Esc both exit Zen Mode. PREFS round-trip safe. Two pre-existing E2E baseline drifts from the ribbon-cleanup polish commit fixed in the test file.
+Additive ⌘K Command Palette for fuzzy page jump. A fixed-center modal (z-index 9500, above Zen Mode HUDs at 1500) opens on Ctrl+K/Cmd+K with a filter input that narrows pages by number, name, or Thai page-type tag. Keyboard navigation (ArrowDown/Up to move selection, Enter to jump and close, Esc to dismiss) is handled before the generic `inInput` guard so the palette input does not swallow nav keys. A mid-draw guard (`mPts.length===0`) prevents Ctrl+K from hijacking polygon construction. View menu item added. Composes cleanly with Zen Mode and the HT-7 scale gate. No schema, no server, purely transient UI state.
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| `proto/static/css/app.css` | ~50 LOC — `body.zen` chrome-hide rules, `.zen-hud-tl/tr/bl` styles, `.zen-minimap` grid, `.zen-onboarding-toast`, `.zen-exit-chip` |
-| `proto/ui.html` | ~180 LOC — `PREFS.layout.zenMode/zenOnboarded`, `toggleZenMode`, `_zenBuildMinimapIfNeeded`, `_zenUpdateMinimapActive`, `_zenToggleMinimap`, `_zenSyncHud`, View menu item, F11/Esc handlers, HUD + minimap DOM, MutationObserver |
-| `proto/e2e_ui_test.py` | ~110 LOC + 2-line fix — `_test_inv_zen_mode` (10 sub-checks), `PHASE_INV_ZEN_OK` marker, baseline drift fixes |
+| `proto/static/css/app.css` | ~35 LOC — `.cmd-palette` fixed-center modal, input, results list, hint bar, color-coded tag chips |
+| `proto/ui.html` | ~120 LOC — `togglePalette`, `closePalette`, `filterPalette`, `_palJumpToIdx`, `_palMoveSel`, `_palEsc`; Ctrl+K keybind; ArrowDown/Up/Enter/Esc palette handlers; View menu item; `#cmd-palette` DOM block |
+| `proto/e2e_ui_test.py` | ~95 LOC — `_test_inv_palette` (10 sub-checks), `PHASE_INV_PALETTE_OK` marker |
 
 ## Source Files NOT Touched (Forbidden Surfaces)
 
@@ -29,15 +29,15 @@ Additive fullscreen-canvas Zen Mode. `body.zen` class toggle hides ribbon, left/
 - `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
 - `buildSnapIndex`, `snap` engine — UNCHANGED
 - `proto/server.py` — UNCHANGED (no server edit in this sprint)
-- `.bmaplan` schema version stays 1; `PREFS.layout.zenMode/zenOnboarded` additive only
+- `.bmaplan` schema version stays 1; palette is purely transient UI state
 
 ## Tests Run
 
 ```
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0 (PHASE_INV_ZEN_OK 10/10; all pre-existing GREEN)
+python3.11 proto/e2e_ui_test.py smoke                          → EXIT 0 (PHASE_INV_PALETTE_OK 10/10; PHASE_INV_ZEN_OK 10/10; all pre-existing GREEN)
 python3.11 proto/e2e_ui_test.py full                           → EXIT 0
-bma-human-journey-tester                                       → JOURNEY_OK (45-page permit; 0 CRASH/BROKEN; 2 FRICTION filed)
+bma-human-journey-tester                                       → JOURNEY_OK (45-page permit; 13/13 spec steps PASS; 0 JS errors; HT-Z-3 filed)
 ```
 
 ## Phase 1 Scope Check
@@ -46,12 +46,12 @@ bma-human-journey-tester                                       → JOURNEY_OK (4
 - ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
 - ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
 - ✅ `proto/server.py` core endpoints — UNCHANGED
-- ✅ `.bmaplan` schema — ADDITIVE only (PREFS layout fields; version stays 1)
+- ✅ `.bmaplan` schema — UNCHANGED (palette is transient; version stays 1)
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 
 ---
 
-# Previous: Ribbon Cleanup Polish — hide scale-badge + active-layer-select + Review rsection wrap + font revert
+# Previous: INV-2026-05-19-001a — Zen Mode + Sheet Minimap
 
 Branch: main
 Date: 2026-05-19

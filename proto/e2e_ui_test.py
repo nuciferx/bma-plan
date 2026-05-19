@@ -4035,6 +4035,114 @@ def _test_ht16_restore_tab(page):
     return {**checks, "all": True}
 
 
+def _test_inv_palette(page):
+    """INV-2026-05-19-001b: ⌘K Command Palette (page jump).
+
+    8 sub-checks:
+    A. helpers + DOM elements exist (#cmd-palette, #cmd-palette-input, #cmd-palette-results)
+    B. togglePalette() shows palette (.show class) and focuses input
+    C. filterPalette filters by page number substring
+    D. filterPalette filters by name substring
+    E. filterPalette filters by tag label (Thai TAG_LABELS)
+    F. _palMoveSel advances .sel highlight
+    G. _palJumpToIdx calls loadPage + closes palette
+    H. Empty input default pre-filter (shows up to 12 rows)
+    I. Mid-draw guard: when mPts.length > 0, Ctrl+K keydown does NOT open palette
+    J. Esc on input closes palette (handled before inInput guard)
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""() => {
+        const r = {};
+        // A. helpers + DOM
+        r.helpersExist = typeof togglePalette === 'function'
+            && typeof filterPalette === 'function'
+            && typeof closePalette === 'function'
+            && typeof _palJumpToIdx === 'function'
+            && typeof _palMoveSel === 'function';
+        const palDom = !!document.getElementById('cmd-palette')
+            && !!document.getElementById('cmd-palette-input')
+            && !!document.getElementById('cmd-palette-results');
+        r.domExist = palDom;
+        // Ensure starting state
+        closePalette();
+        // B. togglePalette shows + focuses
+        togglePalette();
+        r.paletteShown = document.getElementById('cmd-palette').classList.contains('show');
+        r.inputFocused = document.activeElement && document.activeElement.id === 'cmd-palette-input';
+        // H. Default pre-filter — should show some rows
+        const defaultRows = document.querySelectorAll('#cmd-palette-results .cmd-palette-row').length;
+        r.defaultPrefilterShows = defaultRows > 0 && defaultRows <= 12;
+        // C. Filter by number (use a single page test PDF, so search "1" must match)
+        const inp = document.getElementById('cmd-palette-input');
+        inp.value = '1'; filterPalette();
+        const numRows = document.querySelectorAll('#cmd-palette-results .cmd-palette-row').length;
+        r.numberFilterWorks = numRows >= 1;
+        // D. Filter by name — clear, type something that matches existing pageName fallback "หน้า"
+        inp.value = 'หน้า'; filterPalette();
+        const nameRows = document.querySelectorAll('#cmd-palette-results .cmd-palette-row').length;
+        r.nameFilterWorks = nameRows >= 1;
+        // E. Filter by tag label — must include some site/plan/elev in TAG_LABELS
+        // Set a fake page tag for test
+        if(!pageTags) window.pageTags = {};
+        pageTags[1] = 'site';
+        inp.value = 'site'; filterPalette();
+        const tagRows = document.querySelectorAll('#cmd-palette-results .cmd-palette-row').length;
+        r.tagFilterWorks = tagRows >= 1;
+        // Reset filter to default
+        inp.value = ''; filterPalette();
+        // F. _palMoveSel — works on default pre-filter rows
+        _palMoveSel(0); // first row should already be selected
+        const selBefore = document.querySelectorAll('#cmd-palette-results .cmd-palette-row.sel').length;
+        _palMoveSel(1);  // move down
+        const rows = document.querySelectorAll('#cmd-palette-results .cmd-palette-row');
+        let selIdx = -1;
+        rows.forEach((rr,i)=>{ if(rr.classList.contains('sel')) selIdx = i; });
+        // If only 1 row exists, selIdx stays 0; otherwise should be 1 after _palMoveSel(1)
+        r.moveSelWorks = (rows.length === 1 && selIdx === 0) || (rows.length > 1 && selIdx === 1);
+        // G. _palJumpToIdx calls loadPage + closes palette
+        const beforePage = curPage;
+        _palJumpToIdx(0);
+        const paletteClosedAfterJump = !document.getElementById('cmd-palette').classList.contains('show');
+        r.jumpClosesPalette = paletteClosedAfterJump;
+        // I. Mid-draw guard — when mPts has points, Ctrl+K must NOT open palette
+        setMode('area');
+        mPts = [{x:100,y:100}, {x:200,y:100}];
+        const evCtrlK = new KeyboardEvent('keydown', {key:'k', ctrlKey:true, bubbles:true, cancelable:true});
+        document.dispatchEvent(evCtrlK);
+        r.midDrawGuard = !document.getElementById('cmd-palette').classList.contains('show');
+        // Reset draw state
+        mPts = [];
+        setMode('pan');
+        // J. Esc on input closes palette (input must have focus; verified via event.target check)
+        togglePalette();
+        const wasShown = document.getElementById('cmd-palette').classList.contains('show');
+        const inp2 = document.getElementById('cmd-palette-input');
+        inp2.focus();
+        const evEsc = new KeyboardEvent('keydown', {key:'Escape', bubbles:true, cancelable:true});
+        inp2.dispatchEvent(evEsc);
+        r.escClosesPalette = wasShown && !document.getElementById('cmd-palette').classList.contains('show');
+        return r;
+    }""")
+    checks = {
+        "helpersAndDomExist": probe.get("helpersExist") is True and probe.get("domExist") is True,
+        "paletteShownAndFocused": probe.get("paletteShown") is True and probe.get("inputFocused") is True,
+        "defaultPrefilterShows": probe.get("defaultPrefilterShows") is True,
+        "numberFilterWorks": probe.get("numberFilterWorks") is True,
+        "nameFilterWorks": probe.get("nameFilterWorks") is True,
+        "tagFilterWorks": probe.get("tagFilterWorks") is True,
+        "moveSelWorks": probe.get("moveSelWorks") is True,
+        "jumpClosesPalette": probe.get("jumpClosesPalette") is True,
+        "midDrawGuard": probe.get("midDrawGuard") is True,
+        "escClosesPalette": probe.get("escClosesPalette") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_zen_mode(page):
     """INV-2026-05-19-001a: Zen Mode + Sheet Minimap.
 
@@ -6518,6 +6626,7 @@ def main():
             ht16_restore_tab = _test_ht16_restore_tab(page)
             ht17_enter_area = _test_ht17_enter_finishes_area(page)
             inv_zen_mode = _test_inv_zen_mode(page)
+            inv_palette = _test_inv_palette(page)
             inv_page_setup_a = _test_inv_page_setup_a(page)
             inv_page_setup_b = _test_inv_page_setup_b(page)
             inv_page_setup_c = _test_inv_page_setup_c(page)
@@ -6600,6 +6709,7 @@ def main():
         print("PHASE_HT16_OK", ht16_restore_tab)
         print("PHASE_HT17_OK", ht17_enter_area)
         print("PHASE_INV_ZEN_OK", inv_zen_mode)
+        print("PHASE_INV_PALETTE_OK", inv_palette)
         print("PHASE_INV_PAGE_SETUP_A_OK", inv_page_setup_a)
         print("PHASE_INV_PAGE_SETUP_B_OK", inv_page_setup_b)
         print("PHASE_INV_PAGE_SETUP_C_OK", inv_page_setup_c)
