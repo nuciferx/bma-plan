@@ -1,21 +1,24 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: BLOAT-FLAKE-1 PASS — dev-loop unblocked)
+Date: 2026-05-20 (updated: BUG-20260520-sel-midpan PASS — 22 markers)
 
 ## Immediate Next
 
-**BLOAT-FLAKE-1 resolved. Full E2E GREEN. Dev-loop is unblocked. Bloat-reduction wave complete (BLOAT-1..5 all full-validated). Next sprint from queue:**
+**BUG-20260520-sel-midpan resolved. Full E2E GREEN (22 markers). Next sprint options:**
 
-- **(PRIORITY 1) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS. Pick up with `/bma-dev-loop`.
+- **(PRIORITY 1) INV-2026-05-20-001 — Verify Scale tool** — topmost queued item in PHASE_INDEX. Pick up with `/bma-dev-loop`.
 
-- **(a) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+- **(a) BUG-20260520-zen-exit-rp-restore** — parked at `BUG_STOP_NEEDS_REPRO`. Needs a reproducible steps sequence before fix work can start. Provide repro steps → `/bma-bug-report` will handle.
 
-- **(b) Optional BLOAT-3b — Extract print cluster to `proto/static/js/print-canvas.js`** — `printCurrentPage` / `printSelectedPages` / `_captureCanvasDataURL` / `_buildPrintDoc` / `_escForHtml` / `_waitForRedraw`. ~60 LOC delta. Self-contained; low-risk. Not required (bloat wave already well under 5,000-line trigger at 3,777).
+- **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
 
-- **(c) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
+- **(c) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+
+- **(d) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
 
 ## Recently Done
 
+- **BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode** — 2026-05-20. PASS. +1 line guard in `mode==="sel"` mousedown branch. NEW BUG_20260520_SEL_MIDPAN_OK GREEN. Full E2E EXIT 0 (22 markers). Pipeline: `/bma-bug-report` one-shot.
 - **BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake** — 2026-05-20. PASS. `_wait_analyse_ready` timeout 30→60 s + grace window (+50% if still loading). Full E2E EXIT 0: PERSIST_OK/REAL_OK/ANNOT_OK stable. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated. Dev-loop unblocked. ~15 LOC in `proto/e2e_ui_test.py` only.
 - **BLOAT-5 — Extract page-setup modal JS to `proto/static/js/page-setup.js`** — 2026-05-20. PASS (smoke; full retroactively validated by BLOAT-FLAKE-1). NEW `proto/static/js/page-setup.js` (125 LOC): 15 fns + 2 consts extracted from 3 non-contiguous ranges in `proto/ui.html`. ui.html 3,869→3,777 lines (−92 net). Smoke 18/18 + PHASE_BLOAT5_OK 8/8 + INV_PAGE_SETUP_A/B/C GREEN. Recipe 5-for-5. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5).
 - **BLOAT-4 — Extract annotation JS to `proto/static/js/annotations.js`** — 2026-05-20. PASS. NEW `proto/static/js/annotations.js` (205 LOC): 13 fns extracted from `proto/ui.html` (L1680–1869). ui.html 4,057→3,869 lines (−188 net). full 22/22 + PHASE_BLOAT4_OK 8/8 + PHASE_INV_STICKY_OK 10/10 + PHASE_HT11_OK 10/10 GREEN. Sticky-note round-trip + annotation edit/delete modal verified. Recipe 4-for-4.

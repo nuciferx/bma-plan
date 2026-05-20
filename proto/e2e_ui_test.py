@@ -914,6 +914,38 @@ def _test_mouse_wheel_zoom(page):
     return {"zoom": f"{before_zoom}->{after_zoom}"}
 
 
+def _test_bug_sel_midpan(page):
+    """BUG-20260520-sel-midpan acceptance — middle-mouse-button pan works in Select mode.
+
+    Found by user 2026-05-20: with the Select ('sel') tool active, holding the
+    middle mouse button (button===1) to pan did nothing. Cause: the mousedown
+    handler's `mode==="sel"` branch did `redraw();return` unconditionally before
+    the `e.button===1` pan check, making middle-button pan dead code in Select mode.
+    Fix: a `if(e.button===1||spaceDown){isPan=true;...;return;}` guard at the top
+    of the sel branch. This test drives a real middle-button drag in sel mode and
+    asserts the canvas transform (panX/panY via applyT → #cc) actually moved, and
+    that the Select tool is still active afterward.
+    """
+    page.evaluate("setMode('sel')")
+    box = _canvas_box(page)
+    cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    before = page.evaluate("() => document.getElementById('cc').style.transform")
+    page.mouse.move(cx, cy)
+    page.mouse.down(button="middle")
+    page.mouse.move(cx + 70, cy + 45, steps=4)
+    page.mouse.up(button="middle")
+    page.wait_for_timeout(150)
+    after = page.evaluate("() => document.getElementById('cc').style.transform")
+    mode_after = page.evaluate("() => mode")
+    if after == before:
+        raise AssertionError(
+            f"middle-button pan in sel mode did not move canvas: transform unchanged ({before!r})"
+        )
+    if mode_after != "sel":
+        raise AssertionError(f"Select tool lost after middle-button pan: mode={mode_after!r}")
+    return {"transform": f"{before!r}->{after!r}", "mode": mode_after, "all": True}
+
+
 def _test_snap_helpers(page):
     result = page.evaluate(
         """() => {
@@ -8278,6 +8310,7 @@ def main():
                 annotated = _test_pdf_annotations_export(page, download_dir)
             raster = _test_raster_mode(page)
             wheel = _test_mouse_wheel_zoom(page)
+            sel_midpan = _test_bug_sel_midpan(page)
             snap_helpers = _test_snap_helpers(page)
             selection_helpers = _test_selection_and_area_type_helpers(page)
             setback_helpers = _test_setback_helpers(page)
@@ -8375,6 +8408,7 @@ def main():
         print("PROJECT_OK", project)
         print("RASTER_OK", raster)
         print("WHEEL_OK", wheel)
+        print("BUG_20260520_SEL_MIDPAN_OK", sel_midpan)
         print("SNAP_OK", snap_helpers)
         print("SELECT_OK", selection_helpers)
         print("SETBACK_OK", setback_helpers)

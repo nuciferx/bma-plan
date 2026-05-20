@@ -1,4 +1,28 @@
-# Latest: Mockup Alignment Bundle — Structure (HT-18..21) + Visual Polish (HT-22..26)
+# Latest: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode
+
+Branch: main
+
+Date: 2026-05-20
+
+## Result
+
+Automated PASS — py_compile PASS; full EXIT 0; BUG_20260520_SEL_MIDPAN_OK GREEN (canvas #cc transform +70x/+45y; mode stayed 'sel' throughout). Manual verification required: headless Playwright drives middle-button events via `mouse.down({button:'middle'})` which is spec-correct, but real cursor grab behavior (cursor icon switch + smooth pan feel) must be verified in a real browser.
+
+## Manual Checklist — BUG-20260520-sel-midpan: Select mode pan
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Activate the Select tool (S key or ribbon button); load any PDF | Tool label shows "Select" in status bar | — |
+| Hold middle mouse button + drag on canvas | Canvas pans smoothly; cursor changes to grabbing hand during drag | — |
+| Release middle mouse button | Cursor reverts to default (not grabbing); mode remains 'sel' (not 'pan') | — |
+| Hold Space + drag on canvas (Select tool still active) | Canvas pans smoothly; cursor changes to grabbing hand | — |
+| Release Space | Cursor reverts; mode remains 'sel' | — |
+| Single left-click on an existing object (Select tool active) | Object becomes selected normally; pan did NOT hijack click | — |
+| Double-check: activate Pan tool explicitly (P key), then middle-drag | Still pans as before (no regression on pan tool's own path) | — |
+
+---
+
+# Previous: Mockup Alignment Bundle — Structure (HT-18..21) + Visual Polish (HT-22..26)
 
 Branch: main
 
