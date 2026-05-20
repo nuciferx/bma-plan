@@ -47,9 +47,13 @@
 .panel-restore-tab.right{border-radius:4px 0 0 4px;right:0;left:auto}
 #lp-restore-tab{left:0}
 .panel-restore-tab:hover{background:var(--blue,#2563eb)}
-body.left-collapsed #lp-restore-tab,#sidebar.collapsed~#workspace #lp-restore-tab{display:flex}
-body.right-collapsed #rp-restore-tab,#right-panel.collapsed~#workspace #rp-restore-tab{display:flex}
-/* Selectors above don't work because workspace isn't a sibling — use simpler attribute-based show */
+/* BUG-20260520-zen-exit-rp-restore: the old `#right-panel.collapsed~#workspace`
+   sibling selectors were dead (workspace precedes the panel in DOM). Use :has() so
+   the restore tab shows whenever its panel is collapsed, independent of the
+   data-attribute path. body.zen / body.overview !important rules below still win. */
+body.left-collapsed #lp-restore-tab,body:has(#sidebar.collapsed) #lp-restore-tab{display:flex}
+body.right-collapsed #rp-restore-tab,body:has(#right-panel.collapsed) #rp-restore-tab{display:flex}
+/* attribute-based fallback (kept for older engines without :has) */
 .canvas-wrap[data-left-collapsed="1"] #lp-restore-tab{display:flex}
 .canvas-wrap[data-right-collapsed="1"] #rp-restore-tab{display:flex}
 /* HT-12a: density picker in menu bar — shortcut to PREFS.layout.density */

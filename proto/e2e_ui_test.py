@@ -1135,6 +1135,73 @@ def _test_inv_layer_l3(page):
     return {**result, "all": True}
 
 
+def _test_bug_zen_exit_rp_restore(page):
+    """BUG-20260520-zen-exit-rp-restore acceptance.
+
+    The right-panel restore tab could vanish after hide-panels -> F11 Zen -> exit,
+    because a real-browser native F11 fullscreen desynced app Zen, leaving body.zen
+    stuck (which hides .panel-restore-tab via CSS). Fixes:
+      - F11 always preventDefault + always-exits Zen (entry still blocked mid-draw).
+      - F9/F10 bound to toggle left/right panels (keyboard recovery).
+      - restore-tab visible whenever its panel is collapsed (and not in zen).
+    """
+    result = page.evaluate("""() => {
+        if (typeof loadPrefs === "function" && !PREFS) loadPrefs();
+        const origZen = !!PREFS.layout.zenMode;
+        const origHideRight = !!PREFS.layout.hideRightPanel;
+        const origMpts = mPts.slice();
+        try {
+            // 1. F11 exits Zen even mid-draw (the desync trigger).
+            PREFS.layout.zenMode = true; applyLayoutPrefs();
+            const inZen = document.body.classList.contains("zen");
+            mPts = [{x:1,y:1},{x:2,y:2}];  // mid-draw
+            document.dispatchEvent(new KeyboardEvent("keydown",{key:"F11",bubbles:true,cancelable:true}));
+            const zenExitedMidDraw = !document.body.classList.contains("zen");
+            mPts = [];
+
+            // 2. F10 toggles the right panel (keyboard recovery).
+            const beforeHide = !!PREFS.layout.hideRightPanel;
+            document.dispatchEvent(new KeyboardEvent("keydown",{key:"F10",bubbles:true,cancelable:true}));
+            const f10Toggled = (!!PREFS.layout.hideRightPanel) !== beforeHide;
+
+            // 3. restore tab visible when right panel collapsed (not in zen).
+            PREFS.layout.zenMode = false; PREFS.layout.hideRightPanel = true; applyLayoutPrefs();
+            const tab = document.getElementById("rp-restore-tab");
+            const tabVisibleWhenCollapsed = tab ? getComputedStyle(tab).display !== "none" : false;
+
+            // 4. zen hides it; 5. exiting zen brings it back (the reported flow).
+            PREFS.layout.zenMode = true; applyLayoutPrefs();
+            const tabHiddenInZen = tab ? getComputedStyle(tab).display === "none" : false;
+            PREFS.layout.zenMode = false; applyLayoutPrefs();
+            const tabVisibleAfterZenExit = tab ? getComputedStyle(tab).display !== "none" : false;
+
+            return {inZen, zenExitedMidDraw, f10Toggled, tabVisibleWhenCollapsed, tabHiddenInZen, tabVisibleAfterZenExit};
+        } finally {
+            mPts = origMpts;
+            PREFS.layout.zenMode = origZen;
+            PREFS.layout.hideRightPanel = origHideRight;
+            applyLayoutPrefs();
+        }
+    }""")
+
+    failed = []
+    if not result.get("inZen"):
+        failed.append("could not enter zen for test setup")
+    if not result.get("zenExitedMidDraw"):
+        failed.append("F11 did not exit Zen while mid-draw (desync not fixed)")
+    if not result.get("f10Toggled"):
+        failed.append("F10 did not toggle the right panel")
+    if not result.get("tabVisibleWhenCollapsed"):
+        failed.append("restore tab hidden when right panel collapsed")
+    if not result.get("tabHiddenInZen"):
+        failed.append("restore tab not hidden inside zen (unexpected)")
+    if not result.get("tabVisibleAfterZenExit"):
+        failed.append("restore tab still hidden after zen exit (the bug)")
+    if failed:
+        raise AssertionError(f"BUG_ZEN_EXIT_RP_RESTORE failed: {failed} — {result}")
+    return {**result, "all": True}
+
+
 def _test_snap_helpers(page):
     result = page.evaluate(
         """() => {
@@ -8631,6 +8698,7 @@ def main():
             inv_layer_l1 = _test_inv_layer_l1(page)
             inv_layer_l2 = _test_inv_layer_l2(page)
             inv_layer_l3 = _test_inv_layer_l3(page)
+            zen_exit_rp = _test_bug_zen_exit_rp_restore(page)
             snap_helpers = _test_snap_helpers(page)
             selection_helpers = _test_selection_and_area_type_helpers(page)
             setback_helpers = _test_setback_helpers(page)
@@ -8733,6 +8801,7 @@ def main():
         print("INV_LAYER_L1_OK", inv_layer_l1)
         print("INV_LAYER_L2_OK", inv_layer_l2)
         print("INV_LAYER_L3_OK", inv_layer_l3)
+        print("BUG_20260520_ZEN_EXIT_RP_RESTORE_OK", zen_exit_rp)
         print("SNAP_OK", snap_helpers)
         print("SELECT_OK", selection_helpers)
         print("SETBACK_OK", setback_helpers)

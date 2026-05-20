@@ -3017,10 +3017,18 @@ document.addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft"){const p=getPrevPage(curPage);if(p)loadPage(p);}
   if(e.key==="PageUp"){e.preventDefault();if(!anyModal)menuLoadPrevPage();return;}
   if(e.key==="PageDown"){e.preventDefault();if(!anyModal)menuLoadNextPage();return;}
-  // INV-2026-05-19-001a · F11 toggles Zen Mode (only when no modal open + not drawing)
-  if(e.key==="F11"&&!anyModal&&!mPts.length){e.preventDefault();toggleZenMode();return;}
+  // INV-2026-05-19-001a · F11 toggles Zen Mode. BUG-20260520-zen-exit-rp-restore:
+  // ALWAYS preventDefault so the browser's native F11 fullscreen can't desync app
+  // Zen (a stuck body.zen hides the panel-restore tab via CSS). Entering Zen is still
+  // blocked mid-draw / modal-open, but EXITING must always work.
+  if(e.key==="F11"){e.preventDefault();if(document.body.classList.contains("zen")||(!anyModal&&!mPts.length))toggleZenMode();return;}
   // INV-2026-05-19-002b · F12 toggles Overview mode (standalone)
   if(e.key==="F12"&&!anyModal&&!mPts.length){e.preventDefault();toggleOverview();return;}
+  // BUG-20260520-zen-exit-rp-restore: F9/F10 show/hide the left/right panels (the
+  // restore tabs already advertise [F9]/[F10] but had no binding) — guarantees the
+  // right panel is keyboard-recoverable even if its restore tab is hidden.
+  if(e.key==="F9"){e.preventDefault();toggleLeftPanel();return;}
+  if(e.key==="F10"){e.preventDefault();toggleRightPanel();return;}
   if(e.key==="Escape"){closeAllMenus();if(landEdgeState.open){closeLandEdgePanel();return;}if(namePanel.style.display==="block"){cancelName();return;}if(mode==="area"&&mArcDraft.pending){mArcDraft.pending=false;mArcDraft.throughPt=null;_updateAreaSubmodeBadge();/* HT-8b */setStatus("ยกเลิก arc-mode (กลับสู่การวาดแบบเส้นตรง)");redraw();return;}if((mode==="path"||mode==="ref"||mode==="area"||mode==="north")&&mPts.length){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[]};mFreehandActive=false;mFreehandRaw=[];mFreehandLastSampled=null;mFreehandSegments=0;mFreehandSamplesTotal=0;redraw();setStatus("ยกเลิกเส้นที่กำลังวาด");return;}// INV-2026-05-19-002b: Esc exits overview mode (highest priority over zen)
   if(document.body.classList.contains("overview")){closeOverview();return;}
   // INV-2026-05-19-001a: Esc exits zen mode (after other Esc consumers have had their turn)
