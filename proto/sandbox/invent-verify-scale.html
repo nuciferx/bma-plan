@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike: Verify Scale (approach A — %dev modal)</title>
+<style>
+  :root{--bg:#11141a;--surf:#1a1f29;--surf2:#222936;--border:#333b4a;--text:#e6e9ef;--text2:#9aa3b2;--cyan:#5ac8fa;--green:#34c759;--yellow:#ffcc00;--red:#ff3b30;--blue:#2563eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden}
+  #left{width:300px;flex-shrink:0;background:var(--surf);border-right:1px solid var(--border);padding:14px;overflow:auto}
+  #main{flex:1;position:relative;display:flex;flex-direction:column}
+  h1{font-size:14px;margin:0 0 4px}
+  .sub{font-size:11px;color:var(--text2);margin-bottom:12px}
+  .grp{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px}
+  .grp h2{font-size:12px;margin:0 0 8px;color:var(--cyan);text-transform:uppercase;letter-spacing:.4px}
+  button{font-family:inherit;font-size:12px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--surf2);color:var(--text);padding:7px 10px;width:100%;margin-bottom:6px}
+  button:hover{background:#2c3442}
+  button.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+  button.active{background:var(--cyan);border-color:var(--cyan);color:#001}
+  .kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #2a3340}
+  .kv b{font-weight:700}
+  #toolbar{height:42px;background:var(--surf);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 12px;font-size:12px}
+  #toolbar .pill{padding:3px 8px;border-radius:5px;background:var(--surf2);border:1px solid var(--border)}
+  #cv-wrap{flex:1;position:relative;overflow:hidden;background:#0c0e13}
+  canvas{position:absolute;top:0;left:0;cursor:crosshair}
+  /* distance input panel */
+  #distPanel{position:absolute;background:var(--surf);border:1px solid var(--cyan);border-radius:8px;padding:12px;z-index:20;display:none;box-shadow:0 8px 28px rgba(0,0,0,.6);width:230px}
+  #distPanel input{width:100%;padding:7px;background:var(--surf2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;margin:6px 0}
+  .row{display:flex;gap:6px}
+  .row button{margin:0}
+  /* verify modal */
+  #verifyModal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  #verifyCard{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;box-shadow:0 12px 40px rgba(0,0,0,.7)}
+  #verifyCard h2{margin:0 0 10px;font-size:15px}
+  #devBig{font-size:42px;font-weight:800;text-align:center;margin:8px 0}
+  #devBand{text-align:center;font-size:12px;padding:4px 0;border-radius:6px;margin-bottom:10px;font-weight:700}
+  .mut{color:var(--text2);font-size:11px}
+  /* self test */
+  #selftest{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;white-space:pre-wrap;line-height:1.5;background:#0c0e13;border:1px solid var(--border);border-radius:6px;padding:8px;max-height:200px;overflow:auto}
+  .ok{color:var(--green)} .bad{color:var(--red)}
+</style>
+</head>
+<body>
+<div id="left">
+  <h1>🧪 Verify Scale — spike A</h1>
+  <div class="sub">2nd-reference cross-check · %dev modal · ไม่แตะ forbidden surface (mirror RS=1.5 + N formula)</div>
+
+  <div class="grp">
+    <h2>Tools</h2>
+    <button id="btnCalib" class="primary">① Set Scale (สอบเทียบ)</button>
+    <button id="btnVerify">② Verify Scale (ตรวจซ้ำ)</button>
+    <div class="mut">คลิก 2 จุด (snap จุด grid อัตโนมัติ) แล้วพิมพ์ระยะจริง · grid = 1.00 ม./ช่อง</div>
+  </div>
+
+  <div class="grp">
+    <h2>Current scale</h2>
+    <div class="kv"><span>pts_per_m</span><b id="sPpm">—</b></div>
+    <div class="kv"><span>มาตราส่วน</span><b id="sN">—</b></div>
+    <div class="kv"><span>verified</span><b id="sVer">—</b></div>
+    <div class="kv"><span>last %dev</span><b id="sDev">—</b></div>
+    <div class="mut" style="margin-top:6px">true scale ของ grid spike นี้: 1 ม. = 60 px → pts_per_m≈40.0</div>
+  </div>
+
+  <div class="grp">
+    <h2>Self-test (math)</h2>
+    <div id="selftest">running…</div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="toolbar">
+    <span class="pill" id="modePill">mode: idle</span>
+    <span class="pill" id="hint">เลือกเครื่องมือทางซ้าย</span>
+  </div>
+  <div id="cv-wrap">
+    <canvas id="cv"></canvas>
+    <div id="distPanel">
+      <div style="font-size:12px" id="distInfo">เส้น — px</div>
+      <input id="distInput" type="number" step="0.01" placeholder="ระยะจริง (ม.)">
+      <div class="row"><button class="primary" id="distOk">ยืนยัน</button><button id="distCancel">ยกเลิก</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="verifyModal"><div id="verifyCard">
+  <h2>🔎 ผลตรวจสอบสเกล</h2>
+  <div id="devBig">—</div>
+  <div id="devBand">—</div>
+  <div class="kv"><span>วัดได้ (ตามสเกลปัจจุบัน)</span><b id="vMeas">—</b></div>
+  <div class="kv"><span>ระยะจริงที่ป้อน</span><b id="vEnter">—</b></div>
+  <div class="kv"><span>ผลต่อพื้นที่ (≈2×)</span><b id="vArea">—</b></div>
+  <div style="height:10px"></div>
+  <button class="primary" id="vAccept">✓ รับค่าเดิม (Accept)</button>
+  <button id="vRecalib">↻ สอบเทียบใหม่จากเส้นนี้ (Re-calibrate)</button>
+  <button id="vAverage">⌀ เฉลี่ยกับค่าเดิม (Average)</button>
+  <div class="mut" style="margin-top:6px">band: เขียว &lt;0.5% · เหลือง &lt;2% · แดง ≥2%</div>
+</div></div>
+
+<script>
+// ── mirror real-app constants (read-only mirror, NOT importing the live file) ──
+const RS = 1.5;
+const PT_PER_MM = 72/25.4;
+const GRID_PX = 60;            // spike backdrop: 60 canvas px = 1.00 m  → true pts_per_m = 60/RS = 40
+const TRUE_PPM = GRID_PX/RS;
+
+// ── PURE testable kernel ──
+// pts_per_m from a drawn canvas segment + entered meters (mirrors finishCalib math)
+function ppmFromDraw(p1,p2,meters){const dx=(p2.x-p1.x)/RS,dy=(p2.y-p1.y)/RS;return Math.hypot(dx,dy)/meters;}
+function nFromPpm(ppm){return Math.round(1000*PT_PER_MM/ppm);}
+// measured meters of a segment under a known pts_per_m
+function metersUnder(p1,p2,ppm){const dx=(p2.x-p1.x)/RS,dy=(p2.y-p1.y)/RS;return Math.hypot(dx,dy)/ppm;}
+// deviation kernel
+function verifyDev(measM, enterM){
+  const pct = 100*Math.abs(measM-enterM)/enterM;
+  const band = pct<0.5?'green':pct<2?'yellow':'red';
+  return {pct, band};
+}
+
+// ── state ──
+let mode='idle', calibScale=null, pts=[], pendingMeters=null, draftFor=null;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const wrap=document.getElementById('cv-wrap');
+function resize(){cv.width=wrap.clientWidth;cv.height=wrap.clientHeight;draw();}
+window.addEventListener('resize',resize);
+
+function snapGrid(x,y){ // snap to nearest grid intersection within 12px (deterministic clicks)
+  const gx=Math.round(x/GRID_PX)*GRID_PX, gy=Math.round(y/GRID_PX)*GRID_PX;
+  return (Math.hypot(x-gx,y-gy)<=12)?{x:gx,y:gy,snap:true}:{x,y,snap:false};
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // grid
+  ctx.lineWidth=1;
+  for(let x=0;x<=cv.width;x+=GRID_PX){ctx.strokeStyle=(x/GRID_PX)%5===0?'#2c3a4a':'#1b2230';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke();}
+  for(let y=0;y<=cv.height;y+=GRID_PX){ctx.strokeStyle=(y/GRID_PX)%5===0?'#2c3a4a':'#1b2230';ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke();}
+  ctx.fillStyle='#3a4658';ctx.font='10px monospace';
+  for(let x=0;x<=cv.width;x+=GRID_PX*5)ctx.fillText((x/GRID_PX)+'m',x+2,12);
+  // current draft segment
+  const col = draftFor==='verify' ? '#ffcc00' : '#5ac8fa';
+  ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=2;
+  for(const p of pts){ctx.beginPath();ctx.arc(p.x,p.y,4,0,7);ctx.fill();}
+  if(pts.length===2){ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);ctx.lineTo(pts[1].x,pts[1].y);ctx.stroke();}
+}
+function setMode(m){mode=m;pts=[];draftFor=null;hideDist();
+  document.getElementById('modePill').textContent='mode: '+m;
+  document.getElementById('btnCalib').classList.toggle('active',m==='calib');
+  document.getElementById('btnVerify').classList.toggle('active',m==='verify');
+  document.getElementById('hint').textContent =
+    m==='calib'?'คลิกจุดที่ 1 ของเส้นที่รู้ระยะ':
+    m==='verify'?(calibScale?'คลิกเส้นที่ 2 ที่รู้ระยะ เพื่อตรวจสอบ':'⚠ ตั้ง scale ก่อน'):'—';
+  draw();
+}
+document.getElementById('btnCalib').onclick=()=>setMode('calib');
+document.getElementById('btnVerify').onclick=()=>{if(!calibScale){alert('ตั้ง scale ก่อน (Set Scale)');return;}setMode('verify');};
+
+cv.addEventListener('click',e=>{
+  if(mode!=='calib'&&mode!=='verify')return;
+  const r=cv.getBoundingClientRect();
+  const s=snapGrid(e.clientX-r.left,e.clientY-r.top);
+  pts.push({x:s.x,y:s.y});draw();
+  if(pts.length===2){
+    draftFor = mode==='verify'?'verify':'calib';
+    const dpt=Math.hypot((pts[1].x-pts[0].x)/RS,(pts[1].y-pts[0].y)/RS);
+    showDist(e.clientX-r.left,e.clientY-r.top,dpt);
+  }else{document.getElementById('hint').textContent='คลิกจุดที่ 2';}
+});
+function showDist(cx,cy,dpt){const p=document.getElementById('distPanel');
+  document.getElementById('distInfo').textContent='เส้น '+dpt.toFixed(1)+' pt · ป้อนระยะจริง (ม.):';
+  p.style.left=Math.min(cx,wrap.clientWidth-240)+'px';p.style.top=Math.min(cy,wrap.clientHeight-120)+'px';
+  p.style.display='block';const i=document.getElementById('distInput');i.value='';i.focus();}
+function hideDist(){document.getElementById('distPanel').style.display='none';}
+document.getElementById('distCancel').onclick=()=>{pts=[];hideDist();draw();document.getElementById('hint').textContent='ยกเลิก';};
+document.getElementById('distInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('distOk').click();});
+document.getElementById('distOk').onclick=()=>{
+  const m=parseFloat(document.getElementById('distInput').value);
+  if(!m||m<=0){alert('ระยะต้อง > 0');return;}
+  hideDist();
+  if(draftFor==='calib'){
+    const ppm=ppmFromDraw(pts[0],pts[1],m);
+    calibScale={pts_per_m:ppm,N:nFromPpm(ppm),calibrated:true,verified:true,verifyResult:null};
+    refreshScale();setMode('idle');
+    document.getElementById('hint').textContent='✅ สอบเทียบแล้ว — ลอง Verify Scale';
+  }else{ // verify
+    const meas=metersUnder(pts[0],pts[1],calibScale.pts_per_m);
+    openVerify(meas,m,ppmFromDraw(pts[0],pts[1],m));
+  }
+  draw();
+};
+
+// ── verify modal (approach A core) ──
+let _vCtx=null;
+function openVerify(measM,enterM,vPpm){
+  const {pct,band}=verifyDev(measM,enterM);
+  _vCtx={measM,enterM,vPpm,pct,band};
+  const colors={green:'var(--green)',yellow:'var(--yellow)',red:'var(--red)'};
+  document.getElementById('devBig').textContent=pct.toFixed(2)+'%';
+  document.getElementById('devBig').style.color=colors[band];
+  const bandEl=document.getElementById('devBand');
+  bandEl.textContent=band==='green'?'✓ แม่นยำดี (ยอมรับได้)':band==='yellow'?'⚠ คลาดเคลื่อนเล็กน้อย — ควรระวัง':'✕ คลาดเคลื่อนสูง — แนะนำสอบเทียบใหม่';
+  bandEl.style.background=colors[band];bandEl.style.color='#001';
+  document.getElementById('vMeas').textContent=measM.toFixed(3)+' ม.';
+  document.getElementById('vEnter').textContent=enterM.toFixed(3)+' ม.';
+  document.getElementById('vArea').textContent='≈ '+(2*pct).toFixed(2)+'%';
+  document.getElementById('verifyModal').style.display='flex';
+}
+function closeVerify(){document.getElementById('verifyModal').style.display='none';setMode('idle');draw();}
+document.getElementById('vAccept').onclick=()=>{
+  calibScale.verifyResult={pct:_vCtx.pct,action:'accept',ts:Date.now()};refreshScale();closeVerify();};
+document.getElementById('vRecalib').onclick=()=>{
+  calibScale.pts_per_m=_vCtx.vPpm;calibScale.N=nFromPpm(_vCtx.vPpm);
+  calibScale.verifyResult={pct:0,action:'recalibrate',ts:Date.now()};refreshScale();closeVerify();};
+document.getElementById('vAverage').onclick=()=>{
+  const avg=(calibScale.pts_per_m+_vCtx.vPpm)/2;calibScale.pts_per_m=avg;calibScale.N=nFromPpm(avg);
+  calibScale.verifyResult={pct:_vCtx.pct,action:'average',ts:Date.now()};refreshScale();closeVerify();};
+
+function refreshScale(){
+  document.getElementById('sPpm').textContent=calibScale?calibScale.pts_per_m.toFixed(3):'—';
+  document.getElementById('sN').textContent=calibScale?('1:'+calibScale.N):'—';
+  document.getElementById('sVer').textContent=calibScale?(calibScale.verifyResult?('✓ '+calibScale.verifyResult.action):'(ยังไม่ตรวจ)'):'—';
+  document.getElementById('sDev').textContent=calibScale&&calibScale.verifyResult?calibScale.verifyResult.pct.toFixed(2)+'%':'—';
+}
+
+// ── SELF-TEST (success criterion: %dev correct vs hand calc + bands) ──
+function runSelfTest(){
+  const out=[];let allOk=true;
+  const cases=[
+    // [measM, enterM, expectPct, expectBand]
+    [10,10,0,'green'],[10.04,10,0.4,'green'],[10.05,10,0.5,'yellow'],
+    [10.15,10,1.5,'yellow'],[10.25,10,2.5,'red'],[10.5,10,5.0,'red'],[9.7,10,3.0,'red'],
+  ];
+  for(const [m,e,ep,eb] of cases){
+    const r=verifyDev(m,e);const okP=Math.abs(r.pct-ep)<1e-9;const okB=r.band===eb;const ok=okP&&okB;allOk&&=ok;
+    out.push(`${ok?'PASS':'FAIL'} dev(${m},${e}) → ${r.pct.toFixed(2)}% ${r.band} (exp ${ep}% ${eb})`);
+  }
+  // geometric pipeline: calibrate on a 5m grid line (300px), verify a 3m line (180px) under that scale
+  const cP=ppmFromDraw({x:0,y:0},{x:5*GRID_PX,y:0},5);          // should ≈ TRUE_PPM
+  const okC=Math.abs(cP-TRUE_PPM)<1e-9;allOk&&=okC;
+  out.push(`${okC?'PASS':'FAIL'} calibrate 5m line → ppm ${cP.toFixed(4)} (true ${TRUE_PPM.toFixed(4)})`);
+  const meas=metersUnder({x:0,y:0},{x:3*GRID_PX,y:0},cP);        // perfect → 3.000m, 0%
+  const r2=verifyDev(meas,3);const ok2=Math.abs(r2.pct)<1e-9&&r2.band==='green';allOk&&=ok2;
+  out.push(`${ok2?'PASS':'FAIL'} verify perfect 3m → ${r2.pct.toFixed(2)}% ${r2.band}`);
+  // mis-scaled: pretend user calibrated 4% small, verify 3m true line reads 3.12m
+  const r3=verifyDev(3.12,3);const ok3=Math.abs(r3.pct-4.0)<1e-9&&r3.band==='red';allOk&&=ok3;
+  out.push(`${ok3?'PASS':'FAIL'} verify 3.12 vs 3 → ${r3.pct.toFixed(2)}% ${r3.band} (4% red)`);
+  out.push(`\n${allOk?'✅ ALL PASS — spike success criteria met':'❌ FAIL'}`);
+  const el=document.getElementById('selftest');
+  el.innerHTML=out.map(l=>l.startsWith('FAIL')||l.includes('❌')?`<span class="bad">${l}</span>`:l.startsWith('PASS')||l.includes('✅')?`<span class="ok">${l}</span>`:l).join('\n');
+  return allOk;
+}
+resize();refreshScale();runSelfTest();
+</script>
+</body>
+</html>
