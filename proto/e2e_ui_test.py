@@ -946,6 +946,71 @@ def _test_bug_sel_midpan(page):
     return {"transform": f"{before!r}->{after!r}", "mode": mode_after, "all": True}
 
 
+def _test_inv_layer_l1(page):
+    """INV-2026-05-20-002 (Layer rebuild L1) acceptance.
+
+    Site-plan objects must land in a layer that EXISTS in the page's preset and get
+    a resolvable layerId (the old bug parked them in "sub_area" — absent from the site
+    preset — so layerId stayed undefined). Render/visibility now read the page-scoped
+    layer via the object's slug. Verifies on a forced site page, then restores state.
+    """
+    result = page.evaluate("""() => {
+        const pg = curPage;
+        const origTag = pageTags[pg];
+        const s = getStore(pg);
+        const origLayers = s.layers;
+        try {
+            pageTags[pg] = "site";
+            s.layers = _makePageLayers(pg);
+            const siteSlugs = ensurePageLayers(pg).map(l => l.slug);
+
+            const bc = {pts:[{x:10,y:10},{x:50,y:10},{x:50,y:50},{x:10,y:50}], closed:true,
+                        areaType:"room", semanticTag:"building_coverage", id:"l1-bc"};
+            assignDefaultObjectLayer(pg, bc);
+            const bcLayer = ensurePageLayers(pg).find(l => l.id === bc.layerId);
+
+            const land = {pts:[{x:0,y:0},{x:80,y:0},{x:80,y:80},{x:0,y:80}], closed:true,
+                          areaType:"land", semanticTag:"site_boundary", id:"l1-land"};
+            assignDefaultObjectLayer(pg, land);
+
+            const lyr = getLayerBySlug(pg, bc.layerSlug);
+            const visBefore = _objLayerVisible(bc);
+            lyr.visible = false; lyr._userModified = true;
+            const visAfter = _objLayerVisible(bc);
+            lyr.visible = true; lyr._userModified = false;
+
+            return {
+                siteHasNoSubArea: !siteSlugs.includes("sub_area"),
+                bcSlug: bc.layerSlug,
+                bcSlugValid: siteSlugs.includes(bc.layerSlug),
+                bcLayerIdResolves: !!bcLayer,
+                landSlug: land.layerSlug,
+                landToSiteBoundary: land.layerSlug === "site_boundary",
+                visToggleWorks: visBefore === true && visAfter === false,
+                siteSlugs,
+            };
+        } finally {
+            pageTags[pg] = origTag;
+            s.layers = origLayers;
+        }
+    }""")
+
+    failed = []
+    if not result.get("siteHasNoSubArea"):
+        failed.append(f"site preset unexpectedly has sub_area: {result.get('siteSlugs')}")
+    if not result.get("bcSlugValid"):
+        failed.append(f"building_coverage slug {result.get('bcSlug')!r} not in site preset")
+    if not result.get("bcLayerIdResolves"):
+        failed.append("building_coverage layerId did not resolve to a real layer")
+    if not result.get("landToSiteBoundary"):
+        failed.append(f"land slug {result.get('landSlug')!r} != site_boundary")
+    if not result.get("visToggleWorks"):
+        failed.append("page-layer visibility toggle did not drive _objLayerVisible")
+    if failed:
+        raise AssertionError(f"INV_LAYER_L1 failed: {failed} — {result}")
+    return {**result, "all": True}
+
+
 def _test_snap_helpers(page):
     result = page.evaluate(
         """() => {
@@ -8433,6 +8498,7 @@ def main():
             raster = _test_raster_mode(page)
             wheel = _test_mouse_wheel_zoom(page)
             sel_midpan = _test_bug_sel_midpan(page)
+            inv_layer_l1 = _test_inv_layer_l1(page)
             snap_helpers = _test_snap_helpers(page)
             selection_helpers = _test_selection_and_area_type_helpers(page)
             setback_helpers = _test_setback_helpers(page)
@@ -8532,6 +8598,7 @@ def main():
         print("RASTER_OK", raster)
         print("WHEEL_OK", wheel)
         print("BUG_20260520_SEL_MIDPAN_OK", sel_midpan)
+        print("INV_LAYER_L1_OK", inv_layer_l1)
         print("SNAP_OK", snap_helpers)
         print("SELECT_OK", selection_helpers)
         print("SETBACK_OK", setback_helpers)
