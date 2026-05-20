@@ -226,6 +226,15 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 
 ### ideas 2026-05-20
 
+- [x] **Scope-creep audit — find over-engineered features outside Phase 1 boundary** — `audit-done (report-only)` 2026-05-20 — from /idea 2026-05-20 20:02
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-20 20:02 · Tags: bma-plan, process, p-med, research
+    - **Result:** `docs/status/PHASE1_SCOPE_AUDIT_2026-05-20.md`. Verdict: 🟢 NO Phase-1 violation (zero OCR/AI/auto-boundary/auth). 🟡 1 watch-item = site-plan BCR/OSR/FAR/setback (facts-only, one verdict-cell from crossing) + UX-chrome breadth (Zen/palette/settings/annotation). 
+    - **Follow-up sprint (optional, queued below):** "Lock the site-plan line" — assert no pass/fail verdict UI ever renders.
+- [ ] **Lock the site-plan line — assert no FAR/OSR/setback pass-fail verdict UI** — `queued` — from scope-creep audit 2026-05-20. Add E2E marker that scans rendered site-plan/summary/XLSX for any ✓/✗/ผ่าน/ไม่ผ่าน verdict cell and fails if present. Scope `/bma-measure-scope` (validation). Low risk, additive test only.
+- [ ] **In-app bug report form + version-update notification channel** — `invent-queued` — from /idea 2026-05-20 20:02
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-20 20:02
+    - Tags: bma-plan, ui, p-med, discuss
+    - Note: end-user-facing (distinct from dev-side /bma-bug-report skill). Two coupled concerns: outbound user→team bug submission + inbound server→user update alerts. Open Qs: channel (email/GitHub issue/webhook); update source (GitHub Releases API vs team server).
 - [x] **Focus-mode lite-version spinoff with single-row menu bar** — `invent-done-nogo` 2026-05-20. Research verdict PRIOR_ART_PARTIAL. 5 v1 approaches scored (A 27/30 top). After RESHAPE: 5 v2 approaches scored (D-v2 27/30 top — snap-chip strip + 19-item Measure + fullscreen pill). After 2nd RESHAPE: user pointed to existing `invent-zen-mode-v2-topbar.html` — v3 converged on adopting INV-002 layout as default via ~30 LOC delta in `proto/ui.html`. **User NOGO**: prefers building a standalone `/lite/` folder (true sibling of `/proto/`, not a feature-flag inside it). Artifact + 3 spike iterations + 12-assertion v3 sandbox kept as reference for the future `/lite/` build. See `docs/invent/focus-mode-lite-spinoff.md` ## Decision. **Follow-up recommended**: file fresh `/idea` for "BMA-Plan Lite — standalone `/lite/` folder build" (raises NEW questions: packaging shape, code-sharing policy, version-sync policy, `.bmaplan` cross-compat rules — not covered here).
     - Source: /idea 2026-05-20 00-12
     - Tags: bma-plan, ui, focus-mode, fullscreen, lite-version, research-needed, p-med
