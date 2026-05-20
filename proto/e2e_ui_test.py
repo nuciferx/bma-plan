@@ -1077,6 +1077,64 @@ def _test_inv_layer_l2(page):
     return {**result, "all": True}
 
 
+def _test_inv_layer_l3(page):
+    """INV-2026-05-20-004 (Layer rebuild L3) acceptance.
+
+    Page-scoped layer.visible/locked is the SINGLE authoritative source for app
+    behaviour. Proven by setting the page layer state opposite to the global mirror
+    and confirming the app follows the page layer (lock gate + lock helpers), not the
+    global. The global layerVis/layerLock are now a non-authoritative mirror only.
+    """
+    result = page.evaluate("""() => {
+        const pg = curPage;
+        const origPolys = mPolys.length;
+        const origSel = selItem;
+        const origGlobalLock = {...layerLock};
+        try {
+            const bc = {pts:[{x:10,y:10},{x:50,y:10},{x:50,y:50},{x:10,y:50}], closed:true,
+                        areaType:"building", semanticTag:"gross_floor_area", id:"l3-bc", color:"#30d158", opacity:0.85};
+            assignDefaultObjectLayer(pg, bc);
+            mPolys.push(bc);
+            const slug = bc.layerSlug;
+            const lyr = getLayerBySlug(pg, slug);
+
+            // Page says LOCKED, global says UNLOCKED -> app must follow page.
+            lyr.locked = true; lyr._userModified = true; layerLock[slug] = false;
+            const pageLockWins = _slugLocked(slug) === true && _objLayerLocked(bc) === true;
+
+            // lock gate (drawing) must also follow page lock.
+            const selEl = document.getElementById("active-layer-select");
+            const prevVal = selEl ? selEl.value : null;
+            if (selEl) selEl.value = slug;
+            const gateBlocked = _layerLockGateBeforeMode("area") === null;
+            if (selEl && prevVal != null) selEl.value = prevVal;
+
+            // Page says UNLOCKED, global says LOCKED -> app must follow page (ignore global).
+            lyr.locked = false; layerLock[slug] = true;
+            const globalIgnored = _slugLocked(slug) === false;
+
+            lyr.locked = false; lyr._userModified = false;
+            return { pageLockWins, gateBlocked, globalIgnored, slug };
+        } finally {
+            mPolys.length = origPolys;
+            selItem = origSel;
+            Object.keys(layerLock).forEach(k => delete layerLock[k]);
+            Object.assign(layerLock, origGlobalLock);
+        }
+    }""")
+
+    failed = []
+    if not result.get("pageLockWins"):
+        failed.append("page-layer lock did not drive _slugLocked/_objLayerLocked")
+    if not result.get("gateBlocked"):
+        failed.append("_layerLockGateBeforeMode did not follow page-layer lock")
+    if not result.get("globalIgnored"):
+        failed.append("global layerLock still leaked into _slugLocked (not page-authoritative)")
+    if failed:
+        raise AssertionError(f"INV_LAYER_L3 failed: {failed} — {result}")
+    return {**result, "all": True}
+
+
 def _test_snap_helpers(page):
     result = page.evaluate(
         """() => {
@@ -2991,10 +3049,15 @@ def _test_ht8d5a_layers_wave1(page):
         // base_area + sub_area + any other slug that area-mode might pick)
         const origMode = mode;
         const origLock = Object.assign({}, layerLock);
-        layerLock['base_area'] = true;
-        layerLock['sub_area'] = true;
-        layerLock['reference_geometry'] = true;
-        layerLock['deduction'] = true;
+        // INV-layer-L3: page-scoped layer.locked is authoritative now — lock the
+        // page layers (the gate reads _slugLocked -> page layer). Global kept in sync.
+        const _lockSlugs = ['base_area','sub_area','reference_geometry','deduction'];
+        const _origPageLocked = {};
+        _lockSlugs.forEach(sl => {
+            layerLock[sl] = true;
+            const pl = getLayerBySlug(curPage, sl);
+            if (pl) { _origPageLocked[sl] = pl.locked; pl.locked = true; pl._userModified = true; }
+        });
         let alertSeen = false;
         const origAlert = window.alert;
         window.alert = () => { alertSeen = true; };
@@ -3015,6 +3078,7 @@ def _test_ht8d5a_layers_wave1(page):
 
         // Restore
         Object.keys(layerLock).forEach(k => { layerLock[k] = origLock[k] || false; });
+        _lockSlugs.forEach(sl => { const pl = getLayerBySlug(curPage, sl); if (pl) { pl.locked = _origPageLocked[sl] || false; pl._userModified = false; } });
         mode = origMode;
 
         return {
@@ -8566,6 +8630,7 @@ def main():
             sel_midpan = _test_bug_sel_midpan(page)
             inv_layer_l1 = _test_inv_layer_l1(page)
             inv_layer_l2 = _test_inv_layer_l2(page)
+            inv_layer_l3 = _test_inv_layer_l3(page)
             snap_helpers = _test_snap_helpers(page)
             selection_helpers = _test_selection_and_area_type_helpers(page)
             setback_helpers = _test_setback_helpers(page)
@@ -8667,6 +8732,7 @@ def main():
         print("BUG_20260520_SEL_MIDPAN_OK", sel_midpan)
         print("INV_LAYER_L1_OK", inv_layer_l1)
         print("INV_LAYER_L2_OK", inv_layer_l2)
+        print("INV_LAYER_L3_OK", inv_layer_l3)
         print("SNAP_OK", snap_helpers)
         print("SELECT_OK", selection_helpers)
         print("SETBACK_OK", setback_helpers)
