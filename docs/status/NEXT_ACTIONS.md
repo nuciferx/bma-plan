@@ -1,23 +1,28 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: BUG-20260520-sel-midpan PASS — 22 markers)
+Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale PASS — INV_VERIFY_SCALE_OK 9/9)
 
 ## Immediate Next
 
-**BUG-20260520-sel-midpan resolved. Full E2E GREEN (22 markers). Next sprint options:**
+**INV-2026-05-20-001 Verify Scale tool done. Full E2E GREEN. Next sprint options:**
 
-- **(PRIORITY 1) INV-2026-05-20-001 — Verify Scale tool** — topmost queued item in PHASE_INDEX. Pick up with `/bma-dev-loop`.
+- **(PRIORITY 1) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev≥2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next.
 
-- **(a) BUG-20260520-zen-exit-rp-restore** — parked at `BUG_STOP_NEEDS_REPRO`. Needs a reproducible steps sequence before fix work can start. Provide repro steps → `/bma-bug-report` will handle.
+- **(a) BUG-20260520-zen-exit-rp-restore** — parked at `BUG_STOP_NEEDS_REPRO`. Needs reproducible steps before fix work can start. Provide repro steps → `/bma-bug-report` will handle.
 
 - **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
 
-- **(c) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+- **(c) Verify Scale follow-on D** — live canvas badge showing %dev after verify (amber chip near scale display). Low priority; additive cosmetic.
 
-- **(d) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
+- **(d) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+
+- **(e) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
+
+- **(f) Manual Chrome verification** — `#verify-modal` visual rendering should be checked in real Chrome and added to `UI_MANUAL_TEST.md`.
 
 ## Recently Done
 
+- **INV-2026-05-20-001 — Verify Scale tool** — 2026-05-20. PASS. Verify Scale flow (approach A): `verifyFinish()` %dev + `openVerifyModal()` green/yellow/red band + Accept/Re-calibrate/Average. `calibPanelOk()` router; `finishCalib()` unchanged. `calibScale.verifyResult` additive schema. `proto/e2e_ui_test.py` +124 lines; INV_VERIFY_SCALE_OK 9/9 all:True. Full E2E EXIT 0. `proto/server.py` NOT TOUCHED.
 - **BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode** — 2026-05-20. PASS. +1 line guard in `mode==="sel"` mousedown branch. NEW BUG_20260520_SEL_MIDPAN_OK GREEN. Full E2E EXIT 0 (22 markers). Pipeline: `/bma-bug-report` one-shot.
 - **BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake** — 2026-05-20. PASS. `_wait_analyse_ready` timeout 30→60 s + grace window (+50% if still loading). Full E2E EXIT 0: PERSIST_OK/REAL_OK/ANNOT_OK stable. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated. Dev-loop unblocked. ~15 LOC in `proto/e2e_ui_test.py` only.
 - **BLOAT-5 — Extract page-setup modal JS to `proto/static/js/page-setup.js`** — 2026-05-20. PASS (smoke; full retroactively validated by BLOAT-FLAKE-1). NEW `proto/static/js/page-setup.js` (125 LOC): 15 fns + 2 consts extracted from 3 non-contiguous ranges in `proto/ui.html`. ui.html 3,869→3,777 lines (−92 net). Smoke 18/18 + PHASE_BLOAT5_OK 8/8 + INV_PAGE_SETUP_A/B/C GREEN. Recipe 5-for-5. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5).

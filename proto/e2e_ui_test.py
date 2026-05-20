@@ -4092,6 +4092,128 @@ def _test_ht16_restore_tab(page):
     return {**checks, "all": True}
 
 
+def _test_verify_scale(page):
+    """INV-2026-05-20-001: Verify Scale tool (2nd-reference cross-check, approach A).
+
+    9 sub-checks:
+    A. DOM + helpers exist (#verify-modal, Scale-menu item, verifyScale/verifyFinish/openVerifyModal)
+    B. verifyScale guards: no scale on page → alert path (verifyResult stays absent, modal not shown)
+    C. green band: measured == entered → 0.00% green, modal shown
+    D. red band: 5% deviation → red band, area-impact ~2x
+    E. verifyAccept writes calibScale.verifyResult{action:'accept', pct}
+    F. verifyRecalibrate sets pts_per_m to the 2nd-reference ppm
+    G. verifyAverage sets pts_per_m to mean(old, 2nd-ref ppm)
+    H. finishCalib is NOT edited (calibPanelOk routes; normal calib still sets a scale)
+    I. round-trip: verifyResult survives _makeProjBlob() → applyLoadedProject()
+    """
+    _upload_and_start(page, VECTOR_PDF)
+    _wait_analyse_ready(page)
+    probe = page.evaluate("""async () => {
+        const r = {};
+        const RS = 1.5;
+        // A. structure
+        r.modalExists = !!document.getElementById('verify-modal');
+        r.menuItem = !!Array.from(document.querySelectorAll('#dd-scale .dd-item'))
+            .find(d => /verifyScale\\(\\)/.test(d.getAttribute('onclick')||''));
+        r.helpers = typeof verifyScale==='function' && typeof verifyFinish==='function'
+            && typeof openVerifyModal==='function' && typeof calibPanelOk==='function';
+
+        // helper: install a known manual scale on current page (ppm=40 → 600canvas px = 400pt = 10m)
+        const setScale = (ppm) => {
+            const sc = {N:71, label:'★ 1:71', pts_per_m:ppm, calibrated:true, source:'manual', verified:true};
+            if(typeof pageData==='undefined' || !pageData) window.pageData = {};
+            pageData.scale = sc; getStore(curPage).calibScale = sc;
+            if(analyseCache[analyseKey(curPage)]) analyseCache[analyseKey(curPage)].scale = sc;
+            return sc;
+        };
+        const runVerify = (px, meters) => {
+            calibVerifyMode = true; calibPts = [{x:0,y:0},{x:px,y:0}];
+            document.getElementById('calib-input').value = String(meters);
+            verifyFinish();
+        };
+
+        // B. guard when no scale
+        delete getStore(curPage).calibScale;
+        if(pageData) pageData.scale = null;
+        if(analyseCache[analyseKey(curPage)]) analyseCache[analyseKey(curPage)].scale = null;
+        let alerted = false; const _al = window.alert; window.alert = () => { alerted = true; };
+        verifyScale();
+        r.guardNoScale = alerted && getComputedStyle(document.getElementById('verify-modal')).display === 'none';
+        window.alert = _al;
+
+        // C. green band — 600px @ ppm40 → 10.000 m measured, enter 10 → 0%
+        setScale(40);
+        runVerify(600, 10);
+        const modalShown = getComputedStyle(document.getElementById('verify-modal')).display !== 'none';
+        const bigTxt = document.getElementById('verify-dev-big').textContent;
+        const bandBg = document.getElementById('verify-band').style.background;
+        r.greenShown = modalShown && bigTxt === '0.00%' && /52|201|89|34c759|rgb\\(52/.test(bandBg.replace(/\\s/g,''));
+        // E. accept writes result
+        verifyAccept();
+        const vr1 = getScaleForPage(curPage).verifyResult;
+        r.acceptWritten = !!vr1 && vr1.action === 'accept' && Math.abs(vr1.pct) < 1e-6;
+        r.modalClosedAfterAccept = getComputedStyle(document.getElementById('verify-modal')).display === 'none';
+
+        // D. red band — measured 10 vs entered 10.5 → 4.76% red, area ~9.5%
+        setScale(40);
+        runVerify(600, 10.5);
+        const pctTxt = document.getElementById('verify-dev-big').textContent;
+        const areaTxt = document.getElementById('verify-area').textContent;
+        r.redPct = pctTxt;
+        r.redBand = /255,59,48|ff3b30|rgb\\(255/.test(document.getElementById('verify-band').style.background.replace(/\\s/g,''));
+        r.areaDouble = areaTxt.includes('9.5');  // ≈ 2 × 4.76
+        // F. recalibrate → ppm becomes 400/10.5 = 38.0952
+        verifyRecalibrate();
+        r.recalPpm = getScaleForPage(curPage).pts_per_m;
+        r.recalOk = Math.abs(r.recalPpm - (400/10.5)) < 1e-4;
+
+        // G. average → mean(40, 400/11=36.3636) = 38.1818
+        setScale(40);
+        runVerify(600, 11);
+        verifyAverage();
+        r.avgPpm = getScaleForPage(curPage).pts_per_m;
+        r.avgOk = Math.abs(r.avgPpm - (40 + 400/11)/2) < 1e-4;
+
+        // H. finishCalib still works (not broken by calibPanelOk routing)
+        calibVerifyMode = false; calibPts = [{x:0,y:0},{x:600,y:0}];
+        document.getElementById('calib-input').value = '8';
+        calibPanelOk();  // routes to finishCalib since calibVerifyMode false
+        const scAfter = getScaleForPage(curPage);
+        r.finishCalibIntact = !!scAfter && Math.abs(scAfter.pts_per_m - 400/8) < 1e-4;
+
+        // I. round-trip through real serializer + loader
+        setScale(40);
+        runVerify(600, 10.5);
+        verifyAccept();
+        const txt = await _makeProjBlob().text();
+        const proj = JSON.parse(txt);
+        const inSave = proj.pageStore[String(curPage)] &&
+                       proj.pageStore[String(curPage)].calibScale &&
+                       proj.pageStore[String(curPage)].calibScale.verifyResult;
+        r.savedHasVerify = !!inSave && inSave.action === 'accept';
+        applyLoadedProject(proj);
+        const afterLoad = getScaleForPage(curPage) && getScaleForPage(curPage).verifyResult;
+        r.roundTrip = !!afterLoad && afterLoad.action === 'accept' && typeof afterLoad.pct === 'number';
+        return r;
+    }""")
+    checks = {
+        "domAndHelpers": probe.get("modalExists") and probe.get("menuItem") and probe.get("helpers"),
+        "guardWhenNoScale": probe.get("guardNoScale") is True,
+        "greenBandZeroDev": probe.get("greenShown") is True,
+        "acceptWritesResult": probe.get("acceptWritten") is True and probe.get("modalClosedAfterAccept") is True,
+        "redBandHighDev": probe.get("redBand") is True and probe.get("areaDouble") is True,
+        "recalibrateSetsPpm": probe.get("recalOk") is True,
+        "averageSetsPpm": probe.get("avgOk") is True,
+        "finishCalibIntact": probe.get("finishCalibIntact") is True,
+        "roundTripSaveLoad": probe.get("savedHasVerify") is True and probe.get("roundTrip") is True,
+    }
+    all_pass = all(checks.values())
+    failed = [k for k, v in checks.items() if not v]
+    if not all_pass:
+        return {**checks, "all": False, "failed": failed, "probe": probe}
+    return {**checks, "all": True}
+
+
 def _test_inv_palette(page):
     """INV-2026-05-19-001b: ⌘K Command Palette (page jump).
 
@@ -8347,6 +8469,7 @@ def main():
             ht14c_summary_deep = _test_ht14c_summary_deep_dive(page)
             ht15a_sheets_tab = _test_ht15a_sheets_tab(page)
             ht16_restore_tab = _test_ht16_restore_tab(page)
+            verify_scale = _test_verify_scale(page)
             ht17_enter_area = _test_ht17_enter_finishes_area(page)
             inv_zen_mode = _test_inv_zen_mode(page)
             inv_palette = _test_inv_palette(page)
@@ -8445,6 +8568,7 @@ def main():
         print("PHASE_HT14C_OK", ht14c_summary_deep)
         print("PHASE_HT15A_OK", ht15a_sheets_tab)
         print("PHASE_HT16_OK", ht16_restore_tab)
+        print("INV_VERIFY_SCALE_OK", verify_scale)
         print("PHASE_HT17_OK", ht17_enter_area)
         print("PHASE_INV_ZEN_OK", inv_zen_mode)
         print("PHASE_INV_PALETTE_OK", inv_palette)

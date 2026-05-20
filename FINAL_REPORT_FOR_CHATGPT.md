@@ -4,7 +4,36 @@
 
 ---
 
-# Latest: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode — PASS
+# Latest: INV-2026-05-20-001 — Verify Scale tool — PASS
+
+**Date:** 2026-05-20
+**Branch:** main
+
+## Outcome
+
+PASS. Full E2E GREEN. The Verify Scale feature (invent GO'd approach A) has been implemented: post-calibration second-reference cross-check with %dev band (green/yellow/red), measured/entered/area-impact display, and Accept / Re-calibrate / Average actions. New E2E marker `INV_VERIFY_SCALE_OK` = 9/9 all:True. All key baselines (ANNOT_OK, PERSIST_OK, REAL_OK, PROJECT_OK, XLSX_OK, PATH_GEOMETRY_OK) remain GREEN. Zero regression — the 5 pre-existing env-artifact markers are unchanged at same state as before this sprint.
+
+## What was delivered
+
+- `proto/ui.html` (+82/−5) — `verifyScale()` stub replaced with real flow; 10 new functions (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `calibPanelOk()` router added (calib panel OK → `verifyFinish()` in verify mode, `finishCalib()` otherwise); `#verify-modal` HTML (inline-styled, no `app.css` edit); `cancelCalib` reset; `anyModal` guard extended.
+- `proto/e2e_ui_test.py` (+124 lines) — `_test_verify_scale` 9 sub-checks + `INV_VERIFY_SCALE_OK` marker.
+- Schema additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` — rides on `pageStore.calibScale`, round-trips through existing save/load without schema version bump.
+- Invent artefacts preserved: `docs/invent/verify-scale.md` (GO decision) + `proto/sandbox/invent-verify-scale.html` (spike 10/10).
+
+## What's next
+
+- Verify Scale follow-on E: fold `verifyResult` into `phase1Warnings` + export note — recommended next sprint.
+- `BUG-20260520-zen-exit-rp-restore` — still parked at `BUG_STOP_NEEDS_REPRO`; awaiting user repro steps.
+- Verify Scale follow-ons D (live canvas badge) and C (dual-axis stretch detector) — lower priority, deferred.
+- Manual Chrome verification of `#verify-modal` visual rendering — add to `UI_MANUAL_TEST.md`.
+
+## Position in Plan
+
+Phase 1 — Scale workflow. Verify Scale is the quality-assurance layer on top of the existing calibration flow. Sprint card: `INV-2026-05-20-001` in PHASE_INDEX (mark done). No Phase 2 scope boundary crossed.
+
+---
+
+# Previous: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode — PASS
 
 **Date:** 2026-05-20
 **Branch:** main
@@ -15,46 +44,17 @@ PASS. Full E2E GREEN. The bug where middle-mouse-button (button===1) and Space p
 
 ## What was delivered
 
-- `proto/ui.html` — one-line pan guard inserted at top of `mode==="sel"` mousedown branch (~L2064), mirroring the existing guard in the non-`sel` path. mouseup already handled — no further changes needed.
-- `proto/e2e_ui_test.py` — new `_test_bug_sel_midpan` function (+34 lines): drives a real Playwright middle-button drag, asserts canvas `#cc` transform moved +70x/+45y, asserts `mode` stayed `'sel'` throughout. New `BUG_20260520_SEL_MIDPAN_OK` marker.
+- `proto/ui.html` — one-line pan guard inserted at top of `mode==="sel"` mousedown branch (~L2064), mirroring the existing guard in the non-`sel` path.
+- `proto/e2e_ui_test.py` — `_test_bug_sel_midpan` (+34 lines): drives Playwright middle-button drag, asserts canvas `#cc` transform moved +70x/+45y, asserts `mode` stayed `'sel'`. New `BUG_20260520_SEL_MIDPAN_OK` marker.
 - `docs/status/PHASE_INDEX.md` — BUG-20260520-sel-midpan row filed and marked done.
-- Pipeline: `/bma-bug-report` one-shot (triage `bma-bug-triager` → PHASE_INDEX → scope `/bma-measure-ux` → diagnose → fix → `/bma-e2e` full → regression → finalize).
 
 ## What's next
 
-- Pick topmost queued sprint in PHASE_INDEX: `INV-2026-05-20-001` Verify Scale tool.
-- Alternatively resolve parked `BUG-20260520-zen-exit-rp-restore` (BUG_STOP_NEEDS_REPRO — needs reproducible steps first).
-- `/bma-dev-loop` will pick up the next queued item automatically.
+INV-2026-05-20-001 Verify Scale tool (picked up this sprint — done).
 
 ## Position in Plan
 
-Phase 1 complete (measurement core). This is a UX correctness bug fix in the measure-interaction layer. Scope: `bma-measure-ux`. No forbidden surfaces touched. Does not affect Phase 1 scope boundary.
-
----
-
-# Previous: BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake — PASS
-
-**Date:** 2026-05-20
-**Branch:** main
-
-## Outcome
-
-PASS. Full E2E GREEN. `_wait_analyse_ready` timeout raised from 30 s to 60 s and a grace window added (+50% time when status still shows active progress). The real 45-page permit (rotated 90°, ~1–1.4 s/page JPEG encode) no longer times out. `PERSIST_OK` / `REAL_OK` / `ANNOT_OK` — which flaked 3 times during BLOAT-5 — are now stable. This resolves the `LOOP_STOP_REGRESSION` halt from BLOAT-5 and retroactively confirms BLOAT-5 passes full E2E. No app code, schema, or runtime logic was changed.
-
-## What was delivered
-
-- `proto/e2e_ui_test.py` — `_wait_analyse_ready` timeout 30.0→60.0 s; grace window for still-loading pages (+50% past deadline). ~15 LOC changed, one helper only.
-- Full E2E GREEN for the first time since BLOAT-5 shipped. All BLOAT-2/3/4/5 sprint markers still GREEN.
-- Bloat-reduction wave confirmed complete at full-E2E quality gate: ui.html 4,231→3,777 (−454 lines, −10.7%, well under the 5,000-line consolidation trigger).
-- Dev-loop unblocked. BLOAT-FLAKE-1 resolved in KNOWN_ISSUES.md.
-
-## What's next
-
-- Dev-loop queue clear of P1 blockers. Next: `INV-2026-05-19-002c` F12 Overview mockup port (~240 LOC JS+CSS, invent GO verdict MATURE, sprint card queued at commit `5468d13`).
-
-## Position in Plan
-
-Phase 1 complete. BLOAT-FLAKE-1 is a test-infrastructure fix that closes the bloat-reduction wave (BLOAT-1..5). The dev-loop may now resume from the next queued item in `PHASE_INDEX.md`.
+Phase 1 complete (measurement core). UX correctness bug fix in the measure-interaction layer. No forbidden surfaces touched.
 
 ---
 

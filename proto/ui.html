@@ -724,11 +724,29 @@
   <div class="ctx-item del" onclick="ctxDelete()">🗑 ลบ</div>
 </div>
 <div id="calib-panel" class="panel">
-  <h3>📐 สอบเทียบสเกล</h3>
+  <h3 id="calib-panel-title">📐 สอบเทียบสเกล</h3>
   <div id="calib-line-info" style="font-size:11px;color:var(--text2);margin-bottom:14px">คลิก 2 จุด บนเส้นที่ทราบระยะจริง</div>
   <label>ระยะจริงระหว่าง 2 จุด (เมตร)</label>
   <input id="calib-input" class="panel-input" type="number" step="0.01" min="0.01" placeholder="เช่น 7.71">
-  <div class="panel-row"><button class="btn-ok" onclick="finishCalib()">ยืนยัน</button><button class="btn-cancel" onclick="cancelCalib()">ยกเลิก</button></div>
+  <div class="panel-row"><button class="btn-ok" onclick="calibPanelOk()">ยืนยัน</button><button class="btn-cancel" onclick="cancelCalib()">ยกเลิก</button></div>
+</div>
+<!-- INV-2026-05-20-001: Verify Scale result modal (2nd-reference cross-check, approach A) -->
+<div id="verify-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9002;align-items:center;justify-content:center">
+  <div style="background:#1a1f29;border:1px solid #333b4a;border-radius:12px;padding:20px;width:360px;box-shadow:0 12px 40px rgba(0,0,0,.7);color:#e6e9ef">
+    <h3 style="margin:0 0 10px;font-size:15px">🔎 ผลตรวจสอบสเกล</h3>
+    <div id="verify-dev-big" style="font-size:42px;font-weight:800;text-align:center;margin:8px 0">—</div>
+    <div id="verify-band" style="text-align:center;font-size:12px;padding:5px 0;border-radius:6px;margin-bottom:10px;font-weight:700;color:#001">—</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #2a3340"><span>วัดได้ (สเกลปัจจุบัน)</span><b id="verify-meas">—</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #2a3340"><span>ระยะจริงที่ป้อน</span><b id="verify-enter">—</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #2a3340"><span>ผลต่อพื้นที่ (≈2×)</span><b id="verify-area">—</b></div>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+      <button class="btn-ok" onclick="verifyAccept()">✓ รับค่าเดิม (Accept)</button>
+      <button class="btn-cancel" style="opacity:.95" onclick="verifyRecalibrate()">↻ สอบเทียบใหม่จากเส้นนี้</button>
+      <button class="btn-cancel" style="opacity:.95" onclick="verifyAverage()">⌀ เฉลี่ยกับค่าเดิม</button>
+      <button class="btn-cancel" onclick="closeVerifyModal()">ปิด</button>
+    </div>
+    <div style="font-size:10px;color:#9aa3b2;margin-top:6px">band: เขียว &lt;0.5% · เหลือง &lt;2% · แดง ≥2%</div>
+  </div>
 </div>
 <div id="name-panel" class="panel">
   <h3 id="name-panel-title">ชื่อพื้นที่</h3>
@@ -2101,7 +2119,7 @@ document.addEventListener("mousedown",(e)=>{
 // Calibrate
 // ══════════════════════════════════════════════════════
 function finishCalib(){const dist=parseFloat(document.getElementById("calib-input").value);if(!dist||dist<=0){alert("ระยะต้องมากกว่า 0");return;}if(calibPts.length<2){cancelCalib();return;}const dx=(calibPts[1].x-calibPts[0].x)/RS,dy=(calibPts[1].y-calibPts[0].y)/RS;const ppm=Math.hypot(dx,dy)/dist;const N=Math.round(1000*(72/25.4)/ppm);const sc={N,label:`★ 1:${N} (สอบเทียบ)`,pts_per_m:ppm,calibrated:true,source:"manual",verified:true};if(!pageData)pageData={};pageData.scale=sc;getStore(curPage).calibScale=sc;updateAnalyseUI(pageData);calibPanel.style.display="none";calibPts=[];setMode("dist");setStatus(`✅ 1:${N} สอบเทียบแล้ว`);updatePageSummary(curPage);redraw();}
-function cancelCalib(){calibPts=[];calibPanel.style.display="none";setMode("pan");}
+function cancelCalib(){calibPts=[];calibVerifyMode=false;calibPanel.style.display="none";const t=document.getElementById("calib-panel-title");if(t)t.textContent="📐 สอบเทียบสเกล";setMode("pan");}
 // ══════════════════════════════════════════════════════
 // Mouse move
 // ══════════════════════════════════════════════════════
@@ -2699,7 +2717,61 @@ function drawBarCancel(){mPts=[];mArcDraft={pending:false,throughPt:null,edges:[
 // ── Menu helpers ───────────────────────────────────────────
 function menuLoadPrevPage(){const p=getPrevPage(curPage);if(p)loadPage(p);else setStatus("ไม่มีหน้าก่อนหน้า");}
 function menuLoadNextPage(){const n=getNextPage(curPage);if(n)loadPage(n);else setStatus("ไม่มีหน้าถัดไป");}
-function verifyScale(){openScaleManager();}
+// ── INV-2026-05-20-001: Verify Scale — 2nd-reference cross-check. Additive; never edits finishCalib. ──
+let calibVerifyMode=false, _verifyCtx=null;
+function calibPanelOk(){ if(calibVerifyMode) verifyFinish(); else finishCalib(); }
+function verifyScale(){
+  const sc=getScaleForPage(curPage);
+  if(!sc||!(sc.pts_per_m>0)){alert("หน้านี้ยังไม่มี scale — ตั้ง Set Scale ก่อน แล้วจึง Verify");return;}
+  calibVerifyMode=true;calibPts=[];setMode("calib");
+  const t=document.getElementById("calib-panel-title");if(t)t.textContent="🔎 ตรวจสอบสเกล (Verify)";
+  setStatus("🔎 Verify: คลิก 2 จุดบนเส้นที่รู้ระยะจริง (คนละเส้นกับที่สอบเทียบ)");
+}
+function _verifyBand(pct){return pct<0.5?"green":pct<2?"yellow":"red";}
+function verifyFinish(){
+  const dist=parseFloat(document.getElementById("calib-input").value);
+  if(!dist||dist<=0){alert("ระยะต้องมากกว่า 0");return;}
+  if(calibPts.length<2){cancelCalib();return;}
+  const sc=getScaleForPage(curPage);
+  if(!sc||!(sc.pts_per_m>0)){alert("ไม่พบ scale หน้านี้");calibVerifyMode=false;cancelCalib();return;}
+  const dx=(calibPts[1].x-calibPts[0].x)/RS,dy=(calibPts[1].y-calibPts[0].y)/RS;
+  const measPt=Math.hypot(dx,dy);
+  const measM=measPt/sc.pts_per_m;        // ระยะที่วัดได้ตามสเกลปัจจุบัน
+  const vPpm=measPt/dist;                  // pts_per_m ที่เส้นอ้างอิงที่ 2 บอก
+  const pct=100*Math.abs(measM-dist)/dist; // %dev (เท่ากับ |vPpm-ppm|/ppm)
+  _verifyCtx={measM,enterM:dist,vPpm,pct,scale:sc};
+  calibPanel.style.display="none";calibPts=[];calibVerifyMode=false;
+  openVerifyModal(measM,dist,pct,vPpm);
+}
+function openVerifyModal(measM,enterM,pct,vPpm){
+  const band=_verifyBand(pct),COL={green:"#34c759",yellow:"#ffcc00",red:"#ff3b30"};
+  const big=document.getElementById("verify-dev-big");big.textContent=pct.toFixed(2)+"%";big.style.color=COL[band];
+  const b=document.getElementById("verify-band");
+  b.textContent=band==="green"?"✓ แม่นยำดี (ยอมรับได้)":band==="yellow"?"⚠ คลาดเคลื่อนเล็กน้อย — ควรระวัง":"✕ คลาดเคลื่อนสูง — แนะนำสอบเทียบใหม่";
+  b.style.background=COL[band];
+  document.getElementById("verify-meas").textContent=measM.toFixed(3)+" ม.";
+  document.getElementById("verify-enter").textContent=enterM.toFixed(3)+" ม.";
+  document.getElementById("verify-area").textContent="≈ "+(2*pct).toFixed(2)+"%";
+  document.getElementById("verify-modal").style.display="flex";
+}
+function _verifyWriteResult(action,pct){
+  if(!_verifyCtx||!_verifyCtx.scale)return;
+  const vr={pct:+pct.toFixed(4),action,verifyPts_per_m:+_verifyCtx.vPpm.toFixed(4),ts:Date.now()};
+  _verifyCtx.scale.verifyResult=vr;
+  const st=getStore(curPage);if(st.calibScale)st.calibScale.verifyResult=vr; // persist on stored calibScale
+}
+function _afterVerifyScaleChange(){
+  const sc=_verifyCtx&&_verifyCtx.scale;if(!sc)return;
+  const st=getStore(curPage);
+  if(st.calibScale&&st.calibScale!==sc){st.calibScale.pts_per_m=sc.pts_per_m;st.calibScale.N=sc.N;st.calibScale.label=sc.label;}
+  if(pageData&&pageData.scale)pageData.scale=sc;
+  if(typeof updateAnalyseUI==="function"&&pageData)updateAnalyseUI(pageData);
+  updatePageSummary(curPage);buildRightPanel();redraw();
+}
+function verifyAccept(){pushUndo();_verifyWriteResult("accept",_verifyCtx.pct);const p=_verifyCtx.pct;closeVerifyModal();setStatus("✓ รับค่า scale เดิม (dev "+p.toFixed(2)+"%)");}
+function verifyRecalibrate(){pushUndo();const sc=_verifyCtx.scale,vPpm=_verifyCtx.vPpm;sc.pts_per_m=vPpm;sc.N=Math.round(1000*(72/25.4)/vPpm);sc.label="★ 1:"+sc.N+" (สอบเทียบ)";_verifyWriteResult("recalibrate",0);_afterVerifyScaleChange();const n=sc.N;closeVerifyModal();setStatus("↻ สอบเทียบใหม่จากเส้นที่ 2 → 1:"+n);}
+function verifyAverage(){pushUndo();const sc=_verifyCtx.scale,avg=(sc.pts_per_m+_verifyCtx.vPpm)/2;sc.pts_per_m=avg;sc.N=Math.round(1000*(72/25.4)/avg);sc.label="★ 1:"+sc.N+" (สอบเทียบ)";_verifyWriteResult("average",_verifyCtx.pct);_afterVerifyScaleChange();const n=sc.N;closeVerifyModal();setStatus("⌀ เฉลี่ย scale → 1:"+n);}
+function closeVerifyModal(){document.getElementById("verify-modal").style.display="none";_verifyCtx=null;const t=document.getElementById("calib-panel-title");if(t)t.textContent="📐 สอบเทียบสเกล";setMode("sel");redraw();}
 function resetPageScale(pg){const s=getStore(pg||curPage);if(s.calibScale){pushUndo();/* HT-18 */delete s.calibScale;if(analyseCache[analyseKey(pg||curPage)])analyseCache[analyseKey(pg||curPage)].scale=null;if(pageData)pageData.scale=null;updateWorkspaceState();buildRightPanel();setStatus("ล้าง Scale หน้า "+(pg||curPage)+" แล้ว");}else{setStatus("หน้านี้ยังไม่มี Scale ที่จะล้าง");}}
 function toggleScaleLine(){const pg=curPage;const s=getStore(pg);pushUndo();/* HT-18: was missing — user could toggle without isDirty triggering */s.showScaleLine=!s.showScaleLine;setStatus(s.showScaleLine?"แสดงเส้น Scale":"ซ่อนเส้น Scale");redraw();}
 function triggerSetupAutoTag(){openSetup();setTimeout(()=>document.getElementById("setup-auto-btn")?.click(),200);}
@@ -2893,7 +2965,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Control"&&!inInput&&mFreehandActive&&mode==="area"){freehandTolerance=Math.max(1,freehandTolerance-1);freehandSampleStepPx=Math.max(2,freehandSampleStepPx-1);setStatus(`✎ tol=${freehandTolerance}px gate=${freehandSampleStepPx}px`);return;}
   if(e.key===" "&&!spaceDown&&!inInput){e.preventDefault();spaceDown=true;preSpaceMode=mode;ws.style.cursor="grab";return;}
   if(inInput)return;
-  const anyModal=!!document.querySelector(".setup-overlay.open,#setup-overlay.open,#pgmgr-overlay.open,#scale-mgr-overlay.open,#check-panel.open,#calib-panel[style*=block],#name-panel[style*=block]");
+  const anyModal=!!document.querySelector(".setup-overlay.open,#setup-overlay.open,#pgmgr-overlay.open,#scale-mgr-overlay.open,#check-panel.open,#calib-panel[style*=block],#name-panel[style*=block],#verify-modal[style*=flex]");
   if((e.ctrlKey||e.metaKey)&&e.key==="z"){e.preventDefault();if(mPts.length>0){mPts.pop();if(mArcDraft.edges.length>=mPts.length)mArcDraft.edges.length=Math.max(0,mPts.length-1);mArcDraft.pending=false;mArcDraft.throughPt=null;setStatus(mPts.length?`↩ ลบจุดที่ ${mPts.length+1} — เหลือ ${mPts.length} จุด`:"ยกเลิกจุดทั้งหมด");redraw();}else{undo();}return;}
   if((e.ctrlKey||e.metaKey)&&e.key==="y"){e.preventDefault();redo();return;}
   if((e.ctrlKey||e.metaKey)&&e.key==="s"&&!e.shiftKey){e.preventDefault();saveProject();return;}

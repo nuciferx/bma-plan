@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-20 (updated: BUG-20260520-sel-midpan)
+Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale tool)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-20 (updated: BUG-20260520-sel-midpan)
 
 ## One-Line Status
 
-2026-05-20 — BUG-20260520-sel-midpan PASS: middle-mouse + Space pan fixed in Select mode (+1 line guard). Full E2E GREEN. 22 markers. Next: INV-2026-05-20-001 Verify Scale tool.
+2026-05-20 — INV-2026-05-20-001 PASS: Verify Scale tool live — %dev band + Accept/Re-calibrate/Average modal, INV_VERIFY_SCALE_OK 9/9, full E2E GREEN, additive schema only. Next: Verify Scale follow-on E or BUG-20260520-zen-exit-rp-restore.
 
 ## Latest Sprint
 
+- INV-2026-05-20-001 — Verify Scale tool: PASS (2026-05-20) — Verify Scale flow (approach A): %dev band green/yellow/red + Accept/Re-calibrate/Average modal; `calibPanelOk` router; `finishCalib` unchanged; `calibScale.verifyResult` additive schema; INV_VERIFY_SCALE_OK 9/9; full EXIT 0; zero regression.
 - BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode: PASS (2026-05-20) — +1 line guard in `mode==="sel"` mousedown branch; NEW BUG_20260520_SEL_MIDPAN_OK GREEN; canvas #cc transform +70x/+45y; mode stayed 'sel'; full EXIT 0; 22 total markers.
 - BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake: PASS (full E2E GREEN) (2026-05-20) — timeout 30→60s + grace window (+50% if still loading); full EXIT 0; PERSIST_OK/REAL_OK/ANNOT_OK stable; LOOP_STOP_REGRESSION halt cleared; BLOAT-5 retroactively full-validated; dev-loop unblocked.
 - BLOAT-5 — Extract page-setup modal JS to proto/static/js/page-setup.js: PASS (smoke; full ENV-FLAKE) (2026-05-20) — NEW page-setup.js 125 LOC (15 fns + 2 consts); ui.html −92 LOC (3869→3777; session total −454); smoke 18/18 + PHASE_BLOAT5_OK 8/8 + INV_PAGE_SETUP_A/B/C GREEN; full failed 3 retries (pre-existing REAL_PDF flake BLOAT-FLAKE-1, NOT BLOAT-5 regression); loop halted LOOP_STOP_REGRESSION.
@@ -47,7 +48,7 @@ py -3.12 proto/e2e_ui_test.py smoke                          # PASS EXIT 0 (18 b
 py -3.12 proto/e2e_ui_test.py full                           # PASS EXIT 0 (22 markers; BUG_20260520_SEL_MIDPAN_OK GREEN)
 ```
 
-Last full run: 2026-05-20 (BUG-20260520-sel-midpan; 22 markers all GREEN). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last full run: 2026-05-20 (INV-2026-05-20-001 Verify Scale; INV_VERIFY_SCALE_OK 9/9 + all key baselines GREEN). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

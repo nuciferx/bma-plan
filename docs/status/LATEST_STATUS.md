@@ -1,15 +1,33 @@
 # LATEST_STATUS.md — BMA-Plan Current Feature State
 
-Date: 2026-05-20 (BUG-20260520-sel-midpan PASS — middle-mouse + Space pan fixed in Select mode; +1 line guard; full E2E GREEN; 22 markers; BUG_20260520_SEL_MIDPAN_OK GREEN)
+Date: 2026-05-20 (INV-2026-05-20-001 PASS — Verify Scale tool; %dev band + Accept/Re-calibrate/Average modal; INV_VERIFY_SCALE_OK 9/9; full E2E GREEN; additive calibScale.verifyResult schema)
 
 ## Phase
 
 Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engine, FAR/OSR/pass-fail.
 
+## Active Feature State (2026-05-20 — INV-2026-05-20-001 Verify Scale)
+
+New runtime functions added to `proto/ui.html`:
+- `verifyScale()` — entry point from Scale menu "Verify Scale"; guard if no calibration; enters verify draw mode
+- `verifyFinish()` — called by `calibPanelOk()` in verify mode; computes `%dev = 100·|d_meas−d_enter|/d_enter`; calls `openVerifyModal()`
+- `calibPanelOk()` — new router on calib panel OK button: routes to `verifyFinish()` in verify mode, `finishCalib()` otherwise; `finishCalib()` body unchanged
+- `openVerifyModal(pct, measuredPpm, enteredPpm)` — renders `#verify-modal` with band color, numeric display, area-impact estimate, and 3 action buttons
+- `_verifyBand(pct)` — returns `{color, label}` (green <0.5% / yellow <2% / red ≥2%)
+- `_verifyWriteResult(pct, action, verifyPpm)` — writes `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` into current page's calibScale
+- `_afterVerifyScaleChange()` — refreshes summary widget + bottom bar after scale mutation
+- `verifyAccept()` — accepts current scale, writes result, closes modal
+- `verifyRecalibrate()` — discards verify, resets `calibVerifyMode`, re-enters calibration
+- `verifyAverage()` — averages calib + verify pts_per_m, writes result, applies new scale
+- `closeVerifyModal()` — closes `#verify-modal`
+
+New additive schema field: `calibScale.verifyResult = {pct, action, verifyPts_per_m, ts}` (optional; version stays 1). Round-trips through `_makeProjBlob()` / `applyLoadedProject()` automatically.
+
 ## Latest Sprint Results
 
 | Sprint | Result |
 |--------|--------|
+| **INV-2026-05-20-001 — Verify Scale tool** | PASS — Replaced `verifyScale()` stub with real second-reference cross-check flow. `verifyFinish()` computes `%dev`; `openVerifyModal()` shows green (<0.5%) / yellow (<2%) / red (≥2%) band + measured/entered/area-impact + Accept/Re-calibrate/Average. `calibPanelOk()` router added (`finishCalib()` unchanged). `#verify-modal` HTML inline-styled (no `app.css` edit). `calibScale.verifyResult` additive schema. `proto/e2e_ui_test.py` +124 lines: `_test_verify_scale` 9 sub-checks (domAndHelpers, guardWhenNoScale, greenBandZeroDev, acceptWritesResult, redBandHighDev, recalibrateSetsPpm, averageSetsPpm, finishCalibIntact, roundTripSaveLoad). `INV_VERIFY_SCALE_OK` = 9/9 all:True. Full E2E EXIT 0: ANNOT_OK/PERSIST_OK/REAL_OK/PROJECT_OK/XLSX_OK/PATH_GEOMETRY_OK all GREEN. Pre-existing 5 env-artifact markers unchanged. `proto/server.py` NOT TOUCHED. All forbidden surfaces UNCHANGED. [2026-05-20] |
 | **BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode** | PASS — `proto/ui.html` mousedown handler `mode==="sel"` branch: +1 line pan guard `if(e.button===1\|\|spaceDown){isPan=true;lastMx=e.clientX;lastMy=e.clientY;ws.style.cursor="grabbing";return;}` at top of branch (~L2064). Mirrors identical guard already in non-`sel` path. Root cause: `redraw();return` fired unconditionally before the pan check, making middle-mouse and Space pan dead code in Select mode. `proto/e2e_ui_test.py` +34 lines: `_test_bug_sel_midpan` drives real Playwright middle-button drag, asserts canvas `#cc` transform moved +70x/+45y, asserts `mode` stayed `'sel'`. New `BUG_20260520_SEL_MIDPAN_OK` marker. `docs/status/PHASE_INDEX.md` +1 row. Full E2E EXIT 0: all 21 prior baseline markers intact (incl. PATH_GEOMETRY_OK / ANNOT_OK / PERSIST_OK / REAL_OK). Total markers 22. `/bma-measure-ux` MEASURE_UX_PASS. `/bma-measure-regression` MEASURE_REGRESSION_PASS. All forbidden surfaces UNCHANGED. `proto/server.py` NOT TOUCHED. `.bmaplan` schema UNCHANGED. [2026-05-20] |
 | **BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake** | PASS — `proto/e2e_ui_test.py` `_wait_analyse_ready` timeout raised 30.0→60.0 s; grace window added (+50% past deadline if status bar still shows active progress). ~15 LOC changed, one helper only. Full E2E EXIT 0: `PERSIST_OK` / `REAL_OK` / `ANNOT_OK` GREEN (flaked 3x during BLOAT-5; now stable). PHASE_BLOAT2/3/4/5_OK 8/8 each + INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10 all GREEN. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated. Dev-loop unblocked. No app code / schema / forbidden surfaces touched. `proto/server.py` NOT TOUCHED. `proto/ui.html` NOT TOUCHED. Bloat-reduction wave complete: ui.html 4,231→3,777 (−454, −10.7%, well under 5,000-line trigger). [2026-05-20] |
 | **BLOAT-5 — Extract page-setup modal JS to proto/static/js/page-setup.js** | PASS (smoke only) — NEW `proto/static/js/page-setup.js` (125 LOC, plain classic script): 2 constants (`FLOOR_KIND_LABELS`, `FLOOR_KIND_OPTIONS`) + 15 fns (`autoNamePage`, `setPageFloorKind`, `setPageFloorNum`, `countTagBefore`, `selectSetupPage`, `_pageReadiness`, `_setupCountObjects`, `_renderSetupDashboard`, `_renderSetupPageCard`, `_setupBack`, `_renderSetupInspector`, `_pendingDeleteN`, `_openRenumberDialog`, `closeRebuildDialog`, `_executeRenumberDelete`, `_reindexPageDicts`). `<script src="/static/js/page-setup.js">` added to `proto/ui.html` after `annotations.js`. Net: ui.html −92 LOC (3,869→3,777). `proto/e2e_ui_test.py` +91 LOC: `pageSetupJsLoaded` field + `_test_bloat5_page_setup_extracted` (8 sub-checks) + `PHASE_BLOAT5_OK` marker. py_compile PASS. Smoke EXIT 0: 18 baseline + PHASE_BLOAT5_OK 8/8 + PHASE_INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10 GREEN. MAIN_UI_OK `pageSetupJsLoaded: True`. Full FAILED (3/3 retries): pre-existing `_wait_analyse_ready` env flake on page 1/45 real permit — **BLOAT-FLAKE-1** (see KNOWN_ISSUES.md). Zero page-setup code runs during that path — confirmed NOT a BLOAT-5 regression. All forbidden surfaces UNCHANGED. `proto/server.py` NOT TOUCHED. `.bmaplan` schema UNCHANGED. Kept in `ui.html`: 15 cross-cluster glue fns + `pageFloorKind`/`pageFloorNum` state declarations. Session total ui.html 4,231→3,777 (−454 across BLOAT-1..5). Recipe 5-for-5. Loop halted per `LOOP_STOP_REGRESSION` safety rule. [2026-05-20] |

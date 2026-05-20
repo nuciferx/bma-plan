@@ -4,7 +4,61 @@
 
 ---
 
-# Latest: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode
+# Latest: INV-2026-05-20-001 — Verify Scale tool
+
+Branch: main
+
+Date: 2026-05-20
+
+## Outcome: PASS — Verify Scale tool implemented (approach A). verifyFinish() %dev band + Accept/Re-calibrate/Average modal. Full E2E GREEN. NEW INV_VERIFY_SCALE_OK 9/9.
+
+## Summary
+
+Replaced the `verifyScale()` stub with a real second-reference cross-check flow: Scale-menu "Verify Scale" reuses the existing 2-point calibration draw, then `verifyFinish()` computes `%dev = 100·|d_meas−d_enter|/d_enter` and shows a color-coded confidence band (green <0.5% / yellow <2% / red ≥2%) plus measured distance, entered distance, area-impact estimate (≈2×%dev), and three action buttons: Accept / Re-calibrate / Average. A `calibPanelOk()` router was added so the calib panel OK button routes to `verifyFinish()` in verify mode and to `finishCalib()` otherwise — `finishCalib()` itself is unchanged. Schema is additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` round-trips through existing save/load automatically.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | +82/−5 — calib panel h3 id + OK→`calibPanelOk`; `#verify-modal` HTML; 10 new fns (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `cancelCalib` reset; `anyModal` guard |
+| `proto/e2e_ui_test.py` | +124 lines — `_test_verify_scale` (9 sub-checks) + `INV_VERIFY_SCALE_OK` marker wired into `main()` |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `finishCalib()` — UNCHANGED (`calibPanelOk` wrapper routes to it)
+- `.bmaplan` schema version stays 1; `calibScale.verifyResult` is additive optional field
+
+## Tests Run
+
+```
+py_compile proto/server.py proto/e2e_ui_test.py            → PASS
+proto/e2e_ui_test.py full                                   → EXIT 0 — ALL GREEN
+  NEW: INV_VERIFY_SCALE_OK 9/9 all:True
+    (domAndHelpers, guardWhenNoScale, greenBandZeroDev, acceptWritesResult,
+     redBandHighDev, recalibrateSetsPpm, averageSetsPpm, finishCalibIntact,
+     roundTripSaveLoad)
+  ANNOT_OK / PERSIST_OK / REAL_OK / PROJECT_OK / XLSX_OK / PATH_GEOMETRY_OK — GREEN
+  Pre-existing 5 env-artifact markers unchanged (PHASE_HT8C, HT8D1, HT10, HT12H, I_D).
+  Zero regression introduced by this sprint.
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `finishCalib()` — UNCHANGED
+- ✅ `.bmaplan` schema — additive only (version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode
 
 Branch: main
 
@@ -52,57 +106,6 @@ py -3.12 proto/e2e_ui_test.py full                           → EXIT 0 — ALL 
 - ✅ `proto/server.py` — NOT TOUCHED
 - ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-# Previous: BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake
-
-Branch: main
-Date: 2026-05-20
-
-## Outcome: PASS — Full E2E GREEN. Resolves the LOOP_STOP_REGRESSION halt from BLOAT-5. Retroactively confirms BLOAT-5 passes full E2E.
-
-## Summary
-
-Raised `_wait_analyse_ready` default timeout from 30.0 s to 60.0 s and added a grace window: if the status bar still shows active progress (`กำลังโหลด` / `กำลังวิเคราะห์`) at the original deadline, the wait is granted +50% extra time before declaring failure. ~15 LOC changed inside that one helper. No app code, no schema, no other test logic touched. Full E2E now GREEN — `PERSIST_OK` / `REAL_OK` / `ANNOT_OK` no longer flake. Dev-loop unblocked.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/e2e_ui_test.py` | +15 −2 — `_wait_analyse_ready` timeout 30.0→60.0; added grace-window branch for active-loading status |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED
-- `proto/ui.html` — NOT TOUCHED
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; additive fields only
-
-## Tests Run
-
-```
-python -m py_compile proto/e2e_ui_test.py                  → PASS
-python proto/e2e_ui_test.py full                           → EXIT 0 — ALL GREEN
-  PERSIST_OK + REAL_OK + ANNOT_OK GREEN (these flaked 3x during BLOAT-5)
-  PHASE_BLOAT2_OK 8/8 + _BLOAT3_OK 8/8 + _BLOAT4_OK 8/8 + _BLOAT5_OK 8/8
-  PHASE_INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10
-  Retroactively confirms BLOAT-5 (shipped smoke-only) passes full E2E.
-/bma-human-test — N/A (test-infrastructure only; no runtime code touched)
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `proto/ui.html` — NOT TOUCHED
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- (only `proto/e2e_ui_test.py` `_wait_analyse_ready` helper changed)
 
 ---
 
