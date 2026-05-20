@@ -1,34 +1,66 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-20 — INV-2026-05-20-002/003/004 Layer model rebuild L1+L2+L3 — PASS (branch: main)
+
+**What changed:** Three-commit layer-model rebuild that makes the page-scoped layer system the single authoritative source for render, hit-test, visibility, and lock — replacing the old dual-system where global `areaTypeLayer` + `layerVis`/`layerLock` conflicted with `pageStore[n].layers`. L1 (`93c512f`): `validLayerSlugForPage()` guarantees an object's slug exists in its page preset (maps `land` → `site_boundary` on site pages, etc.); `getObjectLayerSlug()` resolves openings → deduction, refs/lines → reference_geometry; all render/hit/label/snap paths (`hitTest`, `hitTestAll`, `hitVertex`, `findNearest`, `drawRefLines`) now read the object's page-scoped layer via new `_slugVisible`/`_slugLocked`/`_objLayerVisible`/`_objLayerLocked` helpers instead of the global maps. L2 (`1301a12`): `reassignSelectedObjectLayer()` + "Layer" `<select>` dropdown in right+left properties panels (Bluebeam-style move-to-layer UX); `objLayerKey()` now reports the object's real slug. L3 (`2e6b2f9`): `_layerLockGateBeforeMode` + `toggleLayerLock` deselect repointed to page-scoped `_slugLocked`/`getObjectLayerSlug`; global `layerVis`/`layerLock` demoted to a non-authoritative synced mirror (toggles still write them for test/legacy compat, but nothing reads them for behaviour). `proto/e2e_ui_test.py` gained 3 new test functions (`_test_inv_layer_l1`, `_test_inv_layer_l2`, `_test_inv_layer_l3`) and 3 markers; existing HT8D5A lock test repointed to page-layer authority.
+
+**Why:** User-reported bug on ผังบริเวณ (site plan) pages: measured objects went to the wrong layer and overlapped, couldn't be separated or toggled. Root cause was the incomplete page-scoped layer migration: two competing systems coexisted — the page-scoped `pageStore[n].layers` (authoritative by design) vs. the legacy global `areaTypeLayer`/`layerVis`/`layerLock` (still read by render/hit paths). Site plan objects with `areaType="room"` collapsed to slug `"sub_area"` which doesn't exist in the site page preset, producing `layerId = undefined` and complete overlap. The full rebuild closes this gap: one source of truth, zero phantom slugs.
+
+**Files touched:**
+- `proto/ui.html`: layer helpers (`validLayerSlugForPage`, `getObjectLayerSlug`, `_slugVisible`, `_slugLocked`, `_objLayerVisible`, `_objLayerLocked`); slug assignment at object creation; render/hit/label/lock-gate paths updated; `reassignSelectedObjectLayer` + Layer dropdown in properties panels; global `layerVis`/`layerLock` demoted to mirror role
+- `proto/e2e_ui_test.py`: +3 test functions (`_test_inv_layer_l1/l2/l3`) + 3 markers (`INV_LAYER_L1_OK` / `INV_LAYER_L2_OK` / `INV_LAYER_L3_OK`) + HT8D5A repointed to page-layer authority
+
+**Tests:**
+```
+py_compile proto/server.py proto/e2e_ui_test.py           → PASS
+proto/e2e_ui_test.py full                                  → EXIT 0 (100 _OK markers, 0 E2E_FAIL)
+  NEW: INV_LAYER_L1_OK GREEN — slug guarantee + render/hit authority
+  NEW: INV_LAYER_L2_OK GREEN — reassign-layer UI + objLayerKey real slug
+  NEW: INV_LAYER_L3_OK GREEN — page locked + global unlocked → app follows page
+  HT8D5A all:True (lock test restored after repoint)
+  Pre-existing cosmetic all:False markers (HT8C/HT8D1/HT10/HT12H/PHASE_I_D) — unchanged
+  Zero regression introduced by this sprint.
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (`layerSlug`/`layerId` already existed; no renames; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- Literal deletion of `layerVis`/`layerLock` identifiers from call sites — deferred (test-only churn, zero behaviour gain; mirror write retained for legacy compat).
+- Active-layer-at-creation routing (L1 default mapping + L2 reassign already cover user need) — deferred.
+- `UI_MANUAL_TEST.md` updated with 5-check layer-rebuild manual checklist.
+- Commits: `93c512f` (L1), `1301a12` (L2), `2e6b2f9` (L3). PHASE_INDEX rows INV-2026-05-20-002/003/004 → mark done.
 
 ---
 
 ## 2026-05-20 — INV-2026-05-20-001 Verify Scale tool — PASS (branch: main)
 
-**What changed:** Implemented the GO'd Verify Scale feature (approach A from `docs/invent/verify-scale.md`) into `proto/ui.html`. Replaced the `verifyScale()` stub (previously just opened Scale Manager) with a full second-reference cross-check flow: Scale-menu "Verify Scale" → reuses the existing 2-point calibration draw → `verifyFinish()` computes `%dev = 100·|d_meas − d_enter| / d_enter` → a verify modal renders a green (<0.5%) / yellow (<2%) / red (≥2%) confidence band plus measured distance, entered distance, area-impact estimate (≈2×%dev), and three action buttons: Accept / Re-calibrate / Average. A new `calibPanelOk()` router was added so the calib panel OK button calls `verifyFinish()` when in verify mode and `finishCalib()` otherwise — `finishCalib()` itself is unchanged. New `#verify-modal` HTML is inline-styled (no `app.css` edit). Schema is additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` round-trips automatically through `_makeProjBlob()` / `applyLoadedProject()` because it rides on `pageStore.calibScale`. The `anyModal` guard was extended to include `#verify-modal`. `proto/e2e_ui_test.py` gained `_test_verify_scale` (9 sub-checks) and the new `INV_VERIFY_SCALE_OK` marker wired into `main()`.
+**What changed:** Replaced the `verifyScale()` stub with a real second-reference cross-check flow: Scale-menu "Verify Scale" reuses the existing 2-point calibration draw, then `verifyFinish()` computes `%dev = 100·|d_meas−d_enter|/d_enter` and shows `#verify-modal` with a color-coded confidence band (green <0.5% / yellow <2% / red ≥2%) plus measured distance, entered distance, area-impact estimate (≈2×%dev), and three action buttons: Accept / Re-calibrate / Average. A `calibPanelOk()` router was added so the calib panel OK button routes to `verifyFinish()` in verify mode and to `finishCalib()` otherwise — `finishCalib()` body unchanged. Schema additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` round-trips through existing save/load automatically.
 
-**Why:** Calibration-by-single-reference gives no quality signal — a mis-click or misread dimension passes silently. Verify Scale closes this gap by letting the user immediately draw a second known dimension and get instant numeric feedback. The %dev band (green/yellow/red) is the core UX value: it quantifies systematic scale error and gives three actionable recovery paths (accept the current scale, discard and re-calibrate, or average the two references). This was the GO'd outcome of the invent pipeline (spike 10/10 in `proto/sandbox/invent-verify-scale.html`). The feature is purely additive — no existing calibration path was changed.
+**Why:** Calibration-by-single-reference gives no quality signal — a mis-click or misread dimension passes silently. Verify Scale closes this gap with a second known dimension and a numeric %dev band (green/yellow/red), giving three actionable recovery paths. Approach A from the invent pipeline GO verdict (spike 10/10 in `proto/sandbox/invent-verify-scale.html`).
 
 **Files touched:**
-- `proto/ui.html`: +82/−5 — calib panel h3 id + OK button re-pointed to `calibPanelOk`; `#verify-modal` HTML block; new fns `verifyScale` / `verifyFinish` / `openVerifyModal` / `_verifyBand` / `_verifyWriteResult` / `_afterVerifyScaleChange` / `verifyAccept` / `verifyRecalibrate` / `verifyAverage` / `closeVerifyModal`; `cancelCalib` reset of `calibVerifyMode` + panel title; `anyModal` guard extended.
-- `proto/e2e_ui_test.py`: +124 lines — `_test_verify_scale` (9 sub-checks) + `INV_VERIFY_SCALE_OK` marker wired into `main()`.
+- `proto/ui.html`: +82/−5 — calib panel h3 id + OK→`calibPanelOk`; `#verify-modal` HTML block; 10 new fns (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `cancelCalib` reset; `anyModal` guard extended
+- `proto/e2e_ui_test.py`: +124 lines — `_test_verify_scale` (9 sub-checks) + `INV_VERIFY_SCALE_OK` marker wired into `main()`
 
 **Tests:**
 ```
 py_compile proto/server.py proto/e2e_ui_test.py           → PASS
 proto/e2e_ui_test.py full                                  → EXIT 0
   NEW: INV_VERIFY_SCALE_OK = 9/9 all:True
-    sub-checks: domAndHelpers, guardWhenNoScale, greenBandZeroDev,
-                acceptWritesResult, redBandHighDev, recalibrateSetsPpm,
-                averageSetsPpm, finishCalibIntact, roundTripSaveLoad
   ANNOT_OK / PERSIST_OK / REAL_OK / PROJECT_OK / XLSX_OK / PATH_GEOMETRY_OK — GREEN
-  Pre-existing 5 markers (PHASE_HT8C_OK, PHASE_HT8D1_OK, PHASE_HT10_OK,
-    PHASE_HT12H_OK, PHASE_I_D_OK) remain at same pre-sprint state —
-    confirmed pre-existing env artifacts (Python 3.14 + newer Chromium in
-    this sandbox; canonical 3.11 env has them green). Zero regression.
+  Pre-existing 5 env-artifact markers unchanged. Zero regression.
 ```
 
 **Phase 1 scope check:**
@@ -37,58 +69,17 @@ proto/e2e_ui_test.py full                                  → EXIT 0
 - ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
 - ✅ `proto/server.py` — NOT TOUCHED
 - ✅ `.bmaplan` schema — additive only (`calibScale.verifyResult` optional field; version stays 1)
-- ✅ `finishCalib()` — UNCHANGED (`calibPanelOk` wrapper routes to it; original fn body intact)
+- ✅ `finishCalib()` — UNCHANGED (`calibPanelOk` wrapper routes to it)
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 
 **Known gaps / follow-ups:**
-- Follow-on D (live canvas badge showing %dev after verify) — deferred.
-- Follow-on E (fold verifyResult into phase1Warnings + export note) — deferred, recommended next.
+- Follow-on E (fold verifyResult into phase1Warnings + export note) — deferred.
+- Follow-on D (live canvas badge showing %dev) — deferred.
 - Follow-on C (dual-axis H/V stretch detector) — deferred.
-- Manual Chrome verification of `#verify-modal` visual rendering recommended (add to `UI_MANUAL_TEST.md`).
-- 5 pre-existing env-artifact markers worth a separate housekeeping note (not this sprint).
-- `BUG-20260520-zen-exit-rp-restore` still parked at `BUG_STOP_NEEDS_REPRO` — awaiting user repro steps.
-- Invent artefacts: `docs/invent/verify-scale.md` + `proto/sandbox/invent-verify-scale.html`. `PHASE_INDEX` row `INV-2026-05-20-001` → mark done.
+- `BUG-20260520-zen-exit-rp-restore` parked at `BUG_STOP_NEEDS_REPRO`.
 
 ---
 
-## 2026-05-20 — BUG-20260520-sel-midpan: Middle-mouse + Space pan in Select mode — PASS (branch: main)
-
-**What changed:** In `proto/ui.html`, the `ws` mousedown handler's `mode==="sel"` branch received a one-line guard inserted at its top: `if(e.button===1||spaceDown){isPan=true;lastMx=e.clientX;lastMy=e.clientY;ws.style.cursor="grabbing";return;}`. This mirrors the identical pan guard that already existed in the non-`sel` path. `proto/e2e_ui_test.py` gained a new test function `_test_bug_sel_midpan` (+34 lines) with call wiring and a new marker `BUG_20260520_SEL_MIDPAN_OK`. `docs/status/PHASE_INDEX.md` received one status-row update for this bug sprint.
-
-**Why:** Holding middle mouse button (button===1) or Space while the Select tool was active silently discarded the pan intent — the `mode==="sel"` branch executed `redraw();return` unconditionally before the pan check could run, making middle-button and Space pan dead code in Select mode. The fix restores parity with every other tool mode, and with Foxit/Bluebeam pan behavior where middle-mouse-pan works regardless of active tool.
-
-**Files touched:**
-- `proto/ui.html`: +1 line — pan guard inserted at top of `mode==="sel"` mousedown branch (~L2064)
-- `proto/e2e_ui_test.py`: +34 lines — `_test_bug_sel_midpan` function + call wiring + `BUG_20260520_SEL_MIDPAN_OK` marker print
-- `docs/status/PHASE_INDEX.md`: +1 row — BUG-20260520-sel-midpan filed and marked done
-
-**Tests:**
-```
-py -3.12 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-py -3.12 proto/e2e_ui_test.py full                           → EXIT 0 — ALL GREEN
-  NEW: BUG_20260520_SEL_MIDPAN_OK GREEN
-    canvas #cc transform moved +70x/+45y under a real Playwright middle-button drag
-    mode stayed 'sel' throughout (no mode bleed)
-  21 baseline markers intact incl. PATH_GEOMETRY_OK, ANNOT_OK, PERSIST_OK, REAL_OK
-  Total markers: 22
-/bma-measure-ux → MEASURE_UX_PASS
-/bma-measure-regression → MEASURE_REGRESSION_PASS
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- `BUG-20260520-zen-exit-rp-restore` parked at `BUG_STOP_NEEDS_REPRO` — needs a reproducible steps sequence before fix work can start.
-- `INV-2026-05-20-001` Verify Scale tool is next queued item in PHASE_INDEX.
-
----
-
-<!-- INV-2026-05-20-001, BUG-20260520-sel-midpan are the 2 sessions kept in this file -->
-<!-- BLOAT-FLAKE-1, BLOAT-5, BLOAT-4, BLOAT-3 archived to docs/archive/log-2026-05-20.md -->
+<!-- INV-2026-05-20-002/003/004 Layer L1+L2+L3 and INV-2026-05-20-001 Verify Scale are the 2 sessions kept in this file -->
+<!-- BUG-20260520-sel-midpan, BLOAT-FLAKE-1, BLOAT-5, BLOAT-4, BLOAT-3 archived to docs/archive/log-2026-05-20.md -->
 <!-- BLOAT-2 and BLOAT-1 entries archived to docs/archive/log-2026-05-19.md -->

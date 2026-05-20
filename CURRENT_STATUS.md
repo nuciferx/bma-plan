@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale tool)
+Date: 2026-05-20 (updated: INV-2026-05-20-002/003/004 Layer model rebuild L1+L2+L3)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale tool)
 
 ## One-Line Status
 
-2026-05-20 — INV-2026-05-20-001 PASS: Verify Scale tool live — %dev band + Accept/Re-calibrate/Average modal, INV_VERIFY_SCALE_OK 9/9, full E2E GREEN, additive schema only. Next: Verify Scale follow-on E or BUG-20260520-zen-exit-rp-restore.
+2026-05-20 — INV-2026-05-20-002/003/004 PASS: Page-scoped layer rebuild L1+L2+L3 live — site-plan overlap bug fixed, single authoritative layer source, INV_LAYER_L1/L2/L3_OK GREEN, full E2E EXIT 0 (100 markers). Next: Verify Scale follow-on E or BUG-20260520-zen-exit-rp-restore.
 
 ## Latest Sprint
 
+- INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3: PASS (2026-05-20) — Page-scoped layer as single authority; slug guarantee + render/hit helpers (L1); reassign-layer UI + objLayerKey (L2); global layerVis/layerLock demoted to mirror (L3); INV_LAYER_L1/L2/L3_OK GREEN; HT8D5A restored; 100 _OK markers; site-plan overlap bug fixed.
 - INV-2026-05-20-001 — Verify Scale tool: PASS (2026-05-20) — Verify Scale flow (approach A): %dev band green/yellow/red + Accept/Re-calibrate/Average modal; `calibPanelOk` router; `finishCalib` unchanged; `calibScale.verifyResult` additive schema; INV_VERIFY_SCALE_OK 9/9; full EXIT 0; zero regression.
 - BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode: PASS (2026-05-20) — +1 line guard in `mode==="sel"` mousedown branch; NEW BUG_20260520_SEL_MIDPAN_OK GREEN; canvas #cc transform +70x/+45y; mode stayed 'sel'; full EXIT 0; 22 total markers.
 - BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake: PASS (full E2E GREEN) (2026-05-20) — timeout 30→60s + grace window (+50% if still loading); full EXIT 0; PERSIST_OK/REAL_OK/ANNOT_OK stable; LOOP_STOP_REGRESSION halt cleared; BLOAT-5 retroactively full-validated; dev-loop unblocked.
@@ -45,10 +46,10 @@ Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale tool)
 ```bash
 py -3.12 -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 py -3.12 proto/e2e_ui_test.py smoke                          # PASS EXIT 0 (18 baseline + PHASE_BLOAT2/3/4/5_OK 8/8 each + INV_PAGE_SETUP_A/B/C + HT11 GREEN)
-py -3.12 proto/e2e_ui_test.py full                           # PASS EXIT 0 (22 markers; BUG_20260520_SEL_MIDPAN_OK GREEN)
+py -3.12 proto/e2e_ui_test.py full                           # PASS EXIT 0 (100 _OK markers; INV_LAYER_L1/L2/L3_OK GREEN)
 ```
 
-Last full run: 2026-05-20 (INV-2026-05-20-001 Verify Scale; INV_VERIFY_SCALE_OK 9/9 + all key baselines GREEN). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last full run: 2026-05-20 (INV-2026-05-20-002/003/004 Layer rebuild L1+L2+L3; 100 _OK markers; INV_LAYER_L1/L2/L3_OK GREEN; HT8D5A restored). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

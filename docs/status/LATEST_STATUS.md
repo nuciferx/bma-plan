@@ -1,10 +1,31 @@
 # LATEST_STATUS.md — BMA-Plan Current Feature State
 
-Date: 2026-05-20 (INV-2026-05-20-001 PASS — Verify Scale tool; %dev band + Accept/Re-calibrate/Average modal; INV_VERIFY_SCALE_OK 9/9; full E2E GREEN; additive calibScale.verifyResult schema)
+Date: 2026-05-20 (INV-2026-05-20-002/003/004 PASS — Layer model rebuild L1+L2+L3; page-scoped layer authoritative; site-plan overlap bug fixed; INV_LAYER_L1/L2/L3_OK GREEN; 100 _OK markers)
 
 ## Phase
 
 Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engine, FAR/OSR/pass-fail.
+
+## Active Feature State (2026-05-20 — INV-2026-05-20-002/003/004 Layer model rebuild)
+
+New runtime functions added to `proto/ui.html`:
+- `validLayerSlugForPage(slug, pageIdx)` — guarantees an object's slug exists in the page's layer preset; maps `land` → `site_boundary` on site pages, `room` → sub-area equivalent, etc.
+- `getObjectLayerSlug(obj)` — resolves an object to its canonical layer slug: openings/deductions → `deduction`; refs/lines → `reference_geometry`; else `validLayerSlugForPage(obj.layerSlug)`
+- `_slugVisible(slug, pageIdx)` — returns boolean from page-scoped `pageStore[pageIdx].layers` visibility state
+- `_slugLocked(slug, pageIdx)` — returns boolean from page-scoped lock state
+- `_objLayerVisible(obj, pageIdx)` — combines `_slugVisible(getObjectLayerSlug(obj), pageIdx)`
+- `_objLayerLocked(obj, pageIdx)` — combines `_slugLocked(getObjectLayerSlug(obj), pageIdx)`
+- `reassignSelectedObjectLayer(slug)` — moves selected object to a different layer slug on the current page; calls `pushUndo()` + `redraw()` + summary refresh
+
+Render/hit paths updated (all now read page-scoped authority):
+- `hitTest`, `hitTestAll`, `hitVertex`, `findNearest`, `drawRefLines` — use `_objLayerVisible`/`_objLayerLocked` instead of `layerVis[areaTypeLayer[obj.areaType]]`
+- `_layerLockGateBeforeMode` + `toggleLayerLock` — use `_slugLocked`/`getObjectLayerSlug`
+
+UI additions:
+- "Layer" `<select>` dropdown in right-panel properties + left-panel properties (Bluebeam-style move-to-layer)
+- `objLayerKey()` reports the object's real slug (was returning `areaTypeLayer[obj.areaType]` — now via `getObjectLayerSlug`)
+
+Global `layerVis`/`layerLock` demoted to non-authoritative synced mirror. Toggles still write them for test/legacy compat; nothing reads them for render/hit/lock behaviour.
 
 ## Active Feature State (2026-05-20 — INV-2026-05-20-001 Verify Scale)
 
@@ -27,6 +48,7 @@ New additive schema field: `calibScale.verifyResult = {pct, action, verifyPts_pe
 
 | Sprint | Result |
 |--------|--------|
+| **INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3** | PASS — Three-commit rebuild making page-scoped `pageStore[n].layers` the single authoritative source for render/hit/visibility/lock. Root cause: site-plan objects with `areaType="room"` collapsed to slug `"sub_area"` (absent from site preset) → `layerId=undefined` + overlap. L1 (`93c512f`): `validLayerSlugForPage` slug-guarantee + `getObjectLayerSlug` resolver + `_slugVisible`/`_slugLocked`/`_objLayerVisible`/`_objLayerLocked` helpers; all render/hit/label paths (`hitTest`/`hitTestAll`/`hitVertex`/`findNearest`/`drawRefLines`) repointed. L2 (`1301a12`): `reassignSelectedObjectLayer()` + Layer `<select>` dropdown in both panels; `objLayerKey()` reports real slug. L3 (`2e6b2f9`): `_layerLockGateBeforeMode`/`toggleLayerLock` repointed to page-scoped `_slugLocked`; global `layerVis`/`layerLock` demoted to non-authoritative mirror. E2E: `INV_LAYER_L1_OK` / `INV_LAYER_L2_OK` / `INV_LAYER_L3_OK` GREEN; HT8D5A all:True restored; 100 _OK markers; 0 E2E_FAIL. Forbidden-surface diff scan CLEAN. `proto/server.py` NOT TOUCHED. `.bmaplan` schema additive only. [2026-05-20] |
 | **INV-2026-05-20-001 — Verify Scale tool** | PASS — Replaced `verifyScale()` stub with real second-reference cross-check flow. `verifyFinish()` computes `%dev`; `openVerifyModal()` shows green (<0.5%) / yellow (<2%) / red (≥2%) band + measured/entered/area-impact + Accept/Re-calibrate/Average. `calibPanelOk()` router added (`finishCalib()` unchanged). `#verify-modal` HTML inline-styled (no `app.css` edit). `calibScale.verifyResult` additive schema. `proto/e2e_ui_test.py` +124 lines: `_test_verify_scale` 9 sub-checks (domAndHelpers, guardWhenNoScale, greenBandZeroDev, acceptWritesResult, redBandHighDev, recalibrateSetsPpm, averageSetsPpm, finishCalibIntact, roundTripSaveLoad). `INV_VERIFY_SCALE_OK` = 9/9 all:True. Full E2E EXIT 0: ANNOT_OK/PERSIST_OK/REAL_OK/PROJECT_OK/XLSX_OK/PATH_GEOMETRY_OK all GREEN. Pre-existing 5 env-artifact markers unchanged. `proto/server.py` NOT TOUCHED. All forbidden surfaces UNCHANGED. [2026-05-20] |
 | **BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode** | PASS — `proto/ui.html` mousedown handler `mode==="sel"` branch: +1 line pan guard `if(e.button===1\|\|spaceDown){isPan=true;lastMx=e.clientX;lastMy=e.clientY;ws.style.cursor="grabbing";return;}` at top of branch (~L2064). Mirrors identical guard already in non-`sel` path. Root cause: `redraw();return` fired unconditionally before the pan check, making middle-mouse and Space pan dead code in Select mode. `proto/e2e_ui_test.py` +34 lines: `_test_bug_sel_midpan` drives real Playwright middle-button drag, asserts canvas `#cc` transform moved +70x/+45y, asserts `mode` stayed `'sel'`. New `BUG_20260520_SEL_MIDPAN_OK` marker. `docs/status/PHASE_INDEX.md` +1 row. Full E2E EXIT 0: all 21 prior baseline markers intact (incl. PATH_GEOMETRY_OK / ANNOT_OK / PERSIST_OK / REAL_OK). Total markers 22. `/bma-measure-ux` MEASURE_UX_PASS. `/bma-measure-regression` MEASURE_REGRESSION_PASS. All forbidden surfaces UNCHANGED. `proto/server.py` NOT TOUCHED. `.bmaplan` schema UNCHANGED. [2026-05-20] |
 | **BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake** | PASS — `proto/e2e_ui_test.py` `_wait_analyse_ready` timeout raised 30.0→60.0 s; grace window added (+50% past deadline if status bar still shows active progress). ~15 LOC changed, one helper only. Full E2E EXIT 0: `PERSIST_OK` / `REAL_OK` / `ANNOT_OK` GREEN (flaked 3x during BLOAT-5; now stable). PHASE_BLOAT2/3/4/5_OK 8/8 each + INV_PAGE_SETUP_A_OK 8/8 + _B_OK 9/9 + _C_OK 7/7 + PHASE_HT11_OK 10/10 all GREEN. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated. Dev-loop unblocked. No app code / schema / forbidden surfaces touched. `proto/server.py` NOT TOUCHED. `proto/ui.html` NOT TOUCHED. Bloat-reduction wave complete: ui.html 4,231→3,777 (−454, −10.7%, well under 5,000-line trigger). [2026-05-20] |

@@ -1,10 +1,10 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale PASS — INV_VERIFY_SCALE_OK 9/9)
+Date: 2026-05-20 (updated: INV-2026-05-20-002/003/004 Layer rebuild L1+L2+L3 PASS — INV_LAYER_L1/L2/L3_OK GREEN; 100 markers)
 
 ## Immediate Next
 
-**INV-2026-05-20-001 Verify Scale tool done. Full E2E GREEN. Next sprint options:**
+**INV-2026-05-20-002/003/004 Layer model rebuild done. Full E2E EXIT 0 (100 markers). Next sprint options:**
 
 - **(PRIORITY 1) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev≥2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next.
 
@@ -14,14 +14,15 @@ Date: 2026-05-20 (updated: INV-2026-05-20-001 Verify Scale PASS — INV_VERIFY_S
 
 - **(c) Verify Scale follow-on D** — live canvas badge showing %dev after verify (amber chip near scale display). Low priority; additive cosmetic.
 
-- **(d) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+- **(d) Optional: literal deletion of layerVis/layerLock write-mirror** from call sites — zero behaviour gain (already demoted to non-authoritative mirror), test-only churn. Not urgent; deferred.
 
-- **(e) Rebase/merge strategy for main-v2-2026-05-19** — local `main` tracks `origin/main-v2-2026-05-19`. Legacy remote `main` is at `24f5d94` (62 commits). User decision required — do not auto-merge.
+- **(e) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
 
-- **(f) Manual Chrome verification** — `#verify-modal` visual rendering should be checked in real Chrome and added to `UI_MANUAL_TEST.md`.
+- **(f) Manual Chrome verification** — Layer rebuild UI (reassign dropdown + site-page layer check) + `#verify-modal` visual rendering should be checked in real Chrome (see `UI_MANUAL_TEST.md` checklists).
 
 ## Recently Done
 
+- **INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3** — 2026-05-20. PASS. Page-scoped layer system is now the single authoritative source for render/hit/visibility/lock. Fixes site-plan object overlap bug (objects with `areaType="room"` → slug `"sub_area"` absent from site preset → `layerId=undefined` → overlap). L1: slug-guarantee + render/hit helpers repointed. L2: reassign-layer UI + `objLayerKey` real slug. L3: global `layerVis`/`layerLock` demoted to mirror. INV_LAYER_L1/L2/L3_OK GREEN. HT8D5A restored. 100 _OK markers. Commits: `93c512f` / `1301a12` / `2e6b2f9`.
 - **INV-2026-05-20-001 — Verify Scale tool** — 2026-05-20. PASS. Verify Scale flow (approach A): `verifyFinish()` %dev + `openVerifyModal()` green/yellow/red band + Accept/Re-calibrate/Average. `calibPanelOk()` router; `finishCalib()` unchanged. `calibScale.verifyResult` additive schema. `proto/e2e_ui_test.py` +124 lines; INV_VERIFY_SCALE_OK 9/9 all:True. Full E2E EXIT 0. `proto/server.py` NOT TOUCHED.
 - **BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode** — 2026-05-20. PASS. +1 line guard in `mode==="sel"` mousedown branch. NEW BUG_20260520_SEL_MIDPAN_OK GREEN. Full E2E EXIT 0 (22 markers). Pipeline: `/bma-bug-report` one-shot.
 - **BLOAT-FLAKE-1 — Fix REAL_PDF `_wait_analyse_ready` flake** — 2026-05-20. PASS. `_wait_analyse_ready` timeout 30→60 s + grace window (+50% if still loading). Full E2E EXIT 0: PERSIST_OK/REAL_OK/ANNOT_OK stable. LOOP_STOP_REGRESSION halt cleared. BLOAT-5 retroactively full-validated. Dev-loop unblocked. ~15 LOC in `proto/e2e_ui_test.py` only.

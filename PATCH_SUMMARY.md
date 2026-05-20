@@ -4,7 +4,59 @@
 
 ---
 
-# Latest: INV-2026-05-20-001 — Verify Scale tool
+# Latest: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3
+
+Branch: main
+
+Date: 2026-05-20
+
+## Outcome: PASS — Page-scoped layer is now the single authoritative source for render/hit/visibility/lock. Site-plan overlap bug fixed. Full E2E EXIT 0, 100 _OK markers. NEW INV_LAYER_L1/L2/L3_OK GREEN.
+
+## Summary
+
+Three-commit layer-model rebuild resolving a user-reported bug where objects on ผังบริเวณ (site plan) pages landed in the wrong layer and overlapped with no way to separate or toggle them. Root cause: two competing layer systems coexisted — page-scoped `pageStore[n].layers` (authoritative by design) vs. legacy global `areaTypeLayer`/`layerVis`/`layerLock` (still read by render/hit paths). Site objects with `areaType="room"` collapsed to slug `"sub_area"` which does not exist in the site preset, producing `layerId = undefined`. L1 establishes slug-guarantee + new render/hit helpers. L2 adds Bluebeam-style reassign-layer UI. L3 demotes global maps to a non-authoritative synced mirror — page-scoped authority proved by E2E (page locked + global unlocked → app follows page).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | Layer helpers (`validLayerSlugForPage`, `getObjectLayerSlug`, `_slugVisible`, `_slugLocked`, `_objLayerVisible`, `_objLayerLocked`); slug assignment at object creation; render/hit/label/lock-gate paths updated (L1); `reassignSelectedObjectLayer` + Layer `<select>` in properties panels (L2); global `layerVis`/`layerLock` demoted to mirror role (L3) |
+| `proto/e2e_ui_test.py` | +3 test functions (`_test_inv_layer_l1/l2/l3`) + 3 markers + HT8D5A repointed |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; `layerSlug`/`layerId` fields already existed; additive only
+
+## Tests Run
+
+```
+py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+proto/e2e_ui_test.py full                         → EXIT 0
+  100 _OK markers, 0 E2E_FAIL
+  NEW: INV_LAYER_L1_OK GREEN
+  NEW: INV_LAYER_L2_OK GREEN
+  NEW: INV_LAYER_L3_OK GREEN (page locked + global unlocked → app follows page)
+  HT8D5A all:True restored
+  Pre-existing cosmetic all:False markers (HT8C/HT8D1/HT10/HT12H/PHASE_I_D) — unchanged
+  Forbidden-surface diff scan CLEAN. UI_REGRESSION_PASS.
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (`layerSlug`/`layerId` already existed; no renames; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: INV-2026-05-20-001 — Verify Scale tool
 
 Branch: main
 
@@ -20,7 +72,7 @@ Replaced the `verifyScale()` stub with a real second-reference cross-check flow:
 
 | File | Change |
 |---|---|
-| `proto/ui.html` | +82/−5 — calib panel h3 id + OK→`calibPanelOk`; `#verify-modal` HTML; 10 new fns (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `cancelCalib` reset; `anyModal` guard |
+| `proto/ui.html` | +82/−5 — calib panel h3 id + OK→`calibPanelOk`; `#verify-modal` HTML; 10 new fns (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `cancelCalib` reset; `anyModal` guard extended |
 | `proto/e2e_ui_test.py` | +124 lines — `_test_verify_scale` (9 sub-checks) + `INV_VERIFY_SCALE_OK` marker wired into `main()` |
 
 ## Source Files NOT Touched (Forbidden Surfaces)
@@ -38,12 +90,8 @@ Replaced the `verifyScale()` stub with a real second-reference cross-check flow:
 py_compile proto/server.py proto/e2e_ui_test.py            → PASS
 proto/e2e_ui_test.py full                                   → EXIT 0 — ALL GREEN
   NEW: INV_VERIFY_SCALE_OK 9/9 all:True
-    (domAndHelpers, guardWhenNoScale, greenBandZeroDev, acceptWritesResult,
-     redBandHighDev, recalibrateSetsPpm, averageSetsPpm, finishCalibIntact,
-     roundTripSaveLoad)
   ANNOT_OK / PERSIST_OK / REAL_OK / PROJECT_OK / XLSX_OK / PATH_GEOMETRY_OK — GREEN
-  Pre-existing 5 env-artifact markers unchanged (PHASE_HT8C, HT8D1, HT10, HT12H, I_D).
-  Zero regression introduced by this sprint.
+  Pre-existing 5 env-artifact markers unchanged. Zero regression.
 ```
 
 ## Phase 1 Scope Check
@@ -54,57 +102,6 @@ proto/e2e_ui_test.py full                                   → EXIT 0 — ALL G
 - ✅ `proto/server.py` — NOT TOUCHED
 - ✅ `finishCalib()` — UNCHANGED
 - ✅ `.bmaplan` schema — additive only (version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-# Previous: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode
-
-Branch: main
-
-Date: 2026-05-20
-
-## Outcome: PASS — Select-mode middle-mouse-button and Space pan now work. Full E2E GREEN. New marker BUG_20260520_SEL_MIDPAN_OK. Total markers: 22.
-
-## Summary
-
-The `ws` mousedown handler's `mode==="sel"` branch had an unconditional `redraw();return` that fired before the pan-intent check, silently discarding middle-mouse (button===1) and Space pan while the Select tool was active. Fixed by inserting a one-line guard at the top of the `sel` branch that mirrors the identical pan guard already in the non-`sel` path. A new E2E test `_test_bug_sel_midpan` verifies that a Playwright middle-button drag moves the canvas transform by the expected delta while keeping `mode==='sel'` throughout. All 21 prior baseline markers remain GREEN.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/ui.html` | +1 line — pan guard at top of `mode==="sel"` mousedown branch (~L2064): `if(e.button===1\|\|spaceDown){isPan=true;...return;}` |
-| `proto/e2e_ui_test.py` | +34 lines — `_test_bug_sel_midpan` + call wiring + `BUG_20260520_SEL_MIDPAN_OK` marker |
-| `docs/status/PHASE_INDEX.md` | +1 row — BUG-20260520-sel-midpan filed and marked done |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; additive fields only
-
-## Tests Run
-
-```
-py -3.12 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-py -3.12 proto/e2e_ui_test.py full                           → EXIT 0 — ALL GREEN
-  NEW: BUG_20260520_SEL_MIDPAN_OK GREEN (canvas #cc transform +70x/+45y; mode stayed 'sel')
-  21 baseline markers intact incl. PATH_GEOMETRY_OK, ANNOT_OK, PERSIST_OK, REAL_OK
-  Total markers: 22
-/bma-measure-ux → MEASURE_UX_PASS
-/bma-measure-regression → MEASURE_REGRESSION_PASS
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — UNCHANGED (version stays 1)
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 
 ---

@@ -67,4 +67,13 @@ No data-model alternatives worth diverging on: the standard `object.layerId → 
 
 No spike artifact (`proto/sandbox/invent-layer-model.html` not created — MATURE skip). `/bma-dev-loop` picks up L1 when its turn comes (after the higher-priority queued items / per depends-on).
 
-**Status**: invent-done-go
+### Implementation outcome (2026-05-20)
+
+All 3 sub-sprints DONE and committed to `main`, full E2E 100 `_OK` markers / 0 fail at each step:
+- **L1 `93c512f`** — `validLayerSlugForPage` (no slug absent from page preset; land→site_boundary on site), `getObjectLayerSlug` resolves openings/refs, render/hit/labels read page-scoped via `_slugVisible`/`_slugLocked`. Marker `INV_LAYER_L1_OK`. Fixes the reported site-plan wrong-layer + overlap bug.
+- **L2 `1301a12`** — `reassignSelectedObjectLayer` + "Layer" dropdown in properties panels; `objLayerKey` reports real slug. Marker `INV_LAYER_L2_OK`.
+- **L3 `2e6b2f9`** — lock-gate/deselect repointed to page-scoped; globals demoted to non-authoritative mirror. Marker `INV_LAYER_L3_OK` proves page-scoped authority.
+
+Deferred (optional, low value): literal deletion of the `layerVis`/`layerLock` identifiers (test-only churn, no behaviour change) and active-layer-at-creation routing.
+
+**Status**: invent-done-go → shipped (INV-2026-05-20-002/003/004 all ✅)

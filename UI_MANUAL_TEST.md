@@ -1,4 +1,28 @@
-# Latest: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode
+# Latest: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3
+
+Branch: main
+
+Date: 2026-05-20
+
+## Result
+
+Automated PASS — py_compile PASS; full EXIT 0; INV_LAYER_L1_OK / INV_LAYER_L2_OK / INV_LAYER_L3_OK GREEN; HT8D5A all:True restored; 100 _OK markers. Manual verification required: headless Playwright confirms slug resolution and lock authority, but real-browser verification of the layer reassign dropdown UX, site-page layer rendering, and the absence of overlap must be confirmed in Chrome with a real multi-page permit PDF.
+
+## Manual Checklist — Layer rebuild: site-plan page correctness
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Open a PDF; tag a page as "ผังบริเวณ" in Page Setup; draw a building-coverage polygon | Object appears under a real site layer (not a phantom "sub_area" phantom slug); right-panel object count increments | — |
+| Draw a land/boundary area on the same site page | Object lands in "ที่ดิน/แนวเขต" (site_boundary layer), not "sub_area" | — |
+| Select an existing object on the site page; open Properties panel | Properties panel shows a "Layer" `<select>` dropdown listing the page's layer presets | — |
+| Change the Layer dropdown to a different layer | Object moves to the new layer; summary and render update; object is no longer in old layer | — |
+| In the Layers tab, hide a single layer (eye icon) | Only that layer's objects are hidden; objects on other layers remain visible; no overlap bleed across the 7 site area types | — |
+| Lock the active layer (lock icon) | Drawing a new object or clicking an existing one in that layer is blocked; alert shown; other layers remain editable | — |
+| Unlock the layer; toggle the layer off at the page-scoped level | App follows the page-scoped state even if the legacy global toggle was previously set differently | — |
+
+---
+
+# Previous: BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode
 
 Branch: main
 
@@ -22,7 +46,7 @@ Automated PASS — py_compile PASS; full EXIT 0; BUG_20260520_SEL_MIDPAN_OK GREE
 
 ---
 
-# Previous: Mockup Alignment Bundle — Structure (HT-18..21) + Visual Polish (HT-22..26)
+# Previous (older): Mockup Alignment Bundle — Structure (HT-18..21) + Visual Polish (HT-22..26)
 
 Branch: main
 
