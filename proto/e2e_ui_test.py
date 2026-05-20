@@ -1011,6 +1011,72 @@ def _test_inv_layer_l1(page):
     return {**result, "all": True}
 
 
+def _test_inv_layer_l2(page):
+    """INV-2026-05-20-003 (Layer rebuild L2) acceptance.
+
+    User can move the selected object to another page-scoped layer via a dropdown
+    (Bluebeam-style reassign). objLayerKey now reports the object's REAL slug (not the
+    areaTypeLayer-derived one). Verifies on a forced site page, restores state.
+    """
+    result = page.evaluate("""() => {
+        const pg = curPage;
+        const origTag = pageTags[pg];
+        const s = getStore(pg);
+        const origLayers = s.layers;
+        const origSel = selItem;
+        const polyCountBefore = mPolys.length;
+        try {
+            pageTags[pg] = "site";
+            s.layers = _makePageLayers(pg);
+
+            const bc = {pts:[{x:10,y:10},{x:50,y:10},{x:50,y:50},{x:10,y:50}], closed:true,
+                        areaType:"room", semanticTag:"building_coverage", id:"l2-bc", color:"#30d158", opacity:0.85};
+            assignDefaultObjectLayer(pg, bc);
+            mPolys.push(bc);
+            selItem = {type:"poly", idx:mPolys.length-1};
+
+            const slugBefore = getObjectLayerSlug(bc);
+            const keyReportsRealSlug = objLayerKey(selItem, bc) === slugBefore && slugBefore !== "sub_area";
+
+            // reassign to site_boundary
+            reassignSelectedObjectLayer("site_boundary");
+            const sbLayer = getLayerBySlug(pg, "site_boundary");
+            const reassigned = bc.layerSlug === "site_boundary" && bc.layerId === sbLayer.id;
+
+            // the reassign dropdown should be rendered with all page layers
+            const dd = document.querySelector(".rp-object-layer");
+            const ddOptionCount = dd ? dd.options.length : 0;
+            const ddHasSiteBoundary = dd ? Array.from(dd.options).some(o => o.value === "site_boundary") : false;
+            const fnExists = typeof reassignSelectedObjectLayer === "function";
+
+            return {
+                slugBefore, keyReportsRealSlug, reassigned,
+                ddOptionCount, ddHasSiteBoundary, fnExists,
+                pageLayerCount: getCurrentPageLayers().length,
+            };
+        } finally {
+            mPolys.length = polyCountBefore;
+            selItem = origSel;
+            pageTags[pg] = origTag;
+            s.layers = origLayers;
+            if (typeof buildRightPanel === "function") buildRightPanel();
+        }
+    }""")
+
+    failed = []
+    if not result.get("fnExists"):
+        failed.append("reassignSelectedObjectLayer not defined")
+    if not result.get("keyReportsRealSlug"):
+        failed.append(f"objLayerKey did not report real slug (got {result.get('slugBefore')!r})")
+    if not result.get("reassigned"):
+        failed.append("reassign did not update layerSlug+layerId to site_boundary")
+    if not result.get("ddHasSiteBoundary") or result.get("ddOptionCount", 0) < 5:
+        failed.append(f"reassign dropdown missing/short: count={result.get('ddOptionCount')}")
+    if failed:
+        raise AssertionError(f"INV_LAYER_L2 failed: {failed} — {result}")
+    return {**result, "all": True}
+
+
 def _test_snap_helpers(page):
     result = page.evaluate(
         """() => {
@@ -8499,6 +8565,7 @@ def main():
             wheel = _test_mouse_wheel_zoom(page)
             sel_midpan = _test_bug_sel_midpan(page)
             inv_layer_l1 = _test_inv_layer_l1(page)
+            inv_layer_l2 = _test_inv_layer_l2(page)
             snap_helpers = _test_snap_helpers(page)
             selection_helpers = _test_selection_and_area_type_helpers(page)
             setback_helpers = _test_setback_helpers(page)
@@ -8599,6 +8666,7 @@ def main():
         print("WHEEL_OK", wheel)
         print("BUG_20260520_SEL_MIDPAN_OK", sel_midpan)
         print("INV_LAYER_L1_OK", inv_layer_l1)
+        print("INV_LAYER_L2_OK", inv_layer_l2)
         print("SNAP_OK", snap_helpers)
         print("SELECT_OK", selection_helpers)
         print("SETBACK_OK", setback_helpers)
