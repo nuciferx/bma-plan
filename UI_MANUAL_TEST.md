@@ -1,4 +1,28 @@
-# Latest: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3
+# Latest: BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix
+
+Branch: main
+
+Date: 2026-05-20
+
+## Result
+
+Automated PASS — py_compile PASS; full EXIT 0; BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks). Static-asset safety: NO_BOM on app.css; CACHE_OK + MAIN_UI_OK (cssLinkPresent/cssVarLoaded true). Manual verification required: headless Playwright confirms the DOM-level restore-tab visibility and F10 toggle, but real-browser native F11 fullscreen interaction (the original bug trigger) and restore-tab rendering at screen edges must be confirmed in Chrome.
+
+## Manual Checklist — BUG-20260520-zen-exit-rp-restore: Zen exit + panel restore
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Hide both L+R panels (View menu or F9 + F10 separately) | Restore tabs (◀ and ▶) appear at the left and right screen edges | — |
+| Press F11 to enter Zen Mode | All chrome (panels, ribbon, status bar, restore tabs) hidden; canvas fills screen | — |
+| While in Zen Mode, open any modal (e.g. Page Setup) OR start drawing (click once to place first point), THEN press F11 | Zen exits cleanly — `body.zen` class removed; restore tabs reappear; no stuck fullscreen; no native-fullscreen chrome conflict | — |
+| With right panel collapsed and not in Zen, press F10 | Right panel re-shows; restore tab disappears (panel is now open) | — |
+| Press F10 again | Right panel collapses; restore tab reappears at right edge | — |
+| Press F9 | Left panel collapses/restores (mirrors F10 behavior for left panel) | — |
+| Enter Zen, then press F10 | Zen still hides restore tabs (`display:none !important` override wins); F10 has no visual effect while in Zen | — |
+
+---
+
+# Previous: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3
 
 Branch: main
 

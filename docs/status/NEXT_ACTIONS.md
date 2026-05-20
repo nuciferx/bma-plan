@@ -1,27 +1,28 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: INV-2026-05-20-002/003/004 Layer rebuild L1+L2+L3 PASS — INV_LAYER_L1/L2/L3_OK GREEN; 100 markers)
+Date: 2026-05-20 (updated: BUG-20260520-zen-exit-rp-restore PASS — BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN; 101 markers)
 
 ## Immediate Next
 
-**INV-2026-05-20-002/003/004 Layer model rebuild done. Full E2E EXIT 0 (100 markers). Next sprint options:**
+**BUG-20260520-zen-exit-rp-restore done. Full E2E EXIT 0 (101 markers). Queue is otherwise clear. Next sprint options:**
 
-- **(PRIORITY 1) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev≥2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next.
+- **(PRIORITY 1) Run `/bma-human-test`** — realistic full-workflow user-journey test on the real 45-page permit PDF to surface fresh FRICTION/BROKEN findings and extend the sprint queue. No code sprint in the active queue after this fix.
 
-- **(a) BUG-20260520-zen-exit-rp-restore** — parked at `BUG_STOP_NEEDS_REPRO`. Needs reproducible steps before fix work can start. Provide repro steps → `/bma-bug-report` will handle.
+- **(a) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev≥2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next code sprint.
 
 - **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
 
-- **(c) Verify Scale follow-on D** — live canvas badge showing %dev after verify (amber chip near scale display). Low priority; additive cosmetic.
+- **(c) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
 
-- **(d) Optional: literal deletion of layerVis/layerLock write-mirror** from call sites — zero behaviour gain (already demoted to non-authoritative mirror), test-only churn. Not urgent; deferred.
+- **(d) Verify Scale follow-on D** — live canvas badge showing %dev after verify (amber chip near scale display). Low priority; additive cosmetic.
 
-- **(e) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+- **(e) Optional: literal deletion of layerVis/layerLock write-mirror** from call sites — zero behaviour gain, test-only churn. Not urgent; deferred.
 
-- **(f) Manual Chrome verification** — Layer rebuild UI (reassign dropdown + site-page layer check) + `#verify-modal` visual rendering should be checked in real Chrome (see `UI_MANUAL_TEST.md` checklists).
+- **(f) Manual Chrome verification** — Zen Mode exit/restore-tab (see new checklist in `UI_MANUAL_TEST.md`) + layer rebuild UI (reassign dropdown + site-page layer check) + `#verify-modal` visual rendering.
 
 ## Recently Done
 
+- **BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix** — 2026-05-20. PASS. F11 always exits Zen (unconditional preventDefault, no native-fullscreen desync); F9/F10 keybindings added; dead CSS `~` sibling selector replaced with `:has()`. BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks). Full E2E EXIT 0 (101 markers). Commit `9453777`. Static-asset safety: NO_BOM, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.
 - **INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3** — 2026-05-20. PASS. Page-scoped layer system is now the single authoritative source for render/hit/visibility/lock. Fixes site-plan object overlap bug (objects with `areaType="room"` → slug `"sub_area"` absent from site preset → `layerId=undefined` → overlap). L1: slug-guarantee + render/hit helpers repointed. L2: reassign-layer UI + `objLayerKey` real slug. L3: global `layerVis`/`layerLock` demoted to mirror. INV_LAYER_L1/L2/L3_OK GREEN. HT8D5A restored. 100 _OK markers. Commits: `93c512f` / `1301a12` / `2e6b2f9`.
 - **INV-2026-05-20-001 — Verify Scale tool** — 2026-05-20. PASS. Verify Scale flow (approach A): `verifyFinish()` %dev + `openVerifyModal()` green/yellow/red band + Accept/Re-calibrate/Average. `calibPanelOk()` router; `finishCalib()` unchanged. `calibScale.verifyResult` additive schema. `proto/e2e_ui_test.py` +124 lines; INV_VERIFY_SCALE_OK 9/9 all:True. Full E2E EXIT 0. `proto/server.py` NOT TOUCHED.
 - **BUG-20260520-sel-midpan — Middle-mouse + Space pan in Select mode** — 2026-05-20. PASS. +1 line guard in `mode==="sel"` mousedown branch. NEW BUG_20260520_SEL_MIDPAN_OK GREEN. Full E2E EXIT 0 (22 markers). Pipeline: `/bma-bug-report` one-shot.

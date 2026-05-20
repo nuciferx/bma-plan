@@ -4,7 +4,36 @@
 
 ---
 
-# Latest: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3 — PASS
+# Latest: BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix — PASS
+
+**Date:** 2026-05-20
+**Branch:** main
+
+## Outcome
+
+PASS. Full E2E EXIT 0, 101 _OK markers, 0 E2E_FAIL. A user-reported bug where the right-panel restore tab vanished after Zen Mode exit has been fixed defensively: F11 now always prevents native fullscreen, F9/F10 provide keyboard recovery for both panels, and the restore-tab CSS selector was corrected from a dead sibling combinator to a `:has()` rule. The original trigger (native-fullscreen desync leaving `body.zen` stuck) could not be reproduced headlessly but is now blocked by the unconditional `preventDefault()`. New E2E marker `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` GREEN (6 sub-checks). Static-asset safety confirmed: NO_BOM, CACHE_OK, MAIN_UI_OK. Forbidden-surface diff scan CLEAN. UI_REGRESSION_PASS.
+
+## What was delivered
+
+- `proto/ui.html` — F11 keydown handler: unconditional `preventDefault()` (browser can no longer enter native fullscreen and desync `body.zen`); exit condition widened to `body.zen || (!anyModal && !mPts.length)` so stuck Zen always exits; F9→`toggleLeftPanel` and F10→`toggleRightPanel` keybindings added (restore tabs already showed [F9]/[F10] labels but had no handler).
+- `proto/static/css/app.css` — dead `#right-panel.collapsed~#workspace #rp-restore-tab` selector (sibling combinator never matched, DOM order wrong) replaced with `body:has(#right-panel.collapsed) #rp-restore-tab{display:flex}`; existing `.canvas-wrap[data-right-collapsed="1"]` attribute fallback kept; zen/overview `display:none !important` overrides unchanged.
+- `proto/e2e_ui_test.py` — `_test_bug_zen_exit_rp_restore` (6 sub-checks: inZen, zenExitedMidDraw, f10Toggled, tabVisibleWhenCollapsed, tabHiddenInZen, tabVisibleAfterZenExit) + `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` marker.
+- `UI_MANUAL_TEST.md` — 5-check Zen exit / F9/F10 / restore-tab manual checklist added (static CSS touched → required per AGENTS.md §8 anti-pattern).
+- Commit: `9453777` on main.
+
+## What's next
+
+- Pick from Discovered backlog or invent queue: BMA-Plan Lite (focus-mode lite spinoff), comment/annotation redesign, or mobile port.
+- Run `/bma-human-test` for fresh findings from the real 45-page permit PDF.
+- Verify Scale follow-on E (fold `verifyResult` into `phase1Warnings` + export note) — still recommended.
+
+## Position in Plan
+
+Phase 1 — UI reliability. This sprint closes the Zen Mode / panel-restore usability gap filed as `BUG-20260520-zen-exit-rp-restore` in PHASE_INDEX. No Phase 2 scope boundary crossed.
+
+---
+
+# Previous: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3 — PASS
 
 **Date:** 2026-05-20
 **Branch:** main
@@ -30,31 +59,6 @@ PASS. Full E2E EXIT 0, 100 _OK markers, 0 E2E_FAIL. Three-commit layer-model reb
 ## Position in Plan
 
 Phase 1 — Layer system correctness. This sprint closes the page-scoped layer migration (PAGE_SCOPED_LAYER_MODEL.md design doc). Sprint cards: `INV-2026-05-20-002` (L1), `INV-2026-05-20-003` (L2), `INV-2026-05-20-004` (L3) in PHASE_INDEX — mark done. No Phase 2 scope boundary crossed.
-
----
-
-# Previous: INV-2026-05-20-001 — Verify Scale tool — PASS
-
-**Date:** 2026-05-20
-**Branch:** main
-
-## Outcome
-
-PASS. Full E2E GREEN. The Verify Scale feature (invent GO'd approach A) has been implemented: post-calibration second-reference cross-check with %dev band (green/yellow/red), measured/entered/area-impact display, and Accept / Re-calibrate / Average actions. New E2E marker `INV_VERIFY_SCALE_OK` = 9/9 all:True. All key baselines (ANNOT_OK, PERSIST_OK, REAL_OK, PROJECT_OK, XLSX_OK, PATH_GEOMETRY_OK) remain GREEN. Zero regression — the 5 pre-existing env-artifact markers are unchanged.
-
-## What was delivered
-
-- `proto/ui.html` (+82/−5) — `verifyScale()` stub replaced with real flow; 10 new functions; `calibPanelOk()` router added; `#verify-modal` HTML (inline-styled, no `app.css` edit); `cancelCalib` reset; `anyModal` guard extended.
-- `proto/e2e_ui_test.py` (+124 lines) — `_test_verify_scale` 9 sub-checks + `INV_VERIFY_SCALE_OK` marker.
-- Schema additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` — rides on `pageStore.calibScale`, round-trips through existing save/load without schema version bump.
-
-## What's next
-
-Layer model rebuild L1+L2+L3 (this sprint — done). Next: Verify Scale follow-on E or BUG-20260520-zen-exit-rp-restore.
-
-## Position in Plan
-
-Phase 1 — Scale workflow. Verify Scale is the quality-assurance layer on top of the existing calibration flow. Sprint card: `INV-2026-05-20-001` in PHASE_INDEX (done). No Phase 2 scope boundary crossed.
 
 ---
 

@@ -4,7 +4,60 @@
 
 ---
 
-# Latest: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3
+# Latest: BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix
+
+Branch: main
+
+Date: 2026-05-20
+
+## Outcome: PASS — Right panel is now always recoverable after Zen Mode. F11 reliably exits Zen, F9/F10 toggle panels, restore tab no longer depends on a dead CSS selector. Full E2E EXIT 0, 101 _OK markers. NEW BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN.
+
+## Summary
+
+Defensive fix for a user-reported bug where the right-panel restore tab (`#rp-restore-tab`) disappeared after Zen Mode exit, making the right panel irrecoverable. Root cause: native-browser F11 fullscreen could collide with the app's F11 `!anyModal && !mPts.length` guard, leaving `body.zen` stuck and the CSS rule `body.zen .panel-restore-tab{display:none}` hiding the tab. Additionally, the restore-tab visibility CSS used a dead sibling combinator (`#right-panel.collapsed~#workspace #rp-restore-tab`) that never matched because workspace precedes panel in DOM. Fix is defensive: F11 always calls `preventDefault()`; F9/F10 keyboard recovery added; dead CSS selector replaced with `:has()`.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `proto/ui.html` | F11 handler: unconditional `preventDefault()` + widened exit condition (`body.zen \|\| (!anyModal && !mPts.length)`); F9→`toggleLeftPanel` + F10→`toggleRightPanel` added |
+| `proto/static/css/app.css` | Dead `#right-panel.collapsed~#workspace #rp-restore-tab` rule replaced with `body:has(#right-panel.collapsed) #rp-restore-tab{display:flex}`; attribute fallback + zen/overview overrides kept |
+| `proto/e2e_ui_test.py` | `_test_bug_zen_exit_rp_restore` (6 sub-checks) + `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` marker |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; additive only (untouched)
+
+## Tests Run
+
+```
+py_compile proto/server.py proto/e2e_ui_test.py            → PASS
+proto/e2e_ui_test.py full                                   → EXIT 0
+  101 _OK markers, 0 E2E_FAIL
+  NEW: BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks:
+       inZen, zenExitedMidDraw, f10Toggled, tabVisibleWhenCollapsed,
+       tabHiddenInZen, tabVisibleAfterZenExit)
+  CACHE_OK, MAIN_UI_OK (cssLinkPresent + cssVarLoaded true) confirm CSS serves
+  All prior 100 markers retained. Zero regression.
+  Static-asset safety: NO_BOM on app.css. UI_REGRESSION_PASS.
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (untouched; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3
 
 Branch: main
 
@@ -52,56 +105,6 @@ proto/e2e_ui_test.py full                         → EXIT 0
 - ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
 - ✅ `proto/server.py` — NOT TOUCHED
 - ✅ `.bmaplan` schema — additive only (`layerSlug`/`layerId` already existed; no renames; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-# Previous: INV-2026-05-20-001 — Verify Scale tool
-
-Branch: main
-
-Date: 2026-05-20
-
-## Outcome: PASS — Verify Scale tool implemented (approach A). verifyFinish() %dev band + Accept/Re-calibrate/Average modal. Full E2E GREEN. NEW INV_VERIFY_SCALE_OK 9/9.
-
-## Summary
-
-Replaced the `verifyScale()` stub with a real second-reference cross-check flow: Scale-menu "Verify Scale" reuses the existing 2-point calibration draw, then `verifyFinish()` computes `%dev = 100·|d_meas−d_enter|/d_enter` and shows a color-coded confidence band (green <0.5% / yellow <2% / red ≥2%) plus measured distance, entered distance, area-impact estimate (≈2×%dev), and three action buttons: Accept / Re-calibrate / Average. A `calibPanelOk()` router was added so the calib panel OK button routes to `verifyFinish()` in verify mode and to `finishCalib()` otherwise — `finishCalib()` itself is unchanged. Schema is additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` round-trips through existing save/load automatically.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/ui.html` | +82/−5 — calib panel h3 id + OK→`calibPanelOk`; `#verify-modal` HTML; 10 new fns (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `cancelCalib` reset; `anyModal` guard extended |
-| `proto/e2e_ui_test.py` | +124 lines — `_test_verify_scale` (9 sub-checks) + `INV_VERIFY_SCALE_OK` marker wired into `main()` |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `finishCalib()` — UNCHANGED (`calibPanelOk` wrapper routes to it)
-- `.bmaplan` schema version stays 1; `calibScale.verifyResult` is additive optional field
-
-## Tests Run
-
-```
-py_compile proto/server.py proto/e2e_ui_test.py            → PASS
-proto/e2e_ui_test.py full                                   → EXIT 0 — ALL GREEN
-  NEW: INV_VERIFY_SCALE_OK 9/9 all:True
-  ANNOT_OK / PERSIST_OK / REAL_OK / PROJECT_OK / XLSX_OK / PATH_GEOMETRY_OK — GREEN
-  Pre-existing 5 env-artifact markers unchanged. Zero regression.
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `finishCalib()` — UNCHANGED
-- ✅ `.bmaplan` schema — additive only (version stays 1)
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 
 ---

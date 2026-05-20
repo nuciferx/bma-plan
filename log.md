@@ -1,8 +1,45 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-20 — BUG-20260520-zen-exit-rp-restore — PASS (branch: main)
+
+**What changed:** Defensive fix making the right panel always recoverable after Zen Mode exits. Three coordinated changes: (1) F11 keydown handler now calls `preventDefault()` unconditionally so the browser can never enter native fullscreen and leave `body.zen` stuck — Zen exit (`if(body.zen || ...)`) always works; entering Zen is still blocked mid-draw or when a modal is open. (2) F9/F10 keybindings added — F9 calls `toggleLeftPanel`, F10 calls `toggleRightPanel`; the restore tabs already advertised [F9]/[F10] labels but had no handler wired. (3) `proto/static/css/app.css`: dead sibling selector `#right-panel.collapsed~#workspace #rp-restore-tab` (workspace precedes panel in DOM so `~` never matched) replaced with `body:has(#right-panel.collapsed) #rp-restore-tab{display:flex}`; the existing attribute-based fallback `.canvas-wrap[data-right-collapsed="1"]` kept. New E2E test `_test_bug_zen_exit_rp_restore` + marker `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` (6 sub-checks).
+
+**Why:** User-reported: after hiding L+R panels → F11 Zen → exit to normal, the restore tab (`#rp-restore-tab`) was gone and the right panel could not be re-shown. Headless repro (3 variants in `artifacts/repro_zen_exit_rp.py`) could not reproduce — tab returned to flex in Playwright. Lead hypothesis: real-browser native F11 fullscreen collides with the app F11 `!anyModal && !mPts.length` guard; when a modal is open or mid-draw, `preventDefault` was skipped, the browser entered native fullscreen, and `body.zen` desynced/stayed stuck causing `body.zen .panel-restore-tab{display:none}` to hide the tab permanently. Fix is defensive — recoverable regardless of exact trigger.
+
+**Files touched:**
+- `proto/ui.html`: F11 handler — unconditional `preventDefault()` + widened exit condition; F9→`toggleLeftPanel` + F10→`toggleRightPanel` added
+- `proto/static/css/app.css`: `#right-panel.collapsed~#workspace #rp-restore-tab` dead rule replaced with `:has()` selector; zen/overview `display:none !important` overrides unchanged
+- `proto/e2e_ui_test.py`: `_test_bug_zen_exit_rp_restore` (+6 sub-checks) + `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` marker wired into `main()`
+
+**Tests:**
+```
+py_compile proto/server.py proto/e2e_ui_test.py                → PASS
+proto/e2e_ui_test.py full                                       → EXIT 0 (101 _OK markers, 0 E2E_FAIL)
+  NEW: BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks:
+       inZen, zenExitedMidDraw, f10Toggled, tabVisibleWhenCollapsed,
+       tabHiddenInZen, tabVisibleAfterZenExit)
+  CACHE_OK / MAIN_UI_OK (cssLinkPresent + cssVarLoaded true) — CSS still serves
+  All prior 100 markers retained. Zero regression.
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (untouched; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- Static CSS touched → `UI_MANUAL_TEST.md` updated with 5-check Zen exit / F9/F10 / restore-tab checklist.
+- Headless repro could not reproduce the original trigger — fix is defensive. Real-browser manual test (checklist item 3: open modal then F11) is the only way to confirm the native-fullscreen desync path is closed.
+- Commit: `9453777` on main.
 
 ---
 
@@ -44,42 +81,6 @@ proto/e2e_ui_test.py full                                  → EXIT 0 (100 _OK m
 
 ---
 
-## 2026-05-20 — INV-2026-05-20-001 Verify Scale tool — PASS (branch: main)
-
-**What changed:** Replaced the `verifyScale()` stub with a real second-reference cross-check flow: Scale-menu "Verify Scale" reuses the existing 2-point calibration draw, then `verifyFinish()` computes `%dev = 100·|d_meas−d_enter|/d_enter` and shows `#verify-modal` with a color-coded confidence band (green <0.5% / yellow <2% / red ≥2%) plus measured distance, entered distance, area-impact estimate (≈2×%dev), and three action buttons: Accept / Re-calibrate / Average. A `calibPanelOk()` router was added so the calib panel OK button routes to `verifyFinish()` in verify mode and to `finishCalib()` otherwise — `finishCalib()` body unchanged. Schema additive: `calibScale.verifyResult{pct, action, verifyPts_per_m, ts}` round-trips through existing save/load automatically.
-
-**Why:** Calibration-by-single-reference gives no quality signal — a mis-click or misread dimension passes silently. Verify Scale closes this gap with a second known dimension and a numeric %dev band (green/yellow/red), giving three actionable recovery paths. Approach A from the invent pipeline GO verdict (spike 10/10 in `proto/sandbox/invent-verify-scale.html`).
-
-**Files touched:**
-- `proto/ui.html`: +82/−5 — calib panel h3 id + OK→`calibPanelOk`; `#verify-modal` HTML block; 10 new fns (`verifyScale`, `verifyFinish`, `openVerifyModal`, `_verifyBand`, `_verifyWriteResult`, `_afterVerifyScaleChange`, `verifyAccept`, `verifyRecalibrate`, `verifyAverage`, `closeVerifyModal`); `cancelCalib` reset; `anyModal` guard extended
-- `proto/e2e_ui_test.py`: +124 lines — `_test_verify_scale` (9 sub-checks) + `INV_VERIFY_SCALE_OK` marker wired into `main()`
-
-**Tests:**
-```
-py_compile proto/server.py proto/e2e_ui_test.py           → PASS
-proto/e2e_ui_test.py full                                  → EXIT 0
-  NEW: INV_VERIFY_SCALE_OK = 9/9 all:True
-  ANNOT_OK / PERSIST_OK / REAL_OK / PROJECT_OK / XLSX_OK / PATH_GEOMETRY_OK — GREEN
-  Pre-existing 5 env-artifact markers unchanged. Zero regression.
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (`calibScale.verifyResult` optional field; version stays 1)
-- ✅ `finishCalib()` — UNCHANGED (`calibPanelOk` wrapper routes to it)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- Follow-on E (fold verifyResult into phase1Warnings + export note) — deferred.
-- Follow-on D (live canvas badge showing %dev) — deferred.
-- Follow-on C (dual-axis H/V stretch detector) — deferred.
-- `BUG-20260520-zen-exit-rp-restore` parked at `BUG_STOP_NEEDS_REPRO`.
-
----
-
-<!-- INV-2026-05-20-002/003/004 Layer L1+L2+L3 and INV-2026-05-20-001 Verify Scale are the 2 sessions kept in this file -->
-<!-- BUG-20260520-sel-midpan, BLOAT-FLAKE-1, BLOAT-5, BLOAT-4, BLOAT-3 archived to docs/archive/log-2026-05-20.md -->
+<!-- BUG-20260520-zen-exit-rp-restore and INV-2026-05-20-002/003/004 Layer L1+L2+L3 are the 2 sessions kept in this file -->
+<!-- INV-2026-05-20-001 Verify Scale + earlier 2026-05-20 entries archived to docs/archive/log-2026-05-20.md -->
 <!-- BLOAT-2 and BLOAT-1 entries archived to docs/archive/log-2026-05-19.md -->
