@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-20 (updated: BUG-20260520-zen-exit-rp-restore Zen Mode right-panel restore fix)
+Date: 2026-05-20 (updated: HT-ACC series calibration accuracy UX — area math proven exact; wrong-line snap now warned; Verify ribbon promoted; 102 markers)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-20 (updated: BUG-20260520-zen-exit-rp-restore Zen Mode right-panel
 
 ## One-Line Status
 
-2026-05-20 — BUG-20260520-zen-exit-rp-restore PASS: Zen Mode right-panel restore fixed — F11 always exits Zen, F9/F10 toggle panels, dead CSS selector replaced with :has(); BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN, full E2E EXIT 0 (101 markers). Next: /bma-human-test for fresh findings or Verify Scale follow-on E.
+2026-05-20 — HT-ACC series PASS: Area math proven exact (0.08% error); calibration UX fixed — snap deviation >5% now triggers orange warning; Verify Scale promoted to ribbon; exact pts_per_m tooltip on scale status. HT_ACC_OK GREEN, full E2E EXIT 0 (102 markers). Next: /bma-sandbox-test on large real PDFs or Discovered backlog.
 
 ## Latest Sprint
 
+- HT-ACC series (HT-ACC-1/2/3 + HT-NAV-1) — Calibration accuracy UX: PASS (2026-05-20) — Area math proven exact; calibRaw[] + snap-deviation warning (HT-ACC-1); Verify ribbon + longest-baseline tip (HT-ACC-2); pts_per_m tooltip on scale status (HT-ACC-3); HT-NAV-1 no-fix; HT_ACC_OK GREEN (5 sub-checks); 102 _OK markers; commit c0834f0.
 - BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore: PASS (2026-05-20) — F11 unconditional preventDefault + widened exit; F9/F10 keybindings; dead `~` CSS selector → `:has()` fix; BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks); 101 _OK markers; commit 9453777.
 - INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3: PASS (2026-05-20) — Page-scoped layer as single authority; slug guarantee + render/hit helpers (L1); reassign-layer UI + objLayerKey (L2); global layerVis/layerLock demoted to mirror (L3); INV_LAYER_L1/L2/L3_OK GREEN; HT8D5A restored; 100 _OK markers; site-plan overlap bug fixed.
 - INV-2026-05-20-001 — Verify Scale tool: PASS (2026-05-20) — Verify Scale flow (approach A): %dev band green/yellow/red + Accept/Re-calibrate/Average modal; `calibPanelOk` router; `finishCalib` unchanged; `calibScale.verifyResult` additive schema; INV_VERIFY_SCALE_OK 9/9; full EXIT 0; zero regression.
@@ -47,10 +48,10 @@ Date: 2026-05-20 (updated: BUG-20260520-zen-exit-rp-restore Zen Mode right-panel
 ```bash
 py -3.12 -m py_compile proto/server.py proto/e2e_ui_test.py  # PASS
 py -3.12 proto/e2e_ui_test.py smoke                          # PASS EXIT 0 (18 baseline + PHASE_BLOAT2/3/4/5_OK 8/8 each + INV_PAGE_SETUP_A/B/C + HT11 GREEN)
-py -3.12 proto/e2e_ui_test.py full                           # PASS EXIT 0 (101 _OK markers; BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN)
+py -3.12 proto/e2e_ui_test.py full                           # PASS EXIT 0 (102 _OK markers; HT_ACC_OK GREEN)
 ```
 
-Last full run: 2026-05-20 (BUG-20260520-zen-exit-rp-restore; 101 _OK markers; BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN; all prior 100 markers retained). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
+Last full run: 2026-05-20 (HT-ACC series; 102 _OK markers; HT_ACC_OK GREEN; all prior 101 markers retained). Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits
 

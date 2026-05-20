@@ -1,14 +1,14 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: BUG-20260520-zen-exit-rp-restore PASS — BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN; 101 markers)
+Date: 2026-05-20 (updated: HT-ACC series PASS — calibration accuracy UX; area math proven exact; 102 markers; commit c0834f0)
 
 ## Immediate Next
 
-**BUG-20260520-zen-exit-rp-restore done. Full E2E EXIT 0 (101 markers). Queue is otherwise clear. Next sprint options:**
+**HT-ACC series done. Full E2E EXIT 0 (102 markers). Queue is clear. Next sprint options:**
 
-- **(PRIORITY 1) Run `/bma-human-test`** — realistic full-workflow user-journey test on the real 45-page permit PDF to surface fresh FRICTION/BROKEN findings and extend the sprint queue. No code sprint in the active queue after this fix.
+- **(PRIORITY 1) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). No code sprint in the active queue after this fix. Run through `bma-sandbox-journey-tester` Tier-1 + Tier-2 and file findings into PHASE_INDEX.
 
-- **(a) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev≥2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next code sprint.
+- **(a) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next code sprint.
 
 - **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
 
@@ -18,10 +18,11 @@ Date: 2026-05-20 (updated: BUG-20260520-zen-exit-rp-restore PASS — BUG_2026052
 
 - **(e) Optional: literal deletion of layerVis/layerLock write-mirror** from call sites — zero behaviour gain, test-only churn. Not urgent; deferred.
 
-- **(f) Manual Chrome verification** — Zen Mode exit/restore-tab (see new checklist in `UI_MANUAL_TEST.md`) + layer rebuild UI (reassign dropdown + site-page layer check) + `#verify-modal` visual rendering.
+- **(f) Manual Chrome verification** — HT-ACC calibration UX (calib panel orange warning + purple line + longest-baseline tip + Verify ribbon button + pts_per_m tooltip + land-tool arc hint). See new checklist in `UI_MANUAL_TEST.md`.
 
 ## Recently Done
 
+- **HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX** — 2026-05-20. PASS. Area math proven exact (0.08% error). HT-ACC-1: `calibRaw[]` + snap-deviation >5% orange warning (root cause of user's ~1% measurement loss). HT-ACC-2: Verify ribbon button + longest-baseline tip + Verify nudge + land-tool arc hint. HT-ACC-3: exact pts_per_m tooltip on scale status (no measurement change). HT-NAV-1: no code fix. HT_ACC_OK GREEN (5 sub-checks). Full E2E EXIT 0 (102 markers). Commit `c0834f0`. Static-asset safety: NO_BOM on app.css + status-bar.js, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.
 - **BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix** — 2026-05-20. PASS. F11 always exits Zen (unconditional preventDefault, no native-fullscreen desync); F9/F10 keybindings added; dead CSS `~` sibling selector replaced with `:has()`. BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks). Full E2E EXIT 0 (101 markers). Commit `9453777`. Static-asset safety: NO_BOM, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.
 - **INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3** — 2026-05-20. PASS. Page-scoped layer system is now the single authoritative source for render/hit/visibility/lock. Fixes site-plan object overlap bug (objects with `areaType="room"` → slug `"sub_area"` absent from site preset → `layerId=undefined` → overlap). L1: slug-guarantee + render/hit helpers repointed. L2: reassign-layer UI + `objLayerKey` real slug. L3: global `layerVis`/`layerLock` demoted to mirror. INV_LAYER_L1/L2/L3_OK GREEN. HT8D5A restored. 100 _OK markers. Commits: `93c512f` / `1301a12` / `2e6b2f9`.
 - **INV-2026-05-20-001 — Verify Scale tool** — 2026-05-20. PASS. Verify Scale flow (approach A): `verifyFinish()` %dev + `openVerifyModal()` green/yellow/red band + Accept/Re-calibrate/Average. `calibPanelOk()` router; `finishCalib()` unchanged. `calibScale.verifyResult` additive schema. `proto/e2e_ui_test.py` +124 lines; INV_VERIFY_SCALE_OK 9/9 all:True. Full E2E EXIT 0. `proto/server.py` NOT TOUCHED.

@@ -1,4 +1,27 @@
-# Latest: BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix
+# Latest: HT-ACC series — Calibration accuracy UX
+
+Branch: main
+Date: 2026-05-20
+
+## Result
+
+Automated PASS — py_compile PASS; full EXIT 0; HT_ACC_OK GREEN (5 sub-checks); 102 _OK markers. Static-asset safety: NO_BOM on app.css + status-bar.js; CACHE_OK + MAIN_UI_OK (cssLinkPresent/statusBarJsLoaded true). Manual verification required: the calib panel orange warning, purple reference-line overlay, and tooltip content are DOM/JS behaviors that headless Playwright cannot visually confirm. Real-browser verification is mandatory before distributing a build.
+
+## Manual Checklist — HT-ACC: Calibration accuracy UX
+
+| Check | Expected | Result |
+|-------|----------|--------|
+| Click Set Scale; click two points on a SHORT line that is surrounded by other vector lines (snap candidates nearby) | If snap jumped to a different (longer) line, the calib panel shows an orange warning: "snap จับเส้นต่างจากที่คลิก" with raw and snapped coordinates listed | — |
+| The warning is shown: look at the canvas | A purple line is drawn showing the actual captured reference line (not the line the user clicked) | — |
+| Calib panel, Set Scale mode, bottom tip area | A tip is visible: "ใช้เส้นที่ยาวที่สุดที่มีขนาดชัดเจนในแผน" (longest-baseline recommendation) | — |
+| After calibrating, look at ribbon beside "Set Scale" button | A "Verify" button (or "✓ Verify") appears; clicking it enters the Verify Scale flow (opens calib panel in verify mode) | — |
+| After calibrating, hover the Scale field in the status bar (bottom bar "Scale:" label) | Tooltip shows exact pts_per_m value (e.g. "pts_per_m: 12.34567 / 1:85.3") — more digits than the rounded visible label | — |
+| Same hover on the scale badge in the ribbon Scale group | Same exact tooltip content | — |
+| Activate the Land area tool (land boundary measurement) | Status bar or calib hint shows: "ใช้ arc (A) สำหรับขอบโค้ง" or similar arc-mode hint for curved boundaries | — |
+
+---
+
+# Previous: BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix
 
 Branch: main
 
