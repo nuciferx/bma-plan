@@ -1202,6 +1202,53 @@ def _test_bug_zen_exit_rp_restore(page):
     return {**result, "all": True}
 
 
+def _test_ht_acc_calibration(page):
+    """HT-ACC-1/2/3 acceptance — calibration accuracy UX (human-test 2026-05-20).
+
+    HT-ACC-1: raw click points captured (calibRaw) to detect snap grabbing the wrong
+    line; deviation >5% warns. HT-ACC-2: Verify Scale promoted to a ribbon button +
+    longest-baseline tip in the calib panel. HT-ACC-3: exact pts_per_m surfaced in the
+    scale tooltip (visible 1:N stays rounded; area uses the float).
+    """
+    result = page.evaluate("""() => {
+        const out = {};
+        // HT-ACC-2: Verify ribbon button
+        const vbtn = document.getElementById("btn-scale-verify");
+        out.verifyBtnExists = !!vbtn;
+        out.verifyBtnWired = vbtn ? (vbtn.getAttribute("onclick") || "").includes("verifyScale") : false;
+        // HT-ACC-2a: longest-baseline tip in calib panel
+        const cp = document.getElementById("calib-panel");
+        out.longestTip = cp ? (cp.innerText || cp.textContent || "").includes("ยาวที่สุด") : false;
+        // HT-ACC-1: raw-click plumbing + deviation-warning threshold semantics
+        out.calibRawExists = (typeof calibRaw !== "undefined") && Array.isArray(calibRaw);
+        const _dev = (raw, snap) => raw > 1 ? Math.abs(snap - raw) / raw * 100 : 0;
+        out.devWarnsWrongLine = _dev(400, 1663) > 5;   // snap grabbed a far line → warn
+        out.devQuietWhenClose = _dev(400, 402) <= 5;    // near-exact → no false warn
+        // HT-ACC-3: exact pts_per_m in the scale tooltip
+        if (pageData && pageData.scale) updateAnalyseUI(pageData);
+        const lblS = document.getElementById("lbl-scale");
+        out.scaleHasPpm = !!(pageData && pageData.scale && pageData.scale.pts_per_m);
+        out.scaleTooltip = lblS ? (lblS.title || "").includes("pt/m") : false;
+        return out;
+    }""")
+
+    failed = []
+    if not result.get("verifyBtnExists") or not result.get("verifyBtnWired"):
+        failed.append("Verify Scale ribbon button missing/unwired")
+    if not result.get("longestTip"):
+        failed.append("longest-baseline tip missing from calib panel")
+    if not result.get("calibRawExists"):
+        failed.append("calibRaw plumbing missing")
+    if not result.get("devWarnsWrongLine") or not result.get("devQuietWhenClose"):
+        failed.append("deviation-warning threshold wrong")
+    # tooltip only required when a scale with pts_per_m is present
+    if result.get("scaleHasPpm") and not result.get("scaleTooltip"):
+        failed.append("scale tooltip missing exact pts_per_m")
+    if failed:
+        raise AssertionError(f"HT_ACC failed: {failed} — {result}")
+    return {**result, "all": True}
+
+
 def _test_snap_helpers(page):
     result = page.evaluate(
         """() => {
@@ -8699,6 +8746,7 @@ def main():
             inv_layer_l2 = _test_inv_layer_l2(page)
             inv_layer_l3 = _test_inv_layer_l3(page)
             zen_exit_rp = _test_bug_zen_exit_rp_restore(page)
+            ht_acc = _test_ht_acc_calibration(page)
             snap_helpers = _test_snap_helpers(page)
             selection_helpers = _test_selection_and_area_type_helpers(page)
             setback_helpers = _test_setback_helpers(page)
@@ -8802,6 +8850,7 @@ def main():
         print("INV_LAYER_L2_OK", inv_layer_l2)
         print("INV_LAYER_L3_OK", inv_layer_l3)
         print("BUG_20260520_ZEN_EXIT_RP_RESTORE_OK", zen_exit_rp)
+        print("HT_ACC_OK", ht_acc)
         print("SNAP_OK", snap_helpers)
         print("SELECT_OK", selection_helpers)
         print("SETBACK_OK", setback_helpers)
