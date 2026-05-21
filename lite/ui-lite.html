@@ -97,7 +97,9 @@
       <div class="item" data-tool="ref">เส้นอ้างอิง (Reference)<span class="k">R</span></div>
       <div class="item" data-tool="count">นับจำนวน (Count)<span class="k">N</span></div>
       <div class="sep"></div>
-      <div class="item" id="mi-snap">Snap: <span id="snap-state">เปิด</span> (ปลาย/ตัด/บนเส้น)<span class="k">G</span></div>
+      <div class="item" id="mi-snap">Snap: <span id="snap-state">เปิด</span> (ปลาย/กลาง/ศูนย์/ตัด/ตั้งฉาก/บนเส้น)<span class="k">G</span></div>
+      <div class="item" id="mi-loupe">แว่นขยาย (Loupe)<span class="k">L</span></div>
+      <div class="item" style="color:var(--muted);font-size:11px;pointer-events:none">กด Shift ค้าง = ล็อกมุม 45°</div>
     </div></div>
     <div class="menu" data-m="page"><button>Page ▾</button><div class="dd">
       <div class="item" id="mi-prev">หน้าก่อน<span class="k">PgUp</span></div>
@@ -188,9 +190,9 @@ var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเว
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null};
+var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false};
 CATS.forEach(function(c){state.catVis[c.id]=true;});
-var SNAP_PX=11;
+var SNAP_PX=11; var lastMouse=null;
 
 var cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 function PSpage(){ if(!PS[curPage]) PS[curPage]={objects:[],scale:null,annotations:[]}; if(!PS[curPage].annotations)PS[curPage].annotations=[]; return PS[curPage]; }
@@ -259,7 +261,11 @@ function draw(){
     if(placed.some(function(p){return ovl(p,box);}))return; placed.push(box);
     ctx.fillStyle="rgba(15,17,21,.82)"; rr(ctx,box[0],box[1],w,h,4); ctx.fill();
     ctx.fillStyle=j.big?"#fff":"#cfe0ff"; ctx.fillText(j.txt,j.x,j.y); });
+  if(state.shift&&state.draft&&state.draft.length&&lastMouse&&isDrawTool()&&state.tool!=="count"){
+    var prev=state.draft[state.draft.length-1],lk=angleLock(prev,screenToPt(lastMouse.x,lastMouse.y)),a=ptToScreen(prev),bb=ptToScreen(lk);
+    ctx.strokeStyle="#4c8dff"; ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(bb.x,bb.y); ctx.stroke(); ctx.setLineDash([]); }
   drawSnap();
+  drawLoupe();
   updateHUD();
 }
 function catOf(id){return CATS.filter(function(c){return c.id===id;})[0];}
@@ -323,7 +329,10 @@ function afterPage(){ state.sel=null; state.draft=null; showProps(null); buildPi
 var dragging=false,lastX=0,lastY=0,moved=false;
 cv.addEventListener("mousedown",function(e){
   if(e.button!==0||!curImg)return;
-  var p=(state.snapOn&&state.snapHint&&isDrawTool())?state.snapHint.pt:screenToPt(e.offsetX,e.offsetY);
+  var p;
+  if(state.shift&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
+  else if(state.snapOn&&state.snapHint&&isDrawTool()){ p=state.snapHint.pt; }
+  else { p=screenToPt(e.offsetX,e.offsetY); }
   if(state.tool==="scale"){ state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.draft.length===2){ openCalib(); } draw(); return; }
   if(state.tool==="count"){ PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
@@ -343,11 +352,13 @@ cv.addEventListener("mousedown",function(e){
 });
 window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
   V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
-cv.addEventListener("mousemove",function(e){ if(dragging||!curImg)return;
-  if(!state.snapOn||!isDrawTool()){ if(state.snapHint){state.snapHint=null;draw();} return; }
-  var h=computeSnap(e.offsetX,e.offsetY);
-  var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
-  if(changed){ state.snapHint=h; draw(); } });
+cv.addEventListener("mousemove",function(e){ if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!curImg)return;
+  var need=state.loupe||(state.shift&&state.draft&&isDrawTool());
+  if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
+    var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
+    if(changed){state.snapHint=h;need=true;} }
+  else if(state.snapHint){state.snapHint=null;need=true;}
+  if(need)draw(); });
 window.addEventListener("mouseup",function(){dragging=false;});
 cv.addEventListener("dblclick",function(e){ if(!state.draft)return;
   if(state.tool==="poly"||state.tool==="path"||state.tool==="ref"){
@@ -407,10 +418,24 @@ function computeSnap(sx,sy){
     var ix=segIntersect(a0.x,a0.y,a1.x,a1.y,b0.x,b0.y,b1.x,b1.y);   // vendored
     if(ix){ var d=Math.hypot(ix.x-sx,ix.y-sy); if(d<bd){bd=d;best={pt:screenToPt(ix.x,ix.y),screen:ix,type:"intersection"};} } }
   if(best)return best;                                  // intersection next
+  segs.forEach(function(seg){ var m={x:(seg[0].x+seg[1].x)/2,y:(seg[0].y+seg[1].y)/2},s=ptToScreen(m),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:m,screen:s,type:"midpoint"};} });
+  if(best)return best;                                  // midpoint
+  PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!state.catVis[o.catId])return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:c,screen:s,type:"center"};} });
+  if(best)return best;                                  // center
+  if(state.draft&&state.draft.length){ var lp=state.draft[state.draft.length-1];
+    segs.forEach(function(seg){ var foot=footPerp(lp,seg[0],seg[1]); var s=ptToScreen(foot),d=Math.hypot(s.x-sx,s.y-sy);
+      if(d<bd){bd=d;best={pt:foot,screen:s,type:"perp"};} }); }
+  if(best)return best;                                  // perpendicular (from last point)
   segs.forEach(function(seg){ var s0=ptToScreen(seg[0]),s1=ptToScreen(seg[1]),np=nearOnSegS(sx,sy,s0,s1),d=Math.hypot(np.x-sx,np.y-sy);
     if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} });
   return best;
 }
+function footPerp(p,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1e-6)return{x:a.x,y:a.y};
+  var t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; return {x:a.x+t*dx,y:a.y+t*dy}; }   // projection onto infinite line
+function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy),step=Math.PI/4;
+  var la=Math.round(Math.atan2(dy,dx)/step)*step; return {x:prev.x+Math.cos(la)*len,y:prev.y+Math.sin(la)*len}; }
 /* --- LITE-ANNOT: render + hit-test --- */
 function drawAnnots(){ var anns=PSpage().annotations||[];
   anns.forEach(function(a){
@@ -448,7 +473,15 @@ function drawSnap(){ if(!state.snapHint)return; var s=state.snapHint.screen,t=st
   else if(t==="intersection"){ ctx.beginPath();ctx.moveTo(s.x-6,s.y-6);ctx.lineTo(s.x+6,s.y+6);ctx.moveTo(s.x+6,s.y-6);ctx.lineTo(s.x-6,s.y+6);ctx.stroke(); }
   else { ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.stroke(); }
   ctx.fillStyle="#ffd60a"; ctx.font="10px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="bottom";
-  ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น"}[t],s.x+9,s.y-7); }
+  ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น",midpoint:"กึ่งกลาง",center:"ศูนย์กลาง",perp:"ตั้งฉาก"}[t],s.x+9,s.y-7); }
+function drawLoupe(){ if(!state.loupe||!lastMouse||!curImg)return; var DPR=window.devicePixelRatio||1;
+  var mx=lastMouse.x,my=lastMouse.y,LR=64,MAG=2.6,sw=2*LR/MAG; var r=cv.getBoundingClientRect();
+  var lx=mx+90,ly=my-90; if(lx+LR>r.width)lx=mx-90; if(ly-LR<0)ly=my+90;
+  ctx.save(); ctx.beginPath(); ctx.arc(lx,ly,LR,0,7); ctx.closePath(); ctx.clip();
+  ctx.drawImage(cv,(mx-sw/2)*DPR,(my-sw/2)*DPR,sw*DPR,sw*DPR,lx-LR,ly-LR,2*LR,2*LR); ctx.restore();
+  ctx.strokeStyle="#fff"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(lx,ly,LR,0,7); ctx.stroke();
+  ctx.strokeStyle="rgba(255,255,255,.55)"; ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(lx-LR,ly);ctx.lineTo(lx+LR,ly);ctx.moveTo(lx,ly-LR);ctx.lineTo(lx,ly+LR); ctx.stroke(); }
 
 /* calibration modal */
 function openCalib(){ var d=state.draft; var ptDist=Math.hypot(d[1].x-d[0].x,d[1].y-d[0].y);
@@ -476,6 +509,7 @@ window.addEventListener("click",closeMenus);
 function setTool(t){ state.tool=t; if(t==="count")state.activeCat="count"; state.draft=null; if(!isDrawTool())state.snapHint=null; buildPicker(); draw(); }
 function toggleSnap(){ state.snapOn=!state.snapOn; if(!state.snapOn)state.snapHint=null; var el=document.getElementById("snap-state"); if(el)el.textContent=state.snapOn?"เปิด":"ปิด"; draw(); }
 document.getElementById("mi-snap").onclick=function(){ toggleSnap(); closeMenus(); };
+document.getElementById("mi-loupe").onclick=function(){ state.loupe=!state.loupe; closeMenus(); draw(); };
 
 /* file ops */
 document.getElementById("mi-open").onclick=function(){document.getElementById("file-pdf").click();};
@@ -636,10 +670,13 @@ window.addEventListener("keydown",function(e){
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
   if(e.key==="Delete"&&state.sel){document.getElementById("p-del").onclick();return;}
   if(e.key==="g"||e.key==="G"){toggleSnap();return;}
+  if(e.key==="l"||e.key==="L"){state.loupe=!state.loupe;draw();return;}
   var map={s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
 function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
+window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(curImg)draw();} });
+window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(curImg)draw();} });
 
 /* boot */
 buildPicker(); resize();
