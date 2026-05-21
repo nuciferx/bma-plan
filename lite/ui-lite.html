@@ -104,6 +104,8 @@
       <div class="item" id="mi-next">หน้าถัดไป<span class="k">PgDn</span></div>
       <div class="item" id="mi-rot">หมุนหน้า +90°</div>
       <div class="item" id="mi-excl">ยกเว้นหน้านี้ (toggle)</div>
+      <div class="sep"></div>
+      <div class="item" id="mi-setup">Page Setup… (แท็ก/สเกล/โปรเจกต์)<span class="k">Ctrl+,</span></div>
     </div></div>
     <div class="menu" data-m="annotate"><button>Annotate ▾</button><div class="dd">
       <div class="item" data-tool="ann_text">ตัวหนังสือ (Text)</div>
@@ -142,7 +144,19 @@
     <div id="modal"><div class="box"><h4>ตั้งสเกล</h4>
       <p style="font-size:12px;color:var(--muted);margin-bottom:8px">ระยะที่คลิก = <span id="cal-pt">—</span> pt. ใส่ระยะจริง (เมตร):</p>
       <input id="cal-m" type="number" step="0.01" placeholder="เช่น 10.00">
-      <div class="row"><button id="cal-cancel">ยกเลิก</button><button class="pri" id="cal-ok">ตั้งสเกล</button></div></div></div>
+      <div class="row"><button id="cal-cancel">ยกเลิก</button><button class="pri" id="cal-ok">ตั้งสเกล</button></div></div>
+    <div id="setupModal" style="position:absolute;inset:0;background:rgba(6,8,12,.7);z-index:92;display:none;align-items:center;justify-content:center;">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;width:390px">
+        <h4 style="margin:0 0 12px">Page Setup</h4>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:3px">ชื่อโปรเจกต์</div>
+        <input id="su-proj" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px">
+        <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">แท็กหน้านี้ (ใช้จัดกลุ่มใน Overview)</div>
+        <select id="su-tag" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px"></select>
+        <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">สเกลหน้านี้ — pt ต่อ 1 เมตร (ว่าง = ไม่เปลี่ยน)</div>
+        <input id="su-ppm" type="number" step="0.01" placeholder="(ตั้งจากเครื่องมือ Set Scale ก็ได้)" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px">
+        <div class="row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button id="su-cancel" style="padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:#222a37;color:var(--ink);cursor:pointer">ยกเลิก</button><button class="pri" id="su-ok" style="padding:7px 14px;border-radius:7px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer">บันทึก</button></div>
+      </div>
+    </div>
   </div>
 </div>
 <input type="file" id="file-pdf" accept="application/pdf" style="display:none">
@@ -169,6 +183,8 @@ var CATS=[
  {id:"count",name:"นับจำนวน",tag:"count_marker",color:"#22d3ee",counting:true},
 ];
 var caseId=null, pdfName=null, pageCount=0, pageRot={}, excluded={};
+var projectInfo={name:""}, pageTags={};
+var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเวณ",floor:"แปลนชั้น",plan:"ผัง",parking:"ที่จอดรถ",amenity:"ส่วนกลาง",detail:"รายละเอียด/รูปด้าน"};
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
@@ -469,13 +485,25 @@ document.getElementById("mi-prev").onclick=function(){if(curPage>1)loadPage(curP
 document.getElementById("mi-next").onclick=function(){if(curPage<pageCount)loadPage(curPage+1);};
 document.getElementById("mi-rot").onclick=function(){V.rot=(V.rot+90)%360;fit();};
 document.getElementById("mi-excl").onclick=function(){excluded[curPage]=!excluded[curPage];state.dirty=true;draw();};
+/* LITE-PAGESETUP */
+function openSetup(){ if(!caseId){alert("เปิด PDF ก่อน");return;}
+  document.getElementById("su-proj").value=projectInfo.name||"";
+  document.getElementById("su-tag").innerHTML=Object.keys(PAGE_TAGS).map(function(k){return '<option value="'+k+'"'+(((pageTags[curPage]||"")===k)?" selected":"")+'>'+PAGE_TAGS[k]+'</option>';}).join("");
+  var s=getScaleForPage(curPage); document.getElementById("su-ppm").value=s?s.pts_per_m.toFixed(2):"";
+  document.getElementById("setupModal").style.display="flex"; }
+document.getElementById("mi-setup").onclick=function(){closeMenus();openSetup();};
+document.getElementById("su-cancel").onclick=function(){document.getElementById("setupModal").style.display="none";};
+document.getElementById("su-ok").onclick=function(){ projectInfo.name=document.getElementById("su-proj").value;
+  pageTags[curPage]=document.getElementById("su-tag").value;
+  var v=parseFloat(document.getElementById("su-ppm").value); if(v>0)PSpage().scale={pts_per_m:v};
+  document.getElementById("setupModal").style.display="none"; state.dirty=true; draw(); };
 
 /* save / load .bmaplan (lite-native, proto-flavored, version 1) */
 document.getElementById("mi-save").onclick=function(){
   if(!caseId){alert("ยังไม่ได้เปิด PDF");return;}
   var pages={}; Object.keys(PS).forEach(function(n){ var p=PS[n];
     pages[n]={ scale:p.scale, objects:p.objects.map(function(o){return {catId:o.catId,semanticTag:o.semanticTag,kind:o.kind,counting:o.counting,pts:o.pts,dimVisible:o.dimVisible};}), annotations:p.annotations||[] }; });
-  var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,pageRotations:pageRot,excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pages:pages};
+  var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,projectInfo:projectInfo,pageTags:pageTags,pageRotations:pageRot,excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pages:pages};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
@@ -509,6 +537,7 @@ document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0]
     if(doc.pages){ PS={}; Object.keys(doc.pages).forEach(function(n){ var p=doc.pages[n];
       PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; });
       (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
+      if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags;
       alert("โหลดโปรเจกต์แล้ว ("+Object.keys(doc.pages).length+" หน้ามีข้อมูล)"); state.dirty=false; afterPage(); }
     }catch(err){alert("ไฟล์ .bmaplan ไม่ถูกต้อง");} }; rd.readAsText(f); e.target.value=""; };
 
@@ -523,7 +552,7 @@ document.getElementById("btn-cmdk").onclick=openCmdK;
 
 /* F12 overview (real thumbs) */
 function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); var html="";
-  for(var n=1;n<=pageCount;n++){ html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; }
+  for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:''; html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; }
   g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
   document.getElementById("ov").classList.add("show"); }
 document.getElementById("btn-ov").onclick=openOv;
@@ -566,6 +595,7 @@ window.addEventListener("keydown",function(e){
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="s"){e.preventDefault();document.getElementById("mi-save").onclick();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="o"){e.preventDefault();document.getElementById("file-pdf").click();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="e"){e.preventDefault();document.getElementById("mi-xlsx").onclick();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key===","){e.preventDefault();openSetup();return;}
   if(modalOpen())return;
   if(e.key==="F12"){e.preventDefault();openOv();return;}
   if(e.key==="Escape"){closeOverlays();if(state.draft){state.draft=null;draw();}return;}
@@ -577,7 +607,7 @@ window.addEventListener("keydown",function(e){
   var map={s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
-function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show");}
+function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
 
 /* boot */
 buildPicker(); resize();
