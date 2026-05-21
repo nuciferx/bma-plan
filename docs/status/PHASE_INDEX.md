@@ -164,10 +164,11 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### ideas 2026-05-21
 
-- [ ] **Auto-place land-boundary pins from outermost lot corners on site-plan page** — `invent-queued` — from /idea 2026-05-21 23:47
+- [x] **Auto-place land-boundary pins from outermost lot corners on site-plan page** — `invent-done-nogo` — from /idea 2026-05-21 23:47 → docs/invent/land-boundary-pin-assist.md
     - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-21 23:47
     - Tags: bma-plan, measure, p-low, experiment
-    - ⚠️ Scope: touches Phase-1 exclusion "auto boundary detection". `/bma-invent` MUST reshape to semi-auto (snap-assist on a hand-drawn bounding polygon), not full CV auto-detect, to stay in Phase 1.
+    - ⚠️ Scope: touches Phase-1 exclusion "auto boundary detection". Reshaped to semi-auto (convex hull + RDP + snap, no CV) — stayed in Phase 1.
+    - Decision: NOGO 2026-05-22 at human checkpoint. Spike PASS 5/5 (`proto/sandbox/invent-land-boundary-pin-assist.html`), but p-low + convex-hull weak on concave lots → parked. Revive needs RESHAPE to concave hull, or start with approach B (draw-then-enhance).
 
 ### bloat-audit 2026-05-19 (user-initiated, manual analysis pre-loop)
 

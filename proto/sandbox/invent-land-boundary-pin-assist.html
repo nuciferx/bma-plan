@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike — land-boundary-pin-assist (Approach A)</title>
+<style>
+  body{margin:0;font:14px/1.5 system-ui,sans-serif;background:#1a1a1e;color:#e8e8ea;display:flex;height:100vh}
+  #left{flex:1;position:relative}
+  #cv{display:block;background:#23232a;cursor:crosshair}
+  #right{width:320px;background:#2a2a31;border-left:1px solid #3a3a44;display:flex;flex-direction:column;overflow:auto}
+  h1{font-size:15px;margin:14px 14px 4px}
+  .hint{font-size:12px;color:#9a9aa4;margin:0 14px 10px}
+  .bar{padding:8px 14px;border-bottom:1px solid #3a3a44;display:flex;gap:6px;flex-wrap:wrap}
+  button{background:#3a3a46;color:#e8e8ea;border:1px solid #4a4a58;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
+  button:hover{background:#46465a}
+  button.primary{background:#0a84ff;border-color:#0a84ff}
+  button.danger{background:#ff453a;border-color:#ff453a}
+  #corners{padding:6px 0;flex:1}
+  .corner-row{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:12px;border-bottom:1px solid #33333c}
+  .corner-row.rejected{opacity:.4;text-decoration:line-through}
+  .swatch{width:14px;height:14px;border-radius:50%;flex:0 0 auto}
+  .corner-row .co{flex:1;color:#bfbfc8}
+  .snapbadge{font-size:10px;color:#30d158;border:1px solid #30d158;border-radius:4px;padding:0 4px}
+  #status{padding:10px 14px;font-size:12px;border-top:1px solid #3a3a44;white-space:pre-wrap}
+  .ok{color:#30d158}.fail{color:#ff453a}
+  .legend{font-size:11px;color:#8a8a94;padding:6px 14px}
+  .legend b{color:#e8e8ea}
+</style>
+</head>
+<body>
+<div id="left">
+  <canvas id="cv" width="900" height="760"></canvas>
+</div>
+<div id="right">
+  <h1>Land Pin Assist — Spike A</h1>
+  <p class="hint">จำลอง: ผู้ใช้คลิก<b>หยาบๆ</b>รอบแปลง → ระบบหา "มุมนอกสุด" (convex hull) → RDP ลด noise → snap เข้ามุมจริง → ยืนยันรายมุม</p>
+  <div class="bar">
+    <button class="primary" id="btn-finish">▶ วิเคราะห์ (Enter)</button>
+    <button id="btn-undo">↶ ลบจุดล่าสุด</button>
+    <button id="btn-clear">ล้าง</button>
+    <button id="btn-demo">เติมจุดหยาบตัวอย่าง</button>
+  </div>
+  <div class="legend">
+    <span class="swatch" style="background:#ffd60a;display:inline-block;vertical-align:middle"></span> <b>true corners</b> (จำลอง snap index) &nbsp;·&nbsp;
+    <span class="swatch" style="background:#8a8a94;display:inline-block;vertical-align:middle"></span> rough clicks &nbsp;·&nbsp;
+    <span class="swatch" style="background:#0a84ff;display:inline-block;vertical-align:middle"></span> suggested pin
+  </div>
+  <div id="corners"></div>
+  <button class="primary" id="btn-commit" style="margin:8px 14px" disabled>✓ Commit เป็น polygon ที่ดิน</button>
+  <div id="status">รอจุด…</div>
+</div>
+<script>
+// ---- self-check harness ----
+const CHECKS=[];function check(name,cond){CHECKS.push({name,pass:!!cond});}
+
+// ---- simulated snap index: the REAL lot corners (an L-shaped, non-convex parcel) ----
+const TRUE_CORNERS=[
+  {x:180,y:140},{x:680,y:160},{x:700,y:430},{x:470,y:440},
+  {x:455,y:640},{x:160,y:620}
+]; // 6-corner L-shape
+const SNAP_RADIUS=34;
+
+// ---- geometry helpers (these mimic what would live NEXT TO ui.html funcs) ----
+// Andrew's monotone chain convex hull (would be added as convexHull(), not editing polyAreaM2)
+function convexHull(pts){
+  if(pts.length<3)return pts.slice();
+  const p=pts.slice().sort((a,b)=>a.x-b.x||a.y-b.y);
+  const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+  const lower=[];for(const q of p){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],q)<=0)lower.pop();lower.push(q);}
+  const upper=[];for(let i=p.length-1;i>=0;i--){const q=p[i];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],q)<=0)upper.pop();upper.push(q);}
+  lower.pop();upper.pop();return lower.concat(upper);
+}
+// RDP — mirrors ui.html:1661 rdpSimplify (reused verbatim in real impl, copied here for isolation)
+function rdpSimplify(pts,tol){
+  if(pts.length<3)return pts.slice();
+  const sq=(x)=>x*x;
+  const segDist=(p,a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1e-9)return Math.hypot(p.x-a.x,p.y-a.y);let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));};
+  const rec=(s,e,out)=>{let dmax=0,idx=-1;for(let i=s+1;i<e;i++){const d=segDist(pts[i],pts[s],pts[e]);if(d>dmax){dmax=d;idx=i;}}if(dmax>tol){rec(s,idx,out);out.push(pts[idx]);rec(idx,e,out);}};
+  const out=[pts[0]];rec(0,pts.length-1,out);out.push(pts[pts.length-1]);return out;
+}
+// external snap call — mimics snap(cx,cy) WITHOUT touching its internals
+function snapToCorner(pt){
+  let best=null,bd=SNAP_RADIUS;
+  for(const c of TRUE_CORNERS){const d=Math.hypot(pt.x-c.x,pt.y-c.y);if(d<bd){bd=d;best=c;}}
+  return best?{x:best.x,y:best.y,snapped:true}:{x:pt.x,y:pt.y,snapped:false};
+}
+
+// ---- state ----
+let rough=[];        // user's rough clicks
+let suggested=[];    // {x,y,snapped,rejected}
+let committed=null;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // true corners (faint, as a guide — represents the underlying drawing)
+  ctx.strokeStyle='#44444e';ctx.lineWidth=1.5;ctx.beginPath();
+  TRUE_CORNERS.forEach((c,i)=>{i?ctx.lineTo(c.x,c.y):ctx.moveTo(c.x,c.y);});ctx.closePath();ctx.stroke();
+  for(const c of TRUE_CORNERS){ctx.fillStyle='#ffd60a';ctx.beginPath();ctx.arc(c.x,c.y,5,0,7);ctx.fill();}
+  // rough clicks
+  ctx.strokeStyle='#6a6a74';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();
+  rough.forEach((p,i)=>{i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.stroke();ctx.setLineDash([]);
+  for(const p of rough){ctx.fillStyle='#8a8a94';ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,7);ctx.fill();}
+  // committed polygon
+  if(committed){
+    ctx.fillStyle='rgba(48,209,88,.18)';ctx.strokeStyle='#30d158';ctx.lineWidth=2.5;ctx.beginPath();
+    committed.forEach((p,i)=>{i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  // suggested pins
+  const act=suggested.filter(s=>!s.rejected);
+  if(act.length&&!committed){
+    ctx.strokeStyle='#0a84ff';ctx.lineWidth=2;ctx.beginPath();
+    act.forEach((p,i)=>{i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();ctx.stroke();
+  }
+  suggested.forEach((p,i)=>{
+    if(p.rejected)return;
+    ctx.fillStyle=p.snapped?'#0a84ff':'#ff9f0a';
+    ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(i+1,p.x,p.y);
+  });
+}
+
+function renderCornerList(){
+  const box=document.getElementById('corners');box.innerHTML='';
+  suggested.forEach((p,i)=>{
+    const row=document.createElement('div');row.className='corner-row'+(p.rejected?' rejected':'');
+    row.innerHTML=`<span class="swatch" style="background:${p.snapped?'#0a84ff':'#ff9f0a'}"></span>
+      <span class="co">มุม ${i+1} — (${p.x|0}, ${p.y|0})</span>
+      ${p.snapped?'<span class="snapbadge">snapped</span>':''}`;
+    const b=document.createElement('button');b.textContent=p.rejected?'คืน':'ลบ';
+    if(!p.rejected)b.className='danger';
+    b.onclick=()=>{p.rejected=!p.rejected;renderCornerList();draw();updateCommit();};
+    row.appendChild(b);box.appendChild(row);
+  });
+}
+function updateCommit(){
+  document.getElementById('btn-commit').disabled=suggested.filter(s=>!s.rejected).length<3||!!committed;
+}
+
+function analyse(){
+  if(rough.length<3){setStatus('ต้องการอย่างน้อย 3 จุดหยาบ',false);return;}
+  // 1. convex hull → outermost
+  const hull=convexHull(rough);
+  // 2. RDP clean
+  const simp=rdpSimplify(hull.concat([hull[0]]),25).slice(0,-1);
+  // 3. snap each to true corner
+  suggested=simp.map(p=>{const s=snapToCorner(p);return{x:s.x,y:s.y,snapped:s.snapped,rejected:false};});
+  // dedup snapped-to-same-corner
+  const seen=new Set();suggested=suggested.filter(s=>{const k=s.snapped?`${s.x},${s.y}`:Math.random();if(seen.has(k))return false;seen.add(k);return true;});
+  committed=null;
+  renderCornerList();updateCommit();draw();
+  const sn=suggested.filter(s=>s.snapped).length;
+  setStatus(`rough=${rough.length} → hull=${hull.length} → rdp=${simp.length} → suggested=${suggested.length} (snapped ${sn}/${suggested.length})`,true);
+  runChecks(hull,simp);
+}
+
+function runChecks(hull,simp){
+  CHECKS.length=0;
+  check('hull ≤ rough',hull.length<=rough.length);
+  check('rdp ≤ hull',simp.length<=hull.length);
+  check('suggested ≤ true-corner count (6)',suggested.length<=TRUE_CORNERS.length);
+  const snapped=suggested.filter(s=>s.snapped).length;
+  check('≥3 corners snapped to real corners',snapped>=3);
+  check('all snapped pins lie exactly on a true corner',suggested.filter(s=>s.snapped).every(s=>TRUE_CORNERS.some(c=>c.x===s.x&&c.y===s.y)));
+  const line=CHECKS.map(c=>`${c.pass?'✓':'✗'} ${c.name}`).join('\n');
+  const all=CHECKS.every(c=>c.pass);
+  document.getElementById('status').innerHTML+=`\n\n<b>SELF-CHECK ${all?'<span class="ok">PASS</span>':'<span class="fail">FAIL</span>'} ${CHECKS.filter(c=>c.pass).length}/${CHECKS.length}</b>\n`+line;
+  window.__SPIKE_PASS=all;
+}
+
+function setStatus(s,ok){document.getElementById('status').innerHTML=`<span class="${ok?'ok':'fail'}">${s}</span>`;}
+
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();rough.push({x:e.clientX-r.left,y:e.clientY-r.top});committed=null;suggested=[];renderCornerList();updateCommit();draw();});
+document.getElementById('btn-finish').onclick=analyse;
+document.getElementById('btn-undo').onclick=()=>{rough.pop();suggested=[];committed=null;renderCornerList();updateCommit();draw();};
+document.getElementById('btn-clear').onclick=()=>{rough=[];suggested=[];committed=null;renderCornerList();updateCommit();setStatus('รอจุด…',true);draw();};
+document.getElementById('btn-demo').onclick=()=>{
+  // messy clicks roughly tracing the L-shape outline (intentionally noisy + off-corner)
+  rough=[{x:175,y:150},{x:300,y:135},{x:500,y:150},{x:690,y:155},{x:710,y:300},
+         {x:695,y:435},{x:560,y:438},{x:472,y:445},{x:460,y:540},{x:450,y:645},
+         {x:300,y:630},{x:155,y:625},{x:165,y:400}];
+  suggested=[];committed=null;renderCornerList();updateCommit();draw();setStatus('เติมจุดหยาบ 13 จุด — กด ▶ วิเคราะห์',true);
+};
+document.getElementById('btn-commit').onclick=()=>{committed=suggested.filter(s=>!s.rejected).map(s=>({x:s.x,y:s.y}));updateCommit();draw();
+  setStatus(`✓ Commit แล้ว: land polygon ${committed.length} มุม → ป้อนเข้า mPolys/polyEdgeTags ได้ (schema เดิม)`,true);};
+window.addEventListener('keydown',e=>{if(e.key==='Enter')analyse();});
+draw();renderCornerList();
+</script>
+</body>
+</html>
