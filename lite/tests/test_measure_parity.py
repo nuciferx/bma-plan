@@ -37,6 +37,8 @@ FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", 
 VENDORED_FUNCS = [
     "segIntersect", "_flattenCubicSeg", "flattenPathToPoints", "polySelfIntersects",
     "origSize", "pdfToC", "cToPdf", "polyAreaM2", "polyMetrics", "pathAreaM2",
+    "arcSegmentAreaM2", "polygonAreaWithArcsM2", "_arcCircumcenter",
+    "_arcPolygonCentroid", "computeArcEdge", "polyMetricsAnyShape",
 ]
 VENDORED_CONSTS = ["RS", "_PATH_FLATTEN_TOL"]
 
@@ -89,6 +91,7 @@ const R={};
 R.poly=FIX.polys.map(f=>{PPM=f.ppm;curPage=1;return {area:polyAreaM2(f.pts),metrics:polyMetrics({pts:f.pts}).area,self:polySelfIntersects(f.pts)};});
 R.path=FIX.paths.map(f=>{PPM=f.ppm;curPage=1;return {area:pathAreaM2({segments:f.segments}),npts:flattenPathToPoints({segments:f.segments}).length};});
 R.coord=FIX.coords.map(f=>{ROT=f.rot;pageData={size:{orig_w_pt:f.W,orig_h_pt:f.H}};const c=pdfToC(f.px,f.py);const b=cToPdf(c.x,c.y);return {c,roundtrip:b};});
+R.arc=(FIX.arcs||[]).map(f=>{PPM=f.ppm;curPage=1;const c=_arcPolygonCentroid(f.pts);const ae=computeArcEdge(f.pts[f.edge],f.pts[(f.edge+1)%f.pts.length],f.through,c);const poly={pts:f.pts,edges:[]};poly.edges[f.edge]={edgeType:"arc",arcSweep:ae.sweep,arcThrough:f.through};return {sweep:ae.sweep,area:polygonAreaWithArcsM2(poly),anyShape:polyMetricsAnyShape(poly).area};});
 console.log(JSON.stringify(R));
 """
     return stub + "\n" + body + "\n" + runner

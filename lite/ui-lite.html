@@ -90,6 +90,7 @@
       <div class="item" id="mi-pdfov">Export PDF (overlay)</div>
     </div></div>
     <div class="menu" data-m="measure"><button>Measure ▾</button><div class="dd">
+      <div class="item" data-tool="select">เลือก/แก้ไข (Select)<span class="k">V</span></div>
       <div class="item" data-tool="scale">ตั้งสเกล (Set Scale)<span class="k">S</span></div>
       <div class="item" data-tool="poly">วัดพื้นที่ (Polygon)<span class="k">A</span></div>
       <div class="item" data-tool="dist">ระยะ (Distance)<span class="k">D</span></div>
@@ -190,7 +191,7 @@ var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเว
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false};
+var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null};
 CATS.forEach(function(c){state.catVis[c.id]=true;});
 var SNAP_PX=11; var lastMouse=null;
 
@@ -234,11 +235,13 @@ function draw(){
     var cat=catOf(o.catId), sel=state.sel===o;
     if(o.counting){ var sp=ptToScreen(o.pts[0]); ctx.beginPath(); ctx.arc(sp.x,sp.y,7,0,7); ctx.fillStyle=cat.color; ctx.fill();
       if(sel){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();} return; }
-    var scr=o.pts.map(ptToScreen);
-    ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
-    if(o.kind==="poly")ctx.closePath();
-    if(o.kind==="poly"){ ctx.fillStyle=hexA(cat.color,sel?0.30:0.16); ctx.fill(); }
-    ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; if(o.kind==="ref")ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]);
+    if(o.kind==="poly"){ tracePoly(o); ctx.fillStyle=hexA(cat.color,sel?0.30:0.16); ctx.fill();
+      ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; ctx.stroke(); }
+    else { var scr=o.pts.map(ptToScreen); ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
+      ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; if(o.kind==="ref")ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]); }
+    if(sel&&o.kind==="poly"){ ctx.fillStyle=(state.arcEdit&&state.arcEdit.obj===o)?"#ffd60a":"#fff"; var ei=(state.arcEdit&&state.arcEdit.obj===o)?state.arcEdit.edgeIdx:-1;
+      for(var k=0;k<o.pts.length;k++){ var mb=ptToScreen({x:(o.pts[k].x+o.pts[(k+1)%o.pts.length].x)/2,y:(o.pts[k].y+o.pts[(k+1)%o.pts.length].y)/2});
+        ctx.fillStyle=(k===ei)?"#ffd60a":"#4c8dff"; ctx.fillRect(mb.x-3,mb.y-3,6,6); } }
     if(o.dimVisible){
       var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
       for(var i=0;i<n;i++){ var a=o.pts[i], b=o.pts[(i+1)%o.pts.length];
@@ -275,11 +278,22 @@ function ovl(a,b){return !(a[0]+a[2]<b[0]||b[0]+b[2]<a[0]||a[1]+a[3]<b[1]||b[1]+
 function centroid(pts){var x=0,y=0;pts.forEach(function(p){x+=p.x;y+=p.y;});return{x:x/pts.length,y:y/pts.length};}
 
 /* area + length via VENDORED engine (polyAreaM2) ------------------- */
-function areaOf(o){ if(o.kind!=="poly")return null; return polyAreaM2(o.pts); }   // vendored
+function hasArc(o){ return o.edges&&o.edges.some(function(e){return e&&e.edgeType==="arc";}); }
+function areaOf(o){ if(o.kind!=="poly")return null; return hasArc(o)?polygonAreaWithArcsM2(o):polyAreaM2(o.pts); }   // vendored
+function tracePoly(o){ var scr=o.pts.map(ptToScreen); ctx.beginPath(); ctx.moveTo(scr[0].x,scr[0].y);
+  if(!hasArc(o)){ for(var i=1;i<scr.length;i++)ctx.lineTo(scr[i].x,scr[i].y); ctx.closePath(); return; }
+  var cent=centroid(o.pts),n=scr.length;
+  for(var i=0;i<n;i++){ var j=(i+1)%n,e=(o.edges||[])[i];
+    if(e&&e.edgeType==="arc"&&e.arcThrough&&Math.abs(e.arcSweep||0)>0.001){ var arc=computeArcEdge(o.pts[i],o.pts[j],e.arcThrough,cent);
+      if(arc.center){ var Cc=ptToScreen(arc.center),Rc=Math.hypot(scr[i].x-Cc.x,scr[i].y-Cc.y),aA=Math.atan2(scr[i].y-Cc.y,scr[i].x-Cc.x),aB=Math.atan2(scr[j].y-Cc.y,scr[j].x-Cc.x),Pc=ptToScreen(e.arcThrough),aP=Math.atan2(Pc.y-Cc.y,Pc.x-Cc.x);
+        var sw=(aB-aA+2*Math.PI)%(2*Math.PI),op=(aP-aA+2*Math.PI)%(2*Math.PI); ctx.arc(Cc.x,Cc.y,Rc,aA,aB,op>sw); continue; } }
+    ctx.lineTo(scr[j].x,scr[j].y); }
+  ctx.closePath(); }
 function edgeM(a,b){ var s=getScaleForPage(curPage); if(!s)return null; return Math.hypot(b.x-a.x,b.y-a.y)/s.pts_per_m; }
 
 /* ============================ HUD / PICKER / PROPS ============================ */
-var TOOLNAME={scale:"Set Scale",poly:"Polygon",dist:"Distance",path:"Path",ref:"Reference",count:"Count"};
+var TOOLNAME={select:"เลือก/แก้ไข",scale:"Set Scale",poly:"Polygon",dist:"Distance",path:"Path",ref:"Reference",count:"Count",
+  ann_text:"Text",ann_comment:"Comment",ann_arrow:"Arrow",ann_highlight:"Highlight",ann_rect:"Rect",ann_circle:"Circle",ann_cloud:"Cloud"};
 function updateHUD(){
   var s=getScaleForPage(curPage), cat=catOf(state.activeCat);
   document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">ตั้งแล้ว ('+s.pts_per_m.toFixed(2)+' pt/m) ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
@@ -287,6 +301,10 @@ function updateHUD(){
   var nobj=caseId?PSpage().objects.length:0;
   document.getElementById("hud-bl").innerHTML='วัด: <b style="color:'+cat.color+'">'+cat.name+'</b>'+(state.catVis[cat.id]?'':' <span class="dot">(ซ่อน)</span>')+
     ' &nbsp; obj '+nobj+' &nbsp; Save <span class="'+(state.dirty?'dot':'ok')+'">'+(state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว')+'</span> &nbsp; zoom '+(V.k*100|0)+'% rot '+V.rot+'°';
+  var hintEl=document.getElementById("hint");
+  if(state.arcEdit)hintEl.innerHTML="🟡 คลิกตำแหน่งที่เส้นโค้งจะผ่าน · Esc ยกเลิก";
+  else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · จุดน้ำเงินกลางขอบ = ทำขอบโค้ง · Delete ลบ · ลาก=pan";
+  else hintEl.innerHTML="ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบ · V=เลือก · คลิกขวา=ซ่อน dimension";
 }
 function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML="";
   CATS.forEach(function(c){ var d=document.createElement("div");
@@ -339,6 +357,10 @@ cv.addEventListener("mousedown",function(e){
   if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
     state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } draw(); return; }
+  if(state.arcEdit){ var ae=state.arcEdit,ao=ae.obj,ai=ae.edgeIdx,arc=computeArcEdge(ao.pts[ai],ao.pts[(ai+1)%ao.pts.length],screenToPt(e.offsetX,e.offsetY),centroid(ao.pts));
+    ao.edges=ao.edges||[]; ao.edges[ai]=(Math.abs(arc.sweep)>0.001)?{edgeType:"arc",arcSweep:arc.sweep,arcThrough:screenToPt(e.offsetX,e.offsetY)}:{edgeType:"line"};
+    state.arcEdit=null; state.dirty=true; showProps(ao); draw(); return; }
+  if(state.tool==="select"&&state.sel&&state.sel.kind==="poly"&&!state.sel.counting){ var eh=edgeHandleHit(state.sel,e.offsetX,e.offsetY); if(eh>=0){ state.arcEdit={obj:state.sel,edgeIdx:eh}; draw(); return; } }
   if(isAnnTool()){
     if(state.tool==="ann_text"||state.tool==="ann_comment"){ var txt=prompt(state.tool==="ann_text"?"ข้อความ:":"คอมเมนต์:");
       if(txt){ PSpage().annotations.push({id:state._id++,type:state.tool,pt:p,text:txt}); state.dirty=true; } draw(); return; }
@@ -400,6 +422,7 @@ function distSeg(px,py,a,b){var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1)ret
 /* --- LITE-SNAP: lite-native snap (endpoint / intersection / nearest-on-edge).
    Re-uses the vendored segIntersect for intersections. Works in SCREEN space. --- */
 function isDrawTool(){ return ["scale","poly","dist","path","ref","count"].indexOf(state.tool)>=0; }
+function edgeHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var m=ptToScreen({x:(o.pts[i].x+o.pts[(i+1)%o.pts.length].x)/2,y:(o.pts[i].y+o.pts[(i+1)%o.pts.length].y)/2}); if(Math.abs(sx-m.x)<7&&Math.abs(sy-m.y)<7)return i; } return -1; }
 function nearOnSegS(px,py,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1)return{x:a.x,y:a.y};
   var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2)); return{x:a.x+t*dx,y:a.y+t*dy}; }
 function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,kind:(state.tool==="poly"?"poly":"line"),counting:false}]:[]);
@@ -506,7 +529,7 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ state.tool=t; if(t==="count")state.activeCat="count"; state.draft=null; if(!isDrawTool())state.snapHint=null; buildPicker(); draw(); }
+function setTool(t){ state.tool=t; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); draw(); }
 function toggleSnap(){ state.snapOn=!state.snapOn; if(!state.snapOn)state.snapHint=null; var el=document.getElementById("snap-state"); if(el)el.textContent=state.snapOn?"เปิด":"ปิด"; draw(); }
 document.getElementById("mi-snap").onclick=function(){ toggleSnap(); closeMenus(); };
 document.getElementById("mi-loupe").onclick=function(){ state.loupe=!state.loupe; closeMenus(); draw(); };
@@ -548,6 +571,7 @@ function buildPageStore(){ var ps={};
       if(o.kind==="ref"){ st.refs.push(Object.assign({pts:o.pts,kind:"ref",id:"ref-"+rid(),color:col,opacity:1,semanticTag:"reference_line",useCategory:null,refType:"custom",name:"เส้นอ้างอิง"},endpts(o))); return; }
       if(o.kind==="line"){ st.lines.push(Object.assign({pts:o.pts,kind:(o.pts.length>2?"path":"line"),id:"line-"+rid(),color:col,opacity:1,semanticTag:"dimension_line",useCategory:null},endpts(o))); return; }
       var poly={pts:o.pts,closed:true,name:"",areaType:(o.catId==="site"?"land":"room"),id:(o.catId==="ded"?"opening":"area")+"-"+rid(),color:col,opacity:0.18,semanticTag:o.semanticTag,useCategory:null};
+      if(o.edges)poly.edges=o.edges;
       if(o.catId==="ded")st.openings.push(poly); else st.polys.push(poly); });
     (p.annotations||[]).forEach(function(a){ st.annotations.push(annFwd(a)); });
     ps[k]=st; });
@@ -591,8 +615,8 @@ function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,t
 function polyPts(o){ if(o.pts&&o.pts.length)return o.pts; if(o.geometryType==="path"&&Array.isArray(o.segments))return flattenPathToPoints(o,1.0); return []; }
 function loadProto(doc){ PS={}; excluded={};
   if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
-    (st.polys||[]).forEach(function(o){ objs.push({id:state._id++,catId:SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa"),semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true}); });
-    (st.openings||[]).forEach(function(o){ objs.push({id:state._id++,catId:"ded",semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true}); });
+    (st.polys||[]).forEach(function(o){ objs.push({id:state._id++,catId:SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa"),semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true,edges:o.edges}); });
+    (st.openings||[]).forEach(function(o){ objs.push({id:state._id++,catId:"ded",semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true,edges:o.edges}); });
     (st.lines||[]).forEach(function(o){ objs.push({id:state._id++,catId:"gfa",semanticTag:"dimension_line",kind:"line",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
     (st.refs||[]).forEach(function(o){ objs.push({id:state._id++,catId:"gfa",semanticTag:"reference_line",kind:"ref",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
     (st.counts||[]).forEach(function(o){ objs.push({id:state._id++,catId:o.catId||"count",semanticTag:o.semanticTag||"count_marker",kind:"count",counting:true,pts:[{x:o.x,y:o.y}],dimVisible:false}); });
@@ -665,14 +689,14 @@ window.addEventListener("keydown",function(e){
   if((e.metaKey||e.ctrlKey)&&e.key===","){e.preventDefault();openSetup();return;}
   if(modalOpen())return;
   if(e.key==="F12"){e.preventDefault();openOv();return;}
-  if(e.key==="Escape"){closeOverlays();if(state.draft){state.draft=null;draw();}return;}
+  if(e.key==="Escape"){closeOverlays();if(state.arcEdit){state.arcEdit=null;draw();return;}if(state.draft){state.draft=null;draw();}return;}
   if(e.key==="Enter"&&state.draft){finishDraft();return;}
   if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
   if(e.key==="Delete"&&state.sel){document.getElementById("p-del").onclick();return;}
   if(e.key==="g"||e.key==="G"){toggleSnap();return;}
   if(e.key==="l"||e.key==="L"){state.loupe=!state.loupe;draw();return;}
-  var map={s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
+  var map={v:"select",s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
 function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
