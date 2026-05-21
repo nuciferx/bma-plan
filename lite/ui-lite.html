@@ -94,6 +94,8 @@
       <div class="item" data-tool="path">ระยะต่อเนื่อง (Path)<span class="k">⇧D</span></div>
       <div class="item" data-tool="ref">เส้นอ้างอิง (Reference)<span class="k">R</span></div>
       <div class="item" data-tool="count">นับจำนวน (Count)<span class="k">N</span></div>
+      <div class="sep"></div>
+      <div class="item" id="mi-snap">Snap: <span id="snap-state">เปิด</span> (ปลาย/ตัด/บนเส้น)<span class="k">G</span></div>
     </div></div>
     <div class="menu" data-m="page"><button>Page ▾</button><div class="dd">
       <div class="item" id="mi-prev">หน้าก่อน<span class="k">PgUp</span></div>
@@ -156,8 +158,9 @@ var caseId=null, pdfName=null, pageCount=0, pageRot={}, excluded={};
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null};
+var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null};
 CATS.forEach(function(c){state.catVis[c.id]=true;});
+var SNAP_PX=11;
 
 var cv=document.getElementById("cv"), ctx=cv.getContext("2d");
 function PSpage(){ if(!PS[curPage]) PS[curPage]={objects:[],scale:null}; return PS[curPage]; }
@@ -223,6 +226,7 @@ function draw(){
     if(placed.some(function(p){return ovl(p,box);}))return; placed.push(box);
     ctx.fillStyle="rgba(15,17,21,.82)"; rr(ctx,box[0],box[1],w,h,4); ctx.fill();
     ctx.fillStyle=j.big?"#fff":"#cfe0ff"; ctx.fillText(j.txt,j.x,j.y); });
+  drawSnap();
   updateHUD();
 }
 function catOf(id){return CATS.filter(function(c){return c.id===id;})[0];}
@@ -285,7 +289,8 @@ function afterPage(){ state.sel=null; state.draft=null; showProps(null); buildPi
 /* ============================ INTERACTION ============================ */
 var dragging=false,lastX=0,lastY=0,moved=false;
 cv.addEventListener("mousedown",function(e){
-  if(e.button!==0||!curImg)return; var p=screenToPt(e.offsetX,e.offsetY);
+  if(e.button!==0||!curImg)return;
+  var p=(state.snapOn&&state.snapHint&&isDrawTool())?state.snapHint.pt:screenToPt(e.offsetX,e.offsetY);
   if(state.tool==="scale"){ state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.draft.length===2){ openCalib(); } draw(); return; }
   if(state.tool==="count"){ PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
@@ -299,6 +304,11 @@ cv.addEventListener("mousedown",function(e){
 });
 window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
   V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
+cv.addEventListener("mousemove",function(e){ if(dragging||!curImg)return;
+  if(!state.snapOn||!isDrawTool()){ if(state.snapHint){state.snapHint=null;draw();} return; }
+  var h=computeSnap(e.offsetX,e.offsetY);
+  var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
+  if(changed){ state.snapHint=h; draw(); } });
 window.addEventListener("mouseup",function(){dragging=false;});
 cv.addEventListener("dblclick",function(e){ if(!state.draft)return;
   if(state.tool==="poly"||state.tool==="path"||state.tool==="ref"){
@@ -335,6 +345,39 @@ function inPoly(x,y,poly){var c=false;for(var i=0,j=poly.length-1;i<poly.length;
 function distSeg(px,py,a,b){var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1)return Math.hypot(px-a.x,py-a.y);
   var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2));return Math.hypot(px-(a.x+t*dx),py-(a.y+t*dy));}
 
+/* --- LITE-SNAP: lite-native snap (endpoint / intersection / nearest-on-edge).
+   Re-uses the vendored segIntersect for intersections. Works in SCREEN space. --- */
+function isDrawTool(){ return ["scale","poly","dist","path","ref","count"].indexOf(state.tool)>=0; }
+function nearOnSegS(px,py,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1)return{x:a.x,y:a.y};
+  var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2)); return{x:a.x+t*dx,y:a.y+t*dy}; }
+function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,kind:(state.tool==="poly"?"poly":"line"),counting:false}]:[]);
+  objs.forEach(function(o){ if(o.counting||!o.pts||o.pts.length<2)return; var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
+    for(var i=0;i<n;i++)segs.push([o.pts[i],o.pts[(i+1)%o.pts.length]]); }); return segs; }
+function computeSnap(sx,sy){
+  if(!curImg||!state.snapOn)return null;
+  var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,counting:false}]:[]);
+  var best=null,bd=SNAP_PX;
+  objs.forEach(function(o){ if(o.counting||!o.pts)return; o.pts.forEach(function(p){ var s=ptToScreen(p),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:p,screen:s,type:"endpoint"};} }); });
+  if(best)return best;                                  // endpoint wins
+  var segs=pageSegs();
+  for(var i=0;i<segs.length;i++)for(var j=i+1;j<segs.length;j++){
+    var a0=ptToScreen(segs[i][0]),a1=ptToScreen(segs[i][1]),b0=ptToScreen(segs[j][0]),b1=ptToScreen(segs[j][1]);
+    var ix=segIntersect(a0.x,a0.y,a1.x,a1.y,b0.x,b0.y,b1.x,b1.y);   // vendored
+    if(ix){ var d=Math.hypot(ix.x-sx,ix.y-sy); if(d<bd){bd=d;best={pt:screenToPt(ix.x,ix.y),screen:ix,type:"intersection"};} } }
+  if(best)return best;                                  // intersection next
+  segs.forEach(function(seg){ var s0=ptToScreen(seg[0]),s1=ptToScreen(seg[1]),np=nearOnSegS(sx,sy,s0,s1),d=Math.hypot(np.x-sx,np.y-sy);
+    if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} });
+  return best;
+}
+function drawSnap(){ if(!state.snapHint)return; var s=state.snapHint.screen,t=state.snapHint.type;
+  ctx.strokeStyle="#ffd60a"; ctx.lineWidth=2; ctx.setLineDash([]);
+  if(t==="endpoint"){ ctx.strokeRect(s.x-5,s.y-5,10,10); }
+  else if(t==="intersection"){ ctx.beginPath();ctx.moveTo(s.x-6,s.y-6);ctx.lineTo(s.x+6,s.y+6);ctx.moveTo(s.x+6,s.y-6);ctx.lineTo(s.x-6,s.y+6);ctx.stroke(); }
+  else { ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.stroke(); }
+  ctx.fillStyle="#ffd60a"; ctx.font="10px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="bottom";
+  ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น"}[t],s.x+9,s.y-7); }
+
 /* calibration modal */
 function openCalib(){ var d=state.draft; var ptDist=Math.hypot(d[1].x-d[0].x,d[1].y-d[0].y);
   state.calib={pts:d.slice(),ptDist:ptDist}; document.getElementById("cal-pt").textContent=ptDist.toFixed(2);
@@ -358,7 +401,9 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ state.tool=t; if(t==="count")state.activeCat="count"; state.draft=null; buildPicker(); draw(); }
+function setTool(t){ state.tool=t; if(t==="count")state.activeCat="count"; state.draft=null; if(!isDrawTool())state.snapHint=null; buildPicker(); draw(); }
+function toggleSnap(){ state.snapOn=!state.snapOn; if(!state.snapOn)state.snapHint=null; var el=document.getElementById("snap-state"); if(el)el.textContent=state.snapOn?"เปิด":"ปิด"; draw(); }
+document.getElementById("mi-snap").onclick=function(){ toggleSnap(); closeMenus(); };
 
 /* file ops */
 document.getElementById("mi-open").onclick=function(){document.getElementById("file-pdf").click();};
@@ -420,6 +465,7 @@ window.addEventListener("keydown",function(e){
   if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
   if(e.key==="Delete"&&state.sel){document.getElementById("p-del").onclick();return;}
+  if(e.key==="g"||e.key==="G"){toggleSnap();return;}
   var map={s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });

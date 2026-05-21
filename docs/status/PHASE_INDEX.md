@@ -252,6 +252,10 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
       - [x] **LITE-2** chrome ✅ done 2026-05-21: single-row bar (File/Measure/Page + ⌘K/Overview/Focus), floating "กำลังวัดอะไร" picker, 4 corner HUDs, ⌘K page search, F12 overview (real /thumb), Focus toggle.
       - [x] **LITE-3** measure tools ✅ done 2026-05-21: scale-calibration modal, polygon/distance/path/reference/count wired to vendored `polyAreaM2`; unified picker sets semanticTag + category show/hide. Verified: square area = 66.67 m² (exact). Fixed dblclick stray-point bug.
       - [x] **LITE-4** dimension rendering ✅ done 2026-05-21: constant-screen-size labels + declutter + right-click per-object show/hide. (Polish: auto-hide-on-tiny-shape still open.)
+      - [x] **LITE-SNAP** ✅ done 2026-05-21: endpoint + intersection + nearest-on-edge snap (11px), yellow indicator + label, G toggle / Measure menu. Intersections via vendored `segIntersect`. Verified: endpoint snaps to exact vertex coords, 0 errors.
+      - [ ] **LITE-REVIEW** summary panel: area totals by category + per-page summary + site metrics (open space/permeable from labeled polygons). (Group 8.)
+      - [ ] **LITE-ANNOT** annotation tools: Text, Comment, Arrow, Highlight, Frames (rect/circle/cloud). (Group 7.)
+      - [ ] **LITE-PAGESETUP** page setup: per-page tag + scale + project metadata dialog. (Group 4 remainder.)
       - [ ] **LITE-5** save/load: lite-native `.bmaplan` round-trip DONE (version 1, pages/objects/scale/excluded). REMAINING: cross-open byte-parity with proto's exact schema arrays (polys/lines/refs) + count additive (`store.counts`) proto-ignore fixture test.
       - [ ] **LITE-6** export: XLSX (details+summary — needs `pip install openpyxl`), PDF overlay, PDF+annotations via PyMuPDF/openpyxl in `server_lite.py`.
       - [ ] **LITE-7** packaging: PyInstaller multi-entry (`lite_launch` block in BMA-Plan.spec); produce standalone lite `.exe`; verify runs without proto.
