@@ -162,6 +162,13 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
 
+### ideas 2026-05-21
+
+- [ ] **Auto-place land-boundary pins from outermost lot corners on site-plan page** — `invent-queued` — from /idea 2026-05-21 23:47
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-05-21 23:47
+    - Tags: bma-plan, measure, p-low, experiment
+    - ⚠️ Scope: touches Phase-1 exclusion "auto boundary detection". `/bma-invent` MUST reshape to semi-auto (snap-assist on a hand-drawn bounding polygon), not full CV auto-detect, to stay in Phase 1.
+
 ### bloat-audit 2026-05-19 (user-initiated, manual analysis pre-loop)
 
 User asked for a size/speed analysis before launching the loop. Findings:
@@ -271,6 +278,19 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Open questions: (pending /bma-invent — packaging shape (PyInstaller .exe / web subdomain / Electron / all three?), code-sharing policy (copy-and-fork measurement engine OR re-implement?), version-sync policy (when proto/ ships engine bugfix, how does /lite/ learn?), .bmaplan cross-compat (hard constraint same as proto, or relaxed?))
     - Scope skill: pending (`/bma-invent` decides after research; likely new packaging/distribution scope)
     - Forbidden-surface profile: NONE in `/proto/` — by design, `/lite/` does not touch existing measurement engine; needs to define its OWN forbidden surfaces once built
+
+- [ ] **LITE-REPORT — editable web report page (plan left / area table right) → print to PDF** — `queued` (→ INV-2026-05-21-002) — GO 2026-05-21, Approach A (sessionStorage + new-window contenteditable)
+    - Sprint id: INV-2026-05-21-002 · depends-on: LITE-6 (export), LITE-REVIEW (semanticTag grouping) — both ✅ done
+    - Invent artifact: `docs/invent/lite-pdf-report-split.md` (v1 backend-PDF superseded → v2 editable web report) · Source: ~/.claude/ideas/IDEAS.md @ 2026-05-21 19:48
+    - Spike (PASS 5/5, screenshots rendered via Chromium): `proto/sandbox/invent-lite-pdf-report-split-v2.html` · artifacts: `artifacts/invent/lite-pdf-report-split/{sheet1.png,sheet1-edited.png,print-preview.pdf}`
+    - **What:** new menu item in lite "ส่งออกรายงาน (แก้ไขได้)" → `window.open('lite-report.html')` + hand off payload via `sessionStorage["bmaReportPayload"]`. New **separate file** `lite/lite-report.html` (+ optional `lite/static/js/report.js`) — NOT added to `ui-lite.html` (no-bloat constraint, "คนละโมเดล"). Per measured page: A4 landscape, left 58% = rendered page image + measured-polygon overlay + numbered badges, right 42% = area table grouped by `semanticTag` (อาคาร/ใช้สอย/หักช่องว่าง/ที่ดิน/footprint/ที่ว่าง/จอดรถ) + per-group subtotal + page net total (deduction sign −1). Header = project name / page # / scale / date.
+    - **Editable like Word:** `contenteditable` on header fields, row names, per-row notes, table footer note. **Area numbers READ-ONLY** (locked styling + tooltip) — preserves raw-geometry contract. Edits ephemeral (no .bmaplan write-back this sprint).
+    - **Print:** `@page { size: A4 landscape }` + `@media print { .sheet { page-break-after: always } }`, toolbar hidden on print → WYSIWYG, 1 plan page = 1 report page. Browser Print → Save as PDF / physical printer.
+    - **Image source:** reuse lite's existing page render (`/page/{n}` raster at RS=1.5) + draw measured polygons. Spike used synthetic SVG; real impl embeds the actual rendered page + overlay.
+    - **Residual risk → fallback B (postMessage + Blob URL):** sessionStorage 5MB quota may overflow when several real page dataURLs (~400-600KB each) are passed. If hit, switch handoff layer only (not the report page). Documented in artifact ## Spike (v2).
+    - Scope skill: `/bma-ui-scope` (new lite page = export/canvas-adjacent UI) → `/bma-check-forbidden` (confirm no proto / no area-math / no .bmaplan-schema touch). Lite greenfield; grouping reads `semanticTag`/`reportTarget`, never `layer.name`.
+    - Success markers: lite journey (open → measure → ส่งออกรายงาน → edit a row name + note → print-to-PDF) renders correctly; area numbers locked; group subtotals + net total match XLSX summary; standalone load works. No proto E2E marker impact (lite-only).
+    - Forbidden-surface profile: NONE — separate file, reads precomputed measure results, no engine/coord/schema edit.
 
 ### ideas 2026-05-19
 

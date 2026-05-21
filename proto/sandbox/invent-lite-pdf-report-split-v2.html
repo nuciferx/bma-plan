@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE v2 — lite-report.html (editable web report → print)</title>
+<style>
+  :root{ --ink:#1a1f26; --line:#c9d1da; --muted:#6a7480; --lock:#eef1f4; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Sarabun",system-ui,sans-serif;background:#3a3f47;color:var(--ink)}
+
+  /* ===== screen toolbar (hidden on print) ===== */
+  .toolbar{position:sticky;top:0;z-index:10;display:flex;gap:10px;align-items:center;
+    padding:10px 16px;background:#1c1f24;color:#e6e9ee;border-bottom:1px solid #000}
+  .toolbar b{font-size:13px}
+  .toolbar .hint{font-size:12px;color:#9aa3ad}
+  .toolbar .sp{flex:1}
+  button{background:#2f6df0;color:#fff;border:0;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+  button.sec{background:#3a3f47}
+  .src{font-size:11px;color:#67d987;padding:2px 8px;border:1px solid #2f6f3a;border-radius:4px}
+
+  /* ===== paper ===== */
+  .sheetwrap{padding:22px;display:flex;flex-direction:column;align-items:center;gap:22px}
+  .sheet{
+    background:#fff; width:297mm; min-height:210mm;     /* A4 landscape */
+    padding:12mm 12mm 10mm; box-shadow:0 6px 26px rgba(0,0,0,.45);
+    display:flex; flex-direction:column;
+  }
+  .hdr{display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+  .hdr .ttl{font-size:18px;font-weight:700}
+  .hdr .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.5}
+  .body{display:flex;gap:8mm;flex:1}
+  .left{flex:0 0 58%;display:flex;align-items:center;justify-content:center;
+    background:#f3f5f7;border:1px solid var(--line);min-height:150mm;position:relative}
+  .left img{max-width:100%;max-height:170mm;display:block}
+  .left .cap{position:absolute;bottom:6px;left:8px;font-size:10px;color:var(--muted)}
+  .right{flex:1;display:flex;flex-direction:column}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border:1px solid var(--line);padding:4px 7px;text-align:left;vertical-align:top}
+  th{background:#eef2f6}
+  td.area,th.area{text-align:right;white-space:nowrap;width:80px}
+  td.area{background:var(--lock);color:#222;font-variant-numeric:tabular-nums} /* read-only look */
+  tr.grp td{background:#1f6feb;color:#fff;font-weight:700;border-color:#1f6feb}
+  tr.grp.t-use td{background:#2da44e;border-color:#2da44e}
+  tr.grp.t-ded td{background:#cf222e;border-color:#cf222e}
+  tr.grp.t-fp  td{background:#bf8700;border-color:#bf8700}
+  tr.grp.t-land td{background:#8250df;border-color:#8250df}
+  tr.grp.t-open td{background:#0a7ea4;border-color:#0a7ea4}
+  tr.grp.t-park td{background:#6e7781;border-color:#6e7781}
+  tr.sub td{background:#e9eef3;font-weight:700}
+  tr.grand td{background:var(--ink);color:#fff;font-weight:700;font-size:13px}
+  .note{font-size:11px;color:#333}
+  td .ne{outline:none}
+  /* editable affordance on screen only */
+  [contenteditable="true"]{cursor:text}
+  .editable-mark [contenteditable="true"]:hover{background:#fff7d6}
+  .editable-mark [contenteditable="true"]:focus{background:#fff3b0;box-shadow:0 0 0 2px #ffd479 inset}
+  .footdoc{margin-top:8px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;
+    display:flex;justify-content:space-between}
+
+  /* ===== PRINT ===== */
+  @page{ size: A4 landscape; margin: 8mm; }
+  @media print{
+    body{background:#fff}
+    .toolbar{display:none !important}
+    .sheetwrap{padding:0;gap:0}
+    .sheet{box-shadow:none;width:auto;min-height:auto;padding:0;page-break-after:always}
+    .sheet:last-child{page-break-after:auto}
+    [contenteditable]{background:none !important;box-shadow:none !important}
+    .left{background:#fff}
+  }
+</style>
+</head>
+<body class="editable-mark">
+
+<div class="toolbar">
+  <b>📝 รายงานพื้นที่ (แก้ไขได้ก่อนพิมพ์)</b>
+  <span class="src" id="srcTag">sample data</span>
+  <span class="hint">คลิกหัวกระดาษ / ชื่อแถว / หมายเหตุ เพื่อแก้ — ตัวเลขพื้นที่ล็อก (จากการวัด)</span>
+  <span class="sp"></span>
+  <button class="sec" id="reload">โหลด sample ใหม่</button>
+  <button id="print">🖨 พิมพ์ / บันทึก PDF</button>
+</div>
+
+<div class="sheetwrap" id="sheets"></div>
+
+<script>
+/* ===========================================================================
+   SPIKE v2 — approach A: standalone editable web report → browser print
+   - Loads payload from sessionStorage["bmaReportPayload"] if present (handoff),
+     else falls back to hardcoded SAMPLE (criterion 5: standalone self-load).
+   - Area numbers are READ-ONLY (raw-geometry contract); text fields editable.
+   - No canvas / no engine / no library. Separate file = "คนละโมเดล ไม่บวม".
+   =========================================================================== */
+
+const TAGS={
+  gross_floor_area:{label:'พื้นที่อาคาร (GFA)',cls:'',sign:1},
+  use_area:{label:'พื้นที่ใช้สอย',cls:'t-use',sign:1},
+  deduction_opening:{label:'หักช่องว่าง',cls:'t-ded',sign:-1},
+  building_footprint:{label:'พื้นที่ปกคลุมดิน',cls:'t-fp',sign:1},
+  site_land_area:{label:'ที่ดิน',cls:'t-land',sign:1},
+  legal_open_space:{label:'ที่ว่าง',cls:'t-open',sign:1},
+  parking_area:{label:'จอดรถ',cls:'t-park',sign:1},
+};
+const TAG_ORDER=Object.keys(TAGS);
+
+// synthetic plan image (data URL) so the spike is truly standalone (no server, no real PDF)
+function samplePlanSVG(label){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>
+   <rect width='800' height='600' fill='#fafbfc'/>
+   <g stroke='#c9d1da' stroke-width='1'>
+     ${[...Array(7)].map((_,i)=>`<line x1='${100*(i+1)}' y1='0' x2='${100*(i+1)}' y2='600'/>`).join('')}
+     ${[...Array(5)].map((_,i)=>`<line x1='0' y1='${100*(i+1)}' x2='800' y2='${100*(i+1)}'/>`).join('')}
+   </g>
+   <rect x='90' y='90' width='420' height='300' fill='#1f6feb22' stroke='#1f6feb' stroke-width='3'/>
+   <rect x='540' y='110' width='180' height='150' fill='#2da44e22' stroke='#2da44e' stroke-width='3'/>
+   <rect x='300' y='320' width='90' height='90' fill='#cf222e22' stroke='#cf222e' stroke-width='3'/>
+   <circle cx='300' cy='240' r='14' fill='#1f6feb'/><text x='300' y='245' fill='#fff' font-size='15' text-anchor='middle'>1</text>
+   <circle cx='630' cy='185' r='14' fill='#2da44e'/><text x='630' y='190' fill='#fff' font-size='15' text-anchor='middle'>2</text>
+   <circle cx='345' cy='365' r='14' fill='#cf222e'/><text x='345' y='370' fill='#fff' font-size='15' text-anchor='middle'>3</text>
+   <text x='20' y='580' fill='#9aa3ad' font-size='16'>${label} (ภาพแปลนตัวอย่าง — จริงคือ render หน้า PDF + overlay)</text>
+  </svg>`;
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+
+const SAMPLE={
+  projectInfo:{name:'โครงการบ้านพักอาศัย 2 ชั้น (ตัวอย่าง)', preparedBy:'ผู้จัดทำ: —', date:new Date().toLocaleDateString('th-TH')},
+  pages:[
+    {title:'ชั้น 1 — ผังพื้น', scale:'1:100', image:samplePlanSVG('ชั้น 1'), objects:[
+      {name:'ห้องโถง', tag:'gross_floor_area', area:58.40, note:''},
+      {name:'ห้องนอน 1', tag:'use_area', area:16.20, note:''},
+      {name:'ห้องนอน 2', tag:'use_area', area:14.80, note:''},
+      {name:'ห้องน้ำ', tag:'use_area', area:4.30, note:''},
+      {name:'ช่องบันได', tag:'deduction_opening', area:6.10, note:'หักออกจาก GFA'},
+    ]},
+    {title:'ผังบริเวณ — Site Plan', scale:'1:200', image:samplePlanSVG('Site'), objects:[
+      {name:'แปลงที่ดิน', tag:'site_land_area', area:400.00, note:''},
+      {name:'พื้นที่ปกคลุม', tag:'building_footprint', area:95.60, note:''},
+      {name:'ที่ว่างหน้า', tag:'legal_open_space', area:88.00, note:''},
+      {name:'ที่ว่างหลัง', tag:'legal_open_space', area:64.00, note:''},
+      {name:'ที่จอดรถ', tag:'parking_area', area:25.00, note:'2 คัน'},
+    ]},
+  ]
+};
+
+function fmt(n){return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function loadPayload(){
+  try{
+    const raw=sessionStorage.getItem('bmaReportPayload');
+    if(raw){ document.getElementById('srcTag').textContent='from sessionStorage handoff'; return JSON.parse(raw); }
+  }catch(e){}
+  document.getElementById('srcTag').textContent='sample data (standalone)';
+  return SAMPLE;
+}
+
+function buildSheet(page, idx, total, info){
+  // group objects by semanticTag
+  const groups=[]; let grand=0;
+  TAG_ORDER.forEach(tag=>{
+    const inTag=page.objects.filter(o=>o.tag===tag);
+    if(!inTag.length) return;
+    let sub=0; inTag.forEach(o=>sub+=o.area);
+    grand += TAGS[tag].sign*sub;
+    groups.push({tag,objs:inTag,sub});
+  });
+
+  const sheet=document.createElement('div'); sheet.className='sheet';
+
+  // header (editable title? keep project name editable in meta)
+  const hdr=document.createElement('div'); hdr.className='hdr';
+  hdr.innerHTML=`
+    <div class="ttl" contenteditable="true">${info.name}</div>
+    <div class="meta">
+      <div>หน้า ${idx+1}/${total} • <span contenteditable="true">${page.title}</span></div>
+      <div>สเกล ${page.scale} • <span contenteditable="true">${info.date}</span></div>
+      <div contenteditable="true">${info.preparedBy}</div>
+    </div>`;
+
+  // body
+  const body=document.createElement('div'); body.className='body';
+  const left=document.createElement('div'); left.className='left';
+  left.innerHTML=`<img src="${page.image}" alt="plan"><div class="cap">แปลน + overlay พื้นที่ที่วัด</div>`;
+
+  const right=document.createElement('div'); right.className='right';
+  let rows=`<tr><th>รายการ</th><th class="area">พื้นที่ (ม²)</th><th>หมายเหตุ</th></tr>`;
+  groups.forEach(g=>{
+    const T=TAGS[g.tag];
+    rows+=`<tr class="grp ${T.cls}"><td colspan="3">${T.label}</td></tr>`;
+    g.objs.forEach(o=>{
+      rows+=`<tr>
+        <td contenteditable="true">${o.name}</td>
+        <td class="area" title="ค่าจากการวัด — แก้ไม่ได้">${fmt(o.area)}</td>
+        <td class="note" contenteditable="true">${o.note||''}</td></tr>`;
+    });
+    rows+=`<tr class="sub"><td>รวม ${T.label}</td><td class="area">${(T.sign<0?'−':'')+fmt(g.sub)}</td><td></td></tr>`;
+  });
+  rows+=`<tr class="grand"><td>รวมพื้นที่สุทธิ (หน้านี้)</td><td class="area">${fmt(grand)}</td><td></td></tr>`;
+  right.innerHTML=`<table>${rows}</table>
+     <div class="footdoc"><span>* ตัวเลขพื้นที่มาจากการวัด (อ้างอิงสเกล) — แก้ไขไม่ได้</span>
+     <span contenteditable="true">หมายเหตุท้ายตาราง: —</span></div>`;
+
+  body.appendChild(left); body.appendChild(right);
+  sheet.appendChild(hdr); sheet.appendChild(body);
+  return sheet;
+}
+
+function render(){
+  const payload=loadPayload();
+  const host=document.getElementById('sheets'); host.innerHTML='';
+  const total=payload.pages.length;
+  payload.pages.forEach((p,i)=>host.appendChild(buildSheet(p,i,total,payload.projectInfo)));
+}
+
+document.getElementById('print').onclick=()=>window.print();
+document.getElementById('reload').onclick=()=>{try{sessionStorage.removeItem('bmaReportPayload')}catch(e){}; render();};
+render();
+</script>
+</body>
+</html>

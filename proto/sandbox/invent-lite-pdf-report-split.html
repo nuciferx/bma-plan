@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE — lite-pdf-report-split (approach E: font-scale to fit)</title>
+<style>
+  body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#2b2f36;color:#e6e9ee}
+  header{padding:10px 16px;background:#1c1f24;border-bottom:1px solid #3a3f47}
+  h1{font-size:15px;margin:0 0 4px} .sub{font-size:12px;color:#9aa3ad}
+  .bar{display:flex;gap:14px;align-items:center;padding:10px 16px;background:#23272e;border-bottom:1px solid #3a3f47;flex-wrap:wrap}
+  .bar label{font-size:12px;color:#cdd3da}
+  input[type=range]{vertical-align:middle}
+  .wrap{display:flex;gap:18px;padding:18px;align-items:flex-start;flex-wrap:wrap}
+  .pageBox{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  canvas{display:block}
+  .crit{padding:14px 16px;background:#1c1f24;border-top:1px solid #3a3f47;font-size:13px}
+  .crit ul{margin:6px 0 0;padding-left:18px} .crit li{margin:3px 0}
+  .pass{color:#67d987} .fail{color:#ff7878} .info{color:#7fb6ff}
+  code{background:#11141a;padding:1px 5px;border-radius:3px;color:#ffd479;font-size:12px}
+  .pgnav{font-size:12px;color:#9aa3ad;margin-left:auto}
+  button{background:#2f6df0;color:#fff;border:0;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px}
+  button.sec{background:#3a3f47}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPIKE — Lite PDF Report (split: plan left / area-table right) — Approach E "font-scale to fit"</h1>
+  <div class="sub">จำลอง layout engine บน &lt;canvas&gt; (A4 landscape 842×595pt). ตรวจ geometry/clamp ก่อนยกไป PyMuPDF. เปิดไฟล์ตรงในเบราว์เซอร์ — ไม่ต้องมี server.</div>
+</header>
+
+<div class="bar">
+  <label>หน้ารายงาน:
+    <select id="pageSel"></select>
+  </label>
+  <label>Stress rows (หน้าปัจจุบัน):
+    <input id="rowStress" type="range" min="3" max="40" value="0">
+    <span id="rowStressVal">auto</span>
+  </label>
+  <label><input id="showOverlay" type="checkbox" checked> overlay polygon+label</label>
+  <button class="sec" id="reset">reset stress</button>
+  <span class="pgnav" id="pgnav"></span>
+</div>
+
+<div class="wrap">
+  <div class="pageBox"><canvas id="cv" width="1010" height="714"></canvas></div>
+  <div style="flex:1;min-width:260px">
+    <div class="crit" id="critBox"></div>
+  </div>
+</div>
+
+<script>
+// ---- A4 landscape in PDF points; canvas scaled x1.2 for screen ----
+const PT_W=842, PT_H=595, SC=1.2;
+const cv=document.getElementById('cv'); const ctx=cv.getContext('2d');
+cv.width=PT_W*SC; cv.height=PT_H*SC;
+
+// ---- layout constants (points) ----
+const H_HDR=58, H_FTR=26, MARGIN=18;
+const SPLIT=0.60;                 // left image 60% / right table 40%
+const GUTTER=10;
+
+// ---- semanticTag display + order (mirrors lite scope mapping) ----
+const TAG_INFO={
+  gross_floor_area:{label:'พื้นที่อาคาร (GFA)',color:'#1f6feb'},
+  use_area:{label:'พื้นที่ใช้สอย',color:'#2da44e'},
+  deduction_opening:{label:'หักช่องว่าง',color:'#cf222e'},
+  building_footprint:{label:'พื้นที่ปกคลุมดิน',color:'#bf8700'},
+  site_land_area:{label:'ที่ดิน',color:'#8250df'},
+  legal_open_space:{label:'ที่ว่าง',color:'#0a7ea4'},
+  parking_area:{label:'จอดรถ',color:'#6e7781'}
+};
+const TAG_ORDER=Object.keys(TAG_INFO);
+
+// ---- sample multi-page data (simulates lite measured objects) ----
+// each object: {name, tag, m2, pts:[[x,y]..] in 0..1 normalized over plan image}
+function mkObj(name,tag,m2,cx,cy,r){
+  const pts=[]; const n=4+((name.length)%3);
+  for(let i=0;i<n;i++){const a=i/n*Math.PI*2; pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r*0.7]);}
+  return {name,tag,m2,pts};
+}
+const PAGES=[
+  {title:'ชั้น 1 — ผังพื้น', scale:'1:100', objs:[
+    mkObj('ห้องโถง','gross_floor_area',58.4,.28,.34,.16),
+    mkObj('ห้องนอน 1','use_area',16.2,.62,.30,.10),
+    mkObj('ห้องนอน 2','use_area',14.8,.78,.55,.09),
+    mkObj('ห้องน้ำ','use_area',4.3,.52,.62,.05),
+    mkObj('ช่องบันได','deduction_opening',6.1,.40,.55,.05),
+  ]},
+  {title:'ชั้น 2 — ผังพื้น', scale:'1:100', objs:[
+    mkObj('โถงกลาง','gross_floor_area',62.0,.30,.36,.17),
+    mkObj('ห้องนอนใหญ่','use_area',24.5,.66,.32,.12),
+    mkObj('ห้องนอน','use_area',15.0,.78,.60,.09),
+    mkObj('ห้องแต่งตัว','use_area',7.4,.55,.60,.06),
+    mkObj('ห้องน้ำ 1','use_area',5.2,.45,.66,.05),
+    mkObj('ห้องน้ำ 2','use_area',4.1,.70,.72,.04),
+    mkObj('ช่องลิฟต์','deduction_opening',3.2,.38,.50,.04),
+    mkObj('ช่องบันได','deduction_opening',6.0,.30,.62,.05),
+  ]},
+  {title:'ผังบริเวณ — Site Plan', scale:'1:200', objs:[
+    mkObj('แปลงที่ดิน','site_land_area',400.0,.45,.45,.30),
+    mkObj('พื้นที่ปกคลุม','building_footprint',95.6,.40,.42,.16),
+    mkObj('ที่ว่างหน้า','legal_open_space',88.0,.72,.30,.12),
+    mkObj('ที่ว่างหลัง','legal_open_space',64.0,.30,.74,.12),
+    mkObj('ที่จอดรถ 1','parking_area',12.5,.66,.66,.05),
+    mkObj('ที่จอดรถ 2','parking_area',12.5,.74,.66,.05),
+    mkObj('ที่จอดรถ 3','parking_area',12.5,.82,.66,.05),
+  ]},
+];
+
+let curPage=0, stressRows=0;
+const pageSel=document.getElementById('pageSel');
+PAGES.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${i+1}. ${p.title}`;pageSel.appendChild(o);});
+pageSel.onchange=e=>{curPage=+e.target.value; resetStress(); render();};
+
+const rowStress=document.getElementById('rowStress');
+const rowStressVal=document.getElementById('rowStressVal');
+rowStress.oninput=e=>{stressRows=+e.target.value; rowStressVal.textContent=stressRows; render();};
+document.getElementById('reset').onclick=resetStress;
+function resetStress(){stressRows=0; rowStress.value=0; rowStressVal.textContent='auto';}
+document.getElementById('showOverlay').onchange=render;
+
+// ---- build grouped rows from objects (mirrors XLSX summary grouping) ----
+function buildRows(objs){
+  // optionally stress: pad objs to stressRows by cloning use_area rows
+  let list=objs.slice();
+  if(stressRows && stressRows>list.length){
+    let k=1; while(list.length<stressRows){ list.push(mkObj('ห้องตัวอย่าง '+k,'use_area',9.0+(k%5),.5,.5,.05)); k++; }
+  }
+  const groups=[]; let grand=0;
+  TAG_ORDER.forEach(tag=>{
+    const inTag=list.filter(o=>o.tag===tag);
+    if(!inTag.length) return;
+    let sub=0; const rows=inTag.map(o=>{sub+=o.m2; return {name:o.name,m2:o.m2};});
+    // deduction subtracts from grand
+    const signed = tag==='deduction_opening' ? -sub : sub;
+    grand += signed;
+    groups.push({tag,rows,sub,signed});
+  });
+  return {groups,grand,objList:list};
+}
+
+// ---- approach E: font-scale to fit ----
+function computeRowMetrics(totalLines, availH){
+  // totalLines = header rows + data rows + subtotal rows + total row
+  const ROW_H = Math.min(14, availH/Math.max(totalLines,1));
+  const fontsize = Math.max(5, Math.min(10, ROW_H*0.65));
+  const truncated = ROW_H < 5;       // criterion: below 5pt → would truncate (fallback to D)
+  return {ROW_H, fontsize, truncated};
+}
+
+function fmt(n){return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+let lastCrit={};
+function render(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  const P=PAGES[curPage];
+  const {groups,grand,objList}=buildRows(P.objs);
+
+  // ----- HEADER -----
+  ctx.fillStyle='#11151c';
+  ctx.font=`bold ${13*SC}px "Segoe UI"`;
+  ctx.textBaseline='alphabetic';
+  ctx.fillText('โครงการ: บ้านพักอาศัย 2 ชั้น (ตัวอย่าง)', MARGIN*SC, 24*SC);
+  ctx.font=`${10*SC}px "Segoe UI"`;
+  ctx.fillStyle='#444';
+  const hdrR=`หน้า ${curPage+1}/${PAGES.length}  •  ${P.title}  •  สเกล ${P.scale}  •  ${new Date().toLocaleDateString('th-TH')}`;
+  ctx.fillText(hdrR, MARGIN*SC, 42*SC);
+  ctx.strokeStyle='#cfd6dd'; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(MARGIN*SC,H_HDR*SC);ctx.lineTo((PT_W-MARGIN)*SC,H_HDR*SC);ctx.stroke();
+
+  // ----- split rects -----
+  const bodyTop=H_HDR, bodyBot=PT_H-H_FTR;
+  const leftX=MARGIN, leftW=(PT_W-2*MARGIN)*SPLIT - GUTTER/2;
+  const rightX=MARGIN + (PT_W-2*MARGIN)*SPLIT + GUTTER/2;
+  const rightW=(PT_W-2*MARGIN)*(1-SPLIT) - GUTTER/2;
+  const bodyH=bodyBot-bodyTop;
+
+  // ----- LEFT: plan image (synthetic) with aspect-fit (criterion 1) -----
+  // simulate a plan page with native aspect 4:3 (e.g. A1 sheet)
+  const imgAR=4/3;
+  let dw=leftW, dh=dw/imgAR;
+  if(dh>bodyH){dh=bodyH; dw=dh*imgAR;}
+  const ox=leftX+(leftW-dw)/2, oy=bodyTop+(bodyH-dh)/2;
+  // letterbox bg
+  ctx.fillStyle='#eef1f4'; ctx.fillRect(leftX*SC,bodyTop*SC,leftW*SC,bodyH*SC);
+  // the "rendered plan" area
+  ctx.fillStyle='#f7f8fa'; ctx.fillRect(ox*SC,oy*SC,dw*SC,dh*SC);
+  ctx.strokeStyle='#b9c1ca'; ctx.strokeRect(ox*SC,oy*SC,dw*SC,dh*SC);
+  // faux floorplan lines
+  ctx.strokeStyle='#d7dde3'; ctx.lineWidth=1;
+  for(let gx=1;gx<8;gx++){const x=(ox+dw*gx/8)*SC;ctx.beginPath();ctx.moveTo(x,oy*SC);ctx.lineTo(x,(oy+dh)*SC);ctx.stroke();}
+  for(let gy=1;gy<6;gy++){const y=(oy+dh*gy/6)*SC;ctx.beginPath();ctx.moveTo(ox*SC,y);ctx.lineTo((ox+dw)*SC,y);ctx.stroke();}
+
+  // ----- overlay polygons + labels (criterion 2) -----
+  const showOv=document.getElementById('showOverlay').checked;
+  let overlayAligned=true;
+  if(showOv){
+    objList.forEach((o,i)=>{
+      const col=(TAG_INFO[o.tag]||{}).color||'#444';
+      ctx.beginPath();
+      o.pts.forEach(([nx,ny],j)=>{
+        const px=(ox+nx*dw)*SC, py=(oy+ny*dh)*SC;
+        // verify the mapped point stays inside the fitted image rect (alignment check)
+        if(nx<0||nx>1||ny<0||ny>1) overlayAligned=false;
+        j?ctx.lineTo(px,py):ctx.moveTo(px,py);
+      });
+      ctx.closePath();
+      ctx.fillStyle=col+'33'; ctx.fill();
+      ctx.strokeStyle=col; ctx.lineWidth=1.4; ctx.stroke();
+      // label = number badge
+      const cx=o.pts.reduce((s,p)=>s+p[0],0)/o.pts.length;
+      const cy=o.pts.reduce((s,p)=>s+p[1],0)/o.pts.length;
+      const lx=(ox+cx*dw)*SC, ly=(oy+cy*dh)*SC;
+      ctx.fillStyle=col; ctx.beginPath();ctx.arc(lx,ly,8,0,7);ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font=`bold ${9}px "Segoe UI"`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(i+1),lx,ly);
+      ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+    });
+  }
+
+  // ----- RIGHT: area table, font-scale-to-fit (criteria 3,4) -----
+  // count lines: per group => 1 header + N rows + 1 subtotal; plus 1 grand total; plus 1 table-title
+  let dataLines=1; // title row
+  groups.forEach(g=>{dataLines += 1 + g.rows.length + 1;});
+  dataLines += 1; // grand total
+  const tableAvailH=bodyH-6;
+  const {ROW_H,fontsize,truncated}=computeRowMetrics(dataLines,tableAvailH);
+
+  // table bg
+  ctx.fillStyle='#fbfcfd'; ctx.fillRect(rightX*SC,bodyTop*SC,rightW*SC,bodyH*SC);
+  ctx.strokeStyle='#cfd6dd'; ctx.strokeRect(rightX*SC,bodyTop*SC,rightW*SC,bodyH*SC);
+
+  let y=bodyTop+ROW_H;
+  const padX=6;
+  const valX=rightX+rightW-padX;
+  ctx.textBaseline='alphabetic';
+  // title
+  ctx.fillStyle='#11151c'; ctx.font=`bold ${Math.max(fontsize,8)*SC}px "Segoe UI"`;
+  ctx.fillText('สรุปพื้นที่ — หน้านี้', (rightX+padX)*SC, (y-ROW_H*0.25)*SC);
+  y+=ROW_H*0.4;
+
+  groups.forEach(g=>{
+    const info=TAG_INFO[g.tag];
+    // group header
+    ctx.fillStyle=info.color; ctx.fillRect((rightX+1)*SC,(y-ROW_H*0.78)*SC,(rightW-2)*SC,ROW_H*0.92*SC);
+    ctx.fillStyle='#fff'; ctx.font=`bold ${fontsize*SC}px "Segoe UI"`;
+    ctx.fillText(info.label,(rightX+padX)*SC,(y-ROW_H*0.18)*SC);
+    y+=ROW_H;
+    // rows
+    ctx.font=`${fontsize*SC}px "Segoe UI"`;
+    g.rows.forEach((r,i)=>{
+      ctx.fillStyle = i%2 ? '#f4f6f8' : '#ffffff';
+      ctx.fillRect((rightX+1)*SC,(y-ROW_H*0.78)*SC,(rightW-2)*SC,ROW_H*SC);
+      ctx.fillStyle='#222';
+      const nm=r.name.length>22?r.name.slice(0,21)+'…':r.name;
+      ctx.textAlign='start'; ctx.fillText(nm,(rightX+padX+8)*SC,(y-ROW_H*0.18)*SC);
+      ctx.textAlign='end'; ctx.fillText(fmt(r.m2),valX*SC,(y-ROW_H*0.18)*SC);
+      ctx.textAlign='start';
+      y+=ROW_H;
+    });
+    // subtotal
+    ctx.fillStyle='#e9eef3'; ctx.fillRect((rightX+1)*SC,(y-ROW_H*0.78)*SC,(rightW-2)*SC,ROW_H*SC);
+    ctx.fillStyle='#11151c'; ctx.font=`bold ${fontsize*SC}px "Segoe UI"`;
+    ctx.fillText('รวม '+info.label,(rightX+padX)*SC,(y-ROW_H*0.18)*SC);
+    ctx.textAlign='end'; ctx.fillText((g.signed<0?'−':'')+fmt(g.sub)+' ม²',valX*SC,(y-ROW_H*0.18)*SC);
+    ctx.textAlign='start';
+    y+=ROW_H*1.1;
+  });
+  // grand total
+  ctx.fillStyle='#11151c'; ctx.fillRect((rightX+1)*SC,(y-ROW_H*0.78)*SC,(rightW-2)*SC,ROW_H*1.05*SC);
+  ctx.fillStyle='#fff'; ctx.font=`bold ${Math.max(fontsize,7)*SC}px "Segoe UI"`;
+  ctx.fillText('รวมพื้นที่สุทธิ (หน้านี้)',(rightX+padX)*SC,(y-ROW_H*0.16)*SC);
+  ctx.textAlign='end'; ctx.fillText(fmt(grand)+' ม²',valX*SC,(y-ROW_H*0.16)*SC);
+  ctx.textAlign='start';
+  const tableBottom=y+ROW_H*0.3;
+
+  // ----- FOOTER -----
+  ctx.fillStyle='#888'; ctx.font=`${8*SC}px "Segoe UI"`;
+  ctx.fillText('BMA-Plan Lite — รายงานพื้นที่ (read-only) — สร้างอัตโนมัติ',MARGIN*SC,(PT_H-10)*SC);
+
+  // ----- criteria evaluation -----
+  const fitInside = tableBottom <= bodyBot+0.5;
+  lastCrit={
+    c1: dw<=leftW+0.5 && dh<=bodyH+0.5,         // aspect-fit no overflow & no distortion
+    c2: showOv ? overlayAligned : null,          // overlay points mapped inside image
+    c3: groups.length>0,                          // grouped + subtotal + grand rendered
+    c4: fitInside && !truncated,                  // single page, no overflow, font readable
+    c4soft: fitInside,                            // fit even if font small
+    rows: objList.length, dataLines, ROW_H:ROW_H.toFixed(2), fontsize:fontsize.toFixed(2),
+    truncated, grand:fmt(grand)
+  };
+  paintCrit();
+  document.getElementById('pgnav').textContent=`หน้า ${curPage+1}/${PAGES.length} • objects=${objList.length} • dataLines=${dataLines}`;
+}
+
+function paintCrit(){
+  const c=lastCrit;
+  const ok=b=>b? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+  const optional=b=> b===null? '<span class="info">n/a (overlay off)</span>' : ok(b);
+  document.getElementById('critBox').innerHTML=`
+   <b>Success criteria (approach E)</b>
+   <ul>
+    <li>1. ภาพ aspect-fit ไม่บิด/ไม่ล้นกรอบซ้าย — ${ok(c.c1)}</li>
+    <li>2. overlay polygon+label map เข้าในภาพ — ${optional(c.c2)}</li>
+    <li>3. ตารางขวา group+subtotal+รวม — ${ok(c.c3)} (รวมสุทธิ = <code>${c.grand} ม²</code>)</li>
+    <li>4. ครบหน้าเดียว ไม่ overflow + font อ่านออก (≥5pt) — ${ok(c.c4)}</li>
+    <li class="info">4b. (soft) fit-in-page แม้ font เล็ก — ${ok(c.c4soft)}</li>
+   </ul>
+   <b>Layout engine state</b>
+   <ul>
+    <li>rows=<code>${c.rows}</code> dataLines=<code>${c.dataLines}</code></li>
+    <li>ROW_H=<code>${c.ROW_H}pt</code> fontsize=<code>${c.fontsize}pt</code> truncated=<code>${c.truncated}</code></li>
+    <li class="info">เลื่อน stress slider → ดูจุดที่ font หล่นถึง 5pt = threshold ที่ต้อง fallback ไป D (pagination)</li>
+   </ul>`;
+}
+
+render();
+</script>
+</body>
+</html>
