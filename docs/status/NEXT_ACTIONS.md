@@ -1,27 +1,26 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-20 (updated: HT-ACC series PASS — calibration accuracy UX; area math proven exact; 102 markers; commit c0834f0)
+Date: 2026-05-21 (updated: LITE-0 PASS — /lite/ scaffold + parity gate; LITE-1 is next)
 
 ## Immediate Next
 
-**HT-ACC series done. Full E2E EXIT 0 (102 markers). Queue is clear. Next sprint options:**
+**LITE-0 done. /lite/ tree scaffolded and parity gate GREEN. Epic INV-2026-05-21-001 continues.**
 
-- **(PRIORITY 1) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). No code sprint in the active queue after this fix. Run through `bma-sandbox-journey-tester` Tier-1 + Tier-2 and file findings into PHASE_INDEX.
+- **(PRIORITY 1) LITE-1** — backend endpoints (`/upload`, `/page/{n}`, `/thumb`) in `lite/server_lite.py` reusing PyMuPDF for the raster render path. The skeleton server is ready; add the 3 endpoints following the proto/ case-isolation pattern. Parity gate must remain GREEN after LITE-1.
 
-- **(a) Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Recommended next code sprint.
+- **(a) LITE-2** — UI chrome (toolbar, status bar, workflow panel) in `lite/ui-lite.html`. Depends on LITE-1 (need real page renders to test chrome against).
 
-- **(b) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
+- **(b) LITE-3 through LITE-7** — tools (LITE-3: polygon + calibration), dimension rendering (LITE-4), save/load + object count store (LITE-5), export (LITE-6), packaging (LITE-7).
 
-- **(c) Invent-queued ideas (user backlog)** — Focus-mode lite spinoff (2026-05-20), comment/annotation redesign, mobile port. Run `/bma-invent-loop` to process.
+- **(c) Proto backlog — Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Can interleave with LITE sprints.
 
-- **(d) Verify Scale follow-on D** — live canvas badge showing %dev after verify (amber chip near scale display). Low priority; additive cosmetic.
+- **(d) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). Still valid when proto sprint is ready for pre-release.
 
-- **(e) Optional: literal deletion of layerVis/layerLock write-mirror** from call sites — zero behaviour gain, test-only churn. Not urgent; deferred.
-
-- **(f) Manual Chrome verification** — HT-ACC calibration UX (calib panel orange warning + purple line + longest-baseline tip + Verify ribbon button + pts_per_m tooltip + land-tool arc hint). See new checklist in `UI_MANUAL_TEST.md`.
+- **(e) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
 
 ## Recently Done
 
+- **LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1)** — 2026-05-21. PASS. `/lite/` sibling tree scaffolded. `measure-engine.js` vendored byte-identical from `proto/ui.html`. Anti-drift parity gate MEASURE_PARITY_OK (10 fns + 2 consts byte-identical; 5 polys/2 paths/4 coords numeric parity; unit square = 25.00 m2). Skeleton `server_lite.py`, `launch_lite.py`, `ui-lite.html` shell. ZERO proto/ edits. Proto 102 _OK baseline unchanged.
 - **HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX** — 2026-05-20. PASS. Area math proven exact (0.08% error). HT-ACC-1: `calibRaw[]` + snap-deviation >5% orange warning (root cause of user's ~1% measurement loss). HT-ACC-2: Verify ribbon button + longest-baseline tip + Verify nudge + land-tool arc hint. HT-ACC-3: exact pts_per_m tooltip on scale status (no measurement change). HT-NAV-1: no code fix. HT_ACC_OK GREEN (5 sub-checks). Full E2E EXIT 0 (102 markers). Commit `c0834f0`. Static-asset safety: NO_BOM on app.css + status-bar.js, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.
 - **BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix** — 2026-05-20. PASS. F11 always exits Zen (unconditional preventDefault, no native-fullscreen desync); F9/F10 keybindings added; dead CSS `~` sibling selector replaced with `:has()`. BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks). Full E2E EXIT 0 (101 markers). Commit `9453777`. Static-asset safety: NO_BOM, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.
 - **INV-2026-05-20-002/003/004 — Layer model rebuild L1+L2+L3** — 2026-05-20. PASS. Page-scoped layer system is now the single authoritative source for render/hit/visibility/lock. Fixes site-plan object overlap bug (objects with `areaType="room"` → slug `"sub_area"` absent from site preset → `layerId=undefined` → overlap). L1: slug-guarantee + render/hit helpers repointed. L2: reassign-layer UI + `objLayerKey` real slug. L3: global `layerVis`/`layerLock` demoted to mirror. INV_LAYER_L1/L2/L3_OK GREEN. HT8D5A restored. 100 _OK markers. Commits: `93c512f` / `1301a12` / `2e6b2f9`.

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMA-Plan Lite — spike (chrome + dimension rendering)</title>
+<!--
+  INVENT SPIKE — docs/invent/bma-plan-lite-standalone.md (idea 2026-05-21-09-25)
+  Standalone, NO server, NO build. Open directly in a browser.
+  Proves the chrome + dimension-rendering feasibility common to ALL backend
+  approaches (A vendored / D dual-mount). It does NOT prove the backend choice
+  (that is a human-checkpoint decision — see artifact Phase 5 override).
+
+  Demonstrated success criteria (from Frame):
+   1. single-row top menu, height <= 44px, no second row
+   2. unified "what am I measuring" picker -> sets category + drives show/hide
+   3. dimension labels render at CONSTANT screen size (not world-scaled);
+      right-click an object toggles its dimension labels; tiny shapes never
+      get oversized text
+   4. corner HUDs (scale+tool / page n/N / category+save), zen style
+   5. cmd-K palette + F12 overview stubs (45-page nav without a left panel)
+-->
+<style>
+  :root{
+    --bar-h: 42px;            /* single-row hard lock: <= 44px */
+    --bg: #0f1115; --panel:#161a22; --line:#2a3140; --ink:#e7ecf3;
+    --muted:#8b97a8; --accent:#4c8dff; --good:#39d98a; --warn:#ffb454;
+    --cat-gfa:#4c8dff; --cat-use:#39d98a; --cat-ded:#ff6b6b;
+    --cat-site:#c084fc; --cat-open:#ffb454; --cat-count:#22d3ee;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",system-ui,sans-serif;}
+  html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100vh;}
+
+  /* ---- single-row top bar ---- */
+  #topbar{
+    height:var(--bar-h);min-height:var(--bar-h);max-height:var(--bar-h);
+    display:flex;align-items:center;gap:4px;padding:0 8px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    white-space:nowrap;overflow:hidden;
+  }
+  #topbar .logo{font-weight:700;color:var(--accent);margin-right:6px;font-size:14px;}
+  #topbar .lite-tag{font-size:10px;color:var(--muted);border:1px solid var(--line);
+    border-radius:4px;padding:1px 5px;margin-right:10px;}
+  .menu{position:relative;}
+  .menu>button,.rbtn{
+    background:transparent;border:0;color:var(--ink);font-size:13px;
+    padding:6px 9px;border-radius:6px;cursor:pointer;height:30px;
+  }
+  .menu>button:hover,.rbtn:hover{background:#222a37;}
+  .menu .dd{
+    position:absolute;top:32px;left:0;min-width:210px;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:5px;z-index:50;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;
+  }
+  .menu.open .dd{display:block;}
+  .dd .item{padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13px;
+    display:flex;justify-content:space-between;gap:18px;}
+  .dd .item:hover{background:#222a37;}
+  .dd .item .k{color:var(--muted);font-size:11px;}
+  .dd .sep{height:1px;background:var(--line);margin:5px 4px;}
+  .spacer{flex:1;}
+  .rbtn{border:1px solid var(--line);margin-left:4px;font-size:12px;}
+
+  /* ---- canvas area ---- */
+  #stage{position:relative;flex:1;overflow:hidden;background:#0a0c10;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+
+  /* ---- corner HUDs (zen) ---- */
+  .hud{position:absolute;background:rgba(20,24,32,.82);border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px;font-size:12px;color:var(--ink);
+    backdrop-filter:blur(3px);pointer-events:none;line-height:1.5;}
+  #hud-tl{top:10px;left:10px;}
+  #hud-tr{top:10px;right:10px;text-align:right;}
+  #hud-bl{bottom:10px;left:10px;}
+  #hud-br{bottom:10px;right:10px;text-align:right;pointer-events:auto;}
+  .hud b{color:var(--accent);} .hud .ok{color:var(--good);} .hud .dot{color:var(--warn);}
+  .zoomctl button{background:#222a37;border:1px solid var(--line);color:var(--ink);
+    width:26px;height:24px;border-radius:5px;cursor:pointer;font-size:14px;}
+
+  /* ---- category picker (floats, not a persistent panel) ---- */
+  #picker{position:absolute;top:54px;left:10px;background:rgba(20,24,32,.92);
+    border:1px solid var(--line);border-radius:10px;padding:8px;width:188px;z-index:20;}
+  #picker .h{font-size:11px;color:var(--muted);margin:2px 4px 7px;}
+  .cat{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;
+    cursor:pointer;font-size:13px;}
+  .cat:hover{background:#222a37;}
+  .cat.active{background:#1d2735;outline:1px solid var(--accent);}
+  .cat .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;}
+  .cat .nm{flex:1;}
+  .cat .eye{font-size:13px;color:var(--muted);cursor:pointer;width:18px;text-align:center;}
+  .cat .eye.off{opacity:.35;}
+
+  /* ---- floating properties (on select) ---- */
+  #props{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+    background:rgba(20,24,32,.95);border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;font-size:12px;display:none;gap:14px;align-items:center;z-index:25;}
+  #props.show{display:flex;}
+  #props .val{color:var(--good);font-weight:600;}
+  #props button{background:#222a37;border:1px solid var(--line);color:var(--ink);
+    border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;}
+
+  /* ---- overlays: cmdK + F12 overview ---- */
+  .overlay{position:absolute;inset:0;background:rgba(6,8,12,.78);z-index:80;
+    display:none;align-items:flex-start;justify-content:center;padding-top:90px;}
+  .overlay.show{display:flex;}
+  #cmdk .box{width:520px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:10px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+  #cmdk input{width:100%;background:#0c0f14;border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:10px 12px;font-size:14px;outline:none;}
+  #cmdk .res{margin-top:8px;max-height:300px;overflow:auto;}
+  #cmdk .r{padding:8px 10px;border-radius:7px;cursor:pointer;font-size:13px;display:flex;
+    justify-content:space-between;}
+  #cmdk .r:hover,#cmdk .r.sel{background:#222a37;}
+  #ov .grid{width:min(92vw,1040px);max-height:78vh;overflow:auto;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;padding:14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;}
+  #ov .gh{grid-column:1/-1;font-size:12px;color:var(--muted);margin-top:6px;}
+  .thumb{background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:8px;
+    cursor:pointer;font-size:11px;}
+  .thumb:hover{outline:1px solid var(--accent);}
+  .thumb .pg{aspect-ratio:1.414;background:#1a212c;border-radius:4px;margin-bottom:5px;
+    display:flex;align-items:center;justify-content:center;color:#39455a;font-size:20px;}
+  .thumb.excl .pg{opacity:.4;} .thumb.excl .red{color:var(--cat-ded);}
+  .hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:11px;
+    color:var(--muted);background:rgba(20,24,32,.8);padding:3px 10px;border-radius:6px;z-index:15;}
+  body.focus #picker,body.focus .hud:not(#hud-br),body.focus .hint{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SINGLE-ROW TOP BAR ============ -->
+  <div id="topbar">
+    <span class="logo">◯ BMA-Plan</span><span class="lite-tag">LITE</span>
+
+    <div class="menu" data-m="file">
+      <button>File ▾</button>
+      <div class="dd">
+        <div class="item">เปิด PDF<span class="k">Ctrl+O</span></div>
+        <div class="item">Page Setup…<span class="k">Ctrl+,</span></div>
+        <div class="sep"></div>
+        <div class="item">บันทึก .bmaplan<span class="k">Ctrl+S</span></div>
+        <div class="item">Export XLSX<span class="k">Ctrl+E</span></div>
+        <div class="item">Export PDF overlay</div>
+        <div class="item">Export PDF + annotations</div>
+      </div>
+    </div>
+
+    <div class="menu" data-m="measure">
+      <button>Measure ▾</button>
+      <div class="dd">
+        <div class="item" data-tool="scale">ตั้งสเกล (Set Scale)<span class="k">S</span></div>
+        <div class="item" data-tool="poly">วัดพื้นที่ (Polygon)<span class="k">A</span></div>
+        <div class="item" data-tool="dist">ระยะ (Distance)<span class="k">D</span></div>
+        <div class="item" data-tool="path">ระยะต่อเนื่อง (Path)<span class="k">⇧D</span></div>
+        <div class="item" data-tool="ref">เส้นอ้างอิง (Reference)<span class="k">R</span></div>
+        <div class="item" data-tool="count">นับจำนวน (Count)<span class="k">N</span></div>
+        <div class="sep"></div>
+        <div class="item">Snap: Endpoint · Intersection · Nearest<span class="k">E/I/L</span></div>
+      </div>
+    </div>
+
+    <div class="menu" data-m="annotate">
+      <button>Annotate ▾</button>
+      <div class="dd">
+        <div class="item">Text · Comment</div>
+        <div class="item">Arrow · Highlight</div>
+        <div class="item">Frame: rect / circle / cloud</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="rbtn" id="btn-cmdk">🔍 ค้นหาหน้า ⌘K</button>
+    <button class="rbtn" id="btn-ov">🐦 Overview F12</button>
+    <button class="rbtn" id="btn-focus">◯ Focus F</button>
+  </div>
+
+  <!-- ============ CANVAS STAGE ============ -->
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hint">ลาก = pan · ลูกล้อ = zoom · คลิกเครื่องมือแล้ววาดบน canvas · <b>คลิกขวาที่รูป = ซ่อน/แสดง dimension</b></div>
+
+    <!-- floating category picker (NOT a persistent side panel) -->
+    <div id="picker">
+      <div class="h">กำลังวัดอะไร (= layer = semantic)</div>
+      <div id="catlist"></div>
+    </div>
+
+    <!-- corner HUDs -->
+    <div class="hud" id="hud-tl"></div>
+    <div class="hud" id="hud-tr"></div>
+    <div class="hud" id="hud-bl"></div>
+    <div class="hud" id="hud-br">
+      <div class="zoomctl">
+        <button id="zin">+</button><button id="zout">−</button><button id="zfit">⤢</button>
+      </div>
+    </div>
+
+    <!-- floating properties on select -->
+    <div id="props">
+      <span id="p-name">—</span>
+      <span>พื้นที่: <span class="val" id="p-area">—</span></span>
+      <button id="p-dim">ซ่อน dimension</button>
+      <button id="p-del">ลบ</button>
+    </div>
+
+    <!-- cmd-K -->
+    <div class="overlay" id="cmdk">
+      <div class="box">
+        <input id="cmdk-in" placeholder="ค้นหาหน้า / ชีต…  (พิมพ์ เช่น 'plan', '12', 'site')">
+        <div class="res" id="cmdk-res"></div>
+      </div>
+    </div>
+
+    <!-- F12 overview -->
+    <div class="overlay" id="ov"><div class="grid" id="ov-grid"></div></div>
+  </div>
+</div>
+
+<script>
+/* ====================================================================
+   STATE
+   ==================================================================== */
+const CATS = [
+  {id:"gfa",  name:"พื้นที่อาคาร",   tag:"gross_floor_area",  color:getCss("--cat-gfa")},
+  {id:"use",  name:"พื้นที่ใช้สอย",  tag:"use_area",          color:getCss("--cat-use")},
+  {id:"ded",  name:"ช่องว่าง/หัก",   tag:"deduction_opening", color:getCss("--cat-ded")},
+  {id:"site", name:"ที่ดิน",         tag:"site_land_area",    color:getCss("--cat-site")},
+  {id:"open", name:"ที่ว่าง",        tag:"legal_open_space",  color:getCss("--cat-open")},
+  {id:"count",name:"นับจำนวน",       tag:"count_marker",      color:getCss("--cat-count"), counting:true},
+];
+function getCss(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+const state = {
+  tool:"poly",
+  activeCat:"gfa",
+  catVis:Object.fromEntries(CATS.map(c=>[c.id,true])),
+  view:{k:1, ox:0, oy:0},        // world->screen: sx = wx*k+ox
+  scaleMPerPx:0.02,              // pretend calibrated: 1 world px = 0.02 m
+  page:7, pageN:45,
+  dirty:false,
+  draft:null,                    // points being drawn (world coords)
+  objects:[],                    // {id,catId,pts,closed,counting,dimVisible}
+  sel:null,
+  _id:1,
+};
+
+/* seed a few objects so the dimension/zoom behaviour is visible immediately.
+   one DELIBERATELY TINY square to prove "text not bigger than shape". */
+seed();
+function seed(){
+  addObj("gfa",[[120,90],[520,90],[520,360],[120,360]]);
+  addObj("ded",[[300,170],[420,170],[420,300],[300,300]]);   // an opening inside
+  addObj("use",[[140,400],[360,400],[360,520],[140,520]]);
+  addObj("site",[[40,40],[760,40],[760,620],[40,620]]);
+  addObj("gfa",[[600,420],[640,420],[640,460],[600,460]]);   // tiny 40x40 px square
+}
+function addObj(catId,pts){
+  state.objects.push({id:state._id++,catId,pts:pts.map(p=>[...p]),closed:true,
+    counting:CATS.find(c=>c.id===catId).counting||false, dimVisible:true});
+}
+
+/* ====================================================================
+   CANVAS + TRANSFORM
+   ==================================================================== */
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+let DPR=1;
+function resize(){
+  DPR=window.devicePixelRatio||1;
+  const r=cv.getBoundingClientRect();
+  cv.width=r.width*DPR; cv.height=r.height*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);   // draw in CSS px; DPR handled here
+  draw();
+}
+window.addEventListener("resize",resize);
+
+const V=state.view;
+const S=(wx,wy)=>[wx*V.k+V.ox, wy*V.k+V.oy];     // world -> screen
+const W=(sx,sy)=>[(sx-V.ox)/V.k, (sy-V.oy)/V.k]; // screen -> world
+
+function fit(){
+  const r=cv.getBoundingClientRect();
+  V.k=Math.min(r.width/820, r.height/680)*0.92;
+  V.ox=(r.width-800*V.k)/2; V.oy=(r.height-660*V.k)/2;
+  draw();
+}
+
+/* ====================================================================
+   DRAW
+   ==================================================================== */
+function draw(){
+  const r=cv.getBoundingClientRect();
+  ctx.clearRect(0,0,r.width,r.height);
+
+  // fake PDF page (raster stand-in)
+  const [px,py]=S(0,0);
+  ctx.fillStyle="#cfd6df"; ctx.fillRect(px,py,800*V.k,660*V.k);
+  ctx.strokeStyle="#9aa6b4"; ctx.lineWidth=1; ctx.strokeRect(px,py,800*V.k,660*V.k);
+  ctx.fillStyle="#aab4c0"; ctx.font=`${14*Math.min(V.k,1.4)}px Segoe UI`;
+  ctx.fillText("(raster PDF page "+state.page+")", px+16, py+26);
+
+  const dimJobs=[];   // collect labels; draw AFTER shapes so they sit on top
+
+  for(const o of state.objects){
+    if(!state.catVis[o.catId]) continue;          // category show/hide
+    const cat=CATS.find(c=>c.id===o.catId);
+    const sel = state.sel===o;
+
+    if(o.counting){ // count marker = a dot, not a polygon
+      const [sx,sy]=S(o.pts[0][0],o.pts[0][1]);
+      ctx.beginPath(); ctx.arc(sx,sy,7,0,7); ctx.fillStyle=cat.color; ctx.fill();
+      if(sel){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();}
+      continue;
+    }
+    // polygon fill + outline
+    ctx.beginPath();
+    o.pts.forEach((p,i)=>{const[sx,sy]=S(p[0],p[1]); i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy);});
+    ctx.closePath();
+    ctx.fillStyle=hexA(cat.color, sel?0.30:0.16);
+    ctx.fill();
+    ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; ctx.stroke();
+
+    // queue per-edge dimension labels (only if this object's dims are visible)
+    if(o.dimVisible){
+      for(let i=0;i<o.pts.length;i++){
+        const a=o.pts[i], b=o.pts[(i+1)%o.pts.length];
+        const lenM=Math.hypot(b[0]-a[0],b[1]-a[1])*state.scaleMPerPx;
+        const [mx,my]=S((a[0]+b[0])/2,(a[1]+b[1])/2);
+        dimJobs.push({mx,my,txt:lenM.toFixed(2)+" m"});
+      }
+      // area label at centroid
+      const c=centroid(o.pts), [cx,cy]=S(c[0],c[1]);
+      dimJobs.push({mx:cx,my:cy,txt:cat.name+"  "+areaM2(o.pts).toFixed(2)+" m²",big:true});
+    }
+  }
+
+  // draft being drawn
+  if(state.draft){
+    const cat=CATS.find(c=>c.id===state.activeCat);
+    ctx.beginPath();
+    state.draft.forEach((p,i)=>{const[sx,sy]=S(p[0],p[1]); i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy);});
+    ctx.strokeStyle=cat.color; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.stroke();
+    ctx.setLineDash([]);
+    state.draft.forEach(p=>{const[sx,sy]=S(p[0],p[1]);
+      ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(sx,sy,3,0,7); ctx.fill();});
+  }
+
+  /* ---- KEY TECHNIQUE: dimension labels at CONSTANT SCREEN SIZE ----
+     text is drawn in screen space (ctx already in CSS px, no world scale),
+     so it never grows/shrinks with zoom. We also DECLUTTER: skip a label if
+     it would overlap one already placed -> tiny shapes don't get text soup. */
+  const placed=[];
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(const j of dimJobs.sort((a,b)=>(b.big?1:0)-(a.big?1:0))){
+    const fs = j.big?12:11;                       // CONSTANT px regardless of V.k
+    ctx.font=`${j.big?"600 ":""}${fs}px Segoe UI`;
+    const w=ctx.measureText(j.txt).width+8, h=fs+6;
+    const box=[j.mx-w/2,j.my-h/2,w,h];
+    if(placed.some(p=>overlap(p,box))) continue;  // declutter
+    placed.push(box);
+    ctx.fillStyle="rgba(15,17,21,.82)";
+    roundRect(ctx,box[0],box[1],w,h,4); ctx.fill();
+    ctx.fillStyle=j.big?"#fff":"#cfe0ff";
+    ctx.fillText(j.txt,j.mx,j.my);
+  }
+  updateHUD();
+}
+function hexA(hex,a){const h=hex.replace('#','');const n=parseInt(h.length===3?h.replace(/(.)/g,'$1$1'):h,16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
+function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
+  c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function overlap(a,b){return !(a[0]+a[2]<b[0]||b[0]+b[2]<a[0]||a[1]+a[3]<b[1]||b[1]+b[3]<a[1]);}
+function centroid(pts){let x=0,y=0;pts.forEach(p=>{x+=p[0];y+=p[1];});return[x/pts.length,y/pts.length];}
+function areaM2(pts){ // shoelace in world px -> m^2 (mirrors proto polyAreaM2 contract)
+  let a=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];a+=p[0]*q[1]-q[0]*p[1];}
+  return Math.abs(a/2)*state.scaleMPerPx*state.scaleMPerPx;}
+
+/* ====================================================================
+   HUD + PICKER + PROPS
+   ==================================================================== */
+const TOOLNAME={scale:"Set Scale",poly:"Polygon",dist:"Distance",path:"Path",ref:"Reference",count:"Count"};
+function updateHUD(){
+  const cat=CATS.find(c=>c.id===state.activeCat);
+  document.getElementById("hud-tl").innerHTML=
+    `Scale <span class="ok">1:50 ✓</span> &nbsp; Tool <b>${TOOLNAME[state.tool]}</b>`;
+  document.getElementById("hud-tr").innerHTML=`หน้า <b>${state.page}</b> / ${state.pageN}`;
+  const vis=state.catVis[cat.id]?"":' <span class="dot">(ซ่อนอยู่)</span>';
+  document.getElementById("hud-bl").innerHTML=
+    `วัด: <b style="color:${cat.color}">${cat.name}</b>${vis} &nbsp; ` +
+    `Save <span class="${state.dirty?'dot':'ok'}">${state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว'}</span> &nbsp; zoom ${(V.k*100|0)}%`;
+}
+function buildPicker(){
+  const el=document.getElementById("catlist"); el.innerHTML="";
+  CATS.forEach(c=>{
+    const d=document.createElement("div");
+    d.className="cat"+(state.activeCat===c.id?" active":"");
+    d.innerHTML=`<span class="sw" style="background:${c.color}"></span>`+
+      `<span class="nm">${c.name}</span>`+
+      `<span class="eye${state.catVis[c.id]?'':' off'}" data-eye="${c.id}">${state.catVis[c.id]?'👁':'🚫'}</span>`;
+    d.addEventListener("click",e=>{
+      if(e.target.dataset.eye){state.catVis[c.id]=!state.catVis[c.id];buildPicker();draw();return;}
+      state.activeCat=c.id; state.tool=c.counting?"count":"poly"; buildPicker(); draw();
+    });
+    el.appendChild(d);
+  });
+}
+function showProps(o){
+  const box=document.getElementById("props");
+  if(!o){box.classList.remove("show");return;}
+  const cat=CATS.find(c=>c.id===o.catId);
+  document.getElementById("p-name").innerHTML=`<b style="color:${cat.color}">${cat.name}</b>`;
+  document.getElementById("p-area").textContent=o.counting?"(count)":areaM2(o.pts).toFixed(2)+" m²";
+  document.getElementById("p-dim").textContent=o.dimVisible?"ซ่อน dimension":"แสดง dimension";
+  box.classList.add("show");
+}
+
+/* ====================================================================
+   INTERACTION
+   ==================================================================== */
+let dragging=false,lastX=0,lastY=0,moved=false;
+cv.addEventListener("mousedown",e=>{
+  if(e.button!==0)return;
+  const [wx,wy]=W(e.offsetX,e.offsetY);
+  // try select first
+  const hit=pick(e.offsetX,e.offsetY);
+  if(state.tool==="poly"||state.tool==="count"){
+    if(state.tool==="count"){ addObjAt(wx,wy); return; }
+    state.draft=state.draft||[]; state.draft.push([wx,wy]); state.dirty=true; draw(); return;
+  }
+  if(hit){ state.sel=hit; showProps(hit); draw(); }
+  else { dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; showProps(null); draw(); }
+});
+window.addEventListener("mousemove",e=>{
+  if(!dragging)return; moved=true;
+  V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw();
+});
+window.addEventListener("mouseup",()=>dragging=false);
+cv.addEventListener("dblclick",()=>{ // finish polygon
+  if(state.draft&&state.draft.length>=3){
+    state.objects.push({id:state._id++,catId:state.activeCat,pts:state.draft,closed:true,
+      counting:false,dimVisible:true});
+    state.draft=null; state.dirty=true; draw();
+  }
+});
+cv.addEventListener("contextmenu",e=>{   // RIGHT-CLICK => toggle dimension show/hide
+  e.preventDefault();
+  const hit=pick(e.offsetX,e.offsetY);
+  if(hit&&!hit.counting){ hit.dimVisible=!hit.dimVisible; state.sel=hit; showProps(hit); draw(); }
+});
+cv.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.12:1/1.12;
+  const [wx,wy]=W(e.offsetX,e.offsetY);
+  V.k*=f; V.ox=e.offsetX-wx*V.k; V.oy=e.offsetY-wy*V.k; draw();
+},{passive:false});
+
+function addObjAt(wx,wy){
+  state.objects.push({id:state._id++,catId:state.activeCat,pts:[[wx,wy]],closed:false,
+    counting:true,dimVisible:false}); state.dirty=true; draw();
+}
+function pick(sx,sy){
+  for(let i=state.objects.length-1;i>=0;i--){
+    const o=state.objects[i]; if(!state.catVis[o.catId])continue;
+    if(o.counting){const[ox,oy]=S(o.pts[0][0],o.pts[0][1]);
+      if(Math.hypot(sx-ox,sy-oy)<10)return o; continue;}
+    if(pointInPoly(sx,sy,o.pts.map(p=>S(p[0],p[1]))))return o;
+  }
+  return null;
+}
+function pointInPoly(x,y,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+  const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+  if(((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
+
+document.getElementById("p-dim").onclick=()=>{if(state.sel){state.sel.dimVisible=!state.sel.dimVisible;showProps(state.sel);draw();}};
+document.getElementById("p-del").onclick=()=>{if(state.sel){state.objects=state.objects.filter(o=>o!==state.sel);state.sel=null;showProps(null);state.dirty=true;draw();}};
+document.getElementById("zin").onclick=()=>{V.k*=1.2;draw();};
+document.getElementById("zout").onclick=()=>{V.k/=1.2;draw();};
+document.getElementById("zfit").onclick=fit;
+
+/* ---- menus ---- */
+document.querySelectorAll(".menu>button").forEach(b=>{
+  b.onclick=e=>{e.stopPropagation();const m=b.parentElement;const open=m.classList.contains("open");
+    document.querySelectorAll(".menu").forEach(x=>x.classList.remove("open"));
+    if(!open)m.classList.add("open");};
+});
+document.querySelectorAll(".dd .item[data-tool]").forEach(it=>{
+  it.onclick=()=>{state.tool=it.dataset.tool;if(state.tool==="count")state.activeCat="count";
+    document.querySelectorAll(".menu").forEach(x=>x.classList.remove("open"));buildPicker();draw();};
+});
+window.addEventListener("click",()=>document.querySelectorAll(".menu").forEach(x=>x.classList.remove("open")));
+
+/* ---- cmd-K ---- */
+const PAGES=Array.from({length:45},(_,i)=>({n:i+1,
+  name:["ปก","สารบัญ","บันทึกแก้ไข"][i]|| (i<8?"ผังบริเวณ "+(i-2):i<30?"แปลนชั้น "+(i-7):"รูปด้าน/รายละเอียด "+(i-29)),
+  tag:i<3?"excl":i<8?"site":i<30?"floor":"detail"}));
+function openCmdK(){document.getElementById("cmdk").classList.add("show");
+  const inp=document.getElementById("cmdk-in");inp.value="";inp.focus();renderCmdK("");}
+function renderCmdK(q){
+  const res=document.getElementById("cmdk-res");
+  const f=PAGES.filter(p=>(p.name+p.n+p.tag).toLowerCase().includes(q.toLowerCase())).slice(0,8);
+  res.innerHTML=f.map(p=>`<div class="r" data-pg="${p.n}"><span>หน้า ${p.n} — ${p.name}</span><span class="k" style="color:#8b97a8">${p.tag}</span></div>`).join("");
+  res.querySelectorAll(".r").forEach(r=>r.onclick=()=>{state.page=+r.dataset.pg;closeOverlays();draw();});
+}
+document.getElementById("cmdk-in").addEventListener("input",e=>renderCmdK(e.target.value));
+document.getElementById("btn-cmdk").onclick=openCmdK;
+
+/* ---- F12 overview ---- */
+function openOv(){
+  const g=document.getElementById("ov-grid");
+  const groups={site:"ผังบริเวณ",floor:"แปลนชั้น",detail:"รูปด้าน/รายละเอียด",excl:"ยกเว้น (ปก/สารบัญ)"};
+  let html="";
+  for(const key of["site","floor","detail","excl"]){
+    html+=`<div class="gh">${groups[key]}</div>`;
+    PAGES.filter(p=>p.tag===key).forEach(p=>{
+      html+=`<div class="thumb ${key==='excl'?'excl':''}" data-pg="${p.n}">
+        <div class="pg">${key==='excl'?'<span class="red">●</span>':p.n}</div>${p.name}</div>`;});
+  }
+  g.innerHTML=html;
+  g.querySelectorAll(".thumb").forEach(t=>t.onclick=()=>{state.page=+t.dataset.pg;closeOverlays();draw();});
+  document.getElementById("ov").classList.add("show");
+}
+document.getElementById("btn-ov").onclick=openOv;
+function closeOverlays(){document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("show"));}
+document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{if(e.target===o)closeOverlays();}));
+
+/* ---- focus mode ---- */
+document.getElementById("btn-focus").onclick=()=>document.body.classList.toggle("focus");
+
+/* ---- keys ---- */
+window.addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCmdK();return;}
+  if(e.key==="F12"){e.preventDefault();openOv();return;}
+  if(e.key==="Escape"){closeOverlays();if(state.draft){state.draft=null;draw();}return;}
+  if(e.key==="f"&&!cmdkOpen())document.body.classList.toggle("focus");
+  const map={s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
+  if(map[e.key]&&!cmdkOpen()){state.tool=map[e.key];if(e.key==="n")state.activeCat="count";buildPicker();draw();}
+});
+function cmdkOpen(){return document.getElementById("cmdk").classList.contains("show");}
+
+/* ---- boot ---- */
+buildPicker();
+resize();
+fit();
+</script>
+</body>
+</html>

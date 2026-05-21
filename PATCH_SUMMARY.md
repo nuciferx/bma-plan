@@ -4,7 +4,66 @@
 
 ---
 
-# Latest: HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX
+# Latest: LITE-0 — scaffold standalone /lite/ tree (sub-sprint 1 of epic INV-2026-05-21-001)
+
+Branch: main
+
+Date: 2026-05-21
+
+## Outcome: PASS — /lite/ sibling tree scaffolded; measurement engine vendored byte-identical from proto/ui.html + anti-drift parity gate; proto/ untouched; MEASURE_PARITY_OK; py_compile PASS both trees; Playwright self-test 0 errors.
+
+## Summary
+
+LITE-0 scaffolds a standalone `/lite/` sibling tree (own FastAPI server, launcher, and UI shell) as the foundation of BMA-Plan Lite (Approach A: vendored-copy + contract-test). The measurement engine is vendored verbatim from `proto/ui.html` — `RS`, `pdfToC`, `cToPdf`, `polyAreaM2`, `polyMetrics`, `polySelfIntersects`, `pathAreaM2`, and 6 path helpers — with a new lite-only `objectAreaM2Lite` wrapper. An anti-drift parity gate verifies both source byte-identity (10 fns + 2 consts) and numeric parity on 5 polys, 2 paths, and 4 coordinate pairs. Zero edits to any file under `proto/`.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/measure-engine.js` | NEW — vendored verbatim measure engine + lite-only `objectAreaM2Lite` |
+| `lite/tests/test_measure_parity.py` | NEW — anti-drift gate: byte-identity + numeric parity via Node |
+| `lite/tests/fixtures/measure_parity_v1.json` | NEW — 5 polys / 2 paths / 4 coords test vectors |
+| `lite/server_lite.py` | NEW — skeleton FastAPI (static mount + /health + /); endpoints deferred to LITE-1 |
+| `lite/launch_lite.py` | NEW — free-port (8100+) launcher |
+| `lite/ui-lite.html` | NEW — LITE-0 shell: host globals + engine load + self-test (unit square = 25.00 m2) |
+| `lite/README.md` | NEW — vendoring contract + version-sync policy |
+| `docs/invent/bma-plan-lite-standalone.md` | NEW — invent research + approach decision record |
+| `proto/sandbox/invent-bma-plan-lite-standalone.html` | NEW — invention spike |
+| `docs/status/PHASE_INDEX.md` | MODIFIED — sprint card LITE-0 added + status flipped to done |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (LITE-0 has its own `lite/server_lite.py`)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED in proto (vendored copy byte-identical, enforced by parity gate)
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED in proto
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; additive fields only (count objects deferred to LITE-5 as additive `store.counts`)
+
+## Tests Run
+
+```
+python lite/tests/test_measure_parity.py
+  -> MEASURE_PARITY_OK (10 fns + 2 consts byte-identical; 5 polys/2 paths/4 coords numeric parity; unit square = 25.00 m2 verified)
+python3.11 -m py_compile lite/server_lite.py lite/launch_lite.py  -> PASS
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py     -> PASS (proto regression guard)
+Playwright render lite/ui-lite.html -> self-test "engine wired", 0 console errors
+
+No-test rationale for proto full E2E: LITE-0 is purely additive in /lite/ tree; ZERO proto/ changes.
+Reference baseline: proto full E2E = 21 markers / 102 _OK (HT-ACC 2026-05-20, unchanged).
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (vendored copy byte-identical, enforced by parity gate)
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` internals — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only; version stays 1
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX
 
 Branch: main
 
@@ -58,55 +117,4 @@ proto/e2e_ui_test.py full                                   → EXIT 0
 
 ---
 
-# Previous: BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix
-
-Branch: main
-
-Date: 2026-05-20
-
-## Outcome: PASS — Right panel is now always recoverable after Zen Mode. F11 reliably exits Zen, F9/F10 toggle panels, restore tab no longer depends on a dead CSS selector. Full E2E EXIT 0, 101 _OK markers. NEW BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN.
-
-## Summary
-
-Defensive fix for a user-reported bug where the right-panel restore tab (`#rp-restore-tab`) disappeared after Zen Mode exit, making the right panel irrecoverable. Root cause: native-browser F11 fullscreen could collide with the app's F11 `!anyModal && !mPts.length` guard, leaving `body.zen` stuck and the CSS rule `body.zen .panel-restore-tab{display:none}` hiding the tab. The restore-tab visibility CSS also used a dead sibling combinator (`#right-panel.collapsed~#workspace #rp-restore-tab`) that never matched because workspace precedes panel in DOM. Fix is defensive: F11 always calls `preventDefault()`; F9/F10 keyboard recovery added; dead CSS selector replaced with `:has()`.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/ui.html` | F11 handler: unconditional `preventDefault()` + widened exit condition; F9 and F10 keybindings added |
-| `proto/static/css/app.css` | Dead sibling selector replaced with `body:has(#right-panel.collapsed) #rp-restore-tab{display:flex}`; attribute fallback + zen/overview overrides kept |
-| `proto/e2e_ui_test.py` | `_test_bug_zen_exit_rp_restore` (6 sub-checks) + `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` marker |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; additive only (untouched)
-
-## Tests Run
-
-```
-py_compile proto/server.py proto/e2e_ui_test.py            → PASS
-proto/e2e_ui_test.py full                                   → EXIT 0
-  101 _OK markers, 0 E2E_FAIL
-  NEW: BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks)
-  CACHE_OK, MAIN_UI_OK (cssLinkPresent + cssVarLoaded true) confirm CSS serves
-  All prior 100 markers retained. Zero regression.
-  Static-asset safety: NO_BOM on app.css. UI_REGRESSION_PASS.
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (untouched; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-<!-- Older entries (INV-2026-05-20-002/003/004 and earlier) archived to docs/archive/patch-history-2026-05-09.md -->
+<!-- BUG-20260520-zen-exit-rp-restore and earlier entries archived to docs/archive/patch-history-2026-05-09.md -->

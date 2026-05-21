@@ -6,6 +6,63 @@
 
 ---
 
+## 2026-05-21 — LITE-1+2+3+4 — make /lite/ runnable (per /goal "ทำให้ครบถ้วน จน run ได้") — PASS (branch: main)
+
+**What changed:** Extended the LITE-0 scaffold into a runnable lite app. (1) LITE-1 backend: `server_lite.py` now has real `/upload` (per-case PyMuPDF open, case_id isolation), `/page/{n}` (JPEG render at RS=1.5, prerotate, image cache), `/pageinfo/{n}` (PDF-point page size), `/thumb/{n}`. (2) LITE-2 chrome: `ui-lite.html` rebuilt as the full single-row top bar (File/Measure/Page + ⌘K/Overview/Focus), floating "กำลังวัดอะไร" category picker, 4 corner HUDs, ⌘K page search, F12 overview with real thumbnails. (3) LITE-3 tools: scale-calibration modal + polygon/distance/path/reference/count, all areas via the vendored `polyAreaM2`; geometry stored in PDF points, canvas view handles rotate/zoom/pan. (4) LITE-4 dimension labels render at constant screen size with declutter + right-click per-object show/hide. Save/load `.bmaplan` (lite-native, version 1) round-trips. **Verified end-to-end with Playwright on `proto/test_plan_A1.pdf`:** PDF rendered (3576×2526), scale set (79.27 pt/m), polygon area = **66.67 m² (exact)**, distance + count drawn, save round-trip OK, **0 console errors**. Fixed a dblclick stray-point bug (the double-click's two mousedowns were adding duplicate polygon vertices → wrong area). Still zero edits under `proto/`; `MEASURE_PARITY_OK` still green.
+
+**Why:** User set `/goal "ทำให้ครบถ้วน จน run ได้"` — push the lite tree from scaffold to a genuinely runnable measurement app. Core workflow (open PDF → set scale → measure → save) now works. Remaining: LITE-5 cross-open byte-parity + count additive, LITE-6 export (needs openpyxl), LITE-7 PyInstaller packaging.
+
+**Files touched:** `lite/server_lite.py` (real endpoints), `lite/ui-lite.html` (full UI), `lite/static/js/measure-engine.js` (unchanged — vendored), `docs/status/PHASE_INDEX.md` (LITE-1..4 done). Tests: `python lite/tests/test_measure_parity.py` → MEASURE_PARITY_OK; py_compile OK; Playwright journey 0 errors.
+
+---
+
+## 2026-05-21 — LITE-0 — scaffold standalone /lite/ tree — PASS (branch: main)
+
+**What changed:** Scaffolded a new `/lite/` sibling directory tree — a standalone build of BMA-Plan Lite (epic INV-2026-05-21-001, Approach A: vendored-copy + contract-test). The measurement engine (`RS`, `pdfToC`, `cToPdf`, `polyAreaM2`, `polyMetrics`, `polySelfIntersects`, `pathAreaM2`, and 6 path helpers) was vendored byte-identical from `proto/ui.html` into `lite/static/js/measure-engine.js`, with a new lite-only wrapper `objectAreaM2Lite` (polygon+path only). An anti-drift parity gate (`lite/tests/test_measure_parity.py`) verifies both source byte-identity (10 fns + 2 consts) and numeric parity via Node.js on 5 polys, 2 paths, and 4 coordinate pairs. A skeleton FastAPI app (`lite/server_lite.py`), free-port launcher (`lite/launch_lite.py`), and minimal UI shell (`lite/ui-lite.html`) complete the scaffold. The shell runs a self-test on load (unit square = 25.00 m2) with 0 console errors. Zero edits to any file under `proto/`.
+
+**Why:** The invent pipeline (`/bma-invent` GO on idea INV-2026-05-21-001 "BMA-Plan Lite standalone build") concluded Approach A (vendored copy + parity gate) is the lowest-risk path for a distributable lite variant — the contract test enforces byte-identity so any upstream change to the engine immediately breaks the gate, preventing silent drift. LITE-0 is the foundation sprint; LITE-1..7 will add backend render endpoints, UI chrome, tools, export, and packaging without any proto/ coupling.
+
+**Files touched:**
+- `lite/static/js/measure-engine.js` (NEW): vendored verbatim from `proto/ui.html` — `RS`, `_PATH_FLATTEN_TOL`, `segIntersect`, `_flattenCubicSeg`, `flattenPathToPoints`, `polySelfIntersects`, `origSize`, `pdfToC`, `cToPdf`, `polyAreaM2`, `polyMetrics`, `pathAreaM2`; plus lite-only `objectAreaM2Lite`
+- `lite/tests/test_measure_parity.py` (NEW): anti-drift gate — source byte-identity + numeric parity via Node
+- `lite/tests/fixtures/measure_parity_v1.json` (NEW): 5 polys / 2 paths / 4 coords test vectors
+- `lite/server_lite.py` (NEW): skeleton FastAPI (static mount + /health + /); endpoints deferred to LITE-1
+- `lite/launch_lite.py` (NEW): free-port (8100+) launcher
+- `lite/ui-lite.html` (NEW): LITE-0 shell — host globals + engine load + self-test (unit square = 25.00 m2)
+- `lite/README.md` (NEW): vendoring contract + version-sync policy
+- `docs/invent/bma-plan-lite-standalone.md` (NEW): invent research + approach decision record
+- `proto/sandbox/invent-bma-plan-lite-standalone.html` (NEW): invention spike
+- `docs/status/PHASE_INDEX.md` (MODIFIED): sprint card LITE-0 added + status flipped to done
+
+**Tests:**
+```
+python lite/tests/test_measure_parity.py
+  -> MEASURE_PARITY_OK (10 fns + 2 consts byte-identical; 5 polys/2 paths/4 coords numeric parity; unit square = 25.00 m2 verified)
+python3.11 -m py_compile lite/server_lite.py lite/launch_lite.py  -> PASS
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py     -> PASS (proto regression guard)
+Playwright render lite/ui-lite.html -> self-test "engine wired", 0 console errors
+
+No-test rationale for proto full E2E + human-journey: LITE-0 is purely additive in the new /lite/ tree.
+ZERO changes to proto/ — proto runtime unchanged, no regression risk. Proto py_compile is the guard.
+Reference baseline: proto full E2E = 21 markers / 102 _OK as of HT-ACC 2026-05-20.
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (vendored copy byte-identical, enforced by parity gate)
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `buildSnapIndex` / `snap` internals — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (count objects deferred to LITE-5 as additive `store.counts`; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ `/bma-check-forbidden` = OK (read-only vendoring; hard constraint = byte-identical enforced by parity gate)
+
+**Known gaps / follow-ups:**
+- LITE-1: backend endpoints (`/upload`, `/page/{n}`, `/thumb`) reusing PyMuPDF for the raster render path.
+- Epic LITE-1..7 remains (chrome, tools, dimension rendering, save/load+count, export, packaging).
+- `lite/` tree is gitignored-candidate until LITE-3 chrome lands; confirm with user before first commit of `lite/`.
+
+---
+
 ## 2026-05-20 — HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — PASS (branch: main)
 
 **What changed:** Fixed the calibration UX gap that caused the user to measure title-deed land (โฉนด 2 ไร่ 2 งาน = 4,000 m²) ~1% smaller than the deeded area. The investigation confirmed the area math is exact (shoelace with precise pts_per_m float, 0.08% error on reference geometry); the loss came from snap silently capturing a different — longer — reference line than the one the user intended to click. Four coordinated changes: (1) HT-ACC-1: `calibRaw[]` captures the raw pre-snap click points alongside `calibPts`; after the 2nd click, if snap moved the captured line >5% from the user's click the calib panel shows an orange warning with raw→snapped coordinates and a reminder to zoom in before re-clicking — this was the root cause of the systematic measurement loss. (2) HT-ACC-2: Verify Scale promoted to a ribbon button beside Set Scale; longest-baseline tip added to calib panel; `finishCalib` status nudges to Verify; `activateAreaTool('land')` hints to use arc edges on curved boundaries. (3) HT-ACC-3: `status-bar.js` `updateAnalyseUI` sets a tooltip on `#lbl-scale` and `#scale-badge` showing exact `pts_per_m` and precise `1:N.x` — the visible label stays rounded, area computation uses the full float, so there is no measurement change. (4) HT-NAV-1: navigation root-cause investigation concluded — no code fix required; `getNextPage`/`loadPage` logic is sound; exception observed by journey-tester was a Playwright timing artifact. New E2E marker `HT_ACC_OK` (5 sub-checks). Total full E2E: EXIT 0, 102 _OK markers.
@@ -47,43 +104,7 @@ UI_REGRESSION_PASS. Forbidden-surface diff scan CLEAN.
 
 ---
 
-## 2026-05-20 — BUG-20260520-zen-exit-rp-restore — PASS (branch: main)
-
-**What changed:** Defensive fix making the right panel always recoverable after Zen Mode exits. Three coordinated changes: (1) F11 keydown handler now calls `preventDefault()` unconditionally so the browser can never enter native fullscreen and leave `body.zen` stuck — Zen exit (`if(body.zen || ...)`) always works; entering Zen is still blocked mid-draw or when a modal is open. (2) F9/F10 keybindings added — F9 calls `toggleLeftPanel`, F10 calls `toggleRightPanel`; the restore tabs already advertised [F9]/[F10] labels but had no handler wired. (3) `proto/static/css/app.css`: dead sibling selector `#right-panel.collapsed~#workspace #rp-restore-tab` (workspace precedes panel in DOM so `~` never matched) replaced with `body:has(#right-panel.collapsed) #rp-restore-tab{display:flex}`; the existing attribute-based fallback `.canvas-wrap[data-right-collapsed="1"]` kept. New E2E test `_test_bug_zen_exit_rp_restore` + marker `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` (6 sub-checks).
-
-**Why:** User-reported: after hiding L+R panels → F11 Zen → exit to normal, the restore tab (`#rp-restore-tab`) was gone and the right panel could not be re-shown. Headless repro (3 variants in `artifacts/repro_zen_exit_rp.py`) could not reproduce — tab returned to flex in Playwright. Lead hypothesis: real-browser native F11 fullscreen collides with the app F11 `!anyModal && !mPts.length` guard; when a modal is open or mid-draw, `preventDefault` was skipped, the browser entered native fullscreen, and `body.zen` desynced/stayed stuck causing `body.zen .panel-restore-tab{display:none}` to hide the tab permanently. Fix is defensive — recoverable regardless of exact trigger.
-
-**Files touched:**
-- `proto/ui.html`: F11 handler — unconditional `preventDefault()` + widened exit condition; F9→`toggleLeftPanel` + F10→`toggleRightPanel` added
-- `proto/static/css/app.css`: `#right-panel.collapsed~#workspace #rp-restore-tab` dead rule replaced with `:has()` selector; zen/overview `display:none !important` overrides unchanged
-- `proto/e2e_ui_test.py`: `_test_bug_zen_exit_rp_restore` (+6 sub-checks) + `BUG_20260520_ZEN_EXIT_RP_RESTORE_OK` marker wired into `main()`
-
-**Tests:**
-```
-py_compile proto/server.py proto/e2e_ui_test.py                → PASS
-proto/e2e_ui_test.py full                                       → EXIT 0 (101 _OK markers, 0 E2E_FAIL)
-  NEW: BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks:
-       inZen, zenExitedMidDraw, f10Toggled, tabVisibleWhenCollapsed,
-       tabHiddenInZen, tabVisibleAfterZenExit)
-  CACHE_OK / MAIN_UI_OK (cssLinkPresent + cssVarLoaded true) — CSS still serves
-  All prior 100 markers retained. Zero regression.
-```
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` engine — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (untouched; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- Static CSS touched → `UI_MANUAL_TEST.md` updated with 5-check Zen exit / F9/F10 / restore-tab checklist.
-- Headless repro could not reproduce the original trigger — fix is defensive. Real-browser manual test (checklist item 3: open modal then F11) is the only way to confirm the native-fullscreen desync path is closed.
-- Commit: `9453777` on main.
-
----
-
-<!-- HT-ACC series (2026-05-20) and BUG-20260520-zen-exit-rp-restore are the 2 sessions kept in this file -->
+<!-- LITE-0 (2026-05-21) and HT-ACC series (2026-05-20) are the 2 sessions kept in this file -->
+<!-- BUG-20260520-zen-exit-rp-restore archived to docs/archive/log-2026-05-20.md (already present) -->
 <!-- INV-2026-05-20-002/003/004 Layer L1+L2+L3 and earlier 2026-05-20 entries archived to docs/archive/log-2026-05-20.md -->
 <!-- BLOAT-2 and BLOAT-1 entries archived to docs/archive/log-2026-05-19.md -->
