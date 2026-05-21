@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-21 (updated: LITE-0 — /lite/ standalone tree scaffolded; measurement engine vendored byte-identical; parity gate PASS; proto/ untouched; 102 markers baseline unchanged)
+Date: 2026-05-21 (updated: /lite/ standalone build at 9/10 scope groups — runnable: open PDF→scale→measure(snap)→annotate→review→export XLSX/PDF→save. Vendored engine MEASURE_PARITY_OK, proto/ untouched. Remaining: LITE-5 cross-open byte-parity + LITE-7 packaging. proto 102-marker baseline unchanged.)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
