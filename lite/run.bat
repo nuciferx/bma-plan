@@ -29,10 +29,10 @@ if errorlevel 1 (
 )
 
 REM --- ensure dependencies ------------------------------------
-%PY% -c "import fastapi,uvicorn,fitz,aiofiles,multipart" 2>nul
+%PY% -c "import fastapi,uvicorn,fitz,aiofiles,multipart,openpyxl" 2>nul
 if errorlevel 1 (
   echo [BMA-Plan Lite] installing dependencies ^(one-time^)...
-  %PY% -m pip install --quiet --disable-pip-version-check fastapi uvicorn aiofiles python-multipart pymupdf
+  %PY% -m pip install --quiet --disable-pip-version-check fastapi uvicorn aiofiles python-multipart pymupdf openpyxl
   if errorlevel 1 (
     echo [!] dependency install failed. Check your internet connection and try again.
     pause

@@ -85,7 +85,9 @@
       <div class="sep"></div>
       <div class="item" id="mi-save">บันทึก .bmaplan<span class="k">Ctrl+S</span></div>
       <div class="item" id="mi-load">เปิดโปรเจกต์ .bmaplan</div>
-      <div class="item" id="mi-export" style="opacity:.45">Export XLSX (LITE-6)</div>
+      <div class="sep"></div>
+      <div class="item" id="mi-xlsx">Export XLSX<span class="k">Ctrl+E</span></div>
+      <div class="item" id="mi-pdfov">Export PDF (overlay)</div>
     </div></div>
     <div class="menu" data-m="measure"><button>Measure ▾</button><div class="dd">
       <div class="item" data-tool="scale">ตั้งสเกล (Set Scale)<span class="k">S</span></div>
@@ -479,6 +481,28 @@ document.getElementById("mi-save").onclick=function(){
   a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
   state.dirty=false; draw();
 };
+/* LITE-6: export XLSX + PDF overlay */
+function buildExportData(){ var rows=[],sum={},cnt={};
+  Object.keys(PS).forEach(function(k){ var pg=+k; PS[k].objects.forEach(function(o){ var nm=catOf(o.catId).name;
+    if(o.counting){ rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:"count",area:null,count:1}); cnt[o.catId]=(cnt[o.catId]||0)+1; return; }
+    if(o.kind!=="poly"){ rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:o.kind,area:null,count:null}); return; }
+    var a=polyMetrics({pts:o.pts},pg).area;
+    rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:"area",area:a==null?null:+a.toFixed(3),count:null});
+    sum[o.catId]=(sum[o.catId]||0)+(a||0); }); });
+  var summary=Object.keys(sum).map(function(id){return {category:catOf(id).name,total:+sum[id].toFixed(3)};})
+    .concat(Object.keys(cnt).map(function(id){return {category:catOf(id).name+" (จุด)",total:cnt[id]};}));
+  return {rows:rows,summary:summary}; }
+async function dlPost(url,payload,fname){ var res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(!res.ok){alert("export ล้มเหลว ("+res.status+")");return;} var blob=await res.blob();
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; a.click(); }
+function baseName(){ return (pdfName||"export").replace(/\.pdf$/i,""); }
+document.getElementById("mi-xlsx").onclick=function(){ if(!caseId){alert("เปิด PDF ก่อน");return;} dlPost("/export-xlsx",buildExportData(),baseName()+".xlsx"); closeMenus(); };
+document.getElementById("mi-pdfov").onclick=function(){ if(!caseId){alert("เปิด PDF ก่อน");return;}
+  var pages={}; Object.keys(PS).forEach(function(k){ var objs=PS[k].objects.map(function(o){
+    var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetrics({pts:o.pts},+k).area; label=o.semanticTag+(a==null?"":" "+a.toFixed(2)+" m2"); }
+    return {kind:o.kind,counting:o.counting,pts:o.pts,color:catOf(o.catId).color,label:label}; });
+    if(objs.length)pages[k]={objects:objs}; });
+  dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); };
 document.getElementById("mi-load").onclick=function(){document.getElementById("file-bma").click();};
 document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0];if(!f)return;
   var rd=new FileReader(); rd.onload=function(){ try{ var doc=JSON.parse(rd.result);
@@ -541,6 +565,7 @@ window.addEventListener("keydown",function(e){
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCmdK();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="s"){e.preventDefault();document.getElementById("mi-save").onclick();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="o"){e.preventDefault();document.getElementById("file-pdf").click();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="e"){e.preventDefault();document.getElementById("mi-xlsx").onclick();return;}
   if(modalOpen())return;
   if(e.key==="F12"){e.preventDefault();openOv();return;}
   if(e.key==="Escape"){closeOverlays();if(state.draft){state.draft=null;draw();}return;}

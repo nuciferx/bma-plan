@@ -257,7 +257,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
       - [x] **LITE-ANNOT** ✅ done 2026-05-21: Text, Comment, Arrow, Highlight, Frames (rect/circle/cloud). Per-page `annotations[]`, render on canvas, right-click to delete, save/load round-trip. Verified all 6 types created + deleted + persisted, 0 errors.
       - [ ] **LITE-PAGESETUP** page setup: per-page tag + scale + project metadata dialog. (Group 4 remainder.)
       - [ ] **LITE-5** save/load: lite-native `.bmaplan` round-trip DONE (version 1, pages/objects/scale/excluded). REMAINING: cross-open byte-parity with proto's exact schema arrays (polys/lines/refs) + count additive (`store.counts`) proto-ignore fixture test.
-      - [ ] **LITE-6** export: XLSX (details+summary — needs `pip install openpyxl`), PDF overlay, PDF+annotations via PyMuPDF/openpyxl in `server_lite.py`.
+      - [x] **LITE-6** export ✅ done 2026-05-21: `/export-xlsx` (Measurements + Summary sheets, openpyxl) + `/export-pdf-overlay` (PyMuPDF draw_polyline + labels on PDF copy). Verified XLSX rows/summary = 66.667 + overlay PDF opens with drawings, 0 errors. (PDF overlay correct for rotation-0 pages; rotated-page overlay = LITE-5 polish. PDF+annotations rendering = follow-up.)
       - [ ] **LITE-7** packaging: PyInstaller multi-entry (`lite_launch` block in BMA-Plan.spec); produce standalone lite `.exe`; verify runs without proto.
       - **RUNNABLE NOW:** `python lite/launch_lite.py` → open PDF → set scale → measure → save. Core workflow verified end-to-end (0 console errors).
     - Version-sync policy: `tests/test_measure_parity.py` must pass before ANY proto commit touching the 9 math fns; on fail, re-sync lite vendor copy. Pin fixtures in `tests/fixtures/measure_parity_v1.json`.

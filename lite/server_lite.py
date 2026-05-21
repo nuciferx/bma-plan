@@ -16,12 +16,13 @@ case owns its own doc + image_cache. RS=1.5 must match proto so .bmaplan geometr
 Anti-pattern guards (AGENTS.md §8): static dir from Path(__file__).resolve();
 app.mount NOT guarded by if-exists (would swallow the aiofiles RuntimeError).
 """
+import io
 import time
 import uuid
 from pathlib import Path
 
 import fitz  # PyMuPDF
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -159,6 +160,78 @@ def pageinfo(n: int, case_id: str):
     r = doc[n - 1].rect
     return {"w_pt": r.width, "h_pt": r.height, "rot": doc[n - 1].rotation,
             "render_scale": RS}
+
+
+def _hex_rgb(h):
+    h = (h or "#ff3b30").lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    try:
+        return (int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255)
+    except Exception:
+        return (1, 0.23, 0.19)
+
+
+@app.post("/export-xlsx")
+async def export_xlsx(req: Request):
+    """rows = [{page,category,semanticTag,kind,area,count}]; summary = [{category,total}]."""
+    from openpyxl import Workbook
+    data = await req.json()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Measurements"
+    ws.append(["Page", "Category", "Semantic Tag", "Type", "Area (m²)", "Count"])
+    for r in data.get("rows", []):
+        ws.append([r.get("page"), r.get("category"), r.get("semanticTag"),
+                   r.get("kind"), r.get("area"), r.get("count")])
+    ws2 = wb.create_sheet("Summary")
+    ws2.append(["Category", "Total Area (m²) — all pages"])
+    for s in data.get("summary", []):
+        ws2.append([s.get("category"), s.get("total")])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return Response(buf.getvalue(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename=bma-lite-export.xlsx"})
+
+
+@app.post("/export-pdf-overlay")
+async def export_pdf_overlay(req: Request):
+    """Draw measurement geometry (PDF-point coords) onto a copy of the case PDF.
+    Correct for pages with rotation 0; rotated pages are a known LITE limitation."""
+    data = await req.json()
+    case = _get_case(data.get("case_id"))
+    if not case:
+        return JSONResponse({"error": "invalid case"}, 400)
+    out = fitz.open()
+    out.insert_pdf(case["doc"])
+    for n, pg in data.get("pages", {}).items():
+        idx = int(n) - 1
+        if idx < 0 or idx >= len(out):
+            continue
+        page = out[idx]
+        for o in pg.get("objects", []):
+            pts = [(p["x"], p["y"]) for p in o.get("pts", [])]
+            col = _hex_rgb(o.get("color"))
+            if o.get("counting"):
+                if pts:
+                    page.draw_circle(fitz.Point(pts[0]), 4, color=col, fill=col, width=1)
+                continue
+            if o.get("kind") == "poly" and len(pts) >= 3:
+                page.draw_polyline(pts + [pts[0]], color=col, width=1.2)
+            elif len(pts) >= 2:
+                page.draw_polyline(pts, color=col, width=1.2)
+            if o.get("label") and pts:
+                cx = sum(p[0] for p in pts) / len(pts)
+                cy = sum(p[1] for p in pts) / len(pts)
+                try:
+                    page.insert_text(fitz.Point(cx, cy), o["label"], fontsize=8, color=col)
+                except Exception:
+                    pass
+    data_bytes = out.tobytes()
+    out.close()
+    return Response(data_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": "attachment; filename=bma-lite-overlay.pdf"})
 
 
 @app.get("/thumb/{n}")
