@@ -99,6 +99,7 @@
       <div class="sep"></div>
       <div class="item" id="mi-xlsx">Export XLSX<span class="k">Ctrl+E</span></div>
       <div class="item" id="mi-pdfov">Export PDF (overlay)</div>
+      <div class="item" id="mi-report">ส่งออกรายงาน (แก้ไขได้)…</div>
     </div></div>
     <div class="menu" data-m="edit"><button>Edit ▾</button><div class="dd">
       <div class="item" id="mi-undo">ย้อนกลับ (Undo)<span class="k">Ctrl+Z</span></div>
@@ -801,6 +802,57 @@ document.getElementById("mi-pdfov").onclick=function(){ if(!caseId){alert("เ�
     var anns=(PS[k].annotations||[]).map(function(a){ var st=annStyle(a); return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:st.color,opacity:st.opacity,fontSize:st.fontSize}; });
     if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns}; });
   dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); };
+
+/* LITE-REPORT: editable web report — opens /report in a new window, hands off
+   precomputed measure results via sessionStorage. Reads polyMetrics/PS/catOf
+   read-only; touches no area-math / coordinate / schema surface. Approach A
+   (INV-2026-05-21-002). */
+function reportPageTitle(pg){
+  if(pageNames[pg]) return pageNames[pg];
+  var fk=pageFloorKind[pg];
+  if(fk){ var lbl=FLOOR_KIND_LABELS[fk]||""; var num=pageFloorNum[pg]; return (lbl+(num?(" "+num):"")).trim()||("หน้า "+pg); }
+  var tg=pageTags[pg]; if(tg&&PAGE_TAGS[tg]) return PAGE_TAGS[tg];
+  return "หน้า "+pg;
+}
+function buildReportPayload(){
+  var pages=[];
+  Object.keys(PS).map(Number).filter(function(n){return !excluded[n];}).sort(function(a,b){return a-b;})
+  .forEach(function(pg){
+    var objs=(PS[pg]&&PS[pg].objects)||[];
+    var areaObjs=objs.filter(function(o){return o.kind==="poly"&&!o.counting;});
+    if(!areaObjs.length) return;
+    var groups=[], overlays=[], net=0, badgeN=0;
+    CATS.forEach(function(c){
+      if(c.counting) return;
+      var inCat=areaObjs.filter(function(o){return o.catId===c.id;});
+      if(!inCat.length) return;
+      var sub=0;
+      var rows=inCat.map(function(o){
+        var a=polyMetrics({pts:o.pts},pg).area; a=(a==null?0:a); sub+=a; badgeN++;
+        overlays.push({pts:o.pts.map(function(p){return {x:+(p.x*RS).toFixed(1),y:+(p.y*RS).toFixed(1)};}),color:c.color,badge:badgeN});
+        return {name:(o.name||c.name), area:+a.toFixed(2), badge:badgeN};
+      });
+      var sign=(c.id==="ded")?-1:1; net+=sign*sub;
+      groups.push({label:c.name,color:c.color,rows:rows,subtotal:+sub.toFixed(2),sign:sign});
+    });
+    if(!groups.length) return;
+    pages.push({idx:pg,title:reportPageTitle(pg),tag:(pageTags[pg]?(PAGE_TAGS[pageTags[pg]]||""):""),
+      imgUrl:api("/page/"+pg),scaleSet:!!(PS[pg]&&PS[pg].scale),
+      overlays:overlays,groups:groups,net:+net.toFixed(2)});
+  });
+  return {project:projectInfo.name||"",date:new Date().toLocaleDateString("th-TH"),generated:Date.now(),pages:pages};
+}
+function openReport(){
+  if(!caseId){alert("เปิด PDF ก่อน");return;}
+  var payload=buildReportPayload();
+  if(!payload.pages.length){alert("ยังไม่มีพื้นที่ที่วัด — วาดพื้นที่ (polygon) ก่อนสร้างรายงาน");return;}
+  try{ sessionStorage.setItem("bmaReportPayload",JSON.stringify(payload)); }
+  catch(err){ alert("เตรียมรายงานไม่สำเร็จ (ข้อมูลใหญ่เกิน): "+err.message); return; }
+  window.open("/report","_blank");
+  closeMenus();
+}
+document.getElementById("mi-report").onclick=openReport;
+
 document.getElementById("mi-load").onclick=function(){document.getElementById("file-bma").click();};
 function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,type:t};
   if(t==="ann_text"||t==="ann_comment"){ o.pt=(a.pts&&a.pts[0])||a.pt||{x:0,y:0}; o.text=a.text||""; } else { o.pts=a.pts||[]; }

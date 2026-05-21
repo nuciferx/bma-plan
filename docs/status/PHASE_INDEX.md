@@ -280,7 +280,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Scope skill: pending (`/bma-invent` decides after research; likely new packaging/distribution scope)
     - Forbidden-surface profile: NONE in `/proto/` — by design, `/lite/` does not touch existing measurement engine; needs to define its OWN forbidden surfaces once built
 
-- [ ] **LITE-REPORT — editable web report page (plan left / area table right) → print to PDF** — `queued` (→ INV-2026-05-21-002) — GO 2026-05-21, Approach A (sessionStorage + new-window contenteditable)
+- [x] **LITE-REPORT — editable web report page (plan left / area table right) → print to PDF** — `✅ done` (→ INV-2026-05-21-002) — GO 2026-05-21, Approach A (sessionStorage + new-window contenteditable). **Built 2026-05-22**: NEW `lite/lite-report.html` (A4 landscape, plan+SVG-overlay left / category-grouped area table right, contenteditable text, area cells READ-ONLY, `@media print` page-break) + `GET /report` route + File-menu `ส่งออกรายงาน (แก้ไขได้)` → `buildReportPayload()` + `window.open` + sessionStorage handoff. `LITE_REPORT_OK` 17/17 + MEASURE_PARITY_OK + REALFLOW_OK (real PDF upload→popup→live image→net). Zero proto edits, zero forbidden surface.
     - Sprint id: INV-2026-05-21-002 · depends-on: LITE-6 (export), LITE-REVIEW (semanticTag grouping) — both ✅ done
     - Invent artifact: `docs/invent/lite-pdf-report-split.md` (v1 backend-PDF superseded → v2 editable web report) · Source: ~/.claude/ideas/IDEAS.md @ 2026-05-21 19:48
     - Spike (PASS 5/5, screenshots rendered via Chromium): `proto/sandbox/invent-lite-pdf-report-split-v2.html` · artifacts: `artifacts/invent/lite-pdf-report-split/{sheet1.png,sheet1-edited.png,print-preview.pdf}`

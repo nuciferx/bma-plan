@@ -4,7 +4,61 @@
 
 ---
 
-# Latest: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
+# Latest: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
+
+Branch: main
+
+Date: 2026-05-22
+
+## Outcome: PASS — Lite gains an editable web report (plan-left / area-table-right, A4 landscape) opened in a new window via sessionStorage handoff, edited Word-style, printed to PDF. Area numbers read-only. LITE_REPORT_OK GREEN (17/17). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
+
+## Summary
+
+Added `lite/lite-report.html` — a standalone A4-landscape web page that opens in a new window from the File menu "ส่งออกรายงาน (แก้ไขได้)…". The report shows one sheet per measured page: left = plan image with SVG polygon overlay + numbered badges; right = area table grouped by semanticTag with per-group subtotals + page net (deductions sign −1) + header. Header fields, row labels, and notes are `contenteditable`; area cells are read-only (raw-geometry contract). `@page` + `@media print` CSS enables WYSIWYG browser-print-to-PDF. Payload passed via `sessionStorage["bmaReportPayload"]` — images reference `/page/{n}` URLs so only geometry+metadata are serialised (well under 5 MB). A sample standalone fallback renders when opened without a payload.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/lite-report.html` | NEW — standalone editable report page (A4 landscape, plan+SVG overlay, area table, contenteditable, @page print CSS, sample fallback) |
+| `lite/server_lite.py` | +9 lines — `_REPORT_FILE` const + `GET /report` FileResponse route (additive) |
+| `lite/ui-lite.html` | +52 lines — File-menu item #mi-report + `reportPageTitle()` / `buildReportPayload()` / `openReport()` (reads polyMetrics/PS/catOf READ-ONLY; handoff via sessionStorage + window.open) |
+| `lite/tests/test_report.py` | NEW — LITE_REPORT_OK Playwright guard (17 checks) |
+| `docs/status/PHASE_INDEX.md` | LITE-REPORT marked done |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (read-only consumer; MEASURE_PARITY_OK)
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED (measure-engine.js untouched)
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; no schema touch at all (report reads in-memory PS, ephemeral edits)
+
+## Tests Run
+
+```
+py_compile lite/server_lite.py lite/launch_lite.py         → PY_COMPILE_OK
+lite/tests/test_report.py                                  → LITE_REPORT_OK GREEN (17/17)
+lite/tests/test_measure_parity.py                          → MEASURE_PARITY_OK GREEN (16 fns + 2 consts)
+lite/tests/test_menu_clickable.py                          → BUG_20260521_LITE_MENU_CLIP_OK GREEN
+lite/tests/test_pan_controls.py                            → BUG_20260521_LITE_PAN_OK GREEN
+artifacts/realflow_check.py                                → REALFLOW_OK (real PDF → popup → naturalWidth 3576 → polygon overlay → net 222.22)
+
+No-test rationale for proto E2E: lite-only tree; zero proto/ edits.
+Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (read-only consumer)
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (measure-engine.js untouched; MEASURE_PARITY_OK)
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (no schema touch)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail (area facts only)
+
+---
+
+# Previous: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
 
 Branch: main
 
@@ -56,7 +110,7 @@ Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchang
 
 ---
 
-# Previous: LITE-0 — scaffold standalone /lite/ tree (sub-sprint 1 of epic INV-2026-05-21-001)
+# Previous (older): LITE-0 — scaffold standalone /lite/ tree (sub-sprint 1 of epic INV-2026-05-21-001)
 
 Branch: main
 

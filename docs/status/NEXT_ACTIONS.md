@@ -1,23 +1,29 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-21 (updated: BUG-20260521-lite-pan-controls PASS — view controls forked from proto into lite; LITE-7 or next PHASE_INDEX item is next)
+Date: 2026-05-22 (updated: LITE-REPORT PASS — editable web report page for lite; LITE-7 or LITE-REPORT v2 optional follow-ups are next)
 
 ## Immediate Next
 
-**BUG-20260521-lite-pan-controls done. /lite/ view-control system is now fully navigable (spacebar/middle-mouse pan + H pan-tool + smooth clamped zoom + shortcuts). Epic INV-2026-05-21-001 continues.**
+**LITE-REPORT done. /lite/ epic INV-2026-05-21-001 + INV-2026-05-21-002 is now feature-complete (all user-facing outputs: measure + export XLSX/PDF + save/load + web report). Only LITE-7 packaging remains (deferred).**
 
-- **(PRIORITY 1) LITE-7 PyInstaller .exe** — deferred by user; package lite as a standalone Windows executable. Only unfinished item of the LITE epic's 10 locked scope groups. Requires PyInstaller + run.bat changes; zero proto/ edits.
+- **(PRIORITY 1) LITE-7 PyInstaller .exe** — deferred by user; package lite as a standalone Windows executable. The only unfinished item of the LITE epic's 10 locked scope groups. Requires PyInstaller + run.bat changes; zero proto/ edits.
 
-- **(a) Lite per-page rotation parity with proto** — optional follow-up. Lite uses a single global V.rot while proto persists per-page server-side rotation into the saved file. Porting this is a deeper save-format/server change — out of view-control scope; defer until explicitly requested.
+- **(a) LITE-REPORT v2 optional follow-ups** — out of scope for the current sprint; queued as backlog:
+  - Custom branding (logo/project name header customisation)
+  - Cross-page roll-up summary sheet (total by category across all pages)
+  - Persist header/notes edits to .bmaplan (additive schema field `reportEdits{}`)
 
-- **(b) Proto backlog — Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface.
+- **(b) "Lock the site-plan line" E2E guard** — queued, optional. Adds an E2E assertion that no FAR/OSR/setback verdict UI renders anywhere in lite. Currently out of scope for the LITE-REPORT sprint.
 
-- **(c) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). Valid when proto sprint is ready for pre-release.
+- **(c) Lite per-page rotation parity with proto** — optional follow-up. Lite uses a single global V.rot while proto persists per-page server-side rotation. Porting this is a deeper save-format/server change — defer until explicitly requested.
 
-- **(d) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
+- **(d) Proto backlog — Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface.
+
+- **(e) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). Valid when proto sprint is ready for pre-release.
 
 ## Recently Done
 
+- **LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite** — 2026-05-22. PASS. A4-landscape `lite/lite-report.html` opened from File menu via sessionStorage handoff. Plan image + SVG polygon overlay (left); area table grouped by semanticTag with per-group subtotals + page net (right); contenteditable header/row-name/note; read-only area cells; @page print-to-PDF. `GET /report` route added (+9 lines). LITE_REPORT_OK GREEN (17/17). REALFLOW_OK on real 562 MB permit (net 222.22). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
 - **BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite** — 2026-05-21. PASS. Spacebar/middle-mouse pan in any mode (including mid-draw); H sticky pan-tool; setCursor helper; smooth exponential wheel zoom clamped [0.02, 40]; zoomCenter/actualSize; F/Ctrl+0/Ctrl+1/Ctrl+=/Ctrl+- shortcuts; enriched hint text. BUG_20260521_LITE_PAN_OK GREEN (13/13). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
 - **BUG-20260521-lite-menu-clip — lite top-bar dropdowns unclickable** — 2026-05-21. PASS. #topbar overflow:hidden→visible + position:relative;z-index:60. BUG_20260521_LITE_MENU_CLIP_OK GREEN (4/4). ZERO proto/ edits.
 - **LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1)** — 2026-05-21. PASS. `/lite/` sibling tree scaffolded. `measure-engine.js` vendored byte-identical from `proto/ui.html`. Anti-drift parity gate MEASURE_PARITY_OK (10 fns + 2 consts byte-identical; 5 polys/2 paths/4 coords numeric parity; unit square = 25.00 m2). Skeleton `server_lite.py`, `launch_lite.py`, `ui-lite.html` shell. ZERO proto/ edits. Proto 102 _OK baseline unchanged.

@@ -36,6 +36,7 @@ CASE_TTL_SEC = 3600
 _BASE_DIR = Path(__file__).resolve().parent
 _STATIC_DIR = _BASE_DIR / "static"
 _UI_FILE = _BASE_DIR / "ui-lite.html"
+_REPORT_FILE = _BASE_DIR / "lite-report.html"   # LITE-REPORT: editable web report page
 
 CASES: dict = {}
 
@@ -71,6 +72,14 @@ def _get_case(cid):
 @app.get("/")
 def index():
     return FileResponse(str(_UI_FILE))
+
+
+@app.get("/report")
+def report():
+    # LITE-REPORT: standalone editable report page. Receives its payload from the
+    # main UI via sessionStorage["bmaReportPayload"] (same-origin window.open),
+    # falls back to bundled sample data when opened directly.
+    return FileResponse(str(_REPORT_FILE))
 
 
 @app.get("/health")

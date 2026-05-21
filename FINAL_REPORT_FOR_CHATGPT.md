@@ -4,7 +4,36 @@
 
 ---
 
-# Latest: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS
+# Latest: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS
+
+**Date:** 2026-05-22
+**Branch:** main
+
+## Outcome
+
+PASS. Lite gains a standalone editable web-report page (`lite/lite-report.html`) opened in a new window from the File menu. The report renders one A4-landscape sheet per measured page — plan image with SVG polygon overlay on the left, area table grouped by category on the right — and supports WYSIWYG browser-print-to-PDF. Area numbers are read-only (raw-geometry contract preserved); header fields, row labels, and per-row notes are `contenteditable`. LITE_REPORT_OK GREEN (17/17). REALFLOW_OK confirmed on a real 562 MB permit PDF (net 222.22). ZERO proto/ edits; proto 102-marker baseline unchanged.
+
+## What was delivered
+
+- `lite/lite-report.html` — A4 landscape report page: plan+SVG overlay with numbered polygon badges; area table grouped by semanticTag; per-group subtotals; page net (deductions −1); contenteditable header/row-name/note; read-only area cells; @page + @media print WYSIWYG; sample standalone fallback
+- `lite/server_lite.py` — additive `GET /report` FileResponse route (+9 lines)
+- `lite/ui-lite.html` — File-menu item #mi-report + `reportPageTitle()` / `buildReportPayload()` / `openReport()` (+52 lines); sessionStorage["bmaReportPayload"] handoff; images via /page/{n} URLs
+- `lite/tests/test_report.py` — NEW LITE_REPORT_OK Playwright guard (17 checks)
+- `docs/status/PHASE_INDEX.md` — LITE-REPORT sprint card marked done
+
+## What's next
+
+- Optional LITE-REPORT v2 follow-ups: custom branding, cross-page roll-up summary sheet, persist header/notes edits to .bmaplan — all out of scope for this sprint, queued as backlog.
+- LITE-7 PyInstaller .exe — still deferred by user.
+- "Lock the site-plan line" E2E guard (queued optional) — verifies no FAR/OSR/setback verdict UI renders in lite.
+
+## Position in Plan
+
+Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001 / INV-2026-05-21-002). LITE-REPORT closes the last user-facing output gap in the lite epic (the only missing output was a human-readable, printable, editable document). No Phase 2 scope boundary crossed. Proto/ runtime untouched. LITE-7 (packaging) is the only remaining epic item, and it is deferred.
+
+---
+
+# Previous: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS
 
 **Date:** 2026-05-21
 **Branch:** main
@@ -30,7 +59,7 @@ Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001). This is a bug-fix 
 
 ---
 
-# Previous: LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1) — PASS
+# Previous (older): LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1) — PASS
 
 **Date:** 2026-05-21
 **Branch:** main

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMA-Plan Lite — รายงานพื้นที่</title>
+<style>
+  :root{ --ink:#1a1f26; --line:#c9d1da; --muted:#6a7480; --lock:#eef1f4; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Sarabun","Leelawadee UI",system-ui,sans-serif;background:#3a3f47;color:var(--ink)}
+
+  .toolbar{position:sticky;top:0;z-index:10;display:flex;gap:10px;align-items:center;
+    padding:10px 16px;background:#1c1f24;color:#e6e9ee;border-bottom:1px solid #000}
+  .toolbar b{font-size:13px}
+  .toolbar .hint{font-size:12px;color:#9aa3ad}
+  .toolbar .sp{flex:1}
+  .src{font-size:11px;color:#67d987;padding:2px 8px;border:1px solid #2f6f3a;border-radius:4px}
+  button{background:#2f6df0;color:#fff;border:0;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+  button.sec{background:#3a3f47}
+
+  .sheetwrap{padding:22px;display:flex;flex-direction:column;align-items:center;gap:22px}
+  .empty{color:#cdd3da;font-size:14px;padding:40px}
+  .sheet{ background:#fff; width:297mm; min-height:210mm; padding:12mm 12mm 10mm;
+    box-shadow:0 6px 26px rgba(0,0,0,.45); display:flex; flex-direction:column; }
+  .hdr{display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+  .hdr .ttl{font-size:18px;font-weight:700}
+  .hdr .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.5}
+  .body{display:flex;gap:8mm;flex:1}
+  .left{flex:0 0 58%;display:flex;align-items:center;justify-content:center;
+    background:#f3f5f7;border:1px solid var(--line);min-height:150mm;position:relative;overflow:hidden}
+  .planbox{position:relative;max-width:100%;max-height:172mm;line-height:0}
+  .planbox img{max-width:100%;max-height:172mm;display:block}
+  .planbox svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+  .left .cap{position:absolute;bottom:6px;left:8px;font-size:10px;color:var(--muted);background:rgba(255,255,255,.7);padding:1px 5px;border-radius:3px}
+  .right{flex:1;display:flex;flex-direction:column}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border:1px solid var(--line);padding:4px 7px;text-align:left;vertical-align:top}
+  th{background:#eef2f6}
+  td.area,th.area{text-align:right;white-space:nowrap;width:78px}
+  td.area{background:var(--lock);color:#222;font-variant-numeric:tabular-nums}  /* read-only */
+  td.bdg,th.bdg{width:26px;text-align:center;color:#fff;font-weight:700}
+  tr.grp td{color:#fff;font-weight:700}
+  tr.sub td{background:#e9eef3;font-weight:700}
+  tr.grand td{background:var(--ink);color:#fff;font-weight:700;font-size:13px}
+  .note{font-size:11px;color:#333}
+  [contenteditable="true"]{cursor:text}
+  .editable-mark [contenteditable="true"]:hover{background:#fff7d6}
+  .editable-mark [contenteditable="true"]:focus{background:#fff3b0;box-shadow:0 0 0 2px #ffd479 inset}
+  .footdoc{margin-top:8px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;
+    display:flex;justify-content:space-between;gap:8px}
+
+  @page{ size: A4 landscape; margin: 8mm; }
+  @media print{
+    body{background:#fff}
+    .toolbar{display:none !important}
+    .sheetwrap{padding:0;gap:0}
+    .sheet{box-shadow:none;width:auto;min-height:auto;padding:0;page-break-after:always}
+    .sheet:last-child{page-break-after:auto}
+    [contenteditable]{background:none !important;box-shadow:none !important}
+    .left{background:#fff;border-color:#999}
+  }
+</style>
+</head>
+<body class="editable-mark">
+
+<div class="toolbar">
+  <b>📝 รายงานพื้นที่ (แก้ไขได้ก่อนพิมพ์)</b>
+  <span class="src" id="srcTag">…</span>
+  <span class="hint">คลิกหัวกระดาษ / ชื่อรายการ / หมายเหตุ เพื่อแก้ — ตัวเลขพื้นที่ล็อก (จากการวัด)</span>
+  <span class="sp"></span>
+  <button id="print">🖨 พิมพ์ / บันทึก PDF</button>
+</div>
+
+<div class="sheetwrap" id="sheets"></div>
+
+<script>
+/* ===========================================================================
+   BMA-Plan Lite — report page (LITE-REPORT / INV-2026-05-21-002, approach A)
+   Payload from sessionStorage["bmaReportPayload"] (same-origin window.open copy),
+   else a bundled SAMPLE so the page is standalone. Area numbers READ-ONLY.
+   =========================================================================== */
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+function fmt(n){ return Number(n).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* --- standalone sample (no live data) --- */
+function sampleSVG(label){
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>"+
+   "<rect width='800' height='600' fill='#fafbfc'/>"+
+   "<rect x='90' y='90' width='420' height='300' fill='#3b82f622' stroke='#3b82f6' stroke-width='3'/>"+
+   "<rect x='540' y='110' width='180' height='150' fill='#39d98a22' stroke='#39d98a' stroke-width='3'/>"+
+   "<rect x='300' y='320' width='90' height='90' fill='#ff6b6b22' stroke='#ff6b6b' stroke-width='3'/>"+
+   "<text x='20' y='585' fill='#9aa3ad' font-size='15'>"+label+" (ตัวอย่าง — ปกติคือภาพ render หน้า PDF)</text></svg>";
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+}
+var SAMPLE={ project:"โครงการบ้านพักอาศัย 2 ชั้น (ตัวอย่าง)", date:new Date().toLocaleDateString("th-TH"),
+  pages:[{ idx:1, title:"ชั้น 1 — ผังพื้น", tag:"แปลนชั้น", imgUrl:sampleSVG("ชั้น 1"), scaleSet:true,
+    overlays:[ {pts:[{x:90,y:90},{x:510,y:90},{x:510,y:390},{x:90,y:390}],color:"#3b82f6",badge:1},
+               {pts:[{x:540,y:110},{x:720,y:110},{x:720,y:260},{x:540,y:260}],color:"#39d98a",badge:2},
+               {pts:[{x:300,y:320},{x:390,y:320},{x:390,y:410},{x:300,y:410}],color:"#ff6b6b",badge:3} ],
+    groups:[ {label:"พื้นที่อาคาร",color:"#3b82f6",rows:[{name:"ห้องโถง",area:58.40,badge:1}],subtotal:58.40,sign:1},
+             {label:"พื้นที่ใช้สอย",color:"#39d98a",rows:[{name:"ห้องนอน",area:16.20,badge:2}],subtotal:16.20,sign:1},
+             {label:"ช่องว่าง/หัก",color:"#ff6b6b",rows:[{name:"ช่องบันได",area:6.10,badge:3}],subtotal:6.10,sign:-1} ],
+    net:68.50 }],
+  _sample:true };
+
+function loadPayload(){
+  try{ var raw=sessionStorage.getItem("bmaReportPayload");
+    if(raw){ var p=JSON.parse(raw); if(p&&p.pages&&p.pages.length){ document.getElementById("srcTag").textContent="ข้อมูลจริงจากการวัด"; return p; } }
+  }catch(e){}
+  document.getElementById("srcTag").textContent="ตัวอย่าง (standalone)";
+  return SAMPLE;
+}
+
+function centroid(pts){ var x=0,y=0; pts.forEach(function(p){x+=p.x;y+=p.y;}); return {x:x/pts.length,y:y/pts.length}; }
+
+function buildSheet(page, total, project, date){
+  var sheet=document.createElement("div"); sheet.className="sheet";
+
+  var hdr=document.createElement("div"); hdr.className="hdr";
+  hdr.innerHTML='<div class="ttl" contenteditable="true">'+esc(project||"(ตั้งชื่อโครงการ)")+'</div>'+
+    '<div class="meta"><div>หน้า '+page.idx+'/'+total+' • <span contenteditable="true">'+esc(page.title||("หน้า "+page.idx))+'</span></div>'+
+    (page.tag?'<div>'+esc(page.tag)+'</div>':'')+
+    '<div>'+(page.scaleSet?'ตั้งสเกลแล้ว':'<span style="color:#cf222e">ยังไม่ตั้งสเกล</span>')+' • <span contenteditable="true">'+esc(date||"")+'</span></div></div>';
+
+  var body=document.createElement("div"); body.className="body";
+
+  // LEFT: plan image + SVG overlay (viewBox set on image load)
+  var left=document.createElement("div"); left.className="left";
+  var box=document.createElement("div"); box.className="planbox";
+  var img=document.createElement("img"); img.alt="plan"; img.src=page.imgUrl;
+  var svgNS="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgNS,"svg"); svg.setAttribute("preserveAspectRatio","none");
+  (page.overlays||[]).forEach(function(ov){
+    if(!ov.pts||!ov.pts.length) return;
+    var poly=document.createElementNS(svgNS,"polygon");
+    poly.setAttribute("points",ov.pts.map(function(p){return p.x+","+p.y;}).join(" "));
+    poly.setAttribute("fill",ov.color); poly.setAttribute("fill-opacity","0.16");
+    poly.setAttribute("stroke",ov.color); poly.setAttribute("stroke-width","3"); svg.appendChild(poly);
+    var c=centroid(ov.pts);
+    var circ=document.createElementNS(svgNS,"circle");
+    circ.setAttribute("cx",c.x); circ.setAttribute("cy",c.y); circ.setAttribute("r","16"); circ.setAttribute("fill",ov.color); svg.appendChild(circ);
+    var t=document.createElementNS(svgNS,"text"); t.setAttribute("x",c.x); t.setAttribute("y",c.y+6);
+    t.setAttribute("text-anchor","middle"); t.setAttribute("font-size","20"); t.setAttribute("fill","#fff"); t.setAttribute("font-weight","700");
+    t.textContent=ov.badge; svg.appendChild(t);
+  });
+  img.addEventListener("load",function(){
+    var w=img.naturalWidth||800, h=img.naturalHeight||600;
+    svg.setAttribute("viewBox","0 0 "+w+" "+h);
+  });
+  img.addEventListener("error",function(){ box.insertAdjacentHTML("beforeend",'<div class="cap">โหลดภาพหน้าไม่ได้ (เซิร์ฟเวอร์ lite ปิด?)</div>'); });
+  box.appendChild(img); box.appendChild(svg);
+  left.appendChild(box);
+  left.insertAdjacentHTML("beforeend",'<div class="cap">แปลน + พื้นที่ที่วัด</div>');
+
+  // RIGHT: grouped area table
+  var right=document.createElement("div"); right.className="right";
+  var rows='<tr><th class="bdg" style="background:#eef2f6;color:#222">#</th><th>รายการ</th><th class="area">พื้นที่ (ม²)</th><th>หมายเหตุ</th></tr>';
+  (page.groups||[]).forEach(function(g){
+    rows+='<tr class="grp"><td class="bdg" style="background:'+g.color+';border-color:'+g.color+'"></td><td colspan="3" style="background:'+g.color+';border-color:'+g.color+'">'+esc(g.label)+'</td></tr>';
+    g.rows.forEach(function(r){
+      rows+='<tr><td class="bdg" style="background:'+g.color+'">'+r.badge+'</td>'+
+        '<td contenteditable="true">'+esc(r.name)+'</td>'+
+        '<td class="area" title="ค่าจากการวัด — แก้ไม่ได้">'+fmt(r.area)+'</td>'+
+        '<td class="note" contenteditable="true"></td></tr>';
+    });
+    rows+='<tr class="sub"><td></td><td>รวม '+esc(g.label)+'</td><td class="area">'+(g.sign<0?'−':'')+fmt(g.subtotal)+'</td><td></td></tr>';
+  });
+  rows+='<tr class="grand"><td></td><td>รวมพื้นที่สุทธิ (หน้านี้)</td><td class="area">'+fmt(page.net)+'</td><td></td></tr>';
+  right.innerHTML='<table>'+rows+'</table>'+
+    '<div class="footdoc"><span>* ตัวเลขพื้นที่มาจากการวัด (อ้างอิงสเกลของหน้า) — แก้ไขไม่ได้</span>'+
+    '<span contenteditable="true">หมายเหตุ: —</span></div>';
+
+  body.appendChild(left); body.appendChild(right);
+  sheet.appendChild(hdr); sheet.appendChild(body);
+  return sheet;
+}
+
+function render(){
+  var payload=loadPayload();
+  var host=document.getElementById("sheets"); host.innerHTML="";
+  if(!payload.pages||!payload.pages.length){ host.innerHTML='<div class="empty">ไม่มีหน้าที่มีพื้นที่วัด</div>'; return; }
+  var total=payload.pages.length;
+  payload.pages.forEach(function(p){ host.appendChild(buildSheet(p,total,payload.project,payload.date)); });
+  document.title="รายงานพื้นที่ — "+(payload.project||"BMA-Plan Lite");
+}
+document.getElementById("print").onclick=function(){ window.print(); };
+render();
+</script>
+</body>
+</html>
