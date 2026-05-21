@@ -21,7 +21,7 @@
   #app{display:flex;flex-direction:column;height:100vh;}
   #topbar{height:var(--bar-h);min-height:var(--bar-h);max-height:var(--bar-h);display:flex;
     align-items:center;gap:4px;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line);
-    white-space:nowrap;overflow:hidden;}
+    white-space:nowrap;overflow:visible;position:relative;z-index:60;}
   #topbar .logo{font-weight:700;color:var(--accent);margin-right:4px;font-size:14px;}
   #topbar .tag{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-right:8px;}
   .menu{position:relative;}

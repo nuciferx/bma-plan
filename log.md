@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-05-21 — BUG-20260521-lite-menu-clip — lite top-bar dropdowns unclickable — PASS (branch: main)
+
+**What changed:** One-line CSS fix in `lite/ui-lite.html` `#topbar` rule (L22-24): `overflow:hidden` → `overflow:visible` + added `position:relative;z-index:60`. Via `/bma-bug-report` (intake → file → scope `/bma-ui-menu` → fix → test → ship).
+
+**Bug / root cause:** User reported "top เมนู lite กดไม่ทำงาน". Diagnosed live with Playwright: all 4 dropdowns (File/Measure/Page/Annotate) had every item correctly wired (no missing handler, no JS error). Real cause was pure CSS — `#topbar` is a fixed 42px-high flex bar with `overflow:hidden`; the `.dd` dropdown is `position:absolute; top:32px` so it hangs **below** the bar into `#stage` and was clipped away. Compounded by `#topbar` establishing no stacking context, so dropdowns sat under `#stage` content. `elementFromPoint` at a dropdown item returned `.empty`/canvas, not the item → opens but invisible & unclickable.
+
+**Why this fix:** `overflow:visible` lets the dropdown escape the bar; `position:relative;z-index:60` makes `#topbar` a stacking context above `#stage` (canvas/`.empty` z-5) but still below the full-screen overlays (palette/overview/summary z-80, modal z-90, loading z-95) so a stray open dropdown can't cover those. Menu-bar scope only; **no forbidden surface, zero `proto/` edits, vendored `measure-engine.js` untouched.**
+
+**Files touched:** `lite/ui-lite.html` (1 CSS line); NEW `lite/tests/test_menu_clickable.py` (Playwright regression guard); `docs/status/PHASE_INDEX.md` (bug filed + done). **Tests:** `lite/tests/test_menu_clickable.py` → `BUG_20260521_LITE_MENU_CLIP_OK` (4/4 menus' first item is topmost element); `lite/tests/test_measure_parity.py` → `MEASURE_PARITY_OK` (16 fns + 2 consts byte-identical, area math unaffected). Proto E2E n/a — lite tree is isolated, no proto files changed. **Known gap:** Esc-to-close menus still not bound (minor, separate item).
+
+---
+
 ## 2026-05-21 — LITE-5 — /lite/ .bmaplan cross-opens with proto — 10/10 scope groups — PASS (branch: main)
 
 **What changed:** Switched `/lite/` save/load to proto's exact `.bmaplan` schema (96f61b8). Lite now writes the 13 top-level keys + `pageStore[n].{lines,polys,openings,refs,parking,counts,calibScale,annotations}` with proto-shaped objects (poly: id/pts/closed/areaType/semanticTag/color/opacity; line: x0/y0/x1/y1/kind; ref: refType; opening for `ded`). Annotation `type` is mapped both ways (ann_arrow↔arrow, ann_rect↔rect_frame, …). Count objects go in an additive `pageStore[n].counts[]` array that proto ignores. Lite's loader reads proto `pageStore` (and falls back to legacy lite `pages{}`), reverse-mapping semanticTag→category and flattening any `geometryType:'path'` polys via the vendored `flattenPathToPoints`.
