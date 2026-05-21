@@ -48,6 +48,10 @@ lite/
 few dependencies the first time, starts the server, and opens your browser. Close the
 window (or Ctrl+C) to stop.
 
+**One-click (macOS):** double-click **`lite/run.command`** — same behaviour. First time only,
+make it executable in Terminal: `chmod +x lite/run.command`. (If Finder shows "cannot be
+opened because it is from an unidentified developer", right-click → Open → Open.)
+
 **Manual:**
 ```bash
 pip install fastapi uvicorn aiofiles python-multipart pymupdf

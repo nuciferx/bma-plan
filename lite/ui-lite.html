@@ -74,6 +74,17 @@
   .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--muted);z-index:5;}
   .empty button{background:var(--accent);border:0;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;}
   body.focus #picker,body.focus .hud:not(#hud-br),body.focus .hint{display:none;}
+  /* LITE-FLOOR: shared tag/floor-kind control (Page Setup + Summary) */
+  .floorctl select,.floorctl input{width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px;display:block;margin-top:6px;}
+  .floorctl select:first-child{margin-top:0;}
+  .floorctl input.fc-num{width:90px;}
+  .floorctl .fc-hint{font-size:10.5px;color:#ffcc00;margin-top:4px;}
+  /* LITE-ANNOT: inline comment/text editor overlay */
+  #annEditor{position:absolute;display:none;z-index:96;min-width:170px;max-width:300px;min-height:26px;
+    background:rgba(15,17,21,.96);color:#ffe08a;border:1px solid var(--accent);border-radius:6px;
+    padding:5px 8px;font:13px/1.4 "Segoe UI","Noto Sans Thai",sans-serif;resize:none;outline:none;
+    box-shadow:0 6px 20px rgba(0,0,0,.55);overflow:hidden;}
+  #annEditor::placeholder{color:#7f8794;font-size:11px;}
 </style>
 </head>
 <body>
@@ -88,6 +99,10 @@
       <div class="sep"></div>
       <div class="item" id="mi-xlsx">Export XLSX<span class="k">Ctrl+E</span></div>
       <div class="item" id="mi-pdfov">Export PDF (overlay)</div>
+    </div></div>
+    <div class="menu" data-m="edit"><button>Edit ▾</button><div class="dd">
+      <div class="item" id="mi-undo">ย้อนกลับ (Undo)<span class="k">Ctrl+Z</span></div>
+      <div class="item" id="mi-redo">ทำซ้ำ (Redo)<span class="k">Ctrl+Y</span></div>
     </div></div>
     <div class="menu" data-m="measure"><button>Measure ▾</button><div class="dd">
       <div class="item" data-tool="select">เลือก/แก้ไข (Select)<span class="k">V</span></div>
@@ -141,6 +156,7 @@
     <div class="hud" id="hud-tr"></div>
     <div class="hud" id="hud-bl"></div>
     <div class="hud" id="hud-br"><div class="zoomctl"><button id="zin">+</button><button id="zout">−</button><button id="zfit">⤢</button></div></div>
+    <textarea id="annEditor" spellcheck="false" placeholder="พิมพ์ข้อความ… (Enter=จบ · Shift+Enter=บรรทัดใหม่ · Esc=ยกเลิก)"></textarea>
     <div id="props"><span id="p-name">—</span><span><span class="val" id="p-area">—</span></span>
       <button id="p-dim">ซ่อน dimension</button><button id="p-del">ลบ</button></div>
     <div class="overlay" id="cmdk"><div class="box"><input id="cmdk-in" placeholder="ค้นหาหน้า… (พิมพ์เลขหน้า)"><div class="res" id="cmdk-res"></div></div></div>
@@ -155,8 +171,8 @@
         <h4 style="margin:0 0 12px">Page Setup</h4>
         <div style="font-size:12px;color:var(--muted);margin-bottom:3px">ชื่อโปรเจกต์</div>
         <input id="su-proj" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px">
-        <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">แท็กหน้านี้ (ใช้จัดกลุ่มใน Overview)</div>
-        <select id="su-tag" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px"></select>
+        <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">แท็กหน้านี้ / ประเภทชั้น (ใช้จัดกลุ่มใน Overview)</div>
+        <div id="su-floor" class="floorctl"></div>
         <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">สเกลหน้านี้ — pt ต่อ 1 เมตร (ว่าง = ไม่เปลี่ยน)</div>
         <input id="su-ppm" type="number" step="0.01" placeholder="(ตั้งจากเครื่องมือ Set Scale ก็ได้)" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px">
         <div class="row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button id="su-cancel" style="padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:#222a37;color:var(--ink);cursor:pointer">ยกเลิก</button><button class="pri" id="su-ok" style="padding:7px 14px;border-radius:7px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer">บันทึก</button></div>
@@ -190,10 +206,14 @@ var CATS=[
 var caseId=null, pdfName=null, pageCount=0, pageRot={}, excluded={};
 var projectInfo={name:""}, pageTags={};
 var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเวณ",floor:"แปลนชั้น",plan:"ผัง",parking:"ที่จอดรถ",amenity:"ส่วนกลาง",detail:"รายละเอียด/รูปด้าน"};
+/* LITE-FLOOR: per-page floor designation (proto-parity: pageFloorKind/pageFloorNum, gated on tag 'floor'). */
+var pageFloorKind={}, pageFloorNum={}, pageNames={};
+var FLOOR_KIND_LABELS={basement:"ชั้นใต้ดิน",normal:"ชั้น",mechanical:"ชั้นห้องเครื่อง",rooftop:"ชั้นดาดฟ้า",custom:"(ตั้งเอง)"};
+var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น —"],["basement","ชั้นใต้ดิน"],["normal","ชั้น (ปกติ)"],["mechanical","ชั้นห้องเครื่อง"],["rooftop","ชั้นดาดฟ้า"],["custom","(ตั้งชื่อเอง)"]];
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false};
+var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,selAnn:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false};
 CATS.forEach(function(c){state.catVis[c.id]=true;});
 var SNAP_PX=11; var lastMouse=null;
 
@@ -298,13 +318,15 @@ function tracePoly(o){ var scr=o.pts.map(ptToScreen); ctx.beginPath(); ctx.moveT
     ctx.lineTo(scr[j].x,scr[j].y); }
   ctx.closePath(); }
 function edgeM(a,b){ var s=getScaleForPage(curPage); if(!s)return null; return Math.hypot(b.x-a.x,b.y-a.y)/s.pts_per_m; }
+// scaleN: drawing-scale denominator 1:N from pts_per_m — matches proto finishCalib (N=round(1000*(72/25.4)/ppm))
+function scaleN(s){ if(!s||!(s.pts_per_m>0))return null; return Math.round(1000*(72/25.4)/s.pts_per_m); }
 
 /* ============================ HUD / PICKER / PROPS ============================ */
 var TOOLNAME={select:"เลือก/แก้ไข",scale:"Set Scale",poly:"Polygon",dist:"Distance",path:"Path",ref:"Reference",count:"Count",
   ann_text:"Text",ann_comment:"Comment",ann_arrow:"Arrow",ann_highlight:"Highlight",ann_rect:"Rect",ann_circle:"Circle",ann_cloud:"Cloud"};
 function updateHUD(){
   var s=getScaleForPage(curPage), cat=catOf(state.activeCat);
-  document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">ตั้งแล้ว ('+s.pts_per_m.toFixed(2)+' pt/m) ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
+  document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">1:'+scaleN(s)+' ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
   document.getElementById("hud-tr").innerHTML= caseId?("หน้า <b>"+curPage+"</b> / "+pageCount+(excluded[curPage]?' <span class="dot">(ยกเว้น)</span>':'')):"—";
   var nobj=caseId?PSpage().objects.length:0;
   var co=(curImg&&lastMouse)?screenToPt(lastMouse.x,lastMouse.y):null;
@@ -359,7 +381,7 @@ async function loadPage(n){
   img.onerror=function(){ hideLoading(); alert("โหลดหน้า "+n+" ไม่ได้"); };
   img.src=api("/page/"+n);
 }
-function afterPage(){ state.sel=null; state.draft=null; showProps(null); buildPicker(); draw(); }
+function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); draw(); }
 
 /* ============================ INTERACTION ============================ */
 var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
@@ -378,36 +400,41 @@ cv.addEventListener("mousedown",function(e){
   else { p=screenToPt(e.offsetX,e.offsetY); }
   if(state.tool==="scale"){ state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.draft.length===2){ openCalib(); } draw(); return; }
-  if(state.tool==="count"){ PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
+  if(state.tool==="count"){ pushUndo(); PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
   if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
     state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } draw(); return; }
   if(state.arcEdit){ var ae=state.arcEdit,ao=ae.obj,ai=ae.edgeIdx,arc=computeArcEdge(ao.pts[ai],ao.pts[(ai+1)%ao.pts.length],screenToPt(e.offsetX,e.offsetY),centroid(ao.pts));
-    ao.edges=ao.edges||[]; ao.edges[ai]=(Math.abs(arc.sweep)>0.001)?{edgeType:"arc",arcSweep:arc.sweep,arcThrough:screenToPt(e.offsetX,e.offsetY)}:{edgeType:"line"};
+    pushUndo(); ao.edges=ao.edges||[]; ao.edges[ai]=(Math.abs(arc.sweep)>0.001)?{edgeType:"arc",arcSweep:arc.sweep,arcThrough:screenToPt(e.offsetX,e.offsetY)}:{edgeType:"line"};
     state.arcEdit=null; state.dirty=true; showProps(ao); draw(); return; }
   if(state.tool==="select"&&state.sel&&state.sel.kind==="poly"&&!state.sel.counting){ var eh=edgeHandleHit(state.sel,e.offsetX,e.offsetY); if(eh>=0){ state.arcEdit={obj:state.sel,edgeIdx:eh}; draw(); return; } }
   if(isAnnTool()){
-    if(state.tool==="ann_text"||state.tool==="ann_comment"){ var txt=prompt(state.tool==="ann_text"?"ข้อความ:":"คอมเมนต์:");
-      if(txt){ PSpage().annotations.push({id:state._id++,type:state.tool,pt:p,text:txt}); state.dirty=true; } draw(); return; }
+    if(state.tool==="ann_text"||state.tool==="ann_comment"){ pushUndo();
+      var ann=Object.assign({id:state._id++,type:state.tool,pt:p,text:""},ANN_DEFAULTS[state.tool]); PSpage().annotations.push(ann); state.dirty=true;
+      openAnnEditor(ann,true); draw(); return; }
     state.draft=state.draft||[]; state.draft.push(p);
-    if(state.draft.length===2){ PSpage().annotations.push({id:state._id++,type:state.tool,pts:state.draft.slice()}); state.draft=null; state.dirty=true; }
+    if(state.draft.length===2){ pushUndo(); PSpage().annotations.push(Object.assign({id:state._id++,type:state.tool,pts:state.draft.slice()},ANN_DEFAULTS[state.tool])); state.draft=null; state.dirty=true; }
     draw(); return; }
   // select/pan
+  if(state.tool==="select"){ var aih=annHit(e.offsetX,e.offsetY);
+    if(aih>=0){ var aa=PSpage().annotations[aih]; state.selAnn=aa; state.sel=null; showProps(null);
+      var asp=ptToScreen(aa.pt||aa.pts[0]); draw(); if(typeof openAnnStyle==="function")openAnnStyle(aa,asp.x,asp.y); return; } }
   var hit=pick(e.offsetX,e.offsetY);
-  if(hit){ state.sel=hit; showProps(hit); draw(); }
-  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; showProps(null); setCursor(); draw(); }
+  if(hit){ state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=hit; showProps(hit); draw(); }
+  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); showProps(null); setCursor(); draw(); }
 });
 window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
   V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
 cv.addEventListener("mousemove",function(e){ if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!curImg)return;
-  var need=state.loupe||isDrawTool();   // draw-tool active = redraw every move so live guide/rubber-band/coord follow the cursor
+  var need=state.loupe||isDrawTool()||(isAnnTool()&&state.draft&&state.draft.length===1);   // draw-tool/annotation drafting = redraw every move so live guide/rubber-band follow the cursor
   if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
     var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
     if(changed){state.snapHint=h;need=true;} }
   else if(state.snapHint){state.snapHint=null;need=true;}
   if(need)draw(); });
 window.addEventListener("mouseup",function(){dragging=false;panning=false;setCursor();});
-cv.addEventListener("dblclick",function(e){ if(!state.draft)return;
+cv.addEventListener("dblclick",function(e){
+  if(!state.draft){ var ei=annHit(e.offsetX,e.offsetY); if(ei>=0){ var ea=PSpage().annotations[ei]; if(ea.type==="ann_text"||ea.type==="ann_comment"){ pushUndo(); openAnnEditor(ea,false); } } return; }
   if(state.tool==="poly"||state.tool==="path"||state.tool==="ref"){
     // the dblclick's own two mousedowns each added a stray point at the dblclick
     // spot — pop trailing points within 6 screen-px of it before finishing.
@@ -416,9 +443,9 @@ cv.addEventListener("dblclick",function(e){ if(!state.draft)return;
     finishDraft();
   } });
 cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!curImg)return;
-  var ai=annHit(e.offsetX,e.offsetY); if(ai>=0){ PSpage().annotations.splice(ai,1); state.dirty=true; draw(); return; }  // right-click annotation = delete it
+  var ai=annHit(e.offsetX,e.offsetY); if(ai>=0){ pushUndo(); PSpage().annotations.splice(ai,1); state.dirty=true; draw(); return; }  // right-click annotation = delete it
   var hit=pick(e.offsetX,e.offsetY);
-  if(hit&&!hit.counting){ hit.dimVisible=!hit.dimVisible; state.sel=hit; showProps(hit); state.dirty=true; draw(); } });
+  if(hit&&!hit.counting){ pushUndo(); hit.dimVisible=!hit.dimVisible; state.sel=hit; showProps(hit); state.dirty=true; draw(); } });
 cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
   var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*Math.exp(-e.deltaY*0.0015)));   // proto-parity: smooth exp + clamp
   if(nk===V.k)return;
@@ -431,7 +458,7 @@ function finishDraft(){
   var min=state.tool==="poly"?3:2;
   if(!state.draft||state.draft.length<min){ state.draft=null; draw(); return; }
   var kind=state.tool==="poly"?"poly":(state.tool==="ref"?"ref":"line");
-  PSpage().objects.push(mkObj(state.draft,kind,false)); state.draft=null; state.dirty=true; draw();
+  pushUndo(); PSpage().objects.push(mkObj(state.draft,kind,false)); state.draft=null; state.dirty=true; draw();
 }
 function pick(sx,sy){ var objs=PSpage().objects;
   for(var i=objs.length-1;i>=0;i--){ var o=objs[i]; if(!state.catVis[o.catId])continue;
@@ -520,31 +547,87 @@ function drawLiveOverlay(){
   if(extra)liveTag(tgt.x+12,tgt.y+16,extra,false);
 }
 /* --- LITE-ANNOT: render + hit-test --- */
+/* style defaults per annotation type (color/opacity/fontSize all editable via annot-style.js) */
+var ANN_DEFAULTS={ann_text:{color:"#ffe08a",opacity:1,fontSize:13},ann_comment:{color:"#ffe08a",opacity:1,fontSize:13},
+  ann_arrow:{color:"#ff453a",opacity:1},ann_highlight:{color:"#ffd60a",opacity:0.30},
+  ann_rect:{color:"#ff453a",opacity:1},ann_circle:{color:"#ff453a",opacity:1},ann_cloud:{color:"#ff453a",opacity:1}};
+function annStyle(a){ var d=ANN_DEFAULTS[a.type]||{}; return {color:a.color||d.color||"#ff453a",opacity:(a.opacity!=null?a.opacity:(d.opacity!=null?d.opacity:1)),fontSize:a.fontSize||d.fontSize||13}; }
+function _hexA(hex,a){ hex=String(hex||"#ff453a").replace("#",""); if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var n=parseInt(hex,16); return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")"; }
 function drawAnnots(){ var anns=PSpage().annotations||[];
-  anns.forEach(function(a){
-    if(a.type==="ann_text"||a.type==="ann_comment"){ var s=ptToScreen(a.pt),pre=a.type==="ann_comment"?"💬 ":"";
-      ctx.font="13px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="top"; var t=pre+(a.text||"");
-      var w=ctx.measureText(t).width+10; ctx.fillStyle="rgba(15,17,21,.85)"; rr(ctx,s.x,s.y,w,20,4); ctx.fill();
-      ctx.fillStyle="#ffe08a"; ctx.fillText(t,s.x+5,s.y+4); return; }
+  anns.forEach(function(a){ var st=annStyle(a);
+    if(a.type==="ann_text"||a.type==="ann_comment"){ if(typeof annEdit!=="undefined"&&annEdit&&annEdit.ann===a)return; // hidden while editing inline
+      var s=ptToScreen(a.pt),pre=a.type==="ann_comment"?"💬 ":"";
+      ctx.save(); ctx.globalAlpha=st.opacity; ctx.font=st.fontSize+"px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="top";
+      var lines=String(a.text||"").split("\n"); lines[0]=pre+lines[0]; var lh=Math.round(st.fontSize*1.3),maxw=0;
+      lines.forEach(function(ln){maxw=Math.max(maxw,ctx.measureText(ln).width);});
+      var w=maxw+10,h=lines.length*lh+6; ctx.fillStyle="rgba(15,17,21,.85)"; rr(ctx,s.x,s.y,w,h,4); ctx.fill();
+      ctx.fillStyle=st.color; lines.forEach(function(ln,i){ctx.fillText(ln,s.x+5,s.y+4+i*lh);}); ctx.restore();
+      if(a===state.selAnn)_annSelBox(s.x,s.y,w,h); return; }
     if(!a.pts||a.pts.length<2)return; var a0=ptToScreen(a.pts[0]),a1=ptToScreen(a.pts[1]);
     var x=Math.min(a0.x,a1.x),y=Math.min(a0.y,a1.y),w=Math.abs(a1.x-a0.x),h=Math.abs(a1.y-a0.y);
-    if(a.type==="ann_highlight"){ ctx.fillStyle="rgba(255,214,10,.30)"; ctx.fillRect(x,y,w,h); return; }
-    ctx.strokeStyle="#ff453a"; ctx.lineWidth=2; ctx.setLineDash([]);
-    if(a.type==="ann_rect"){ ctx.strokeRect(x,y,w,h); }
-    else if(a.type==="ann_circle"){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); ctx.stroke(); }
-    else if(a.type==="ann_cloud"){ drawCloud(x,y,w,h); }
-    else if(a.type==="ann_arrow"){ ctx.beginPath(); ctx.moveTo(a0.x,a0.y); ctx.lineTo(a1.x,a1.y); ctx.stroke();
-      var ang=Math.atan2(a1.y-a0.y,a1.x-a0.x),hl=12; ctx.beginPath(); ctx.moveTo(a1.x,a1.y);
-      ctx.lineTo(a1.x-hl*Math.cos(ang-0.4),a1.y-hl*Math.sin(ang-0.4)); ctx.moveTo(a1.x,a1.y);
-      ctx.lineTo(a1.x-hl*Math.cos(ang+0.4),a1.y-hl*Math.sin(ang+0.4)); ctx.stroke(); } });
-  if(state.draft&&isAnnTool()&&state.draft.length===1){ var s=ptToScreen(state.draft[0]); ctx.fillStyle="#ff453a"; ctx.beginPath(); ctx.arc(s.x,s.y,3,0,7); ctx.fill(); } }
+    ctx.save();
+    if(a.type==="ann_highlight"){ ctx.fillStyle=_hexA(st.color,st.opacity); ctx.fillRect(x,y,w,h); }
+    else { ctx.globalAlpha=st.opacity; ctx.strokeStyle=st.color; ctx.lineWidth=2; ctx.setLineDash([]);
+      if(a.type==="ann_rect"){ ctx.strokeRect(x,y,w,h); }
+      else if(a.type==="ann_circle"){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); ctx.stroke(); }
+      else if(a.type==="ann_cloud"){ drawCloud(x,y,w,h); }
+      else if(a.type==="ann_arrow"){ ctx.beginPath(); ctx.moveTo(a0.x,a0.y); ctx.lineTo(a1.x,a1.y); ctx.stroke();
+        var ang=Math.atan2(a1.y-a0.y,a1.x-a0.x),hl=12; ctx.beginPath(); ctx.moveTo(a1.x,a1.y);
+        ctx.lineTo(a1.x-hl*Math.cos(ang-0.4),a1.y-hl*Math.sin(ang-0.4)); ctx.moveTo(a1.x,a1.y);
+        ctx.lineTo(a1.x-hl*Math.cos(ang+0.4),a1.y-hl*Math.sin(ang+0.4)); ctx.stroke(); } }
+    ctx.restore(); if(a===state.selAnn)_annSelBox(x-3,y-3,w+6,h+6); });
+  drawAnnotPreview(); }
+function _annSelBox(x,y,w,h){ ctx.save(); ctx.strokeStyle="#4c8dff"; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(x-2,y-2,w+4,h+4); ctx.restore(); }
+/* LITE-ANNOT-PREVIEW: rubber-band while placing a 2-point/shape annotation */
+function drawAnnotPreview(){ if(!(state.draft&&isAnnTool()&&state.draft.length===1&&lastMouse))return;
+  var a0=ptToScreen(state.draft[0]),a1={x:lastMouse.x,y:lastMouse.y};
+  var x=Math.min(a0.x,a1.x),y=Math.min(a0.y,a1.y),w=Math.abs(a1.x-a0.x),h=Math.abs(a1.y-a0.y);
+  ctx.save(); ctx.globalAlpha=0.9; ctx.setLineDash([6,4]);
+  if(state.tool==="ann_highlight"){ ctx.fillStyle="rgba(255,214,10,.25)"; ctx.fillRect(x,y,w,h); }
+  else { ctx.strokeStyle="#ff453a"; ctx.lineWidth=2;
+    if(state.tool==="ann_rect")ctx.strokeRect(x,y,w,h);
+    else if(state.tool==="ann_circle"){ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);ctx.stroke();}
+    else if(state.tool==="ann_cloud")drawCloud(x,y,w,h);
+    else if(state.tool==="ann_arrow"){ctx.beginPath();ctx.moveTo(a0.x,a0.y);ctx.lineTo(a1.x,a1.y);ctx.stroke();
+      var ang=Math.atan2(a1.y-a0.y,a1.x-a0.x),hl=12;ctx.beginPath();ctx.moveTo(a1.x,a1.y);
+      ctx.lineTo(a1.x-hl*Math.cos(ang-0.4),a1.y-hl*Math.sin(ang-0.4));ctx.moveTo(a1.x,a1.y);
+      ctx.lineTo(a1.x-hl*Math.cos(ang+0.4),a1.y-hl*Math.sin(ang+0.4));ctx.stroke();} }
+  ctx.setLineDash([]); ctx.fillStyle="#ff453a"; ctx.beginPath(); ctx.arc(a0.x,a0.y,3,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+/* LITE-ANNOT-EDIT: inline textarea editor for text/comment annotations (replaces prompt()).
+   annEdit={ann,isNew,orig}. pushUndo() is done by the caller BEFORE opening. */
+var annEdit=null;
+function _annEd(){ return document.getElementById("annEditor"); }
+function _autoGrow(ed){ ed.style.height="auto"; ed.style.height=Math.min(ed.scrollHeight,220)+"px"; }
+function openAnnEditor(ann,isNew){ if(annEdit&&annEdit.ann!==ann)commitAnnEditor();
+  annEdit={ann:ann,isNew:!!isNew,orig:ann.text||""}; var ed=_annEd(),s=ptToScreen(ann.pt);
+  ed.value=ann.text||""; ed.style.left=Math.round(s.x)+"px"; ed.style.top=Math.round(s.y)+"px"; ed.style.display="block";
+  _autoGrow(ed); setTimeout(function(){ed.focus();ed.select();},0); }
+function _annRemove(a){ var arr=PSpage().annotations,ix=arr.indexOf(a); if(ix>=0)arr.splice(ix,1); }
+function _closeAnnEd(){ var ed=_annEd(); ed.style.display="none"; ed.value=""; annEdit=null; }
+function commitAnnEditor(){ if(!annEdit)return; var ed=_annEd(),raw=ed.value,v=raw.trim(),a=annEdit.ann,isNew=annEdit.isNew,orig=annEdit.orig;
+  if(isNew){ if(!v){ _annRemove(a); undoStack.pop(); }   // empty new → discard + drop redundant history entry
+    else { a.text=raw; } }
+  else { if(!v){ _annRemove(a); }                        // cleared existing → delete (undo restores)
+    else if(raw!==orig){ a.text=raw; }
+    else { undoStack.pop(); } }                            // unchanged → drop history entry
+  var committedNew=isNew&&v; _closeAnnEd(); state.dirty=true;
+  if(committedNew){ setTool("select"); } else { draw(); } }
+function cancelAnnEditor(){ if(!annEdit)return; var a=annEdit.ann,isNew=annEdit.isNew;
+  if(isNew){ _annRemove(a); } undoStack.pop(); _closeAnnEd(); state.dirty=true; draw(); }
+(function(){ var ed=_annEd();
+  ed.addEventListener("blur",function(){ if(annEdit)commitAnnEditor(); });
+  ed.addEventListener("input",function(){ _autoGrow(ed); });
+  ed.addEventListener("keydown",function(e){ e.stopPropagation();
+    if(e.key==="Escape"){ e.preventDefault(); cancelAnnEditor(); }
+    else if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); ed.blur(); } }); })();
 function drawCloud(x,y,w,h){ var r=Math.max(7,Math.min(w,h)/8),step=r*1.6;
   function bumps(x0,y0,x1,y1){ var dx=x1-x0,dy=y1-y0,len=Math.hypot(dx,dy)||1,n=Math.max(1,Math.round(len/step));
     for(var i=0;i<n;i++){ var cx=x0+dx*(i+0.5)/n,cy=y0+dy*(i+0.5)/n; ctx.moveTo(cx+r,cy); ctx.arc(cx,cy,r,0,Math.PI*2);} }
   ctx.beginPath(); bumps(x,y,x+w,y); bumps(x+w,y,x+w,y+h); bumps(x+w,y+h,x,y+h); bumps(x,y+h,x,y); ctx.stroke(); }
 function annHit(sx,sy){ var anns=PSpage().annotations||[];
   for(var i=anns.length-1;i>=0;i--){ var a=anns[i];
-    if(a.pt){ var s=ptToScreen(a.pt); if(sx>=s.x-2&&sx<=s.x+90&&Math.abs(sy-(s.y+10))<14)return i; }
+    if(a.pt){ var s=ptToScreen(a.pt),nl=String(a.text||"").split("\n").length; if(sx>=s.x-2&&sx<=s.x+130&&sy>=s.y-2&&sy<=s.y+nl*17+8)return i; }
     else if(a.pts){ var b0=ptToScreen(a.pts[0]),b1=ptToScreen(a.pts[1]),x=Math.min(b0.x,b1.x),y=Math.min(b0.y,b1.y),w=Math.abs(b1.x-b0.x),h=Math.abs(b1.y-b0.y);
       if(a.type==="ann_arrow"){ if(distSeg(sx,sy,b0,b1)<7)return i; }
       else if(a.type==="ann_highlight"){ if(sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return i; }
@@ -572,13 +655,13 @@ function openCalib(){ var d=state.draft; var ptDist=Math.hypot(d[1].x-d[0].x,d[1
   document.getElementById("cal-m").value=""; document.getElementById("modal").classList.add("show");
   setTimeout(function(){document.getElementById("cal-m").focus();},50); state.draft=null; }
 document.getElementById("cal-ok").onclick=function(){ var m=parseFloat(document.getElementById("cal-m").value);
-  if(!(m>0)){alert("ใส่ระยะเป็นตัวเลขมากกว่า 0");return;} PSpage().scale={pts_per_m:state.calib.ptDist/m};
+  if(!(m>0)){alert("ใส่ระยะเป็นตัวเลขมากกว่า 0");return;} pushUndo(); PSpage().scale={pts_per_m:state.calib.ptDist/m};
   document.getElementById("modal").classList.remove("show"); state.tool="poly"; state.dirty=true; buildPicker(); draw(); };
 document.getElementById("cal-cancel").onclick=function(){document.getElementById("modal").classList.remove("show");state.calib=null;draw();};
 
 /* props buttons */
-document.getElementById("p-dim").onclick=function(){if(state.sel){state.sel.dimVisible=!state.sel.dimVisible;showProps(state.sel);state.dirty=true;draw();}};
-document.getElementById("p-del").onclick=function(){if(state.sel){var o=PSpage().objects;o.splice(o.indexOf(state.sel),1);state.sel=null;showProps(null);state.dirty=true;draw();}};
+document.getElementById("p-dim").onclick=function(){if(state.sel){pushUndo();state.sel.dimVisible=!state.sel.dimVisible;showProps(state.sel);state.dirty=true;draw();}};
+document.getElementById("p-del").onclick=function(){if(state.sel){pushUndo();var o=PSpage().objects;o.splice(o.indexOf(state.sel),1);state.sel=null;showProps(null);state.dirty=true;draw();}};
 document.getElementById("zin").onclick=function(){if(curImg){V.k*=1.2;draw();}};
 document.getElementById("zout").onclick=function(){if(curImg){V.k/=1.2;draw();}};
 document.getElementById("zfit").onclick=fit;
@@ -589,7 +672,24 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+
+/* LITE-UNDO: snapshot-based history over the per-page document model.
+   Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
+   In-progress draft/selection is NOT part of history — undo works at committed-object level. */
+var undoStack=[], redoStack=[], UNDO_MAX=80;
+function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id}); }
+function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
+function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id; }
+function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
+  state.sel=null; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.arcEdit=null; state.dirty=true; showProps(null); buildPicker();
+  if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage);
+  if(document.getElementById("sum").classList.contains("show"))openSum();
+  draw(); }
+function undo(){ if(!undoStack.length)return; redoStack.push(_docSnap()); _applyDoc(undoStack.pop()); _afterHistory(); }
+function redo(){ if(!redoStack.length)return; undoStack.push(_docSnap()); _applyDoc(redoStack.pop()); _afterHistory(); }
+document.getElementById("mi-undo").onclick=function(){undo();closeMenus();};
+document.getElementById("mi-redo").onclick=function(){redo();closeMenus();};
 function toggleSnap(){ state.snapOn=!state.snapOn; if(!state.snapOn)state.snapHint=null; var el=document.getElementById("snap-state"); if(el)el.textContent=state.snapOn?"เปิด":"ปิด"; draw(); }
 document.getElementById("mi-snap").onclick=function(){ toggleSnap(); closeMenus(); };
 document.getElementById("mi-loupe").onclick=function(){ state.loupe=!state.loupe; closeMenus(); draw(); };
@@ -601,17 +701,49 @@ document.getElementById("file-pdf").onchange=function(e){var f=e.target.files[0]
 document.getElementById("mi-prev").onclick=function(){if(curPage>1)loadPage(curPage-1);};
 document.getElementById("mi-next").onclick=function(){if(curPage<pageCount)loadPage(curPage+1);};
 document.getElementById("mi-rot").onclick=function(){V.rot=(V.rot+90)%360;fit();};
-document.getElementById("mi-excl").onclick=function(){excluded[curPage]=!excluded[curPage];state.dirty=true;draw();};
+document.getElementById("mi-excl").onclick=function(){pushUndo();excluded[curPage]=!excluded[curPage];state.dirty=true;draw();};
+/* LITE-FLOOR: floor designation logic (ported from proto page-setup.js, gated on tag 'floor').
+   Tag + floor controls apply LIVE (proto-parity); only project name + scale defer to Save. */
+function autoNamePage(n,force){ if((pageTags[n]||"")!=="floor")return; var k=pageFloorKind[n]||""; if(!k||k==="custom")return;
+  if(!force&&pageNames[n]&&pageNames[n]!==("หน้า "+n))return;
+  if(k==="mechanical")pageNames[n]=FLOOR_KIND_LABELS.mechanical;
+  else if(k==="rooftop")pageNames[n]=FLOOR_KIND_LABELS.rooftop;
+  else if(k==="basement")pageNames[n]=FLOOR_KIND_LABELS.basement+" "+(pageFloorNum[n]||1);
+  else if(k==="normal")pageNames[n]=FLOOR_KIND_LABELS.normal+" "+(pageFloorNum[n]||1); }
+function liteSetTag(n,val){ pageTags[n]=val; if(val!=="floor"){delete pageFloorKind[n];delete pageFloorNum[n];} else autoNamePage(n); state.dirty=true; }
+function liteSetFloorKind(n,kind){ if(!kind){delete pageFloorKind[n];delete pageFloorNum[n];}
+  else{ pageFloorKind[n]=kind;
+    if(kind==="basement"||kind==="normal"){ if(!pageFloorNum[n])pageFloorNum[n]=1; }
+    else delete pageFloorNum[n]; /* mechanical/rooftop/custom carry no floor number */
+    if(kind!=="custom")autoNamePage(n,true); } state.dirty=true; }
+function liteSetFloorNum(n,num){ pageFloorNum[n]=Math.max(1,parseInt(num,10)||1); autoNamePage(n,true); state.dirty=true; }
+function escAttr(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+/* Shared tag+floor control. Re-renders itself in place; updates Overview/draw on change. */
+function floorOptsHTML(n){ var tag=pageTags[n]||"";
+  var html=Object.keys(PAGE_TAGS).map(function(k){return '<option value="'+k+'"'+(tag===k?" selected":"")+'>'+PAGE_TAGS[k]+'</option>';}).join("");
+  var out='<select class="fc-tag" onchange="onFloorTag('+n+',this.value,this)">'+html+'</select>';
+  if(tag==="floor"){ var fk=pageFloorKind[n]||"";
+    out+='<select class="fc-kind" onchange="onFloorKind('+n+',this.value,this)">'+FLOOR_KIND_OPTIONS.map(function(o){return '<option value="'+o[0]+'"'+(fk===o[0]?" selected":"")+'>'+o[1]+'</option>';}).join("")+'</select>';
+    if(fk==="basement"||fk==="normal")out+='<input class="fc-num" type="number" min="1" step="1" value="'+(pageFloorNum[n]||1)+'" title="เลขชั้น" onchange="onFloorNum('+n+',this.value,this)">';
+    out+='<input class="fc-name" type="text" placeholder="ชื่อหน้า/ชั้น (เว้นว่าง = อัตโนมัติ)" value="'+escAttr(pageNames[n]||"")+'" onchange="onFloorName('+n+',this.value,this)">';
+    if(fk==="custom")out+='<div class="fc-hint">⌨ ตั้งชื่อชั้นเองในช่องด้านบน (auto-name ปิดไว้)</div>'; }
+  return out; }
+function renderFloorCtl(containerId,n){ var c=document.getElementById(containerId); if(c)c.innerHTML=floorOptsHTML(n); }
+function refreshFloorCtls(){ if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage); if(document.getElementById("sum").classList.contains("show"))openSum(); }
+function onFloorTag(n,v,el){ pushUndo(); liteSetTag(n,v); refreshFloorCtls(); draw(); }
+function onFloorKind(n,v,el){ pushUndo(); liteSetFloorKind(n,v); refreshFloorCtls(); draw(); }
+function onFloorNum(n,v,el){ pushUndo(); liteSetFloorNum(n,v); refreshFloorCtls(); draw(); }
+function onFloorName(n,v,el){ var t=v.trim(); if(t&&t===(pageNames[n]||""))return; pushUndo(); if(t){pageNames[n]=t;} else { delete pageNames[n]; autoNamePage(n,true); } state.dirty=true; refreshFloorCtls(); }
 /* LITE-PAGESETUP */
 function openSetup(){ if(!caseId){alert("เปิด PDF ก่อน");return;}
   document.getElementById("su-proj").value=projectInfo.name||"";
-  document.getElementById("su-tag").innerHTML=Object.keys(PAGE_TAGS).map(function(k){return '<option value="'+k+'"'+(((pageTags[curPage]||"")===k)?" selected":"")+'>'+PAGE_TAGS[k]+'</option>';}).join("");
+  renderFloorCtl("su-floor",curPage);
   var s=getScaleForPage(curPage); document.getElementById("su-ppm").value=s?s.pts_per_m.toFixed(2):"";
   document.getElementById("setupModal").style.display="flex"; }
 document.getElementById("mi-setup").onclick=function(){closeMenus();openSetup();};
 document.getElementById("su-cancel").onclick=function(){document.getElementById("setupModal").style.display="none";};
 document.getElementById("su-ok").onclick=function(){ projectInfo.name=document.getElementById("su-proj").value;
-  pageTags[curPage]=document.getElementById("su-tag").value;
+  /* tag/floor already applied live via onFloorTag/onFloorKind/onFloorNum */
   var v=parseFloat(document.getElementById("su-ppm").value); if(v>0)PSpage().scale={pts_per_m:v};
   document.getElementById("setupModal").style.display="none"; state.dirty=true; draw(); };
 
@@ -623,7 +755,7 @@ var ANN_FWD={ann_text:"text",ann_comment:"comment",ann_arrow:"arrow",ann_highlig
 var ANN_REV={text:"ann_text",comment:"ann_comment",arrow:"ann_arrow",highlight:"ann_highlight",rect_frame:"ann_rect",circle_frame:"ann_circle",cloud_frame:"ann_cloud",sticky:"ann_text"};
 var SEM_REV={gross_floor_area:"gfa",use_area:"use",floor_area:"use",deduction_opening:"ded","void":"ded",site_land_area:"site",building_footprint:"site",legal_open_space:"open",open_space:"open",permeable_area:"open",hardscape:"open",parking_area:"gfa",count_marker:"count"};
 function endpts(o){var p=o.pts;return {x0:p[0].x,y0:p[0].y,x1:p[p.length-1].x,y1:p[p.length-1].y};}
-function annFwd(a){ var o={id:"ann_"+rid(),type:ANN_FWD[a.type]||"text",pts:a.pt?[a.pt]:(a.pts||[]),text:a.text||"",color:"#ff453a",opacity:1,createdAt:new Date().toISOString()}; return o; }
+function annFwd(a){ var st=annStyle(a); var o={id:"ann_"+rid(),type:ANN_FWD[a.type]||"text",pts:a.pt?[a.pt]:(a.pts||[]),text:a.text||"",color:st.color,opacity:st.opacity,createdAt:new Date().toISOString()}; if(a.type==="ann_text"||a.type==="ann_comment")o.fontSize=st.fontSize; return o; }
 function buildPageStore(){ var ps={};
   Object.keys(PS).forEach(function(k){ var p=PS[k]; var st={lines:[],polys:[],openings:[],refs:[],parking:[],counts:[],calibScale:p.scale||null,annotations:[]};
     p.objects.forEach(function(o){ var col=catOf(o.catId).color;
@@ -639,8 +771,8 @@ function buildPageStore(){ var ps={};
 document.getElementById("mi-save").onclick=function(){
   if(!caseId){alert("ยังไม่ได้เปิด PDF");return;}
   var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,totalPages:pageCount,pageStore:buildPageStore(),
-    pageRotations:pageRot,pageTags:pageTags,pageNames:{},projectInfo:projectInfo,siteOrientation:{},
-    excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:{},pageFloorNum:{}};
+    pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
+    excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
@@ -666,12 +798,13 @@ document.getElementById("mi-pdfov").onclick=function(){ if(!caseId){alert("เ�
   var pages={}; Object.keys(PS).forEach(function(k){ var objs=PS[k].objects.map(function(o){
     var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetrics({pts:o.pts},+k).area; label=o.semanticTag+(a==null?"":" "+a.toFixed(2)+" m2"); }
     return {kind:o.kind,counting:o.counting,pts:o.pts,color:catOf(o.catId).color,label:label}; });
-    var anns=(PS[k].annotations||[]).map(function(a){ return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:(a.type==="ann_highlight"?"#ffd60a":"#ff453a")}; });
+    var anns=(PS[k].annotations||[]).map(function(a){ var st=annStyle(a); return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:st.color,opacity:st.opacity,fontSize:st.fontSize}; });
     if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns}; });
   dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); };
 document.getElementById("mi-load").onclick=function(){document.getElementById("file-bma").click();};
 function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,type:t};
-  if(t==="ann_text"||t==="ann_comment"){ o.pt=(a.pts&&a.pts[0])||a.pt||{x:0,y:0}; o.text=a.text||""; } else { o.pts=a.pts||[]; } return o; }
+  if(t==="ann_text"||t==="ann_comment"){ o.pt=(a.pts&&a.pts[0])||a.pt||{x:0,y:0}; o.text=a.text||""; } else { o.pts=a.pts||[]; }
+  if(a.color)o.color=a.color; if(a.opacity!=null)o.opacity=a.opacity; if(a.fontSize)o.fontSize=a.fontSize; return o; }
 function polyPts(o){ if(o.pts&&o.pts.length)return o.pts; if(o.geometryType==="path"&&Array.isArray(o.segments))return flattenPathToPoints(o,1.0); return []; }
 function loadProto(doc){ PS={}; excluded={};
   if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
@@ -684,7 +817,8 @@ function loadProto(doc){ PS={}; excluded={};
   else if(doc.pages){ Object.keys(doc.pages).forEach(function(n){ var p=doc.pages[n];
     PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; }); }
   (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
-  if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags; if(doc.pageRotations)pageRot=doc.pageRotations; }
+  if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags; if(doc.pageRotations)pageRot=doc.pageRotations;
+  pageNames=doc.pageNames||{}; pageFloorKind=doc.pageFloorKind||{}; pageFloorNum=doc.pageFloorNum||{}; }
 document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0];if(!f)return;
   var rd=new FileReader(); rd.onload=function(){ try{ var doc=JSON.parse(rd.result);
     if(doc.version!==1)throw new Error("version");
@@ -728,7 +862,11 @@ function openSum(){ if(!caseId)return; var s=computeSummary();
   var derived="";
   if(net!=null)derived+='<div>พื้นที่อาคารสุทธิ (GFA − หัก): <b style="color:var(--good)">'+net.toFixed(2)+' ตร.ม.</b></div>';
   if(s.all.site!=null)derived+='<div>ที่ดิน: <b>'+s.all.site.toFixed(2)+' ตร.ม.</b>'+(osr!=null?' · ที่ว่าง '+(s.all.open).toFixed(2)+' ('+osr.toFixed(1)+'% ของที่ดิน)':'')+'</div>';
-  document.getElementById("sum-body").innerHTML=
+  var nm=pageNames[curPage]?' · '+pageNames[curPage]:'';
+  var floorBlock='<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:5px">กำหนดประเภท/ชั้น — หน้า '+curPage+nm+'</div>'+
+    '<div id="sum-floor" class="floorctl">'+floorOptsHTML(curPage)+'</div></div>';
+  document.getElementById("sum-body").innerHTML=floorBlock+
     '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:var(--muted);font-size:11px">'+
     '<th style="text-align:left;padding-bottom:6px">ประเภท</th><th style="text-align:right">หน้า '+curPage+' (ตร.ม.)</th><th style="text-align:right">ทุกหน้า (ตร.ม.)</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
@@ -742,6 +880,8 @@ document.getElementById("btn-focus").onclick=function(){document.body.classList.
 
 /* keys */
 window.addEventListener("keydown",function(e){
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();undo();return;}
+  if((e.metaKey||e.ctrlKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();redo();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCmdK();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="s"){e.preventDefault();document.getElementById("mi-save").onclick();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="o"){e.preventDefault();document.getElementById("file-pdf").click();return;}
@@ -761,6 +901,7 @@ window.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&state.draft){finishDraft();return;}
   if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
+  if(e.key==="Delete"&&state.selAnn){ pushUndo(); var arr=PSpage().annotations,ix=arr.indexOf(state.selAnn); if(ix>=0)arr.splice(ix,1); state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.dirty=true; draw(); return; }
   if(e.key==="Delete"&&state.sel){document.getElementById("p-del").onclick();return;}
   if(e.key==="g"||e.key==="G"){toggleSnap();return;}
   if(e.key==="l"||e.key==="L"){state.loupe=!state.loupe;draw();return;}
@@ -776,5 +917,7 @@ buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
 </script>
+<!-- LITE-ANNOT-STYLE: annotation color/opacity/font-size editor — kept OUT of the main file (own module). -->
+<script src="static/js/annot-style.js"></script>
 </body>
 </html>
