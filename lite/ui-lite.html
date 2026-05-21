@@ -104,6 +104,7 @@
       <div class="item" id="mi-excl">ยกเว้นหน้านี้ (toggle)</div>
     </div></div>
     <div class="spacer"></div>
+    <button class="rbtn" id="btn-sum">Σ สรุป</button>
     <button class="rbtn" id="btn-cmdk">🔍 ค้นหาหน้า ⌘K</button>
     <button class="rbtn" id="btn-ov">🐦 Overview F12</button>
     <button class="rbtn" id="btn-focus">◯ Focus F</button>
@@ -125,6 +126,7 @@
       <button id="p-dim">ซ่อน dimension</button><button id="p-del">ลบ</button></div>
     <div class="overlay" id="cmdk"><div class="box"><input id="cmdk-in" placeholder="ค้นหาหน้า… (พิมพ์เลขหน้า)"><div class="res" id="cmdk-res"></div></div></div>
     <div class="overlay" id="ov"><div class="grid" id="ov-grid"></div></div>
+    <div class="overlay" id="sum"><div class="box" style="width:560px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;max-height:80vh;overflow:auto"><h3 style="margin:0 0 12px">Σ สรุปการวัด</h3><div id="sum-body"></div></div></div>
     <div id="modal"><div class="box"><h4>ตั้งสเกล</h4>
       <p style="font-size:12px;color:var(--muted);margin-bottom:8px">ระยะที่คลิก = <span id="cal-pt">—</span> pt. ใส่ระยะจริง (เมตร):</p>
       <input id="cal-m" type="number" step="0.01" placeholder="เช่น 10.00">
@@ -449,6 +451,35 @@ function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); 
   g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
   document.getElementById("ov").classList.add("show"); }
 document.getElementById("btn-ov").onclick=openOv;
+
+/* LITE-REVIEW: summary — area totals by category (current page + all pages) + site metrics */
+function computeSummary(){ var cur={},all={},curCnt={},allCnt={},pagesWith=0;
+  Object.keys(PS).forEach(function(k){ var pg=+k, has=false;
+    PS[k].objects.forEach(function(o){
+      if(o.counting){ allCnt[o.catId]=(allCnt[o.catId]||0)+1; if(pg===curPage)curCnt[o.catId]=(curCnt[o.catId]||0)+1; has=true; return; }
+      if(o.kind!=="poly")return; var a=polyMetrics({pts:o.pts},pg).area; if(a==null)return; // vendored, per-page scale
+      all[o.catId]=(all[o.catId]||0)+a; if(pg===curPage)cur[o.catId]=(cur[o.catId]||0)+a; has=true; });
+    if(has)pagesWith++; });
+  return {cur:cur,all:all,curCnt:curCnt,allCnt:allCnt,pagesWith:pagesWith}; }
+function openSum(){ if(!caseId)return; var s=computeSummary();
+  var fmt=function(v){return v==null?"—":v.toFixed(2);};
+  var rows="";
+  CATS.forEach(function(c){ if(c.counting){ if(s.allCnt[c.id])rows+='<tr><td><span style="color:'+c.color+'">■</span> '+c.name+'</td><td style="text-align:right">'+(s.curCnt[c.id]||0)+' จุด</td><td style="text-align:right">'+(s.allCnt[c.id]||0)+' จุด</td></tr>'; return; }
+    if(s.all[c.id]!=null)rows+='<tr><td><span style="color:'+c.color+'">■</span> '+c.name+'</td><td style="text-align:right">'+fmt(s.cur[c.id])+'</td><td style="text-align:right">'+fmt(s.all[c.id])+'</td></tr>'; });
+  if(!rows)rows='<tr><td colspan="3" style="color:var(--muted);padding:10px 0">ยังไม่มีข้อมูลวัด — ตั้งสเกลแล้ววาดพื้นที่</td></tr>';
+  var net=(s.all.gfa!=null)?(s.all.gfa-(s.all.ded||0)):null;
+  var osr=(s.all.site>0&&s.all.open!=null)?(s.all.open/s.all.site*100):null;
+  var derived="";
+  if(net!=null)derived+='<div>พื้นที่อาคารสุทธิ (GFA − หัก): <b style="color:var(--good)">'+net.toFixed(2)+' ตร.ม.</b></div>';
+  if(s.all.site!=null)derived+='<div>ที่ดิน: <b>'+s.all.site.toFixed(2)+' ตร.ม.</b>'+(osr!=null?' · ที่ว่าง '+(s.all.open).toFixed(2)+' ('+osr.toFixed(1)+'% ของที่ดิน)':'')+'</div>';
+  document.getElementById("sum-body").innerHTML=
+    '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:var(--muted);font-size:11px">'+
+    '<th style="text-align:left;padding-bottom:6px">ประเภท</th><th style="text-align:right">หน้า '+curPage+' (ตร.ม.)</th><th style="text-align:right">ทุกหน้า (ตร.ม.)</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+    (derived?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;line-height:1.9">'+derived+'</div>':'')+
+    '<div style="margin-top:10px;font-size:11px;color:var(--muted)">'+s.pagesWith+' หน้ามีข้อมูล · พื้นที่คำนวณจาก polyAreaM2 (vendored) ตามสเกลของแต่ละหน้า</div>';
+  document.getElementById("sum").classList.add("show"); }
+document.getElementById("btn-sum").onclick=openSum;
 function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(o){o.classList.remove("show");});}
 document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("click",function(e){if(e.target===o)closeOverlays();});});
 document.getElementById("btn-focus").onclick=function(){document.body.classList.toggle("focus");};

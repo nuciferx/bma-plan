@@ -253,7 +253,7 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
       - [x] **LITE-3** measure tools ✅ done 2026-05-21: scale-calibration modal, polygon/distance/path/reference/count wired to vendored `polyAreaM2`; unified picker sets semanticTag + category show/hide. Verified: square area = 66.67 m² (exact). Fixed dblclick stray-point bug.
       - [x] **LITE-4** dimension rendering ✅ done 2026-05-21: constant-screen-size labels + declutter + right-click per-object show/hide. (Polish: auto-hide-on-tiny-shape still open.)
       - [x] **LITE-SNAP** ✅ done 2026-05-21: endpoint + intersection + nearest-on-edge snap (11px), yellow indicator + label, G toggle / Measure menu. Intersections via vendored `segIntersect`. Verified: endpoint snaps to exact vertex coords, 0 errors.
-      - [ ] **LITE-REVIEW** summary panel: area totals by category + per-page summary + site metrics (open space/permeable from labeled polygons). (Group 8.)
+      - [x] **LITE-REVIEW** ✅ done 2026-05-21: Σ Summary overlay — area totals by category (current page + all pages, per-page scale via vendored polyMetrics), net building area (GFA−deduction), site/open-space ratio. Verified: 66.67/11.11 → net 55.56, 0 errors.
       - [ ] **LITE-ANNOT** annotation tools: Text, Comment, Arrow, Highlight, Frames (rect/circle/cloud). (Group 7.)
       - [ ] **LITE-PAGESETUP** page setup: per-page tag + scale + project metadata dialog. (Group 4 remainder.)
       - [ ] **LITE-5** save/load: lite-native `.bmaplan` round-trip DONE (version 1, pages/objects/scale/excluded). REMAINING: cross-open byte-parity with proto's exact schema arrays (polys/lines/refs) + count additive (`store.counts`) proto-ignore fixture test.
