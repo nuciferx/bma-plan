@@ -498,12 +498,31 @@ document.getElementById("su-ok").onclick=function(){ projectInfo.name=document.g
   var v=parseFloat(document.getElementById("su-ppm").value); if(v>0)PSpage().scale={pts_per_m:v};
   document.getElementById("setupModal").style.display="none"; state.dirty=true; draw(); };
 
-/* save / load .bmaplan (lite-native, proto-flavored, version 1) */
+/* LITE-5: save/load in proto's .bmaplan schema (cross-open with proto).
+   Lite objects -> proto pageStore[n].{polys,openings,lines,refs,annotations,calibScale};
+   count objects -> additive pageStore[n].counts[] (proto ignores unknown arrays). */
+function rid(){return Math.random().toString(36).slice(2,10);}
+var ANN_FWD={ann_text:"text",ann_comment:"comment",ann_arrow:"arrow",ann_highlight:"highlight",ann_rect:"rect_frame",ann_circle:"circle_frame",ann_cloud:"cloud_frame"};
+var ANN_REV={text:"ann_text",comment:"ann_comment",arrow:"ann_arrow",highlight:"ann_highlight",rect_frame:"ann_rect",circle_frame:"ann_circle",cloud_frame:"ann_cloud",sticky:"ann_text"};
+var SEM_REV={gross_floor_area:"gfa",use_area:"use",floor_area:"use",deduction_opening:"ded","void":"ded",site_land_area:"site",building_footprint:"site",legal_open_space:"open",open_space:"open",permeable_area:"open",hardscape:"open",parking_area:"gfa",count_marker:"count"};
+function endpts(o){var p=o.pts;return {x0:p[0].x,y0:p[0].y,x1:p[p.length-1].x,y1:p[p.length-1].y};}
+function annFwd(a){ var o={id:"ann_"+rid(),type:ANN_FWD[a.type]||"text",pts:a.pt?[a.pt]:(a.pts||[]),text:a.text||"",color:"#ff453a",opacity:1,createdAt:new Date().toISOString()}; return o; }
+function buildPageStore(){ var ps={};
+  Object.keys(PS).forEach(function(k){ var p=PS[k]; var st={lines:[],polys:[],openings:[],refs:[],parking:[],counts:[],calibScale:p.scale||null,annotations:[]};
+    p.objects.forEach(function(o){ var col=catOf(o.catId).color;
+      if(o.counting){ st.counts.push({x:o.pts[0].x,y:o.pts[0].y,catId:o.catId,semanticTag:o.semanticTag,count:1}); return; }
+      if(o.kind==="ref"){ st.refs.push(Object.assign({pts:o.pts,kind:"ref",id:"ref-"+rid(),color:col,opacity:1,semanticTag:"reference_line",useCategory:null,refType:"custom",name:"เส้นอ้างอิง"},endpts(o))); return; }
+      if(o.kind==="line"){ st.lines.push(Object.assign({pts:o.pts,kind:(o.pts.length>2?"path":"line"),id:"line-"+rid(),color:col,opacity:1,semanticTag:"dimension_line",useCategory:null},endpts(o))); return; }
+      var poly={pts:o.pts,closed:true,name:"",areaType:(o.catId==="site"?"land":"room"),id:(o.catId==="ded"?"opening":"area")+"-"+rid(),color:col,opacity:0.18,semanticTag:o.semanticTag,useCategory:null};
+      if(o.catId==="ded")st.openings.push(poly); else st.polys.push(poly); });
+    (p.annotations||[]).forEach(function(a){ st.annotations.push(annFwd(a)); });
+    ps[k]=st; });
+  return ps; }
 document.getElementById("mi-save").onclick=function(){
   if(!caseId){alert("ยังไม่ได้เปิด PDF");return;}
-  var pages={}; Object.keys(PS).forEach(function(n){ var p=PS[n];
-    pages[n]={ scale:p.scale, objects:p.objects.map(function(o){return {catId:o.catId,semanticTag:o.semanticTag,kind:o.kind,counting:o.counting,pts:o.pts,dimVisible:o.dimVisible};}), annotations:p.annotations||[] }; });
-  var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,projectInfo:projectInfo,pageTags:pageTags,pageRotations:pageRot,excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pages:pages};
+  var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,totalPages:pageCount,pageStore:buildPageStore(),
+    pageRotations:pageRot,pageTags:pageTags,pageNames:{},projectInfo:projectInfo,siteOrientation:{},
+    excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:{},pageFloorNum:{}};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
@@ -532,14 +551,27 @@ document.getElementById("mi-pdfov").onclick=function(){ if(!caseId){alert("เ�
     if(objs.length)pages[k]={objects:objs}; });
   dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); };
 document.getElementById("mi-load").onclick=function(){document.getElementById("file-bma").click();};
+function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,type:t};
+  if(t==="ann_text"||t==="ann_comment"){ o.pt=(a.pts&&a.pts[0])||a.pt||{x:0,y:0}; o.text=a.text||""; } else { o.pts=a.pts||[]; } return o; }
+function polyPts(o){ if(o.pts&&o.pts.length)return o.pts; if(o.geometryType==="path"&&Array.isArray(o.segments))return flattenPathToPoints(o,1.0); return []; }
+function loadProto(doc){ PS={}; excluded={};
+  if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
+    (st.polys||[]).forEach(function(o){ objs.push({id:state._id++,catId:SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa"),semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true}); });
+    (st.openings||[]).forEach(function(o){ objs.push({id:state._id++,catId:"ded",semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true}); });
+    (st.lines||[]).forEach(function(o){ objs.push({id:state._id++,catId:"gfa",semanticTag:"dimension_line",kind:"line",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
+    (st.refs||[]).forEach(function(o){ objs.push({id:state._id++,catId:"gfa",semanticTag:"reference_line",kind:"ref",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
+    (st.counts||[]).forEach(function(o){ objs.push({id:state._id++,catId:o.catId||"count",semanticTag:o.semanticTag||"count_marker",kind:"count",counting:true,pts:[{x:o.x,y:o.y}],dimVisible:false}); });
+    PS[k]={objects:objs,scale:st.calibScale||null,annotations:(st.annotations||[]).map(annRevFn)}; }); }
+  else if(doc.pages){ Object.keys(doc.pages).forEach(function(n){ var p=doc.pages[n];
+    PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; }); }
+  (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
+  if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags; if(doc.pageRotations)pageRot=doc.pageRotations; }
 document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0];if(!f)return;
   var rd=new FileReader(); rd.onload=function(){ try{ var doc=JSON.parse(rd.result);
-    if(doc.pages){ PS={}; Object.keys(doc.pages).forEach(function(n){ var p=doc.pages[n];
-      PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; });
-      (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
-      if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags;
-      alert("โหลดโปรเจกต์แล้ว ("+Object.keys(doc.pages).length+" หน้ามีข้อมูล)"); state.dirty=false; afterPage(); }
-    }catch(err){alert("ไฟล์ .bmaplan ไม่ถูกต้อง");} }; rd.readAsText(f); e.target.value=""; };
+    if(doc.version!==1)throw new Error("version");
+    loadProto(doc);
+    alert("โหลดโปรเจกต์แล้ว ("+Object.keys(PS).length+" หน้ามีข้อมูล)"); state.dirty=false; afterPage();
+    }catch(err){alert("ไฟล์ .bmaplan ไม่ถูกต้อง: "+err.message);} }; rd.readAsText(f); e.target.value=""; };
 
 /* cmd-K */
 function openCmdK(){if(!caseId)return;document.getElementById("cmdk").classList.add("show");var i=document.getElementById("cmdk-in");i.value="";i.focus();renderCmdK("");}
