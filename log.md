@@ -6,6 +6,39 @@
 
 ---
 
+## 2026-05-21 — BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS (branch: main)
+
+**What changed:** Forked proto's entire view/navigation control system into `lite/ui-lite.html` — adapted to lite's `V={k,ox,oy,rot}` single-canvas transform model (not proto's CSS-transform). Added: spacebar-hold pan + middle-mouse-button pan work in ANY mode including while a draw tool is selected (the headline bug); sticky H pan-tool (`state.panTool`); `setCursor()` helper (grab/grabbing/crosshair/default); smooth exponential wheel zoom (`exp(-deltaY*0.0015)`) clamped to `[ZMIN=0.02, ZMAX=40]` (anti-runaway); `zoomCenter(f)` (zoom about viewport center); `actualSize()` (reset to 1:1); keyboard shortcuts F/Ctrl+0 = fit, Ctrl+1 = actual size, Ctrl+=/Ctrl+- = zoom in/out; enriched canvas hint text. New Playwright regression guard `lite/tests/test_pan_controls.py` (13/13 checks GREEN, `BUG_20260521_LITE_PAN_OK`). ZERO edits to any file under `proto/`. `MEASURE_PARITY_OK` unchanged (ptToScreen/screenToPt/RS untouched).
+
+**Why:** User directive via `/bma-bug-report`: "fork ระบบการควบคุมทั้งหมด มาจาก proto". Lite's view controls were impoverished: pan only worked in select/empty mode (any draw tool blocked mousedown early); no spacebar or middle-mouse pan at all; no zoom clamp (runaway to infinity/zero); no fit/actual-size keyboard shortcuts. These are table-stakes interactions for any CAD-like tool.
+
+**Files touched:**
+- `lite/ui-lite.html`: mousedown/mousemove/mouseup/wheel/keydown/keyup handlers + setTool + new zoomCenter/actualSize/setCursor helpers + hint text + state.panTool default (~39 insertions / 12 deletions)
+- `lite/tests/test_pan_controls.py`: NEW Playwright regression guard (13 checks: midPan, spaceArmed, spacePanMidDraw, panToolOn/Drag/Off, selectPan, clampMax, clampMin, wheelZoomIn, actualSize, fit, ctrlZoomIn)
+- `docs/status/PHASE_INDEX.md`: bug filed at top of Active queue then marked done
+
+**Tests:**
+```
+py -3 -m py_compile lite/server_lite.py lite/tests/test_pan_controls.py lite/tests/test_menu_clickable.py  → PYCOMPILE_OK
+lite/tests/test_pan_controls.py  → BUG_20260521_LITE_PAN_OK GREEN (13/13)
+lite/tests/test_menu_clickable.py  → BUG_20260521_LITE_MENU_CLIP_OK GREEN (no regression)
+lite/tests/test_measure_parity.py  → MEASURE_PARITY_OK GREEN (ptToScreen/screenToPt/RS untouched)
+proto E2E: NOT run — zero edits to any file under proto/; lite tree isolated, no proto regression risk.
+```
+
+**Phase 1 scope check:**
+- ✅ polyAreaM2 / polyMetrics / polySelfIntersects unchanged (lite vendors them in measure-engine.js — untouched)
+- ✅ pdfToC / cToPdf / RS / scale math unchanged (lite ptToScreen/screenToPt/RS untouched)
+- ✅ proto/server.py core endpoints unchanged (no proto edits at all)
+- ✅ .bmaplan schema additive only (not touched)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+**Known gaps / follow-ups:**
+- Rotation parity intentionally omitted: lite uses a single global V.rot while proto persists per-page server-side rotation into the saved file — porting that is a deeper save-format/server change, out of view-control scope.
+- Middle-button autoscroll suppression relies on preventDefault in mousedown; verified fine on canvas in headless — note for manual cross-browser check.
+
+---
+
 ## 2026-05-21 — BUG-20260521-lite-menu-clip — lite top-bar dropdowns unclickable — PASS (branch: main)
 
 **What changed:** One-line CSS fix in `lite/ui-lite.html` `#topbar` rule (L22-24): `overflow:hidden` → `overflow:visible` + added `position:relative;z-index:60`. Via `/bma-bug-report` (intake → file → scope `/bma-ui-menu` → fix → test → ship).

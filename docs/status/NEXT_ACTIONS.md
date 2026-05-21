@@ -1,25 +1,25 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-21 (updated: LITE-0 PASS — /lite/ scaffold + parity gate; LITE-1 is next)
+Date: 2026-05-21 (updated: BUG-20260521-lite-pan-controls PASS — view controls forked from proto into lite; LITE-7 or next PHASE_INDEX item is next)
 
 ## Immediate Next
 
-**LITE-0 done. /lite/ tree scaffolded and parity gate GREEN. Epic INV-2026-05-21-001 continues.**
+**BUG-20260521-lite-pan-controls done. /lite/ view-control system is now fully navigable (spacebar/middle-mouse pan + H pan-tool + smooth clamped zoom + shortcuts). Epic INV-2026-05-21-001 continues.**
 
-- **(PRIORITY 1) LITE-1** — backend endpoints (`/upload`, `/page/{n}`, `/thumb`) in `lite/server_lite.py` reusing PyMuPDF for the raster render path. The skeleton server is ready; add the 3 endpoints following the proto/ case-isolation pattern. Parity gate must remain GREEN after LITE-1.
+- **(PRIORITY 1) LITE-7 PyInstaller .exe** — deferred by user; package lite as a standalone Windows executable. Only unfinished item of the LITE epic's 10 locked scope groups. Requires PyInstaller + run.bat changes; zero proto/ edits.
 
-- **(a) LITE-2** — UI chrome (toolbar, status bar, workflow panel) in `lite/ui-lite.html`. Depends on LITE-1 (need real page renders to test chrome against).
+- **(a) Lite per-page rotation parity with proto** — optional follow-up. Lite uses a single global V.rot while proto persists per-page server-side rotation into the saved file. Porting this is a deeper save-format/server change — out of view-control scope; defer until explicitly requested.
 
-- **(b) LITE-3 through LITE-7** — tools (LITE-3: polygon + calibration), dimension rendering (LITE-4), save/load + object count store (LITE-5), export (LITE-6), packaging (LITE-7).
+- **(b) Proto backlog — Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface.
 
-- **(c) Proto backlog — Verify Scale follow-on E** — fold `calibScale.verifyResult` into `phase1Warnings` (amber warning when verify not run or %dev >= 2%) + export note in XLSX/CSV. Additive only; no forbidden surface. Can interleave with LITE sprints.
+- **(c) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). Valid when proto sprint is ready for pre-release.
 
-- **(d) Run `/bma-sandbox-test`** — pre-release stress test on large real Downloads PDFs (589 MB BKM, 59 MB RM1). Still valid when proto sprint is ready for pre-release.
-
-- **(e) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
+- **(d) INV-2026-05-19-002c — F12 Overview mockup-port** — sprint card queued (commit `5468d13`); invent GO verdict MATURE; depends-on INV-002b (done). Est ~240 LOC JS+CSS.
 
 ## Recently Done
 
+- **BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite** — 2026-05-21. PASS. Spacebar/middle-mouse pan in any mode (including mid-draw); H sticky pan-tool; setCursor helper; smooth exponential wheel zoom clamped [0.02, 40]; zoomCenter/actualSize; F/Ctrl+0/Ctrl+1/Ctrl+=/Ctrl+- shortcuts; enriched hint text. BUG_20260521_LITE_PAN_OK GREEN (13/13). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
+- **BUG-20260521-lite-menu-clip — lite top-bar dropdowns unclickable** — 2026-05-21. PASS. #topbar overflow:hidden→visible + position:relative;z-index:60. BUG_20260521_LITE_MENU_CLIP_OK GREEN (4/4). ZERO proto/ edits.
 - **LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1)** — 2026-05-21. PASS. `/lite/` sibling tree scaffolded. `measure-engine.js` vendored byte-identical from `proto/ui.html`. Anti-drift parity gate MEASURE_PARITY_OK (10 fns + 2 consts byte-identical; 5 polys/2 paths/4 coords numeric parity; unit square = 25.00 m2). Skeleton `server_lite.py`, `launch_lite.py`, `ui-lite.html` shell. ZERO proto/ edits. Proto 102 _OK baseline unchanged.
 - **HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX** — 2026-05-20. PASS. Area math proven exact (0.08% error). HT-ACC-1: `calibRaw[]` + snap-deviation >5% orange warning (root cause of user's ~1% measurement loss). HT-ACC-2: Verify ribbon button + longest-baseline tip + Verify nudge + land-tool arc hint. HT-ACC-3: exact pts_per_m tooltip on scale status (no measurement change). HT-NAV-1: no code fix. HT_ACC_OK GREEN (5 sub-checks). Full E2E EXIT 0 (102 markers). Commit `c0834f0`. Static-asset safety: NO_BOM on app.css + status-bar.js, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.
 - **BUG-20260520-zen-exit-rp-restore — Zen Mode right-panel restore fix** — 2026-05-20. PASS. F11 always exits Zen (unconditional preventDefault, no native-fullscreen desync); F9/F10 keybindings added; dead CSS `~` sibling selector replaced with `:has()`. BUG_20260520_ZEN_EXIT_RP_RESTORE_OK GREEN (6 sub-checks). Full E2E EXIT 0 (101 markers). Commit `9453777`. Static-asset safety: NO_BOM, CACHE_OK, MAIN_UI_OK. UI_MANUAL_TEST.md updated.

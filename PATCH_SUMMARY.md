@@ -4,7 +4,59 @@
 
 ---
 
-# Latest: LITE-0 — scaffold standalone /lite/ tree (sub-sprint 1 of epic INV-2026-05-21-001)
+# Latest: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
+
+Branch: main
+
+Date: 2026-05-21
+
+## Outcome: PASS — Spacebar/middle-mouse pan in any mode + H pan-tool + smooth clamped zoom + fit/actual-size/zoom shortcuts forked from proto into lite. BUG_20260521_LITE_PAN_OK GREEN (13/13). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
+
+## Summary
+
+Lite's view/navigation controls were impoverished vs proto: pan only worked in select/empty mode (draw tools blocked mousedown early), no spacebar or middle-mouse pan, no zoom clamp (runaway zoom), no fit/actual-size/zoom keyboard shortcuts. This sprint adapted proto's entire view-control BEHAVIOR onto lite's `V={k,ox,oy,rot}` single-canvas model (proto uses CSS-transform + per-page server rotation, so functions could not be copied verbatim). New Playwright regression guard `test_pan_controls.py` validates all 13 control paths. MEASURE_PARITY_OK confirms ptToScreen/screenToPt/RS untouched.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/ui-lite.html` | mousedown/mousemove/mouseup/wheel/keydown/keyup handlers + setTool; new zoomCenter/actualSize/setCursor helpers; hint text; state.panTool default (~39 insertions / 12 deletions) |
+| `lite/tests/test_pan_controls.py` | NEW — Playwright regression guard (13 checks: midPan, spaceArmed, spacePanMidDraw, panToolOn/Drag/Off, selectPan, clampMax, clampMin, wheelZoomIn, actualSize, fit, ctrlZoomIn) |
+| `docs/status/PHASE_INDEX.md` | bug filed at top of Active queue then marked done |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (lite vendors in measure-engine.js — untouched)
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED (lite ptToScreen/screenToPt/RS untouched)
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; additive fields only (not touched)
+
+## Tests Run
+
+```
+py -3 -m py_compile lite/server_lite.py lite/tests/test_pan_controls.py lite/tests/test_menu_clickable.py
+  -> PYCOMPILE_OK
+lite/tests/test_pan_controls.py  -> BUG_20260521_LITE_PAN_OK GREEN (13/13 checks)
+lite/tests/test_menu_clickable.py  -> BUG_20260521_LITE_MENU_CLIP_OK GREEN (no regression)
+lite/tests/test_measure_parity.py  -> MEASURE_PARITY_OK GREEN (ptToScreen/screenToPt/RS untouched)
+
+No-test rationale for proto full E2E: zero edits to any file under proto/; lite tree is isolated.
+Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (lite vendors them in measure-engine.js — untouched)
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (lite ptToScreen/screenToPt/RS untouched)
+- ✅ `buildSnapIndex` / `snap` internals — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only; version stays 1
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+
+---
+
+# Previous: LITE-0 — scaffold standalone /lite/ tree (sub-sprint 1 of epic INV-2026-05-21-001)
 
 Branch: main
 
@@ -37,7 +89,7 @@ LITE-0 scaffolds a standalone `/lite/` sibling tree (own FastAPI server, launche
 - `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED in proto (vendored copy byte-identical, enforced by parity gate)
 - `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED in proto
 - `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; additive fields only (count objects deferred to LITE-5 as additive `store.counts`)
+- `.bmaplan` schema version stays 1; additive fields only
 
 ## Tests Run
 
@@ -63,58 +115,4 @@ Reference baseline: proto full E2E = 21 markers / 102 _OK (HT-ACC 2026-05-20, un
 
 ---
 
-# Previous: HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX
-
-Branch: main
-
-Date: 2026-05-20
-
-## Outcome: PASS — Calibration workflow accuracy fixed; area math proven exact (0.08% error); silent wrong-line snap now surfaced as orange warning; Verify Scale promoted to ribbon; tooltip shows exact pts_per_m. Full E2E EXIT 0, 102 _OK markers. NEW HT_ACC_OK GREEN.
-
-## Summary
-
-/bma-human-test on real Downloads PDFs (SCR_Permit_Layout, raster ข.4) returned JOURNEY_OK. The user then reported measuring a 4,000 m² title-deed lot ~1% smaller than deeded. Investigation confirmed the area math is exact (shoelace formula, precise pts_per_m float, 0.08% geometric error). Root cause: snap silently captured a longer nearby vector line instead of the user's intended reference, driving pts_per_m too high and making all derived areas proportionally smaller. HT-ACC-1 surfaces this failure mode with an orange warning the moment it occurs. HT-ACC-2 promotes the Verify Scale button and adds calibration UX nudges. HT-ACC-3 adds an exact pts_per_m tooltip to the scale status fields (no measurement change). HT-NAV-1 required no code fix.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `proto/ui.html` | `calibRaw[]` captures pre-snap click coords; snap-deviation >5% triggers orange warning in calib panel; `#btn-scale-verify` ribbon button added beside Set Scale; longest-baseline tip in calib panel; `finishCalib` nudges to Verify; `activateAreaTool('land')` hints to use arc edges |
-| `proto/static/js/status-bar.js` | `updateAnalyseUI` sets tooltip on `#lbl-scale` and `#scale-badge` showing exact `pts_per_m` and precise `1:N.x` (visible label stays rounded; area float unchanged) |
-| `proto/e2e_ui_test.py` | `_test_ht_acc_calibration` (5 sub-checks) + `HT_ACC_OK` marker |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (area math proven exact; this series fixes calibration UX, not the formula)
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` internals — UNCHANGED (`calibRaw` captures raw clicks before snap; snap logic not modified)
-- `.bmaplan` schema version stays 1; `calibRaw` is in-memory only, not persisted
-
-## Tests Run
-
-```
-py_compile proto/server.py proto/e2e_ui_test.py            → PASS
-proto/e2e_ui_test.py full                                   → EXIT 0
-  102 _OK markers, 0 E2E_FAIL
-  NEW: HT_ACC_OK GREEN (5 sub-checks:
-       verifyBtnExists, verifyBtnWired, longestTip,
-       calibRawExists, devWarnsWrongLine, devQuietWhenClose)
-  CACHE_OK, MAIN_UI_OK (cssLinkPresent/statusBarJsLoaded true) confirm assets serve
-  Static-asset safety: NO_BOM on app.css + status-bar.js
-  All prior 101 markers retained. Zero regression.
-  UI_REGRESSION_PASS. Forbidden-surface diff scan CLEAN.
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` internals — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (`calibRaw` in-memory only; version stays 1)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-<!-- BUG-20260520-zen-exit-rp-restore and earlier entries archived to docs/archive/patch-history-2026-05-09.md -->
+<!-- HT-ACC series and earlier entries archived to docs/archive/patch-history-2026-05-09.md -->

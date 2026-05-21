@@ -4,7 +4,33 @@
 
 ---
 
-# Latest: LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1) — PASS
+# Latest: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS
+
+**Date:** 2026-05-21
+**Branch:** main
+
+## Outcome
+
+PASS. Forked proto's entire view/navigation control system into `lite/ui-lite.html`, adapted to lite's single-canvas `V={k,ox,oy,rot}` transform model. The headline bug (pan blocked entirely when any draw tool was selected) is fixed. All 7 control gaps are closed: spacebar/middle-mouse pan in any mode, sticky H pan-tool, cursor feedback, smooth exponential zoom clamped to [0.02, 40], fit/actual-size/zoom keyboard shortcuts. New Playwright regression guard validates 13 control paths (BUG_20260521_LITE_PAN_OK GREEN). ZERO proto/ edits. MEASURE_PARITY_OK confirms ptToScreen/screenToPt/RS untouched.
+
+## What was delivered
+
+- `lite/ui-lite.html` — full view-control system: spacebar/middle-mouse pan intercept at top of mousedown (works in any mode including mid-draw); sticky H pan-tool (`state.panTool`); `setCursor()` helper (grab/grabbing/crosshair/default); smooth exponential wheel zoom `exp(-deltaY*0.0015)` clamped to [ZMIN=0.02, ZMAX=40]; `zoomCenter(f)` zoom about viewport center; `actualSize()` reset to 1:1; keyboard shortcuts F/Ctrl+0=fit, Ctrl+1=actual, Ctrl+=/Ctrl+-=zoom; enriched hint text
+- `lite/tests/test_pan_controls.py` — NEW Playwright regression guard (13 checks)
+- `docs/status/PHASE_INDEX.md` — bug filed + marked done
+
+## What's next
+
+- Continue lite epic: LITE-7 PyInstaller .exe (deferred by user), or pick next queued PHASE_INDEX item.
+- Optional follow-up: lite per-page rotation parity with proto (V.rot global vs. proto per-page server-side rotation — deeper change, out of view-control scope).
+
+## Position in Plan
+
+Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001). This is a bug-fix sprint on the lite tree. No Phase 2 scope boundary crossed. Proto/ runtime untouched. All lite functionality (snap, export, save/load cross-open) remains intact.
+
+---
+
+# Previous: LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1) — PASS
 
 **Date:** 2026-05-21
 **Branch:** main
@@ -27,40 +53,10 @@ PASS. LITE-0 scaffolds the `/lite/` sibling tree as the foundation of BMA-Plan L
 
 ## What's next
 
-- LITE-1: backend endpoints (`/upload`, `/page/{n}`, `/thumb`) reusing PyMuPDF for the raster render path.
-- Epic continues LITE-1..7 (chrome, tools, dimension rendering, save/load+count, export, packaging).
+LITE-1: backend endpoints (`/upload`, `/page/{n}`, `/thumb`) reusing PyMuPDF for the raster render path. Epic continues LITE-1..7 (chrome, tools, dimension rendering, save/load+count, export, packaging).
 
 ## Position in Plan
 
 Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001). LITE-0 is the scaffold sprint (sub-sprint 1 of 8). No Phase 2 scope boundary crossed. Proto/ runtime untouched. Parity gate enforces that any future proto engine change is immediately visible.
 
----
-
-# Previous: HT-ACC series (HT-ACC-1 + HT-ACC-2 + HT-ACC-3 + HT-NAV-1) — Calibration accuracy UX — PASS
-
-**Date:** 2026-05-20
-**Branch:** main
-**Commit:** `c0834f0`
-
-## Outcome
-
-PASS. Full E2E EXIT 0, 102 _OK markers, 0 E2E_FAIL. The area math in BMA-Plan is exact — shoelace formula with a precise pts_per_m float shows 0.08% geometric error, well within any practical tolerance. A /bma-human-test session on real Downloads PDFs revealed the user's ~1% measurement loss was a calibration UX failure: snap silently captured a longer nearby vector line as the reference, driving pts_per_m too high and making all derived areas proportionally smaller. This series surfaces that failure mode at the moment it occurs (HT-ACC-1 orange warning), promotes the Verify Scale workflow to the ribbon (HT-ACC-2), and adds an exact pts_per_m tooltip to the scale status fields (HT-ACC-3). HT-NAV-1 required no code change. New E2E marker `HT_ACC_OK` GREEN (5 sub-checks). Static-asset safety confirmed: NO_BOM on app.css and status-bar.js, CACHE_OK, MAIN_UI_OK. Forbidden-surface diff scan CLEAN. UI_REGRESSION_PASS.
-
-## What was delivered
-
-- `proto/ui.html` — `calibRaw[]` captures the raw pre-snap click coordinates alongside `calibPts`; after the 2nd calibration click, if snap moved the captured line more than 5% from the user's click, the calib panel shows an orange warning ("snap จับเส้นต่างจากที่คลิก") with raw and snapped coordinates and a reminder to zoom in before re-clicking. This is the single highest-impact fix. `calibRaw` resets in `cancelCalib`/`finishCalib`/`loadPage`. Verify Scale promoted to a ribbon button (`#btn-scale-verify`) beside Set Scale. Longest-baseline tip added to calib panel. `finishCalib` nudges user to Verify. `activateAreaTool('land')` hints to use arc edges on curved boundaries.
-- `proto/static/js/status-bar.js` — `updateAnalyseUI` sets a tooltip on `#lbl-scale` and `#scale-badge` with exact `pts_per_m` and precise `1:N.x`. The visible rounded label is unchanged; area computation uses the full float; no measurement change.
-- `proto/e2e_ui_test.py` — `_test_ht_acc_calibration` (5 sub-checks: verifyBtnExists, verifyBtnWired, longestTip, calibRawExists, devWarnsWrongLine/devQuietWhenClose) + `HT_ACC_OK` marker.
-- `UI_MANUAL_TEST.md` — 6-check HT-ACC calibration accuracy manual checklist added (static JS touched → required per AGENTS.md §8).
-
-## What's next
-
-- Run `/bma-sandbox-test` on large Downloads PDFs (589 MB BKM, 59 MB RM1) for pre-release stress testing.
-- Pick from Discovered backlog items in PHASE_INDEX.
-- Verify Scale follow-on E: fold `calibScale.verifyResult` into `phase1Warnings` (amber when verify not run or %dev >= 2%) + export note in XLSX/CSV.
-
-## Position in Plan
-
-Phase 1 — Measurement workflow accuracy. This series (HT-ACC-1/2/3 + HT-NAV-1) closes the calibration-UX accuracy gap surfaced by /bma-human-test on real Downloads PDFs. Area math correctness confirmed. No Phase 2 scope boundary crossed.
-
-<!-- BUG-20260520-zen-exit-rp-restore and older reports archived to docs/archive/reports-2026-05-09.md -->
+<!-- HT-ACC series and older reports archived to docs/archive/reports-2026-05-09.md -->

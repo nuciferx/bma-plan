@@ -193,7 +193,7 @@ var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเว
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null};
+var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false};
 CATS.forEach(function(c){state.catVis[c.id]=true;});
 var SNAP_PX=11; var lastMouse=null;
 
@@ -223,6 +223,14 @@ function fit(){ if(!curImg)return; var r=cv.getBoundingClientRect();
   var xs=corners.map(function(p){return p.x;}), ys=corners.map(function(p){return p.y;});
   var minx=Math.min.apply(0,xs), miny=Math.min.apply(0,ys), bw=Math.max.apply(0,xs)-minx, bh=Math.max.apply(0,ys)-miny;
   V.ox=(r.width-bw)/2-minx; V.oy=(r.height-bh)/2-miny; draw(); }
+
+// proto-parity zoom commands: zoom about viewport center / reset to 100% (1 img-px = 1 screen-px).
+var ZMIN=0.02, ZMAX=40;                        // wheel + command clamp (anti-runaway; fit() stays unclamped)
+function zoomCenter(f){ if(!curImg)return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+  var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*f)); f=nk/V.k; if(f===1)return;
+  V.ox=cx-(cx-V.ox)*f; V.oy=cy-(cy-V.oy)*f; V.k=nk; draw(); }
+function actualSize(){ if(!curImg)return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+  var f=1/V.k; V.ox=cx-(cx-V.ox)*f; V.oy=cy-(cy-V.oy)*f; V.k=1; draw(); }
 
 /* ============================ DRAW ============================ */
 function draw(){
@@ -266,9 +274,7 @@ function draw(){
     if(placed.some(function(p){return ovl(p,box);}))return; placed.push(box);
     ctx.fillStyle="rgba(15,17,21,.82)"; rr(ctx,box[0],box[1],w,h,4); ctx.fill();
     ctx.fillStyle=j.big?"#fff":"#cfe0ff"; ctx.fillText(j.txt,j.x,j.y); });
-  if(state.shift&&state.draft&&state.draft.length&&lastMouse&&isDrawTool()&&state.tool!=="count"){
-    var prev=state.draft[state.draft.length-1],lk=angleLock(prev,screenToPt(lastMouse.x,lastMouse.y)),a=ptToScreen(prev),bb=ptToScreen(lk);
-    ctx.strokeStyle="#4c8dff"; ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(bb.x,bb.y); ctx.stroke(); ctx.setLineDash([]); }
+  drawLiveOverlay();
   drawSnap();
   drawLoupe();
   updateHUD();
@@ -301,12 +307,15 @@ function updateHUD(){
   document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">ตั้งแล้ว ('+s.pts_per_m.toFixed(2)+' pt/m) ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
   document.getElementById("hud-tr").innerHTML= caseId?("หน้า <b>"+curPage+"</b> / "+pageCount+(excluded[curPage]?' <span class="dot">(ยกเว้น)</span>':'')):"—";
   var nobj=caseId?PSpage().objects.length:0;
+  var co=(curImg&&lastMouse)?screenToPt(lastMouse.x,lastMouse.y):null;
   document.getElementById("hud-bl").innerHTML='วัด: <b style="color:'+cat.color+'">'+cat.name+'</b>'+(state.catVis[cat.id]?'':' <span class="dot">(ซ่อน)</span>')+
-    ' &nbsp; obj '+nobj+' &nbsp; Save <span class="'+(state.dirty?'dot':'ok')+'">'+(state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว')+'</span> &nbsp; zoom '+(V.k*100|0)+'% rot '+V.rot+'°';
+    ' &nbsp; obj '+nobj+' &nbsp; Save <span class="'+(state.dirty?'dot':'ok')+'">'+(state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว')+'</span> &nbsp; zoom '+(V.k*100|0)+'% rot '+V.rot+'°'+
+    ' &nbsp; xy <b>'+(co?(Math.round(co.x)+","+Math.round(co.y)):'—')+'</b>';
   var hintEl=document.getElementById("hint");
   if(state.arcEdit)hintEl.innerHTML="🟡 คลิกตำแหน่งที่เส้นโค้งจะผ่าน · Esc ยกเลิก";
-  else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · จุดน้ำเงินกลางขอบ = ทำขอบโค้ง · Delete ลบ · ลาก=pan";
-  else hintEl.innerHTML="ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบ · V=เลือก · คลิกขวา=ซ่อน dimension";
+  else if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
+  else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · จุดน้ำเงินกลางขอบ = ทำขอบโค้ง · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
+  else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ";
 }
 function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML="";
   CATS.forEach(function(c){ var d=document.createElement("div");
@@ -353,9 +362,16 @@ async function loadPage(n){
 function afterPage(){ state.sel=null; state.draft=null; showProps(null); buildPicker(); draw(); }
 
 /* ============================ INTERACTION ============================ */
-var dragging=false,lastX=0,lastY=0,moved=false;
+var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
+// proto-parity cursor feedback: grabbing while panning, grab when pan armed, crosshair while drawing, default in select.
+function setCursor(){ if(!cv)return;
+  cv.style.cursor = panning ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
 cv.addEventListener("mousedown",function(e){
-  if(e.button!==0||!curImg)return;
+  if(!curImg)return;
+  // PAN (proto parity): middle-button OR spacebar-hold OR pan tool — works in ANY mode, even mid-tool.
+  if(e.button===1||spaceDown||state.panTool){ e.preventDefault();
+    dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; setCursor(); return; }
+  if(e.button!==0)return;
   var p;
   if(state.shift&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
   else if(state.snapOn&&state.snapHint&&isDrawTool()){ p=state.snapHint.pt; }
@@ -379,18 +395,18 @@ cv.addEventListener("mousedown",function(e){
   // select/pan
   var hit=pick(e.offsetX,e.offsetY);
   if(hit){ state.sel=hit; showProps(hit); draw(); }
-  else { dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; showProps(null); draw(); }
+  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; showProps(null); setCursor(); draw(); }
 });
 window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
   V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
 cv.addEventListener("mousemove",function(e){ if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!curImg)return;
-  var need=state.loupe||(state.shift&&state.draft&&isDrawTool());
+  var need=state.loupe||isDrawTool();   // draw-tool active = redraw every move so live guide/rubber-band/coord follow the cursor
   if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
     var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
     if(changed){state.snapHint=h;need=true;} }
   else if(state.snapHint){state.snapHint=null;need=true;}
   if(need)draw(); });
-window.addEventListener("mouseup",function(){dragging=false;});
+window.addEventListener("mouseup",function(){dragging=false;panning=false;setCursor();});
 cv.addEventListener("dblclick",function(e){ if(!state.draft)return;
   if(state.tool==="poly"||state.tool==="path"||state.tool==="ref"){
     // the dblclick's own two mousedowns each added a stray point at the dblclick
@@ -404,8 +420,10 @@ cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!curImg)re
   var hit=pick(e.offsetX,e.offsetY);
   if(hit&&!hit.counting){ hit.dimVisible=!hit.dimVisible; state.sel=hit; showProps(hit); state.dirty=true; draw(); } });
 cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
-  var f=e.deltaY<0?1.12:1/1.12, p=screenToPt(e.offsetX,e.offsetY);
-  V.k*=f; var sp=ptToScreen(p); V.ox+=e.offsetX-sp.x; V.oy+=e.offsetY-sp.y; draw(); },{passive:false});
+  var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*Math.exp(-e.deltaY*0.0015)));   // proto-parity: smooth exp + clamp
+  if(nk===V.k)return;
+  var p=screenToPt(e.offsetX,e.offsetY);
+  V.k=nk; var sp=ptToScreen(p); V.ox+=e.offsetX-sp.x; V.oy+=e.offsetY-sp.y; draw(); },{passive:false});
 
 function mkObj(pts,kind,counting){ var cat=catOf(state.activeCat);
   return {id:state._id++,catId:state.activeCat,semanticTag:cat.tag,pts:pts,kind:kind,counting:!!counting,dimVisible:!counting}; }
@@ -468,6 +486,39 @@ function footPerp(p,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1e-6)r
   var t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; return {x:a.x+t*dx,y:a.y+t*dy}; }   // projection onto infinite line
 function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy),step=Math.PI/4;
   var la=Math.round(Math.atan2(dy,dx)/step)*step; return {x:prev.x+Math.cos(la)*len,y:prev.y+Math.sin(la)*len}; }
+/* --- LITE-LIVE: ported measurement-display feedback from proto's redraw().
+   Rubber-band line to the cursor, live segment length + bearing, running total
+   (path/dist), live area preview (poly), cursor-guide crosshair, and a coordinate
+   readout (in updateHUD). Pure overlay — no area-math / transform changes. The
+   live target honours Shift angle-lock and snap exactly like the mousedown path. --- */
+function liveTarget(){ if(!lastMouse||!isDrawTool())return null;
+  var raw=screenToPt(lastMouse.x,lastMouse.y), hasLast=state.draft&&state.draft.length;
+  if(state.shift&&hasLast&&state.tool!=="count")return {pt:angleLock(state.draft[state.draft.length-1],raw),locked:true};
+  if(state.snapOn&&state.snapHint)return {pt:state.snapHint.pt,snapped:true};
+  return {pt:raw}; }
+function fmtPtLen(ptd){ var s=getScaleForPage(curPage); return s?(ptd/s.pts_per_m).toFixed(2)+" m":ptd.toFixed(1)+" pt"; }
+function liveTag(x,y,txt,hot){ ctx.save(); ctx.font="600 11px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="middle";
+  var w=ctx.measureText(txt).width+10; ctx.fillStyle="rgba(15,17,21,.9)"; rr(ctx,x,y-9,w,18,4); ctx.fill();
+  ctx.fillStyle=hot?"#ffd60a":"#cfe0ff"; ctx.fillText(txt,x+5,y); ctx.restore(); }
+function drawLiveOverlay(){
+  if(!curImg||panning||spaceDown||state.panTool)return;
+  var lt=liveTarget(); if(!lt)return; var tgt=ptToScreen(lt.pt), r=cv.getBoundingClientRect();
+  // cursor-guide crosshair across the whole canvas — aids alignment while measuring
+  ctx.save(); ctx.strokeStyle="rgba(76,141,255,.30)"; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+  ctx.beginPath(); ctx.moveTo(0,tgt.y); ctx.lineTo(r.width,tgt.y); ctx.moveTo(tgt.x,0); ctx.lineTo(tgt.x,r.height); ctx.stroke(); ctx.restore();
+  if(!(state.draft&&state.draft.length)||state.tool==="count")return;          // no rubber-band before first point / for count markers
+  var lp=state.draft[state.draft.length-1], ls=ptToScreen(lp), hot=lt.locked||lt.snapped;
+  ctx.save(); ctx.strokeStyle=hot?"#ffd60a":((catOf(state.activeCat)||{}).color||"#4c8dff");
+  ctx.setLineDash([6,4]); ctx.lineWidth=1.5; ctx.globalAlpha=0.9; ctx.beginPath(); ctx.moveTo(ls.x,ls.y); ctx.lineTo(tgt.x,tgt.y); ctx.stroke(); ctx.restore();
+  var segPt=Math.hypot(lt.pt.x-lp.x,lt.pt.y-lp.y);
+  var deg=Math.atan2(-(tgt.y-ls.y),tgt.x-ls.x)*180/Math.PI; if(deg<0)deg+=360;   // screen-space bearing (y-up)
+  liveTag((ls.x+tgt.x)/2+8,(ls.y+tgt.y)/2,fmtPtLen(segPt)+"  ∠"+deg.toFixed(0)+"°"+(lt.locked?" 🔒":""),hot);
+  var extra="";
+  if(state.tool==="path"||state.tool==="dist"){ if(state.draft.length>1){ var tot=segPt;
+      for(var i=1;i<state.draft.length;i++)tot+=Math.hypot(state.draft[i].x-state.draft[i-1].x,state.draft[i].y-state.draft[i-1].y); extra="Σ "+fmtPtLen(tot); } }
+  else if(state.tool==="poly"&&state.draft.length>=2){ var pa=polyAreaM2(state.draft.concat([lt.pt])); if(pa!=null)extra="▱ "+pa.toFixed(2)+" m²"; }
+  if(extra)liveTag(tgt.x+12,tgt.y+16,extra,false);
+}
 /* --- LITE-ANNOT: render + hit-test --- */
 function drawAnnots(){ var anns=PSpage().annotations||[];
   anns.forEach(function(a){
@@ -538,7 +589,7 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ state.tool=t; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); draw(); }
+function setTool(t){ state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
 function toggleSnap(){ state.snapOn=!state.snapOn; if(!state.snapOn)state.snapHint=null; var el=document.getElementById("snap-state"); if(el)el.textContent=state.snapOn?"เปิด":"ปิด"; draw(); }
 document.getElementById("mi-snap").onclick=function(){ toggleSnap(); closeMenus(); };
 document.getElementById("mi-loupe").onclick=function(){ state.loupe=!state.loupe; closeMenus(); draw(); };
@@ -696,7 +747,15 @@ window.addEventListener("keydown",function(e){
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="o"){e.preventDefault();document.getElementById("file-pdf").click();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="e"){e.preventDefault();document.getElementById("mi-xlsx").onclick();return;}
   if((e.metaKey||e.ctrlKey)&&e.key===","){e.preventDefault();openSetup();return;}
+  // proto-parity zoom shortcuts (work regardless of focus)
+  if((e.metaKey||e.ctrlKey)&&e.key==="0"){e.preventDefault();fit();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key==="1"){e.preventDefault();actualSize();return;}
+  if((e.metaKey||e.ctrlKey)&&(e.key==="="||e.key==="+")){e.preventDefault();zoomCenter(1.25);return;}
+  if((e.metaKey||e.ctrlKey)&&e.key==="-"){e.preventDefault();zoomCenter(1/1.25);return;}
   if(modalOpen())return;
+  if(e.key===" "){ e.preventDefault(); if(!spaceDown){spaceDown=true;setCursor();} return; }  // spacebar-hold pan
+  if(e.key==="h"||e.key==="H"){ state.panTool=!state.panTool; setCursor(); draw(); return; }     // toggle pan tool
+  if(e.key==="f"||e.key==="F"){ fit(); return; }                                                  // fit to window
   if(e.key==="F12"){e.preventDefault();openOv();return;}
   if(e.key==="Escape"){closeOverlays();if(state.arcEdit){state.arcEdit=null;draw();return;}if(state.draft){state.draft=null;draw();}return;}
   if(e.key==="Enter"&&state.draft){finishDraft();return;}
@@ -710,10 +769,10 @@ window.addEventListener("keydown",function(e){
 });
 function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
 window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(curImg)draw();} });
-window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(curImg)draw();} });
+window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(curImg)draw();} if(e.key===" "){spaceDown=false;setCursor();} });
 
 /* boot */
-buildPicker(); resize();
+buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
 </script>
