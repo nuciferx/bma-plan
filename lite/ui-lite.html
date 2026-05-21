@@ -103,6 +103,16 @@
       <div class="item" id="mi-rot">หมุนหน้า +90°</div>
       <div class="item" id="mi-excl">ยกเว้นหน้านี้ (toggle)</div>
     </div></div>
+    <div class="menu" data-m="annotate"><button>Annotate ▾</button><div class="dd">
+      <div class="item" data-tool="ann_text">ตัวหนังสือ (Text)</div>
+      <div class="item" data-tool="ann_comment">คอมเมนต์ (Comment)</div>
+      <div class="item" data-tool="ann_arrow">ลูกศร (Arrow)</div>
+      <div class="item" data-tool="ann_highlight">ไฮไลต์ (Highlight)</div>
+      <div class="sep"></div>
+      <div class="item" data-tool="ann_rect">กรอบสี่เหลี่ยม</div>
+      <div class="item" data-tool="ann_circle">กรอบวงกลม</div>
+      <div class="item" data-tool="ann_cloud">กรอบเมฆ</div>
+    </div></div>
     <div class="spacer"></div>
     <button class="rbtn" id="btn-sum">Σ สรุป</button>
     <button class="rbtn" id="btn-cmdk">🔍 ค้นหาหน้า ⌘K</button>
@@ -165,7 +175,9 @@ CATS.forEach(function(c){state.catVis[c.id]=true;});
 var SNAP_PX=11;
 
 var cv=document.getElementById("cv"), ctx=cv.getContext("2d");
-function PSpage(){ if(!PS[curPage]) PS[curPage]={objects:[],scale:null}; return PS[curPage]; }
+function PSpage(){ if(!PS[curPage]) PS[curPage]={objects:[],scale:null,annotations:[]}; if(!PS[curPage].annotations)PS[curPage].annotations=[]; return PS[curPage]; }
+var ANN_TOOLS=["ann_text","ann_comment","ann_arrow","ann_highlight","ann_rect","ann_circle","ann_cloud"];
+function isAnnTool(t){return ANN_TOOLS.indexOf(t||state.tool)>=0;}
 
 /* ============================ TRANSFORM ============================ */
 // geometry stored in PDF points; image px = pt*RS (pdfToC rot0). View = rot+scale+pan.
@@ -216,6 +228,7 @@ function draw(){
         dimJobs.push({x:cp.x,y:cp.y,txt:cat.name+"  "+(ar==null?"—":ar.toFixed(2)+" m²"),big:true}); }
     }
   });
+  drawAnnots();
   if(state.draft){ var cat=catOf(state.activeCat); var scr=state.draft.map(ptToScreen);
     ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
     ctx.strokeStyle=cat.color; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
@@ -299,6 +312,12 @@ cv.addEventListener("mousedown",function(e){
   if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
     state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } draw(); return; }
+  if(isAnnTool()){
+    if(state.tool==="ann_text"||state.tool==="ann_comment"){ var txt=prompt(state.tool==="ann_text"?"ข้อความ:":"คอมเมนต์:");
+      if(txt){ PSpage().annotations.push({id:state._id++,type:state.tool,pt:p,text:txt}); state.dirty=true; } draw(); return; }
+    state.draft=state.draft||[]; state.draft.push(p);
+    if(state.draft.length===2){ PSpage().annotations.push({id:state._id++,type:state.tool,pts:state.draft.slice()}); state.draft=null; state.dirty=true; }
+    draw(); return; }
   // select/pan
   var hit=pick(e.offsetX,e.offsetY);
   if(hit){ state.sel=hit; showProps(hit); draw(); }
@@ -320,7 +339,9 @@ cv.addEventListener("dblclick",function(e){ if(!state.draft)return;
       if(Math.hypot(sp.x-e.offsetX,sp.y-e.offsetY)<6)state.draft.pop(); else break; }
     finishDraft();
   } });
-cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!curImg)return; var hit=pick(e.offsetX,e.offsetY);
+cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!curImg)return;
+  var ai=annHit(e.offsetX,e.offsetY); if(ai>=0){ PSpage().annotations.splice(ai,1); state.dirty=true; draw(); return; }  // right-click annotation = delete it
+  var hit=pick(e.offsetX,e.offsetY);
   if(hit&&!hit.counting){ hit.dimVisible=!hit.dimVisible; state.sel=hit; showProps(hit); state.dirty=true; draw(); } });
 cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
   var f=e.deltaY<0?1.12:1/1.12, p=screenToPt(e.offsetX,e.offsetY);
@@ -372,6 +393,37 @@ function computeSnap(sx,sy){
     if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} });
   return best;
 }
+/* --- LITE-ANNOT: render + hit-test --- */
+function drawAnnots(){ var anns=PSpage().annotations||[];
+  anns.forEach(function(a){
+    if(a.type==="ann_text"||a.type==="ann_comment"){ var s=ptToScreen(a.pt),pre=a.type==="ann_comment"?"💬 ":"";
+      ctx.font="13px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="top"; var t=pre+(a.text||"");
+      var w=ctx.measureText(t).width+10; ctx.fillStyle="rgba(15,17,21,.85)"; rr(ctx,s.x,s.y,w,20,4); ctx.fill();
+      ctx.fillStyle="#ffe08a"; ctx.fillText(t,s.x+5,s.y+4); return; }
+    if(!a.pts||a.pts.length<2)return; var a0=ptToScreen(a.pts[0]),a1=ptToScreen(a.pts[1]);
+    var x=Math.min(a0.x,a1.x),y=Math.min(a0.y,a1.y),w=Math.abs(a1.x-a0.x),h=Math.abs(a1.y-a0.y);
+    if(a.type==="ann_highlight"){ ctx.fillStyle="rgba(255,214,10,.30)"; ctx.fillRect(x,y,w,h); return; }
+    ctx.strokeStyle="#ff453a"; ctx.lineWidth=2; ctx.setLineDash([]);
+    if(a.type==="ann_rect"){ ctx.strokeRect(x,y,w,h); }
+    else if(a.type==="ann_circle"){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); ctx.stroke(); }
+    else if(a.type==="ann_cloud"){ drawCloud(x,y,w,h); }
+    else if(a.type==="ann_arrow"){ ctx.beginPath(); ctx.moveTo(a0.x,a0.y); ctx.lineTo(a1.x,a1.y); ctx.stroke();
+      var ang=Math.atan2(a1.y-a0.y,a1.x-a0.x),hl=12; ctx.beginPath(); ctx.moveTo(a1.x,a1.y);
+      ctx.lineTo(a1.x-hl*Math.cos(ang-0.4),a1.y-hl*Math.sin(ang-0.4)); ctx.moveTo(a1.x,a1.y);
+      ctx.lineTo(a1.x-hl*Math.cos(ang+0.4),a1.y-hl*Math.sin(ang+0.4)); ctx.stroke(); } });
+  if(state.draft&&isAnnTool()&&state.draft.length===1){ var s=ptToScreen(state.draft[0]); ctx.fillStyle="#ff453a"; ctx.beginPath(); ctx.arc(s.x,s.y,3,0,7); ctx.fill(); } }
+function drawCloud(x,y,w,h){ var r=Math.max(7,Math.min(w,h)/8),step=r*1.6;
+  function bumps(x0,y0,x1,y1){ var dx=x1-x0,dy=y1-y0,len=Math.hypot(dx,dy)||1,n=Math.max(1,Math.round(len/step));
+    for(var i=0;i<n;i++){ var cx=x0+dx*(i+0.5)/n,cy=y0+dy*(i+0.5)/n; ctx.moveTo(cx+r,cy); ctx.arc(cx,cy,r,0,Math.PI*2);} }
+  ctx.beginPath(); bumps(x,y,x+w,y); bumps(x+w,y,x+w,y+h); bumps(x+w,y+h,x,y+h); bumps(x,y+h,x,y); ctx.stroke(); }
+function annHit(sx,sy){ var anns=PSpage().annotations||[];
+  for(var i=anns.length-1;i>=0;i--){ var a=anns[i];
+    if(a.pt){ var s=ptToScreen(a.pt); if(sx>=s.x-2&&sx<=s.x+90&&Math.abs(sy-(s.y+10))<14)return i; }
+    else if(a.pts){ var b0=ptToScreen(a.pts[0]),b1=ptToScreen(a.pts[1]),x=Math.min(b0.x,b1.x),y=Math.min(b0.y,b1.y),w=Math.abs(b1.x-b0.x),h=Math.abs(b1.y-b0.y);
+      if(a.type==="ann_arrow"){ if(distSeg(sx,sy,b0,b1)<7)return i; }
+      else if(a.type==="ann_highlight"){ if(sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return i; }
+      else if(sx>=x-5&&sx<=x+w+5&&sy>=y-5&&sy<=y+h+5&&(Math.abs(sx-x)<6||Math.abs(sx-(x+w))<6||Math.abs(sy-y)<6||Math.abs(sy-(y+h))<6))return i; } }
+  return -1; }
 function drawSnap(){ if(!state.snapHint)return; var s=state.snapHint.screen,t=state.snapHint.type;
   ctx.strokeStyle="#ffd60a"; ctx.lineWidth=2; ctx.setLineDash([]);
   if(t==="endpoint"){ ctx.strokeRect(s.x-5,s.y-5,10,10); }
@@ -420,7 +472,7 @@ document.getElementById("mi-excl").onclick=function(){excluded[curPage]=!exclude
 document.getElementById("mi-save").onclick=function(){
   if(!caseId){alert("ยังไม่ได้เปิด PDF");return;}
   var pages={}; Object.keys(PS).forEach(function(n){ var p=PS[n];
-    pages[n]={ scale:p.scale, objects:p.objects.map(function(o){return {catId:o.catId,semanticTag:o.semanticTag,kind:o.kind,counting:o.counting,pts:o.pts,dimVisible:o.dimVisible};}) }; });
+    pages[n]={ scale:p.scale, objects:p.objects.map(function(o){return {catId:o.catId,semanticTag:o.semanticTag,kind:o.kind,counting:o.counting,pts:o.pts,dimVisible:o.dimVisible};}), annotations:p.annotations||[] }; });
   var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,pageRotations:pageRot,excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pages:pages};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -431,7 +483,7 @@ document.getElementById("mi-load").onclick=function(){document.getElementById("f
 document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0];if(!f)return;
   var rd=new FileReader(); rd.onload=function(){ try{ var doc=JSON.parse(rd.result);
     if(doc.pages){ PS={}; Object.keys(doc.pages).forEach(function(n){ var p=doc.pages[n];
-      PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;})}; });
+      PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; });
       (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
       alert("โหลดโปรเจกต์แล้ว ("+Object.keys(doc.pages).length+" หน้ามีข้อมูล)"); state.dirty=false; afterPage(); }
     }catch(err){alert("ไฟล์ .bmaplan ไม่ถูกต้อง");} }; rd.readAsText(f); e.target.value=""; };
