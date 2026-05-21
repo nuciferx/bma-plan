@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-05-21 — LITE-5 — /lite/ .bmaplan cross-opens with proto — 10/10 scope groups — PASS (branch: main)
+
+**What changed:** Switched `/lite/` save/load to proto's exact `.bmaplan` schema (96f61b8). Lite now writes the 13 top-level keys + `pageStore[n].{lines,polys,openings,refs,parking,counts,calibScale,annotations}` with proto-shaped objects (poly: id/pts/closed/areaType/semanticTag/color/opacity; line: x0/y0/x1/y1/kind; ref: refType; opening for `ded`). Annotation `type` is mapped both ways (ann_arrow↔arrow, ann_rect↔rect_frame, …). Count objects go in an additive `pageStore[n].counts[]` array that proto ignores. Lite's loader reads proto `pageStore` (and falls back to legacy lite `pages{}`), reverse-mapping semanticTag→category and flattening any `geometryType:'path'` polys via the vendored `flattenPathToPoints`.
+
+**Why:** LITE-5 of the standalone-lite epic — the differentiator of Approach A (vendored math + shared file format). **Verified BOTH directions with Playwright (lite on 8123, proto on 8124, same test_plan_A1.pdf):** (1) lite draws a 66.6667 m² polygon + a count + an arrow annotation → saves → proto's `applyLoadedProject` loads it → proto's own `polyAreaM2` returns 66.6667 (identical), count kept in additive array, annotation present, 0 proto errors. (2) the proto-schema file re-opens in lite with identical area + annotation round-trip. This closes group 6 → all 10 locked scope groups done. Only LITE-7 (PyInstaller `.exe`) remains, deferred by the user.
+
+**Files touched:** `lite/ui-lite.html` (save/load rewrite). Tests: Playwright cross-open both directions (areas identical, 0 errors); `MEASURE_PARITY_OK` unchanged.
+
+---
+
 ## 2026-05-21 — LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP — /lite/ to 9/10 scope groups — PASS (branch: main)
 
 **What changed:** Five dev-loop iterations on the standalone `/lite/` tree (each its own commit, all zero proto edits): **LITE-SNAP** (21a8a8e) lite-native snap — endpoint/intersection/nearest, 11px, yellow indicator, G toggle; intersections via the vendored `segIntersect`. **LITE-REVIEW** (f61f7b5) Σ Summary overlay — area totals by category (current page + all pages, per-page scale via vendored `polyMetrics`), net building area (GFA−deduction), open-space ratio. **LITE-ANNOT** (bdc9ef0) 7 annotation tools (text/comment/arrow/highlight/rect/circle/cloud), per-page `annotations[]`, right-click delete, save/load. **LITE-6 EXPORT** (b309813) `/export-xlsx` (openpyxl, Measurements+Summary) + `/export-pdf-overlay` (PyMuPDF draw on a PDF copy); run.bat now installs openpyxl. **LITE-PAGESETUP** (d3644cc) Page Setup dialog (Ctrl+,) — project name + per-page tag + manual scale; tags in F12 overview; projectInfo+pageTags in save/load. Each verified end-to-end with Playwright on test_plan_A1.pdf, 0 console errors; `MEASURE_PARITY_OK` unchanged throughout.
