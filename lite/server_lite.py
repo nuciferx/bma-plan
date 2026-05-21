@@ -29,8 +29,8 @@ from fastapi.staticfiles import StaticFiles
 LITE_VERSION = "0.2.0-LITE-1+2+3"
 SCHEMA_VERSION = 1
 RS = 1.5                       # render scale — MUST match proto (coord contract)
-MAX_UPLOAD_BYTES = 80 * 1024 * 1024
-MAX_IMAGE_CACHE = 24
+MAX_UPLOAD_BYTES = 1024 * 1024 * 1024   # 1 GB — real permit binders run into the 100s of MB
+MAX_IMAGE_CACHE = 24                     # bounded per-case JPEG cache (only viewed pages render)
 CASE_TTL_SEC = 3600
 
 _BASE_DIR = Path(__file__).resolve().parent

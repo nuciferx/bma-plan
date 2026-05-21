@@ -133,6 +133,8 @@
       <div>ยังไม่ได้เปิดไฟล์ PDF</div>
       <button id="empty-open">เปิด PDF</button>
     </div>
+    <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,8,12,.62);z-index:95;backdrop-filter:blur(1px)">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 22px;font-size:14px;color:var(--ink)"><span id="loading-txt">กำลังโหลด…</span></div></div>
     <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=ซ่อน/แสดง dimension</div>
     <div id="picker"><div class="h">กำลังวัดอะไร (= layer = semantic)</div><div id="catlist"></div></div>
     <div class="hud" id="hud-tl"></div>
@@ -323,22 +325,29 @@ function showProps(o){ var box=document.getElementById("props"); if(!o){box.clas
 
 /* ============================ BACKEND ============================ */
 function api(path){ return path+(path.indexOf("?")<0?"?":"&")+"case_id="+caseId; }
+function showLoading(t){ var e=document.getElementById("loading"); document.getElementById("loading-txt").textContent=t; e.style.display="flex"; }
+function hideLoading(){ document.getElementById("loading").style.display="none"; }
 async function uploadPdf(file){
-  var fd=new FormData(); fd.append("file",file);
-  var res=await fetch("/upload",{method:"POST",body:fd});
-  var j=await res.json(); if(j.error){alert("เปิดไม่ได้: "+j.error);return;}
-  caseId=j.case_id; pdfName=j.name; pageCount=j.pages; PS={}; pageRot={}; excluded={}; imgCache={};
-  document.getElementById("empty").style.display="none";
-  curPage=1; await loadPage(1);
+  var mb=(file.size/1048576).toFixed(0);
+  showLoading("กำลังอัปโหลด PDF ("+mb+" MB)… ไฟล์ใหญ่อาจใช้เวลาสักครู่");
+  try{
+    var fd=new FormData(); fd.append("file",file);
+    var res=await fetch("/upload",{method:"POST",body:fd});
+    var j=await res.json(); if(j.error){hideLoading();alert("เปิดไม่ได้: "+j.error);return;}
+    caseId=j.case_id; pdfName=j.name; pageCount=j.pages; PS={}; pageRot={}; excluded={}; imgCache={};
+    document.getElementById("empty").style.display="none";
+    curPage=1; await loadPage(1);
+  }catch(err){ hideLoading(); alert("อัปโหลดล้มเหลว: "+err.message); }
 }
 async function loadPage(n){
   if(!caseId||n<1||n>pageCount)return; curPage=n;
   var info=await (await fetch(api("/pageinfo/"+n))).json();
   pageData={size:{orig_w_pt:info.w_pt,orig_h_pt:info.h_pt}};
-  if(imgCache[n]){ curImg=imgCache[n]; fit(); afterPage(); return; }
+  if(imgCache[n]){ curImg=imgCache[n]; hideLoading(); fit(); afterPage(); return; }
+  showLoading("กำลังโหลดหน้า "+n+" / "+pageCount+"…");
   var img=new Image();
-  img.onload=function(){ imgCache[n]=img; curImg=img; fit(); afterPage(); };
-  img.onerror=function(){ alert("โหลดหน้า "+n+" ไม่ได้"); };
+  img.onload=function(){ imgCache[n]=img; curImg=img; hideLoading(); fit(); afterPage(); };
+  img.onerror=function(){ hideLoading(); alert("โหลดหน้า "+n+" ไม่ได้"); };
   img.src=api("/page/"+n);
 }
 function afterPage(){ state.sel=null; state.draft=null; showProps(null); buildPicker(); draw(); }
