@@ -49,11 +49,5 @@ function _arcPolygonCentroid(pts){if(!pts?.length)return{x:0,y:0};let cx=0,cy=0;
 function computeArcEdge(A,B,P,polygonCentroid){const C=_arcCircumcenter(A,P,B);if(!C)return{sweep:0,center:null,radius:0};const r=Math.hypot(A.x-C.x,A.y-C.y);const chord=Math.hypot(B.x-A.x,B.y-A.y);if(chord<1e-9)return{sweep:0,center:C,radius:r};const mid={x:(A.x+B.x)/2,y:(A.y+B.y)/2};const ux=(B.x-A.x)/chord,uy=(B.y-A.y)/chord;const nx=-uy,ny=ux;const sag=(P.x-mid.x)*nx+(P.y-mid.y)*ny;if(Math.abs(sag)<0.5)return{sweep:0,center:C,radius:r};let sweepMag;if(Math.abs(sag)<=r){sweepMag=2*Math.atan2(chord/2,r-Math.abs(sag));}else{sweepMag=2*Math.PI-2*Math.atan2(chord/2,Math.abs(sag)-r);}const cen=polygonCentroid||{x:mid.x,y:mid.y};const centroidSide=(cen.x-mid.x)*nx+(cen.y-mid.y)*ny;const sameSide=(sag>0)===(centroidSide>0);return{sweep:sameSide?-sweepMag:sweepMag,center:C,radius:r};}
 function polyMetricsAnyShape(poly,pg=curPage){if(Array.isArray(poly?.edges)&&poly.edges.some(e=>e?.edgeType==="arc")){const pts=poly.pts||[];const scale=getScaleForPage(pg);if(pts.length<3||polySelfIntersects(pts))return{area:null,scale};return{area:polygonAreaWithArcsM2(poly,pg),scale};}return polyMetrics(poly,pg);}
 
-// ── lite-owned (NOT vendored): simplified objectAreaM2. Lite has only polygon
-// + path tools (no circle/ellipse/arc generators), so the dispatcher needs just
-// the path and base-polygon branches. This is allowed to differ from proto's
-// objectAreaM2 because lite never produces circle/ellipse/arc objects.
-function objectAreaM2Lite(obj,pg=curPage){if(!obj)return null;if(obj.geometryType==='path'&&Array.isArray(obj.segments))return pathAreaM2(obj,pg);return polyAreaM2(obj.pts||[]);}
-
 // Export for Node test harness; harmless in browser (module not defined there).
-if(typeof module!=='undefined'&&module.exports){module.exports={RS,_PATH_FLATTEN_TOL,segIntersect,_flattenCubicSeg,flattenPathToPoints,polySelfIntersects,origSize,pdfToC,cToPdf,polyAreaM2,polyMetrics,pathAreaM2,arcSegmentAreaM2,polygonAreaWithArcsM2,_arcCircumcenter,_arcPolygonCentroid,computeArcEdge,polyMetricsAnyShape,objectAreaM2Lite};}
+if(typeof module!=='undefined'&&module.exports){module.exports={RS,_PATH_FLATTEN_TOL,segIntersect,_flattenCubicSeg,flattenPathToPoints,polySelfIntersects,origSize,pdfToC,cToPdf,polyAreaM2,polyMetrics,pathAreaM2,arcSegmentAreaM2,polygonAreaWithArcsM2,_arcCircumcenter,_arcPolygonCentroid,computeArcEdge,polyMetricsAnyShape};}
