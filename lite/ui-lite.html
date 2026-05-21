@@ -582,7 +582,8 @@ document.getElementById("mi-pdfov").onclick=function(){ if(!caseId){alert("à¹€à¸
   var pages={}; Object.keys(PS).forEach(function(k){ var objs=PS[k].objects.map(function(o){
     var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetrics({pts:o.pts},+k).area; label=o.semanticTag+(a==null?"":" "+a.toFixed(2)+" m2"); }
     return {kind:o.kind,counting:o.counting,pts:o.pts,color:catOf(o.catId).color,label:label}; });
-    if(objs.length)pages[k]={objects:objs}; });
+    var anns=(PS[k].annotations||[]).map(function(a){ return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:(a.type==="ann_highlight"?"#ffd60a":"#ff453a")}; });
+    if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns}; });
   dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); };
 document.getElementById("mi-load").onclick=function(){document.getElementById("file-bma").click();};
 function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,type:t};

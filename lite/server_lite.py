@@ -195,39 +195,94 @@ async def export_xlsx(req: Request):
                     headers={"Content-Disposition": "attachment; filename=bma-lite-export.xlsx"})
 
 
+def _arrow(shape, p0, p1, col):
+    import math
+    shape.draw_line(fitz.Point(p0), fitz.Point(p1))
+    ang = math.atan2(p1[1] - p0[1], p1[0] - p0[0]); hl = 9
+    for s in (-0.4, 0.4):
+        shape.draw_line(fitz.Point(p1), fitz.Point(p1[0] - hl * math.cos(ang + s), p1[1] - hl * math.sin(ang + s)))
+
+
+def _cloud(shape, x, y, w, h):
+    import math
+    r = max(5, min(abs(w), abs(h)) / 8.0); step = r * 1.6
+    def bumps(x0, y0, x1, y1):
+        dx, dy = x1 - x0, y1 - y0; ln = math.hypot(dx, dy) or 1; n = max(1, round(ln / step))
+        for i in range(n):
+            shape.draw_circle(fitz.Point(x0 + dx * (i + 0.5) / n, y0 + dy * (i + 0.5) / n), r)
+    bumps(x, y, x + w, y); bumps(x + w, y, x + w, y + h); bumps(x + w, y + h, x, y + h); bumps(x, y + h, x, y)
+
+
 @app.post("/export-pdf-overlay")
 async def export_pdf_overlay(req: Request):
-    """Draw measurement geometry (PDF-point coords) onto a copy of the case PDF.
-    Correct for pages with rotation 0; rotated pages are a known LITE limitation."""
+    """Rotation-PROOF overlay: render each measured page to a raster at its displayed
+    orientation, then draw measurement geometry + annotations on top (coords * RS).
+    Exports only pages that carry content. WYSIWYG; correct for any page rotation."""
     data = await req.json()
     case = _get_case(data.get("case_id"))
     if not case:
         return JSONResponse({"error": "invalid case"}, 400)
+    doc = case["doc"]
+    pages = data.get("pages", {})
     out = fitz.open()
-    out.insert_pdf(case["doc"])
-    for n, pg in data.get("pages", {}).items():
+    for n in sorted(pages.keys(), key=lambda k: int(k)):
         idx = int(n) - 1
-        if idx < 0 or idx >= len(out):
+        if idx < 0 or idx >= len(doc):
             continue
-        page = out[idx]
+        pg = pages[n]
+        pix = doc[idx].get_pixmap(matrix=fitz.Matrix(RS, RS))   # displayed orientation
+        page = out.new_page(width=pix.width, height=pix.height)
+        page.insert_image(fitz.Rect(0, 0, pix.width, pix.height), pixmap=pix)
+        sh = page.new_shape()
         for o in pg.get("objects", []):
-            pts = [(p["x"], p["y"]) for p in o.get("pts", [])]
+            pts = [(p["x"] * RS, p["y"] * RS) for p in o.get("pts", [])]
             col = _hex_rgb(o.get("color"))
             if o.get("counting"):
                 if pts:
-                    page.draw_circle(fitz.Point(pts[0]), 4, color=col, fill=col, width=1)
+                    sh.draw_circle(fitz.Point(pts[0]), 4)
+                    sh.finish(color=col, fill=col, width=1)
                 continue
             if o.get("kind") == "poly" and len(pts) >= 3:
-                page.draw_polyline(pts + [pts[0]], color=col, width=1.2)
+                sh.draw_polyline(pts + [pts[0]]); sh.finish(color=col, width=1.4)
             elif len(pts) >= 2:
-                page.draw_polyline(pts, color=col, width=1.2)
+                sh.draw_polyline(pts); sh.finish(color=col, width=1.4)
             if o.get("label") and pts:
-                cx = sum(p[0] for p in pts) / len(pts)
-                cy = sum(p[1] for p in pts) / len(pts)
+                cx = sum(p[0] for p in pts) / len(pts); cy = sum(p[1] for p in pts) / len(pts)
                 try:
-                    page.insert_text(fitz.Point(cx, cy), o["label"], fontsize=8, color=col)
+                    page.insert_text(fitz.Point(cx, cy), o["label"], fontsize=9, color=col)
                 except Exception:
                     pass
+        # annotations
+        for a in pg.get("annotations", []):
+            t = a.get("type"); col = _hex_rgb(a.get("color") or "#ff453a")
+            if t in ("ann_text", "ann_comment"):
+                pt = a.get("pt") or (a.get("pts") or [{}])[0]
+                if "x" in pt:
+                    try:
+                        page.insert_text(fitz.Point(pt["x"] * RS, pt["y"] * RS),
+                                         ("[!] " if t == "ann_comment" else "") + (a.get("text") or ""),
+                                         fontsize=10, color=col)
+                    except Exception:
+                        pass
+                continue
+            pp = a.get("pts") or []
+            if len(pp) < 2:
+                continue
+            a0 = (pp[0]["x"] * RS, pp[0]["y"] * RS); a1 = (pp[1]["x"] * RS, pp[1]["y"] * RS)
+            x, y = min(a0[0], a1[0]), min(a0[1], a1[1]); w = abs(a1[0] - a0[0]); h = abs(a1[1] - a0[1])
+            if t == "ann_arrow":
+                _arrow(sh, a0, a1, col); sh.finish(color=col, width=1.6)
+            elif t == "ann_highlight":
+                sh.draw_rect(fitz.Rect(x, y, x + w, y + h)); sh.finish(color=None, fill=(1, 0.84, 0.04), fill_opacity=0.30)
+            elif t == "ann_rect":
+                sh.draw_rect(fitz.Rect(x, y, x + w, y + h)); sh.finish(color=col, width=1.6)
+            elif t == "ann_circle":
+                sh.draw_oval(fitz.Rect(x, y, x + w, y + h)); sh.finish(color=col, width=1.6)
+            elif t == "ann_cloud":
+                _cloud(sh, x, y, w, h); sh.finish(color=col, width=1.4)
+        sh.commit()
+    if len(out) == 0:
+        out.new_page()
     data_bytes = out.tobytes()
     out.close()
     return Response(data_bytes, media_type="application/pdf",
