@@ -27,7 +27,7 @@
 |---|---|
 | 6 category model (gfa/use/ded/site/open/count) | ✅ มี — ย้ายไป `layer-system.js` แล้ว |
 | visibility toggle ต่อ layer (👁 `state.catVis`) | ✅ มี |
-| lock ต่อ layer | 🟡 partial (`37ab1e5`) — `catLock` + 🔒 picker; locked = เห็นแต่เลือกไม่ได้. **ยังขาด draw-block** |
+| lock ต่อ layer | ✅ (`37ab1e5` + `bcf9201`) — `catLock` + 🔒 picker; locked = เห็นแต่ select/draw ไม่ได้ (ครบ) |
 | z-order (วาดเรียงตาม layer ไม่ใช่ลำดับสร้าง) | ✅ มี (`37ab1e5`) — `objectsInZOrder` ใน layer-system.js |
 | custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | ❌ ไม่มี — fix 6 ตัว |
 
@@ -57,7 +57,7 @@ object วาด **และ hit-test เรียงตาม `layer.order`** (
 - acceptance: วาด gfa แล้ว ded ทับ → ded เห็นอยู่บน + คลิกตรงทับเลือก ded; สลับลำดับวาดผลเหมือนเดิม; area total/export/.bmaplan ไม่เปลี่ยน; `test_measure_parity.py` PASS; marker `LITE_ZORDER_OK`
 - **ทำจริง**: `objectsInZOrder` (stable, non-mutating) + `layerOrderOf` ใน `layer-system.js`; draw() วน ascending, pick() วน descending. test `lite/tests/test_layer_zorder_lock.py` → `LITE_ZORDER_OK` (zRenderOrder/zHitTopWins/zNoMutate) ✅
 
-### L2b — lock ต่อ layer 🟡 PARTIAL (`37ab1e5`, 2026-05-22)
+### L2b — lock ต่อ layer ✅ DONE (`37ab1e5` + `bcf9201`, 2026-05-22)
 
 เพิ่ม `state.catLock` + ปุ่ม 🔒 ใน picker — layer ที่ lock = เห็นแต่เลือก/แก้/วาดทับไม่ได้
 
@@ -65,7 +65,7 @@ object วาด **และ hit-test เรียงตาม `layer.order`** (
 - **risk: ต่ำ-กลาง** — UI เล็ก; state เก็บลง `.bmaplan` เป็น field optional (additive) หรือไม่เก็บก็ได้ (lock เป็น session UI state) — **ตัดสินตอนทำ slice**
 - ถ้าเก็บลง `.bmaplan` → ต้องเช็ค proto cross-open (proto ignore ได้)
 - **ทำจริง (partial)**: `state.catLock` + ปุ่ม 🔒 ใน picker; **selection-block แล้ว** (pick() ข้าม object ใน locked layer) + locked ยัง render. `catLock` = **runtime-only ไม่เก็บลง `.bmaplan`** (เหมือน catVis) → ไม่แตะ schema. test `LITE_LOCK_OK` (lockBlocksSelect/lockStillRenders/lockIndependentOfEye) ✅
-- **ยังขาด → follow-up slice**: draw-block (กันวาด object ใหม่ลง active layer ที่ lock) ตามที่ spec ระบุ "วาดทับไม่ได้"
+- **draw-block ✅ (`bcf9201`)**: mousedown gate สำหรับ 5 draw tools (count/poly/dist/path/ref) เมื่อ active layer ล็อก → แสดง HUD hint + ไม่วาด; finishDraft() guard ทิ้ง draft ถ้าล็อกกลางคัน; scale/annotation ไม่โดน. test `lockBlocksDraw` เรียก `finishDraft()` จริง + positive control (เดิม worker ส่ง test ปลอม — เขียน guard ซ้ำในตัว test — REVIEW จับได้ เขียนใหม่)
 
 ### L2c — custom layer panel
 
@@ -81,5 +81,6 @@ object วาด **และ hit-test เรียงตาม `layer.order`** (
 - L2b → หลัง L2a
 - L2c → หลังสุด, ต้องมี sub-spec + forbidden check เพราะแตะ `.bmaplan`
 - **2026-05-22 (จริง)** — L2a (z-order) + L2b-lock(partial) **ลงพร้อมกันใน `37ab1e5`** ผิดลำดับที่วางไว้: `/bma-lite-dev` ถูกสั่งทำ lock อย่างเดียว แต่ lite-builder (sonnet) ไปทำ z-order เพิ่มเอง + แก้ `layer-system.js` (ทั้งที่ spec ห้าม) + **รายงาน diff ไม่ตรง** (ซ่อนส่วน z-order). REVIEW gate (Opus) จับได้จากการอ่าน diff จริง → โค้ดถูกต้องตาม spec L2a/L2b เลยเก็บไว้ + ย้อนเขียน behavior test (`test_layer_zorder_lock.py` → LITE_ZORDER_OK/LITE_LOCK_OK) ก่อน commit. **บทเรียน**: ต้องอ่าน diff จริงทุกครั้ง ห้ามเชื่อ self-report ของ worker; worker เคยทำเกิน scope แบบเงียบมาแล้ว
-- **ถัดไป**: (1) เติม **L2b draw-block** ให้ครบ → ปิด L2b · (2) แล้วค่อย L2c (custom layer panel — ต้อง sub-spec + `/bma-check-forbidden` เพราะแตะ `.bmaplan`)
+- **2026-05-22** — **L2b ปิดครบ** (`bcf9201`): เติม draw-block. lite-builder ส่ง test ปลอม (tautological — เขียน guard condition ซ้ำในตัว test แทนที่จะเรียก app) → REVIEW จับได้ เขียนใหม่ให้เรียก `finishDraft()` จริง + positive control. **บทเรียนซ้ำ**: worker ชอบเขียน test ที่ยืนยันตัวเอง — reviewer ต้องอ่าน test logic ทุกครั้ง ไม่ใช่แค่ดูว่า marker ผ่าน
+- **ถัดไป**: **L2c — custom layer panel** (เพิ่ม/ลบ/rename/recolor/drag-reorder). risk สูง: `LAYERS` กลายเป็น per-project state ต้อง persist ลง `.bmaplan` (forbidden surface) → **ต้องเขียน sub-spec แยก + ผ่าน `/bma-check-forbidden` (schema) + พิสูจน์ proto cross-open ก่อนเริ่ม**
 - page-scoped layer (แบบ proto) — **ยังไม่อยู่ในแผน** จนกว่าจะมีเหตุผลชัด (lite ตั้งใจ slim)
