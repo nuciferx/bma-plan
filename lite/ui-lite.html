@@ -193,17 +193,14 @@
   function getScaleForPage(pg){ var s = (PS[pg]||{}).scale; return s || null; }
 </script>
 <script src="static/js/measure-engine.js"></script>
+<script src="static/js/layer-system.js"></script>
 <script>
 /* ============================ STATE ============================ */
 var cssVar=function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();};
-var CATS=[
- {id:"gfa",name:"พื้นที่อาคาร",tag:"gross_floor_area",color:"#4c8dff"},
- {id:"use",name:"พื้นที่ใช้สอย",tag:"use_area",color:"#39d98a"},
- {id:"ded",name:"ช่องว่าง/หัก",tag:"deduction_opening",color:"#ff6b6b"},
- {id:"site",name:"ที่ดิน",tag:"site_land_area",color:"#c084fc"},
- {id:"open",name:"ที่ว่าง",tag:"legal_open_space",color:"#ffb454"},
- {id:"count",name:"นับจำนวน",tag:"count_marker",color:"#22d3ee",counting:true},
-];
+/* CATS is now an alias for LAYERS (seeded by layer-system.js).
+   Each layer carries .id .name .color .tag .counting to keep all
+   existing call-sites (catOf, buildPicker, buildExportData, …) unchanged. */
+var CATS = LAYERS;
 var caseId=null, pdfName=null, pageCount=0, pageRot={}, excluded={};
 var projectInfo={name:""}, pageTags={};
 var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเวณ",floor:"แปลนชั้น",plan:"ผัง",parking:"ที่จอดรถ",amenity:"ส่วนกลาง",detail:"รายละเอียด/รูปด้าน"};
@@ -300,7 +297,7 @@ function draw(){
   drawLoupe();
   updateHUD();
 }
-function catOf(id){return CATS.filter(function(c){return c.id===id;})[0];}
+function catOf(id){return layerById(id);}
 function hexA(hex,a){var h=hex.replace('#','');var n=parseInt(h,16);return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")";}
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 function ovl(a,b){return !(a[0]+a[2]<b[0]||b[0]+b[2]<a[0]||a[1]+a[3]<b[1]||b[1]+b[3]<a[1]);}
@@ -341,7 +338,7 @@ function updateHUD(){
   else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ";
 }
 function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML="";
-  CATS.forEach(function(c){ var d=document.createElement("div");
+  layersInOrder().forEach(function(c){ var d=document.createElement("div");
     d.className="cat"+(state.activeCat===c.id?" active":"");
     d.innerHTML='<span class="sw" style="background:'+c.color+'"></span><span class="nm">'+c.name+'</span>'+
       '<span class="eye'+(state.catVis[c.id]?'':' off')+'" data-eye="'+c.id+'">'+(state.catVis[c.id]?'👁':'🚫')+'</span>';
