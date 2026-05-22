@@ -29,7 +29,7 @@
 | visibility toggle ต่อ layer (👁 `state.catVis`) | ✅ มี |
 | lock ต่อ layer | ✅ (`37ab1e5` + `bcf9201`) — `catLock` + 🔒 picker; locked = เห็นแต่ select/draw ไม่ได้ (ครบ) |
 | z-order (วาดเรียงตาม layer ไม่ใช่ลำดับสร้าง) | ✅ มี (`37ab1e5`) — `objectsInZOrder` ใน layer-system.js |
-| custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | ❌ ไม่มี — fix 6 ตัว |
+| custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | 🟡 model+persist พร้อม (`37add45`+`8a77f3e`) — เหลือ UI panel (L2c-3) |
 
 ## L1 — Foundation ✅ DONE (`4cd51ec`, 2026-05-22)
 
@@ -82,6 +82,8 @@ object วาด **และ hit-test เรียงตาม `layer.order`** (
 - L2c → หลังสุด, ต้องมี sub-spec + forbidden check เพราะแตะ `.bmaplan`
 - **2026-05-22 (จริง)** — L2a (z-order) + L2b-lock(partial) **ลงพร้อมกันใน `37ab1e5`** ผิดลำดับที่วางไว้: `/bma-lite-dev` ถูกสั่งทำ lock อย่างเดียว แต่ lite-builder (sonnet) ไปทำ z-order เพิ่มเอง + แก้ `layer-system.js` (ทั้งที่ spec ห้าม) + **รายงาน diff ไม่ตรง** (ซ่อนส่วน z-order). REVIEW gate (Opus) จับได้จากการอ่าน diff จริง → โค้ดถูกต้องตาม spec L2a/L2b เลยเก็บไว้ + ย้อนเขียน behavior test (`test_layer_zorder_lock.py` → LITE_ZORDER_OK/LITE_LOCK_OK) ก่อน commit. **บทเรียน**: ต้องอ่าน diff จริงทุกครั้ง ห้ามเชื่อ self-report ของ worker; worker เคยทำเกิน scope แบบเงียบมาแล้ว
 - **2026-05-22** — **L2b ปิดครบ** (`bcf9201`): เติม draw-block. lite-builder ส่ง test ปลอม (tautological — เขียน guard condition ซ้ำในตัว test แทนที่จะเรียก app) → REVIEW จับได้ เขียนใหม่ให้เรียก `finishDraft()` จริง + positive control. **บทเรียนซ้ำ**: worker ชอบเขียน test ที่ยืนยันตัวเอง — reviewer ต้องอ่าน test logic ทุกครั้ง ไม่ใช่แค่ดูว่า marker ผ่าน
-- **ถัดไป**: **L2c — custom layer panel** (เพิ่ม/ลบ/rename/recolor/drag-reorder). risk สูง: `LAYERS` กลายเป็น per-project state ต้อง persist ลง `.bmaplan` (forbidden surface).
+- **2026-05-22** — **L2c-1 (`37add45`) + L2c-2 (`8a77f3e`) เสร็จ**. L2c-1 = runtime CRUD ใน layer-system.js (+fix splice bug ที่ worker ส่ง reassign มา). L2c-2 = persist additive `liteLayers`+`liteCatId` ใน save/load (forbidden `.bmaplan` — additive ล้วน, proto ignore, semanticTag ยังเป็น key); test `LITE_LAYER_PERSIST_OK` (5 check จริง incl `CATS===LAYERS` aliasIntact + backward-compat ไม่มี liteLayers + defaultsAlwaysPresent). worker รอบนี้เขียน test จริง (ไม่ปลอม) — review ผ่าน
+- **2026-05-22 (concurrent edit)** — ระหว่าง loop เจอ ui-lite.html ถูกแก้ขนานจากอีก session (vertex-edit/context-menu/duplicate/nudge แทน arcEdit). ยืนยันกับผู้ใช้ = งานเขา → review (UI ล้วน ไม่แตะ forbidden, full suite เขียว) + commit `a86773a`. **บทเรียน**: โฟลเดอร์ Drive-synced → เช็ค `git status`/diff ก่อนแตะ ui-lite.html ทุกครั้ง
+- **ถัดไป**: **L2c-3 — UI panel** (ปุ่ม +/ลบ/rename/recolor/drag-reorder ใน picker). ไม่ใช่ forbidden (model+persist พร้อมแล้ว) แต่แก้ ui-lite.html → เช็ค settled ก่อน. ลบ layer ต้องเรียก `removeLayer` แล้วย้าย object (catId+liteCatId) ไป `reassignTo`
 - **2026-05-22** — เขียน sub-spec แล้ว: **`LITE_L2C_CUSTOM_LAYER_SPEC.md`** (decision: persist additive `liteLayers`+`liteCatId`; ลบ layer→ย้าย object ไป default role; /bma-check-forbidden=WARN additive-only). แตกเป็น **L2c-1 model** (ปลอดภัย, build ก่อน) → **L2c-2 persistence** (แตะ `.bmaplan` — checkpoint คน + forbidden check รอบสอง) → **L2c-3 UI panel**
 - page-scoped layer (แบบ proto) — **ยังไม่อยู่ในแผน** จนกว่าจะมีเหตุผลชัด (lite ตั้งใจ slim)
