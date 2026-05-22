@@ -105,5 +105,115 @@ function objectsInZOrder(objs) {
     .map(function(d) { return d.o; });
 }
 
+/* --- Custom-layer CRUD helpers (L2c-1) --- */
+
+/** True iff a layer exists with this id AND id === its role (i.e. it is the seed/default). */
+function isDefaultLayer(id) {
+  var l = layerById(id);
+  return !!(l && l.id === l.role);
+}
+
+/** The seed layer id for a role equals the role id itself. Returns null if role invalid. */
+function defaultLayerIdForRole(role) {
+  return roleDef(role) ? role : null;
+}
+
+/**
+ * Generate a new id string NOT colliding with any existing LAYERS id and NOT
+ * equal to any role id. Uses scheme "L" + n, n starting at 1, incrementing
+ * until a free slot is found.
+ */
+function nextLayerId() {
+  var existing = {};
+  for (var i = 0; i < LAYERS.length; i++) existing[LAYERS[i].id] = true;
+  var roleIds = {};
+  for (var j = 0; j < ROLE_DEFS.length; j++) roleIds[ROLE_DEFS[j].id] = true;
+  var n = 1;
+  while (true) {
+    var candidate = "L" + n;
+    if (!existing[candidate] && !roleIds[candidate]) return candidate;
+    n++;
+  }
+}
+
+/**
+ * Add a custom layer for the given role.
+ * Returns the new layer, or null if role is invalid.
+ * INVARIANT: .tag always equals roleSemanticTag(role), never derived from name.
+ */
+function addLayer(role, name, color) {
+  var rd = roleDef(role);
+  if (!rd) return null;
+  var maxOrder = -1;
+  for (var i = 0; i < LAYERS.length; i++) {
+    if (LAYERS[i].order > maxOrder) maxOrder = LAYERS[i].order;
+  }
+  var layer = {
+    id:       nextLayerId(),
+    name:     (name && name.length > 0) ? name : rd.name,
+    color:    (color && color.length > 0) ? color : rd.color,
+    role:     role,
+    tag:      roleSemanticTag(role),   // INVARIANT: from role, never from name
+    counting: !!rd.counting,
+    subTag:   "",
+    order:    maxOrder + 1,
+    groupId:  null,
+  };
+  LAYERS.push(layer);
+  return layer;
+}
+
+/** Rename a layer's display name only. Does NOT touch role/tag/counting. Returns bool. */
+function renameLayer(id, name) {
+  if (!name || name.length === 0) return false;
+  var l = layerById(id);
+  if (!l) return false;
+  l.name = name;
+  return true;
+}
+
+/** Change a layer's display color only. Returns bool. */
+function recolorLayer(id, color) {
+  var l = layerById(id);
+  if (!l) return false;
+  l.color = color;
+  return true;
+}
+
+/**
+ * Rewrite .order for each layer to its index in orderedIds.
+ * Requires a full permutation (orderedIds.length === LAYERS.length).
+ * Returns false (changes nothing) if lengths differ.
+ * Ids in orderedIds not found in LAYERS are silently ignored for position
+ * assignment, but the length check still applies.
+ */
+function reorderLayers(orderedIds) {
+  if (!orderedIds || orderedIds.length !== LAYERS.length) return false;
+  for (var i = 0; i < orderedIds.length; i++) {
+    var l = layerById(orderedIds[i]);
+    if (l) l.order = i;
+  }
+  return true;
+}
+
+/**
+ * Remove a custom layer from LAYERS.
+ * - Not found         → {removed:false, reason:"not_found"}
+ * - Is default layer  → {removed:false, reason:"is_default"}
+ * - Else              → removes from LAYERS, returns {removed:true, role:<role>,
+ *                        reassignTo:<defaultLayerIdForRole(role)>}
+ * NOTE: does NOT reassign objects — that is the caller's responsibility.
+ */
+function removeLayer(id) {
+  var l = layerById(id);
+  if (!l) return {removed: false, reason: "not_found"};
+  if (isDefaultLayer(id)) return {removed: false, reason: "is_default"};
+  var savedRole = l.role;
+  // splice IN PLACE — never reassign LAYERS, or the `var CATS = LAYERS` alias in
+  // ui-lite.html would keep pointing at the old array and silently diverge.
+  for (var i = 0; i < LAYERS.length; i++) { if (LAYERS[i].id === id) { LAYERS.splice(i, 1); break; } }
+  return {removed: true, role: savedRole, reassignTo: defaultLayerIdForRole(savedRole)};
+}
+
 /* --- Bootstrap --- */
 initLayers();
