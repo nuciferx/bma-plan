@@ -162,6 +162,26 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
 
+### ideas 2026-05-23
+
+- [ ] **Embedded region data model (area / distance / count taxonomy)** — `invent-queued` — from /idea 2026-05-23 (user pasted a 3-column taxonomy table: พื้นที่/ระยะ/นับ at site level and building/floor level)
+    - Source: user 2026-05-23, "แนวคิดเรื่องข้อมูลที่เก็บ ฝังบริเวณ — พื้นที่/ระยะ/นับ (ที่ดิน, ปกคลุม, FAR, OSR, ร่น, ทางหนีไฟ, ที่จอดรถ ...)"
+    - Tags: bma-plan, data-model, measure, semantic-meta, export, p-med
+    - Direction: (unframed — pending /bma-invent FRAME phase; full taxonomy table lives in IDEAS.md + user's Google Sheet)
+    - Open questions: (pending /bma-invent — how this maps to the 5 semantic-meta fields; site-level vs floor-level grouping; which are area vs distance vs count profiles; derived values like ที่ว่าง=ที่ดิน-ปกคลุม)
+    - Scope skill: pending (`/bma-invent` decides after research)
+    - Forbidden-surface profile: unknown — `/bma-invent` checks during RESEARCH (likely touches semanticTag/reportTarget metadata + export grouping, NOT area math)
+
+### ideas 2026-05-22
+
+- [x] **Lite sublayer tree (A+B Hybrid: tree + folders + roll-up)** — `invent-done-go` — from /idea 2026-05-22, GO at checkpoint 2026-05-23 → `docs/invent/lite-sublayer-tree.md`
+    - Source: user 2026-05-22, "พัฒนา layer ใน lite ทำให้เวลาเพิ่มเลเยอร์ เป็น sublayer แบบ tree"
+    - Tags: bma-plan, layer, ui, p-med
+    - Pipeline: `/lite-invent` — RESEARCH `PRIOR_ART_PARTIAL`; DIVERGE 5 approaches (B 26 / C 25 / A 24 / E 24 / D 22); user RESHAPE → **Approach F (A+B Hybrid)**
+    - Decision: true `parentId` nesting (A) + separate folder entity (B) in one tree; **folder roll-up Σ** (realtime, signed, not persisted); **global layer scope** (not page-scoped — lite stays slim). semanticTag stays role-derived (CRUX). Spike `lite/sandbox/invent-lite-sublayer-tree.html` (A–F comparison) PASS — area signature identical across all approaches.
+    - Forbidden-surface profile: **NONE** — `.bmaplan` additive (`parentId` + `liteGroups`), proto cross-open ignores both → identical area. Does not touch measure-engine/RS/pdfToC/area math.
+    - Build via `/bma-lite-dev` (one slice each): **LST-1** model+parentId (invisible) → **LST-2** persistence (re-run `/bma-check-forbidden` schema + proto cross-open) → **LST-3** tree panel UI in new `lite/static/js/layer-tree.js`. Markers: `LITE_TREE_MODEL_OK` / `LITE_TREE_PERSIST_OK` / `LITE_TREE_UI_OK`; `MEASURE_PARITY_OK` every slice.
+
 ### ideas 2026-05-21
 
 - [x] **Auto-place land-boundary pins from outermost lot corners on site-plan page** — `invent-done-nogo` — from /idea 2026-05-21 23:47 → docs/invent/land-boundary-pin-assist.md

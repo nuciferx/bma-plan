@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike — Lite Sublayer Tree (A–E เปรียบเทียบ)</title>
+<!--
+  INVENT SPIKE — idea 2026-05-22-23-15 lite-sublayer-tree
+  lite-invent pipeline, Phase 6 SPIKE. Read-only standalone demo.
+  Shows ALL 5 diverge approaches side-by-side on the SAME layer/object data,
+  using the REAL ROLE_DEFS / colors / semanticTags from lite/static/js/layer-system.js.
+
+  THE CRUX it proves: no matter which tree representation you pick, the area
+  calculation reads semanticTag from each layer's OWN role (never inherited from
+  a parent), so the "ยอดรวมตาม semanticTag" panel is BYTE-IDENTICAL across all 5.
+
+  Does NOT touch lite/ui-lite.html, lite/server_lite.py, lite/static/*, or proto/*.
+-->
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2d333b;
+    --txt:#e6edf3; --dim:#8b949e; --accent:#4c8dff; --good:#39d98a; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.5 "Segoe UI",system-ui,sans-serif}
+  header{padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{margin:0 0 4px;font-size:16px}
+  header p{margin:0;color:var(--dim);font-size:12px}
+  .wrap{display:grid;grid-template-columns:1fr 360px;gap:16px;padding:16px;align-items:start}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tab{padding:7px 12px;border:1px solid var(--line);background:var(--panel);color:var(--dim);
+       border-radius:7px;cursor:pointer;font-size:12px;user-select:none}
+  .tab.on{background:var(--accent);color:#06101f;border-color:var(--accent);font-weight:600}
+  .tab small{display:block;font-size:10px;font-weight:400;opacity:.85}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .card h2{margin:0 0 2px;font-size:14px}
+  .card .axis{color:var(--accent);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .card .desc{color:var(--dim);font-size:12px;margin:6px 0 10px}
+  .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--dim);
+        border-top:1px solid var(--line);padding-top:9px;margin-top:10px}
+  .meta b{color:var(--txt)}
+  .pill{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:600}
+  .pill.ok{background:#16341f;color:var(--good)} .pill.no{background:#3a1d1d;color:#ff8585}
+
+  /* layer panel mock */
+  .lp{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px;min-height:120px}
+  .row{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:6px;cursor:default}
+  .row:hover{background:#222b3a}
+  .row.hidden{opacity:.4}
+  .tog{width:16px;text-align:center;cursor:pointer;user-select:none;color:var(--dim);flex:0 0 auto}
+  .sw{width:13px;height:13px;border-radius:3px;flex:0 0 auto}
+  .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .role{font-size:10px;color:var(--dim);flex:0 0 auto}
+  .area{font-size:11px;color:var(--dim);flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .grouphdr{display:flex;align-items:center;gap:7px;padding:5px 6px;margin-top:3px;
+            font-size:11px;color:var(--warn);font-weight:600;border-radius:6px}
+  .grouphdr .tog{color:var(--warn)}
+  .folder{color:var(--warn)}
+  .bucket{display:flex;align-items:center;gap:7px;padding:4px 6px;margin-top:4px;
+          font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;
+          border-top:1px dashed var(--line)}
+  .path{font-size:9px;color:#5a6472;margin-left:auto;font-family:ui-monospace,monospace}
+  .eye{cursor:pointer}
+
+  /* right column */
+  .calc{position:sticky;top:16px}
+  .calc h3{margin:0 0 8px;font-size:13px}
+  .crux{background:#16341f;border:1px solid #1f5132;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#c7f9dd}
+  .crux b{color:var(--good)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:600;font-size:11px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tagdot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .verdict{margin-top:10px;padding:9px;border-radius:8px;background:var(--panel2);font-size:12px}
+  .verdict .same{color:var(--good);font-weight:700}
+  .note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.6}
+  kbd{background:#222b3a;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+  .legend{font-size:11px;color:var(--dim);margin:4px 0 12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📐 Spike — Lite Sublayer Tree · เปรียบเทียบ A–E</h1>
+  <p>idea <code>2026-05-22-23-15</code> · ใช้ role/สี/semanticTag จริงจาก <code>layer-system.js</code> · ข้อมูล layer + object ชุดเดียวกันทั้ง 5 แบบ → พิสูจน์ว่ายอดรวมพื้นที่ <b>เท่ากันทุกแบบ</b></p>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="wrap">
+  <div id="left"></div>
+  <div class="calc">
+    <div class="crux">
+      🔒 <b>THE CRUX:</b> การคำนวณอ่าน <b>semanticTag จาก role ของแต่ละ layer เอง</b> ไม่เคยสืบจาก parent.
+      ลูกของ "อาคาร" (gfa) ที่เป็น role <i>ded</i> ยังหักลบถูก. สลับ tree แบบไหน ตารางล่างนี้ <b>ไม่เปลี่ยน</b>.
+    </div>
+    <h3>ยอดรวมตาม semanticTag (role-derived)</h3>
+    <table id="calc"><thead><tr><th>semanticTag</th><th class="num">พื้นที่ (m²)</th></tr></thead><tbody></tbody></table>
+    <div class="verdict" id="verdict"></div>
+    <div class="note" id="note"></div>
+  </div>
+</div>
+
+<script>
+/* ===== REAL role defs (verbatim from lite/static/js/layer-system.js) ===== */
+const ROLE_DEFS = [
+  {id:"gfa",  name:"พื้นที่อาคาร",  tag:"gross_floor_area",   color:"#4c8dff"},
+  {id:"use",  name:"พื้นที่ใช้สอย", tag:"use_area",           color:"#39d98a"},
+  {id:"ded",  name:"ช่องว่าง/หัก",  tag:"deduction_opening",  color:"#ff6b6b"},
+  {id:"site", name:"ที่ดิน",        tag:"site_land_area",     color:"#c084fc"},
+  {id:"open", name:"ที่ว่าง",       tag:"legal_open_space",   color:"#ffb454"},
+  {id:"count",name:"นับจำนวน",      tag:"count_marker",       color:"#22d3ee", counting:true},
+];
+const roleDef = r => ROLE_DEFS.find(x=>x.id===r) || null;
+const roleTag = r => (roleDef(r)||{}).tag || null;
+const roleColor = r => (roleDef(r)||{}).color || "#888";
+
+/* ===== ONE shared layer set (richer than the seed, to show real nesting) =====
+   Every approach reuses THESE layers + objects. Tree shape differs per approach,
+   role NEVER does. */
+const LAYERS = [
+  // id      name                role   parentId  groupId   subTag       order
+  {id:"gfa",  name:"พื้นที่อาคาร (รวม)", role:"gfa",  parentId:null,  groupId:null, subTag:"",        order:0},
+  {id:"L1",   name:"อาคาร A",          role:"gfa",  parentId:null,  groupId:"g1", subTag:"อาคาร A", order:1},
+  {id:"L2",   name:"ชั้น 1",            role:"gfa",  parentId:"L1",  groupId:"g1", subTag:"อาคาร A", order:2},
+  {id:"L3",   name:"ช่องลิฟต์",         role:"ded",  parentId:"L2",  groupId:"g1", subTag:"อาคาร A", order:3},
+  {id:"L4",   name:"ชั้น 2",            role:"gfa",  parentId:"L1",  groupId:"g1", subTag:"อาคาร A", order:4},
+  {id:"site", name:"ที่ดิน",            role:"site", parentId:null,  groupId:"g2", subTag:"แปลงรวม", order:5},
+  {id:"L5",   name:"ระเบียง",           role:"use",  parentId:"site",groupId:"g2", subTag:"แปลงรวม", order:6},
+];
+const GROUPS = [ // approach B only — separate entity, NO role
+  {id:"g1", name:"อาคาร A (กลุ่ม)", order:0},
+  {id:"g2", name:"ที่ดิน + ที่ว่าง", order:1},
+];
+const layerById = id => LAYERS.find(l=>l.id===id) || null;
+
+/* ===== Approach F (A+B HYBRID) data =====
+   ONE tree, two node kinds: FOLDER (no role, organizational) + LAYER (has role,
+   holds objects). Both nest via parentId → arbitrary depth. Folders can hold
+   layers AND folders; layers can hold sublayers (A-style). Calc still reads
+   role→tag of each layer (folders invisible to calc) → crux unchanged. */
+const FOLDERS = [ // separate entity like B, but parentId-nestable like A
+  {id:"f1", name:"อาคาร A", color:"#ffb454", parentId:null, order:0},
+  {id:"f2", name:"ผังบริเวณ", color:"#ffb454", parentId:null, order:1},
+];
+const folderById = id => FOLDERS.find(f=>f.id===id) || null;
+/* F-specific parent map (overlays the SAME layers/objects as A–E so calc is identical).
+   "__skip" = not shown in F (replaced by folder f1). */
+const F_PARENT = { gfa:null, L1:"__skip", L2:"f1", L3:"L2", L4:"f1", site:"f2", L5:"site" };
+function fParent(id){ const f=folderById(id); return f? f.parentId : (id in F_PARENT? F_PARENT[id] : (layerById(id)? layerById(id).parentId : null)); }
+function fChildren(pid){
+  const fs = FOLDERS.filter(f=>f.parentId===pid).map(f=>({kind:"folder",node:f,order:f.order}));
+  const ls = LAYERS.filter(l=>F_PARENT[l.id]!=="__skip" && (l.id in F_PARENT? F_PARENT[l.id]:null)===pid)
+                   .map(l=>({kind:"layer",node:l,order:l.order}));
+  return fs.concat(ls).sort((a,b)=>a.order-b.order); // stable: folders before layers on tie
+}
+function effVisF(id){
+  let cur=id;
+  while(cur){
+    if(hiddenLayers.has(cur) || hiddenGroups.has(cur)) return false;
+    cur = fParent(cur);
+  }
+  return true;
+}
+/* roll-up: signed sum of OWN area of every descendant LAYER (ded subtracts).
+   folders show this; individual layers show only their own area (no double-count). */
+function ownAreaF(layerId){ return OBJECTS.filter(o=>o.catId===layerId).reduce((s,o)=>s+o.area,0); }
+function rollupF(nodeId){
+  var total=0;
+  fChildren(nodeId).forEach(function(item){
+    if(item.kind==="layer"){ total += ownAreaF(item.node.id) + rollupF(item.node.id); }
+    else { total += rollupF(item.node.id); }
+  });
+  return total;
+}
+
+/* objects: each carries catId (layer id) + raw area. area summary groups by ROLE→tag. */
+const OBJECTS = [
+  {id:"o1", catId:"gfa",  area:120},
+  {id:"o2", catId:"L2",   area:80},   // ชั้น 1
+  {id:"o3", catId:"L3",   area:-6},   // ช่องลิฟต์ (deduction)
+  {id:"o4", catId:"L4",   area:75},   // ชั้น 2
+  {id:"o5", catId:"site", area:400},
+  {id:"o6", catId:"L5",   area:12},   // ระเบียง
+];
+
+/* ===== THE calculation (identical logic across all approaches) ===== */
+function areaByTag(){
+  const out = {};
+  for(const o of OBJECTS){
+    const lyr = layerById(o.catId); if(!lyr) continue;
+    const tag = roleTag(lyr.role);            // <-- from role, NEVER parent/group/name
+    out[tag] = (out[tag]||0) + o.area;
+  }
+  return out;
+}
+function renderCalc(){
+  const t = areaByTag();
+  const order = ["gross_floor_area","use_area","deduction_opening","site_land_area","legal_open_space","count_marker"];
+  const tb = document.querySelector("#calc tbody"); tb.innerHTML="";
+  let html="";
+  for(const tag of order){
+    if(!(tag in t)) continue;
+    const role = ROLE_DEFS.find(r=>r.tag===tag);
+    html += `<tr><td><span class="tagdot" style="background:${role.color}"></span>${tag}</td><td class="num">${t[tag].toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr>`;
+  }
+  tb.innerHTML = html;
+  // signature = stable string of the totals; identical => crux holds
+  const sig = order.filter(x=>x in t).map(x=>x+"="+t[x]).join(" | ");
+  document.querySelector("#verdict").innerHTML =
+    `signature: <code style="font-size:11px">${sig}</code><br>`+
+    `<span class="same">✓ ทั้ง 5 แบบให้ signature นี้เหมือนกัน</span> — tree เปลี่ยนแค่ "การจัดระเบียบ/มองเห็น" ไม่แตะ "การคำนวณ"`;
+}
+
+/* ===== visibility (inheritance demo for A & B) ===== */
+const hiddenLayers = new Set();   // approach A/B: hiding a parent hides children
+const hiddenGroups = new Set();   // approach B
+const collapsed = new Set();      // expand/collapse UI state (runtime-only)
+function effVisibleA(id){ // walk parentId chain
+  let l = layerById(id);
+  while(l){ if(hiddenLayers.has(l.id)) return false; l = l.parentId? layerById(l.parentId):null; }
+  return true;
+}
+function effVisibleB(lyr){ return !hiddenLayers.has(lyr.id) && !(lyr.groupId && hiddenGroups.has(lyr.groupId)); }
+
+/* ===== approach metadata ===== */
+const APPROACHES = {
+  F:{ name:"A+B Hybrid (tree + folders + roll-up)", short:"layer-in-layer + 📁 + Σ", axis:"data-model + representation",
+      desc:"tree เดียว 2 ชนิด node: 📁 folder (ไม่มี role จัดระเบียบ แบบ B) + layer (มี role ถือ object). ทั้งคู่ซ้อนด้วย parentId ลึกได้ไม่จำกัด (แบบ A). folder โชว์ <b>Σ roll-up</b> ผลรวมพื้นที่ลูกทั้งกิ่ง realtime (ded หักลบ). layer = global ต่อโปรเจกต์ (object ผูกหน้า, tree เดียวกันทุกหน้า).",
+      data:"<b>parentId</b> ต่อ layer + key <b>liteGroups</b> (folder มี parentId เอง) — additive ทั้งคู่. roll-up = คำนวณสด ไม่เก็บลง schema", proto:"proto ignore parentId+liteGroups → flat, พื้นที่เท่าเดิม", loc:"~300 LOC → แยก static/js/layer-tree.js", score:"GO ✓", forb:false,
+      caveat:"reorder = reparent + ▲▼ ในกลุ่มพี่น้อง (drag = enhancement) · ลบ folder → ลูกเลื่อนขึ้น parent · ลบ layer มี object → ย้าย object ไป default role (เดิม L2c-3) · roll-up โชว์เฉพาะ folder, layer โชว์พื้นที่ตัวเอง (กันนับซ้ำ)", best:true },
+  A:{ name:"True layer tree", short:"layer-in-layer", axis:"data-model",
+      desc:"layer ใดก็เป็น parent ของ layer อื่นได้ ลึกกี่ชั้นก็ได้ (parentId). parent เป็น layer จริงที่มี role/วาด object ได้เอง. ตรงคำว่า \"tree\" ที่สุด.",
+      data:"เพิ่ม field <b>parentId</b> ต่อ layer (additive)", proto:"proto ignore parentId → flat", loc:"~200 LOC (layer-system + layer-panel)", score:24, forb:false,
+      caveat:"reorder ▲▼ ต้องย้าย subtree ทั้งก้อนพร้อมกัน (ซับซ้อนกว่าแบบอื่น)" },
+  B:{ name:"Group entity (folder)", short:"folder → layers", axis:"representation",
+      desc:"มี entity \"group\" แยกจาก layer (เป็นโฟลเดอร์ ไม่มี role). layer ถูก assign เข้า group ผ่าน groupId ที่มี socket อยู่แล้ว. = Bluebeam/Photoshop. 1 ระดับ.",
+      data:"เพิ่ม key <b>liteGroups</b> + ใช้ groupId เดิม (additive)", proto:"proto ignore liteGroups → flat", loc:"~150 LOC + ~10 ใน ui-lite", score:26, forb:false,
+      caveat:"ได้แค่ 1 ระดับ (group→layer), group ไม่มี role/พื้นที่ของตัวเอง" },
+  C:{ name:"Role-bucket auto", short:"จัดกลุ่มตาม role", axis:"UX / do-less",
+      desc:"ไม่เก็บ tree เลย — panel แค่จัดกลุ่ม layer ตาม role เป็น header (cosmetic). collapse ได้แต่ไม่ persist. ปลอดภัยสุด แต่ nest ข้าม role ไม่ได้.",
+      data:"<b>ไม่แตะ schema</b>", proto:"ไม่มีผล", loc:"~60 LOC (layer-panel เท่านั้น)", score:25, forb:false,
+      caveat:"จัดกลุ่มได้ตาม role เท่านั้น — เอา gfa+ded มาอยู่ใต้ \"อาคาร A\" เดียวกันไม่ได้" },
+  D:{ name:"Materialized path", short:"path string", axis:"data-model",
+      desc:"เก็บ ancestry เป็น string เช่น gfa/L1/L2 ต่อ layer. query ลูก/บรรพบุรุษด้วย prefix. ผลเหมือน A แต่ย้าย subtree ต้อง rewrite path ทั้งก้อน.",
+      data:"เพิ่ม field <b>matPath</b> ต่อ layer (additive)", proto:"proto ignore matPath → flat", loc:"~230 LOC (สูงสุด)", score:22, forb:false,
+      caveat:"order กับ matPath เป็นคนละ field → เสี่ยง drift เวลา reorder" },
+  E:{ name:"subTag virtual group", short:"กลุ่มจาก subTag", axis:"representation",
+      desc:"ใช้ field subTag ที่มีอยู่แล้ว — พิมพ์ชื่อกลุ่มลง subTag, layer ที่ subTag ตรงกันโชว์ใต้ header เสมือน. zero schema change แต่ต้องพิมพ์เอง.",
+      data:"<b>ไม่แตะ schema</b> (subTag มีอยู่แล้ว)", proto:"subTag persist อยู่แล้ว, proto ignore", loc:"~40 LOC (layer-panel)", score:24, forb:false,
+      caveat:"ไม่มี affordance ลาก/nest — ผู้ใช้ต้องพิมพ์ชื่อกลุ่มเอง, discovery แย่" },
+};
+
+/* ===== renderers per approach (read-only mock panels) ===== */
+function rowHTML(lyr, opts={}){
+  const indent = (opts.depth||0)*18;
+  const vis = opts.vis===undefined? true: opts.vis;
+  const tg = roleTag(lyr.role);
+  const childObjArea = OBJECTS.filter(o=>o.catId===lyr.id).reduce((s,o)=>s+o.area,0);
+  const areaStr = childObjArea? childObjArea.toLocaleString(undefined,{minimumFractionDigits:0})+" m²" : "";
+  const hasKids = LAYERS.some(l=>l.parentId===lyr.id);
+  const tog = (opts.tree && hasKids)
+    ? `<span class="tog" onclick="toggleCollapse('${lyr.id}')">${collapsed.has(lyr.id)?'▸':'▾'}</span>`
+    : `<span class="tog"></span>`;
+  const path = opts.path? `<span class="path">${opts.path}</span>`:"";
+  return `<div class="row ${vis?'':'hidden'}" style="margin-left:${indent}px">
+    ${tog}
+    <span class="eye" onclick="${opts.onEye||''}">${vis?'👁':'🚫'}</span>
+    <span class="sw" style="background:${lyr.color||roleColor(lyr.role)}"></span>
+    <span class="nm">${lyr.name}</span>
+    <span class="role">${lyr.role}→${tg.split('_')[0]}</span>
+    <span class="area">${areaStr}</span>${path}
+  </div>`;
+}
+
+function renderA(){
+  // pre-order traversal
+  let html="";
+  function walk(parentId, depth){
+    LAYERS.filter(l=>l.parentId===parentId).sort((a,b)=>a.order-b.order).forEach(l=>{
+      const vis = effVisibleA(l.id);
+      html += rowHTML(l,{depth,tree:true,vis,onEye:`tglLayer('${l.id}','A')`});
+      if(!collapsed.has(l.id)) walk(l.id, depth+1);
+    });
+  }
+  walk(null,0);
+  return html;
+}
+function renderB(){
+  let html="";
+  GROUPS.slice().sort((a,b)=>a.order-b.order).forEach(g=>{
+    const ghid = hiddenGroups.has(g.id), gcol = collapsed.has("grp:"+g.id);
+    html += `<div class="grouphdr">
+      <span class="tog" onclick="toggleCollapse('grp:${g.id}')">${gcol?'▸':'▾'}</span>
+      <span class="eye" onclick="tglGroup('${g.id}')">${ghid?'🚫':'👁'}</span>
+      <span class="folder">📁 ${g.name}</span></div>`;
+    if(!gcol){
+      LAYERS.filter(l=>l.groupId===g.id).sort((a,b)=>a.order-b.order).forEach(l=>{
+        html += rowHTML(l,{depth:1,vis:effVisibleB(l),onEye:`tglLayer('${l.id}','B')`});
+      });
+    }
+  });
+  // ungrouped
+  const un = LAYERS.filter(l=>!l.groupId);
+  if(un.length){
+    html += `<div class="grouphdr"><span class="tog"></span><span class="folder" style="color:var(--dim)">— ไม่อยู่ในกลุ่ม —</span></div>`;
+    un.sort((a,b)=>a.order-b.order).forEach(l=>{ html+=rowHTML(l,{depth:1,vis:!hiddenLayers.has(l.id),onEye:`tglLayer('${l.id}','B')`}); });
+  }
+  return html;
+}
+function renderC(){
+  let html="";
+  ROLE_DEFS.forEach(r=>{
+    const inrole = LAYERS.filter(l=>l.role===r.id);
+    if(!inrole.length) return;
+    html += `<div class="bucket"><span class="sw" style="background:${r.color}"></span> ${r.name} — ${r.tag}</div>`;
+    inrole.sort((a,b)=>a.order-b.order).forEach(l=>{ html+=rowHTML(l,{depth:1}); });
+  });
+  return html;
+}
+function renderD(){
+  let html="";
+  function pathStr(l){ const p=[]; let c=l; while(c){p.unshift(c.id); c=c.parentId?layerById(c.parentId):null;} return p.join('/'); }
+  function depthOf(l){ let d=0,c=l; while(c.parentId){d++;c=layerById(c.parentId);} return d; }
+  LAYERS.slice().sort((a,b)=>a.order-b.order).forEach(l=>{ html+=rowHTML(l,{depth:depthOf(l),path:pathStr(l)}); });
+  return html;
+}
+function renderE(){
+  let html="";
+  const tags = [...new Set(LAYERS.map(l=>l.subTag||"(ไม่มีกลุ่ม)"))];
+  tags.forEach(t=>{
+    html += `<div class="bucket">🏷 ${t}</div>`;
+    LAYERS.filter(l=>(l.subTag||"(ไม่มีกลุ่ม)")===t).sort((a,b)=>a.order-b.order).forEach(l=>{ html+=rowHTML(l,{depth:1}); });
+  });
+  return html;
+}
+function renderF(){
+  let html="";
+  function walk(pid, depth){
+    fChildren(pid).forEach(item=>{
+      const indent = depth*18;
+      if(item.kind==="folder"){
+        const f=item.node, col=collapsed.has("grp:"+f.id), vis=effVisF(f.id);
+        const roll=rollupF(f.id);
+        html += `<div class="grouphdr ${vis?'':'hidden'}" style="margin-left:${indent}px">
+          <span class="tog" onclick="toggleCollapse('grp:${f.id}')">${col?'▸':'▾'}</span>
+          <span class="eye" onclick="tglGroup('${f.id}')">${vis?'👁':'🚫'}</span>
+          <span class="folder">📁 ${f.name}</span>
+          <span class="area" style="margin-left:auto;color:var(--warn)" title="roll-up ของลูกทั้งกิ่ง (realtime)">Σ ${roll.toLocaleString(undefined,{minimumFractionDigits:0})} m²</span></div>`;
+        if(!col) walk(f.id, depth+1);
+      } else {
+        const l=item.node, vis=effVisF(l.id), col=collapsed.has(l.id);
+        const hasKids = fChildren(l.id).length>0;
+        const tg = roleTag(l.role);
+        const objArea = OBJECTS.filter(o=>o.catId===l.id).reduce((s,o)=>s+o.area,0);
+        const areaStr = objArea? objArea.toLocaleString(undefined,{minimumFractionDigits:0})+" m²":"";
+        const tog = hasKids
+          ? `<span class="tog" onclick="toggleCollapse('${l.id}')">${col?'▸':'▾'}</span>`
+          : `<span class="tog"></span>`;
+        html += `<div class="row ${vis?'':'hidden'}" style="margin-left:${indent}px">
+          ${tog}
+          <span class="eye" onclick="tglLayer('${l.id}','F')">${vis?'👁':'🚫'}</span>
+          <span class="sw" style="background:${l.color||roleColor(l.role)}"></span>
+          <span class="nm">${l.name}</span>
+          <span class="role">${l.role}→${tg.split('_')[0]}</span>
+          <span class="area">${areaStr}</span></div>`;
+        if(hasKids && !col) walk(l.id, depth+1);
+      }
+    });
+  }
+  walk(null,0);
+  return html;
+}
+const RENDERERS = {F:renderF,A:renderA,B:renderB,C:renderC,D:renderD,E:renderE};
+
+/* ===== interactions ===== */
+let cur = "F";
+function toggleCollapse(id){ collapsed.has(id)?collapsed.delete(id):collapsed.add(id); draw(); }
+function tglLayer(id,mode){ hiddenLayers.has(id)?hiddenLayers.delete(id):hiddenLayers.add(id); draw(); }
+function tglGroup(id){ hiddenGroups.has(id)?hiddenGroups.delete(id):hiddenGroups.add(id); draw(); }
+
+function draw(){
+  // tabs
+  const tdiv = document.getElementById("tabs"); tdiv.innerHTML="";
+  Object.keys(APPROACHES).forEach(k=>{
+    const a=APPROACHES[k];
+    const el=document.createElement("div");
+    el.className="tab"+(k===cur?" on":"");
+    const sc = (typeof a.score==="number")? a.score+" pts" : a.score;
+    el.innerHTML = `${k} · ${a.name}<small>${a.short} · ${sc}${a.best?' ⭐':''}</small>`;
+    el.onclick=()=>{cur=k;draw();};
+    tdiv.appendChild(el);
+  });
+  // card + panel
+  const a=APPROACHES[cur];
+  document.getElementById("left").innerHTML = `
+    <div class="card">
+      <div class="axis">${a.axis} · ${(typeof a.score==="number")? a.score+' คะแนน' : a.score} ${a.best?'· เลือกแล้ว (reshape จาก A+B) ⭐':''}</div>
+      <h2>${cur} — ${a.name}</h2>
+      <div class="desc">${a.desc}</div>
+      <div class="legend">คลิก ▾/▸ เพื่อ collapse · คลิก 👁 เพื่อซ่อน (แบบ A/B: ซ่อน parent/group แล้วลูกซ่อนตาม)</div>
+      <div class="lp">${RENDERERS[cur]()}</div>
+      <div class="meta">
+        <span>schema: <b>${a.data}</b></span>
+        <span>proto cross-open: <b>${a.proto}</b></span>
+        <span>ขนาด: <b>${a.loc}</b></span>
+        <span>forbidden: <span class="pill ${a.forb?'no':'ok'}">${a.forb?'YES':'NO'}</span></span>
+      </div>
+      <div class="meta"><span>⚠️ ข้อจำกัด: ${a.caveat}</span></div>
+    </div>`;
+  renderCalc();
+  document.getElementById("note").innerHTML =
+    `<b>อ่านยังไง:</b> สลับแท็บ A–E ดูได้ว่าโครง layer panel ต่างกัน แต่ตาราง "ยอดรวมตาม semanticTag" ทางขวา <b>ไม่ขยับเลย</b> — `+
+    `เพราะทุกแบบคำนวณจาก <code>role → semanticTag</code> ของ layer เอง ไม่ใช่จาก parent/group/ชื่อ. `+
+    `นี่คือเงื่อนไขที่ต้องคงไว้ (area math + export grouping ไม่พัง) ไม่ว่าเลือกแบบไหน.`;
+}
+draw();
+</script>
+</body>
+</html>
