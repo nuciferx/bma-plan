@@ -211,8 +211,8 @@ var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น �
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},draft:null,sel:null,selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false};
-CATS.forEach(function(c){state.catVis[c.id]=true;});
+var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false};
+CATS.forEach(function(c){state.catVis[c.id]=true; state.catLock[c.id]=false;});
 var SNAP_PX=11; var lastMouse=null;
 
 var cv=document.getElementById("cv"), ctx=cv.getContext("2d");
@@ -258,7 +258,7 @@ function draw(){
   ctx.save(); ctx.translate(V.ox,V.oy); ctx.rotate(th); ctx.scale(V.k,V.k); ctx.drawImage(curImg,0,0); ctx.restore();
 
   var dimJobs=[];
-  PSpage().objects.forEach(function(o){
+  objectsInZOrder(PSpage().objects).forEach(function(o){
     if(!state.catVis[o.catId])return;
     var cat=catOf(o.catId), sel=state.sel===o;
     if(o.counting){ var sp=ptToScreen(o.pts[0]); ctx.beginPath(); ctx.arc(sp.x,sp.y,7,0,7); ctx.fillStyle=cat.color; ctx.fill();
@@ -341,8 +341,10 @@ function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML=
   layersInOrder().forEach(function(c){ var d=document.createElement("div");
     d.className="cat"+(state.activeCat===c.id?" active":"");
     d.innerHTML='<span class="sw" style="background:'+c.color+'"></span><span class="nm">'+c.name+'</span>'+
-      '<span class="eye'+(state.catVis[c.id]?'':' off')+'" data-eye="'+c.id+'">'+(state.catVis[c.id]?'👁':'🚫')+'</span>';
+      '<span class="eye'+(state.catVis[c.id]?'':' off')+'" data-eye="'+c.id+'">'+(state.catVis[c.id]?'👁':'🚫')+'</span>'+
+      '<span class="eye'+(state.catLock[c.id]?' off':'')+'" data-lock="'+c.id+'">'+(state.catLock[c.id]?'🔒':'🔓')+'</span>';
     d.addEventListener("click",function(e){ if(e.target.dataset.eye){state.catVis[c.id]=!state.catVis[c.id];buildPicker();draw();return;}
+      if(e.target.dataset.lock){state.catLock[c.id]=!state.catLock[c.id];buildPicker();draw();return;}
       state.activeCat=c.id; state.tool=c.counting?"count":(state.tool==="count"?"poly":state.tool); buildPicker(); draw(); });
     el.appendChild(d); });
 }
@@ -468,8 +470,10 @@ function finishDraft(){
   var kind=state.tool==="poly"?"poly":(state.tool==="ref"?"ref":"line");
   pushUndo(); PSpage().objects.push(mkObj(state.draft,kind,false)); state.draft=null; state.dirty=true; draw();
 }
-function pick(sx,sy){ var objs=PSpage().objects;
-  for(var i=objs.length-1;i>=0;i--){ var o=objs[i]; if(!state.catVis[o.catId])continue;
+function pick(sx,sy){
+  // Iterate z-order DESCENDING so the visually-top object (highest layer.order) wins.
+  var zObjs=objectsInZOrder(PSpage().objects);
+  for(var i=zObjs.length-1;i>=0;i--){ var o=zObjs[i]; if(!state.catVis[o.catId])continue; if(state.catLock[o.catId])continue;
     if(o.counting){ var sp=ptToScreen(o.pts[0]); if(Math.hypot(sx-sp.x,sy-sp.y)<10)return o; continue; }
     var scr=o.pts.map(ptToScreen);
     if(o.kind==="poly"){ if(inPoly(sx,sy,scr))return o; }

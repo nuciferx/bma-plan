@@ -83,5 +83,27 @@ function resolveSemanticTag(layerId) {
   return layer ? roleSemanticTag(layer.role) : null;
 }
 
+/* --- Z-order helpers (L2a) --- */
+
+/** Return the .order value for the layer identified by catId (999 = unknown / fallback). */
+function layerOrderOf(catId) {
+  var l = layerById(catId);
+  return l ? l.order : 999;
+}
+
+/**
+ * Return a NEW array of objects sorted ASCENDING by layer .order.
+ * Stable: objects with the same .order keep their original relative sequence.
+ * The input array is NOT mutated — PSpage().objects insertion order is preserved
+ * for save/load and export builders which depend on it.
+ */
+function objectsInZOrder(objs) {
+  // Decorate with original index for stable sort, then sort, then undecorate.
+  return objs
+    .map(function(o, i) { return { o: o, i: i, ord: layerOrderOf(o.catId) }; })
+    .sort(function(a, b) { return a.ord !== b.ord ? a.ord - b.ord : a.i - b.i; })
+    .map(function(d) { return d.o; });
+}
+
 /* --- Bootstrap --- */
 initLayers();
