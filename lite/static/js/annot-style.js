@@ -34,6 +34,8 @@
       ".annstyle-panel input[type=color]{width:26px;height:22px;padding:0;border:1px solid var(--line,#2a3340);background:none;border-radius:4px;cursor:pointer;flex:none;}",
       ".annstyle-panel input[type=range]{flex:1;accent-color:var(--accent,#4c8dff);}",
       ".annstyle-panel .as-val{width:34px;text-align:right;font-size:11px;color:var(--muted,#8b97a8);}",
+      ".annstyle-panel .as-editrow{margin-bottom:7px;}",
+      ".annstyle-panel .as-edit{width:100%;text-align:center;}",
       ".annstyle-panel .as-actions{justify-content:flex-end;gap:8px;margin-top:3px;}",
       ".annstyle-panel button{padding:5px 12px;border-radius:6px;border:1px solid var(--line,#2a3340);",
       "background:#222a37;color:var(--ink,#e7eaf0);cursor:pointer;font-size:12px;}",
@@ -57,6 +59,7 @@
         '<input type="range" class="as-opacity" min="0.1" max="1" step="0.05"><span class="as-val as-opacity-val"></span></div>' +
       '<div class="as-row as-fontrow"><span class="as-lbl">ขนาดตัวอักษร</span>' +
         '<input type="range" class="as-font" min="8" max="48" step="1"><span class="as-val as-font-val"></span></div>' +
+      '<div class="as-row as-editrow"><button class="as-edit"></button></div>' +
       '<div class="as-row as-actions"><button class="as-del">ลบ</button><button class="as-close">เสร็จ</button></div>';
     document.body.appendChild(panel);
 
@@ -73,6 +76,13 @@
     font.oninput = function () { touch(); cur.fontSize = parseInt(font.value, 10); fontVal.textContent = cur.fontSize + "px"; redraw(); };
     panel.querySelector(".as-del").onclick = function () { del(); };
     panel.querySelector(".as-close").onclick = function () { window.closeAnnStyle(); };
+    panel.querySelector(".as-edit").onclick = function () {
+      var a = cur; if (!a) return;
+      var f = (a.type === "ann_text" || a.type === "ann_comment") ? "text" : "label";
+      if (typeof pushUndo === "function") pushUndo();
+      window.closeAnnStyle();
+      if (typeof openAnnEditor === "function") openAnnEditor(a, false, f);
+    };
   }
 
   function markSwatch(c) {
@@ -98,6 +108,8 @@
     cur = ann; sessDirty = false;
     var st = (typeof annStyle === "function") ? annStyle(ann) : { color: ann.color || "#ff453a", opacity: ann.opacity != null ? ann.opacity : 1, fontSize: ann.fontSize || 13 };
     var isText = ann.type === "ann_text" || ann.type === "ann_comment";
+    var editBtn = panel.querySelector(".as-edit");
+    editBtn.textContent = isText ? "✎ แก้ข้อความ" : (ann.label ? "✎ แก้ป้ายข้อความ" : "🏷 เพิ่มป้ายข้อความ");
     panel.querySelector(".as-color").value = /^#[0-9a-f]{6}$/i.test(st.color) ? st.color : "#ff453a";
     markSwatch(st.color);
     var opac = panel.querySelector(".as-opacity"); opac.value = st.opacity; panel.querySelector(".as-opacity-val").textContent = Math.round(st.opacity * 100) + "%";
