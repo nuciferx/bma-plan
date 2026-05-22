@@ -891,7 +891,8 @@ document.getElementById("mi-save").onclick=function(){
   var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,totalPages:pageCount,pageStore:buildPageStore(),
     pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
     excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,
-    liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order};})};
+    liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null)};}),
+    liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order};})};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
@@ -977,17 +978,25 @@ function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,t
   if(a.color)o.color=a.color; if(a.opacity!=null)o.opacity=a.opacity; if(a.fontSize)o.fontSize=a.fontSize; if(a.label){o.label=a.label;o.labelPt=a.labelPt;} return o; }
 function polyPts(o){ if(o.pts&&o.pts.length)return o.pts; if(o.geometryType==="path"&&Array.isArray(o.segments))return flattenPathToPoints(o,1.0); return []; }
 function loadProto(doc){ PS={}; excluded={};
+  /* LST-2: rebuild FOLDERS in-place from doc.liteGroups (additive — absent = old file) */
+  FOLDERS.length=0;
+  (doc.liteGroups||[]).forEach(function(g){ if(g&&g.id) FOLDERS.push({id:g.id,name:g.name,color:g.color,
+    parentId:(g.parentId!==undefined?g.parentId:null),order:(g.order!==undefined?g.order:FOLDERS.length)}); });
   /* L2c-2: rebuild LAYERS in-place from doc.liteLayers (additive — absent = old file) */
   if(doc.liteLayers&&doc.liteLayers.length){
     LAYERS.length=0;
     doc.liteLayers.forEach(function(e){ if(!roleDef(e.role))return; // skip unknown role
       LAYERS.push({id:e.id,name:e.name,color:e.color,role:e.role,
-        tag:roleSemanticTag(e.role),counting:!!(roleDef(e.role).counting),subTag:"",order:e.order,groupId:null}); });
+        tag:roleSemanticTag(e.role),counting:!!(roleDef(e.role).counting),subTag:"",order:e.order,groupId:null,
+        parentId:(e.parentId!==undefined?e.parentId:null)}); });
     /* ensure every role's default layer exists (fallback target) */
     ROLE_DEFS.forEach(function(rd){ if(!layerById(rd.id)){
       LAYERS.push({id:rd.id,name:rd.name,color:rd.color,role:rd.id,
-        tag:rd.tag,counting:!!rd.counting,subTag:"",order:rd.order||0,groupId:null}); } });
+        tag:rd.tag,counting:!!rd.counting,subTag:"",order:rd.order||0,groupId:null,parentId:null}); } });
   }
+  /* LST-2: integrity pass — orphan any layer/folder whose parentId resolves to nothing */
+  LAYERS.forEach(function(l){ if(l.parentId!==null&&!folderById(l.parentId)&&!layerById(l.parentId))l.parentId=null; });
+  FOLDERS.forEach(function(f){ if(f.parentId!==null&&!folderById(f.parentId)&&!layerById(f.parentId))f.parentId=null; });
   /* re-seed visibility/lock for any layer id that doesn't have a flag yet */
   LAYERS.forEach(function(l){ if(state.catVis[l.id]===undefined)state.catVis[l.id]=true;
     if(state.catLock[l.id]===undefined)state.catLock[l.id]=false; });
