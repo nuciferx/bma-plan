@@ -37,6 +37,36 @@ function _isLocked(id) {
 }
 
 /* ------------------------------------------------------------------
+   _ltOwnArea(layerId)
+   Compute the signed own area (m²) for a single layer across ALL pages.
+   - count layers always return 0 (no area).
+   - deduction layers (role "ded") return a NEGATIVE total — so rollupArea
+     subtracts them when aggregating. This sign is DISPLAY-ONLY and does
+     NOT affect buildExportData or .bmaplan schema.
+   - Returns a finite number (0 when no page has a calibrated scale or no
+     matching poly objects). Never throws.
+   ------------------------------------------------------------------ */
+function _ltOwnArea(layerId) {
+  var lyr = layerById(layerId);
+  if (!lyr || lyr.counting) return 0;
+  var sign = (lyr.role === "ded") ? -1 : 1;
+  var total = 0;
+  Object.keys(PS).forEach(function(k) {
+    var pg = +k;
+    var objs = (PS[k].objects || []);
+    for (var i = 0; i < objs.length; i++) {
+      var o = objs[i];
+      if (o.catId !== layerId) continue;
+      if (o.counting) continue;
+      if (o.kind !== "poly") continue;
+      var m = polyMetrics({pts: o.pts}, pg);
+      total += (m && m.area != null) ? m.area : 0;
+    }
+  });
+  return sign * total;
+}
+
+/* ------------------------------------------------------------------
    _ltCollapsed(folderId)
    Safe read with lazy init of folderCollapsed dict.
    ------------------------------------------------------------------ */
@@ -320,10 +350,25 @@ function _ltRenderFolder(folder, depth, el) {
     }
   });
 
+  /* --- Σ roll-up area span (display-only; pointer-events:none) --- */
+  var roll = rollupArea(folder.id, _ltOwnArea);
+  var rollSpan = null;
+  if (isFinite(roll) && roll !== 0) {
+    rollSpan = document.createElement("span");
+    rollSpan.className = "lt-area";
+    rollSpan.title = "ผลรวมพื้นที่ลูกทั้งกิ่ง (realtime)";
+    rollSpan.textContent = "Σ " + roll.toLocaleString(undefined, {maximumFractionDigits: 2}) + " m²";
+    rollSpan.style.marginLeft = "auto";
+    rollSpan.style.color = "#8b949e";
+    rollSpan.style.fontSize = "11px";
+    rollSpan.style.pointerEvents = "none";
+  }
+
   d.appendChild(tog);
   d.appendChild(icon);
   d.appendChild(sw);
   d.appendChild(nm);
+  if (rollSpan) d.appendChild(rollSpan);
   d.appendChild(eye);
   d.appendChild(lkBtn);
   d.appendChild(btnUp);
@@ -573,8 +618,23 @@ function _ltRenderLayer(layer, depth, el) {
     buildPicker(); draw();
   });
 
+  /* --- own area span (display-only; pointer-events:none) --- */
+  var own = _ltOwnArea(layer.id);
+  var ownSpan = null;
+  if (isFinite(own) && own !== 0) {
+    ownSpan = document.createElement("span");
+    ownSpan.className = "lt-area";
+    ownSpan.title = "พื้นที่ของ layer นี้ (realtime)";
+    ownSpan.textContent = own.toLocaleString(undefined, {maximumFractionDigits: 2}) + " m²";
+    ownSpan.style.marginLeft = "auto";
+    ownSpan.style.color = "#8b949e";
+    ownSpan.style.fontSize = "11px";
+    ownSpan.style.pointerEvents = "none";
+  }
+
   d.appendChild(sw);
   d.appendChild(nm);
+  if (ownSpan) d.appendChild(ownSpan);
   d.appendChild(eye);
   d.appendChild(lkBtn);
   d.appendChild(btnUp);
