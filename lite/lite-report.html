@@ -49,6 +49,14 @@
   .editable-mark [contenteditable="true"]:focus{background:#fff3b0;box-shadow:0 0 0 2px #ffd479 inset}
   .footdoc{margin-top:8px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;
     display:flex;justify-content:space-between;gap:8px}
+  .rvcard{background:#fff;width:297mm;padding:10mm 12mm;box-shadow:0 6px 26px rgba(0,0,0,.45)}
+  .rvcard .rv-hdr{font-size:15px;font-weight:700;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+  .rvcard table{width:auto;min-width:220px;border-collapse:collapse;font-size:13px}
+  .rvcard td{border:1px solid var(--line);padding:5px 10px;vertical-align:middle}
+  .rvcard td.rv-name{font-weight:600;background:#eef2f6}
+  .rvcard td.rv-val{text-align:right;font-variant-numeric:tabular-nums;background:var(--lock);white-space:nowrap;min-width:90px}
+  .rvcard td.rv-null{text-align:right;color:var(--muted);background:var(--lock);min-width:90px}
+  @media print{.rvcard{box-shadow:none;page-break-after:auto}}
 
   @page{ size: A4 landscape; margin: 8mm; }
   @media print{
@@ -108,7 +116,7 @@ var SAMPLE={ project:"โครงการบ้านพักอาศัย 
 
 function loadPayload(){
   try{ var raw=sessionStorage.getItem("bmaReportPayload");
-    if(raw){ var p=JSON.parse(raw); if(p&&p.pages&&p.pages.length){ document.getElementById("srcTag").textContent="ข้อมูลจริงจากการวัด"; return p; } }
+    if(raw){ var p=JSON.parse(raw); if(p&&Array.isArray(p.pages)){ document.getElementById("srcTag").textContent="ข้อมูลจริงจากการวัด"; return p; } }
   }catch(e){}
   document.getElementById("srcTag").textContent="ตัวอย่าง (standalone)";
   return SAMPLE;
@@ -178,13 +186,42 @@ function buildSheet(page, total, project, date){
   return sheet;
 }
 
+function buildVarsCard(vars){
+  if(!vars||!vars.length) return null;
+  var card=document.createElement("div"); card.className="rvcard";
+  var hdr=document.createElement("div"); hdr.className="rv-hdr";
+  hdr.textContent="ค่าที่คำนวณ / ตัวชี้วัดโครงการ";
+  card.appendChild(hdr);
+  var tbl=document.createElement("table");
+  vars.forEach(function(v){
+    var tr=document.createElement("tr");
+    var tdN=document.createElement("td"); tdN.className="rv-name"; tdN.textContent=esc(v.name); tr.appendChild(tdN);
+    var tdV=document.createElement("td");
+    if(v.err||v.value==null){
+      tdV.className="rv-null"; tdV.textContent="—";
+    } else {
+      tdV.className="rv-val";
+      var disp=Number(v.value);
+      disp=(Math.abs(disp)>=100)?disp.toFixed(0):disp.toFixed(2);
+      tdV.textContent=disp+(v.unit?" "+v.unit:"");
+    }
+    tr.appendChild(tdV); tbl.appendChild(tr);
+  });
+  card.appendChild(tbl);
+  return card;
+}
+
 function render(){
   var payload=loadPayload();
   var host=document.getElementById("sheets"); host.innerHTML="";
-  if(!payload.pages||!payload.pages.length){ host.innerHTML='<div class="empty">ไม่มีหน้าที่มีพื้นที่วัด</div>'; return; }
-  var total=payload.pages.length;
-  payload.pages.forEach(function(p){ host.appendChild(buildSheet(p,total,payload.project,payload.date)); });
-  document.title="รายงานพื้นที่ — "+(payload.project||"BMA-Plan Lite");
+  if(!payload.pages||!payload.pages.length){ host.innerHTML='<div class="empty">ไม่มีหน้าที่มีพื้นที่วัด</div>'; }
+  else {
+    var total=payload.pages.length;
+    payload.pages.forEach(function(p){ host.appendChild(buildSheet(p,total,payload.project,payload.date)); });
+    document.title="รายงานพื้นที่ — "+(payload.project||"BMA-Plan Lite");
+  }
+  var vc=buildVarsCard(payload.reportVars);
+  if(vc) host.appendChild(vc);
 }
 document.getElementById("print").onclick=function(){ window.print(); };
 render();

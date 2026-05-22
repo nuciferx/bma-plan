@@ -210,6 +210,7 @@
 <script src="static/js/layer-system.js"></script>
 <script src="static/js/layer-panel.js"></script>
 <script src="static/js/layer-tree.js"></script>
+<script src="static/js/report-vars.js"></script>
 <script>
 /* ============================ STATE ============================ */
 var cssVar=function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();};
@@ -893,7 +894,8 @@ document.getElementById("mi-save").onclick=function(){
     pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
     excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,
     liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null)};}),
-    liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order};})};
+    liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order};}),
+    reportVars:serializeReportVars()};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
@@ -960,7 +962,9 @@ function buildReportPayload(){
       imgUrl:api("/page/"+pg),scaleSet:!!(PS[pg]&&PS[pg].scale),
       overlays:overlays,groups:groups,net:+net.toFixed(2)});
   });
-  return {project:projectInfo.name||"",date:new Date().toLocaleDateString("th-TH"),generated:Date.now(),pages:pages};
+  var _s=computeSummary(); var _agg={}; Object.keys(_s.all).forEach(function(k){_agg[k]=_s.all[k];}); Object.keys(_s.allCnt).forEach(function(k){_agg[k]=_s.allCnt[k];});
+  var _rv=computeReportVars(_agg).map(function(v){return {name:v.name,unit:v.unit,value:v.value,err:v.err};});
+  return {project:projectInfo.name||"",date:new Date().toLocaleDateString("th-TH"),generated:Date.now(),pages:pages,reportVars:_rv};
 }
 function openReport(){
   if(!caseId){alert("เปิด PDF ก่อน");return;}
@@ -995,6 +999,9 @@ function loadProto(doc){ PS={}; excluded={};
       LAYERS.push({id:rd.id,name:rd.name,color:rd.color,role:rd.id,
         tag:rd.tag,counting:!!rd.counting,subTag:"",order:rd.order||0,groupId:null,parentId:null}); } });
   }
+  /* LRV-S4: restore report vars — new files restore saved vars; old files reseed defaults */
+  if(doc.reportVars&&doc.reportVars.length){loadReportVars(doc.reportVars);}
+  else{REPORT_VARS.length=0;seedReportVars();}
   /* LST-2: integrity pass — orphan any layer/folder whose parentId resolves to nothing */
   LAYERS.forEach(function(l){ if(l.parentId!==null&&!folderById(l.parentId)&&!layerById(l.parentId))l.parentId=null; });
   FOLDERS.forEach(function(f){ if(f.parentId!==null&&!folderById(f.parentId)&&!layerById(f.parentId))f.parentId=null; });
@@ -1053,11 +1060,7 @@ function openSum(){ if(!caseId)return; var s=computeSummary();
   CATS.forEach(function(c){ if(c.counting){ if(s.allCnt[c.id])rows+='<tr><td><span style="color:'+c.color+'">■</span> '+c.name+'</td><td style="text-align:right">'+(s.curCnt[c.id]||0)+' จุด</td><td style="text-align:right">'+(s.allCnt[c.id]||0)+' จุด</td></tr>'; return; }
     if(s.all[c.id]!=null)rows+='<tr><td><span style="color:'+c.color+'">■</span> '+c.name+'</td><td style="text-align:right">'+fmt(s.cur[c.id])+'</td><td style="text-align:right">'+fmt(s.all[c.id])+'</td></tr>'; });
   if(!rows)rows='<tr><td colspan="3" style="color:var(--muted);padding:10px 0">ยังไม่มีข้อมูลวัด — ตั้งสเกลแล้ววาดพื้นที่</td></tr>';
-  var net=(s.all.gfa!=null)?(s.all.gfa-(s.all.ded||0)):null;
-  var osr=(s.all.site>0&&s.all.open!=null)?(s.all.open/s.all.site*100):null;
-  var derived="";
-  if(net!=null)derived+='<div>พื้นที่อาคารสุทธิ (GFA − หัก): <b style="color:var(--good)">'+net.toFixed(2)+' ตร.ม.</b></div>';
-  if(s.all.site!=null)derived+='<div>ที่ดิน: <b>'+s.all.site.toFixed(2)+' ตร.ม.</b>'+(osr!=null?' · ที่ว่าง '+(s.all.open).toFixed(2)+' ('+osr.toFixed(1)+'% ของที่ดิน)':'')+'</div>';
+  var agg={}; Object.keys(s.all).forEach(function(k){agg[k]=s.all[k];}); Object.keys(s.allCnt).forEach(function(k){agg[k]=s.allCnt[k];});
   var nm=pageNames[curPage]?' · '+pageNames[curPage]:'';
   var floorBlock='<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">'+
     '<div style="font-size:12px;color:var(--muted);margin-bottom:5px">กำหนดประเภท/ชั้น — หน้า '+curPage+nm+'</div>'+
@@ -1066,8 +1069,9 @@ function openSum(){ if(!caseId)return; var s=computeSummary();
     '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:var(--muted);font-size:11px">'+
     '<th style="text-align:left;padding-bottom:6px">ประเภท</th><th style="text-align:right">หน้า '+curPage+' (ตร.ม.)</th><th style="text-align:right">ทุกหน้า (ตร.ม.)</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
-    (derived?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;line-height:1.9">'+derived+'</div>':'')+
+    '<div id="rv-host"></div>'+
     '<div style="margin-top:10px;font-size:11px;color:var(--muted)">'+s.pagesWith+' หน้ามีข้อมูล · พื้นที่คำนวณจาก polyAreaM2 (vendored) ตามสเกลของแต่ละหน้า</div>';
+  renderReportVarsEditor(document.getElementById("rv-host"), agg);
   document.getElementById("sum").classList.add("show"); }
 document.getElementById("btn-sum").onclick=openSum;
 function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(o){o.classList.remove("show");});}
@@ -1123,6 +1127,7 @@ window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift)
 window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(curImg)draw();} if(e.key===" "){spaceDown=false;setCursor();} });
 
 /* boot */
+seedReportVars();
 buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());

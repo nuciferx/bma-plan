@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOCKUP (in lite chrome) · report-vars · idea 2026-05-23-00-14</title>
+<style>
+  /* ===== lite's REAL design tokens (copied from ui-lite.html:17-18) ===== */
+  :root{--bar-h:42px;--bg:#0f1115;--panel:#161a22;--line:#2a3140;--ink:#e7ecf3;
+    --muted:#8b97a8;--accent:#4c8dff;--good:#39d98a;--warn:#ffb454;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",system-ui,sans-serif;}
+  html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100vh;}
+  /* topbar + ribbon (faithful) */
+  #topbar{height:var(--bar-h);min-height:var(--bar-h);display:flex;align-items:center;gap:4px;padding:0 8px;
+    background:var(--panel);border-bottom:1px solid var(--line);white-space:nowrap;position:relative;z-index:60;}
+  #topbar .logo{font-weight:700;color:var(--accent);margin-right:4px;font-size:14px;}
+  #topbar .tag{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-right:8px;}
+  .menu>button,.rbtn{background:transparent;border:0;color:var(--ink);font-size:13px;padding:6px 9px;border-radius:6px;cursor:pointer;height:30px;}
+  .menu>button:hover,.rbtn:hover{background:#222a37;}
+  .spacer{flex:1;} .rbtn{border:1px solid var(--line);margin-left:4px;font-size:12px;}
+  .rbtn.hot{outline:2px solid var(--warn);outline-offset:1px;}
+  #stage{position:relative;flex:1;overflow:hidden;background:#0a0c10;}
+  /* layer picker (faithful-ish) */
+  #picker{position:absolute;top:54px;left:10px;background:rgba(20,24,32,.92);border:1px solid var(--line);
+    border-radius:10px;padding:8px;width:200px;z-index:20;}
+  #picker .h{font-size:11px;color:var(--muted);margin:2px 4px 7px;}
+  .cat{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px;}
+  .cat:hover{background:#222a37;} .cat.active{background:#1d2735;outline:1px solid var(--accent);}
+  .cat .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;} .cat .nm{flex:1;}
+  .cat .v{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .canvas-note{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#2c3340;font-size:48px;font-weight:700;letter-spacing:2px;user-select:none;}
+  /* overlay + Σ box (faithful: ui-lite.html:67-68,179) */
+  .overlay{position:absolute;inset:0;background:rgba(6,8,12,.78);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding-top:70px;}
+  .sumbox{width:600px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;max-height:84vh;overflow:auto;}
+  .sumbox h3{margin:0 0 12px;font-size:16px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{color:var(--muted);font-size:11px;font-weight:600;text-align:right;padding-bottom:6px;}
+  th.l{text-align:left;} td{padding:3px 0;} td.r{text-align:right;font-variant-numeric:tabular-nums;}
+  .seg{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);}
+  /* NEW: the editable variables block (replaces hardcoded derived) */
+  .vars-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .vars-head .ttl{font-size:13px;font-weight:600;}
+  .badge-new{font-size:9.5px;background:#243; color:var(--good);border:1px solid #2f5a44;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;}
+  .vrow{display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:5px 0;border-bottom:1px dashed var(--line);}
+  .vrow:last-of-type{border-bottom:0;}
+  .vname{width:118px;background:#0c0f14;border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:4px 7px;font-size:12.5px;}
+  select,.mini{background:#0c0f14;border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:3px 6px;font-size:12px;cursor:pointer;}
+  select.op{width:40px;text-align:center;}
+  .mini{padding:2px 7px;font-size:11px;}
+  .mini.add{color:var(--good);border-color:#2f5a44;}
+  .mini.del{color:#ff6b6b;border-color:#4d2f31;}
+  .lit{width:50px;background:#0c0f14;border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:3px 5px;font-size:12px;}
+  .vval{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;min-width:78px;text-align:right;color:var(--good);}
+  .vval.err{color:#ff6b6b;font-weight:500;font-size:11px;}
+  .addvar{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:12px;border-radius:6px;padding:5px 10px;cursor:pointer;margin-top:8px;}
+  .addvar:hover{background:#2a3140;color:var(--ink);}
+  .foot{margin-top:10px;font-size:11px;color:var(--muted);}
+  /* callouts */
+  .callout{position:absolute;background:var(--warn);color:#1a1205;font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;z-index:200;box-shadow:0 3px 10px rgba(0,0,0,.5);}
+  .legend{position:absolute;bottom:12px;left:12px;background:rgba(20,24,32,.95);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:11.5px;color:var(--muted);max-width:430px;z-index:150;line-height:1.6;}
+  .legend b{color:var(--ink);} .legend code{background:#0c0f14;padding:1px 5px;border-radius:4px;color:#cdd6e6;}
+  .legend .k{color:var(--warn);font-weight:700;}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ===== faithful lite topbar + ribbon ===== -->
+  <div id="topbar">
+    <span class="logo">BMA-Plan</span><span class="tag">lite</span>
+    <div class="menu"><button>ไฟล์</button></div>
+    <div class="menu"><button>วัด</button></div>
+    <div class="menu"><button>ส่งออก ▾</button></div>
+    <span class="spacer"></span>
+    <button class="rbtn">เลือก</button>
+    <button class="rbtn">พื้นที่</button>
+    <button class="rbtn">ระยะ</button>
+    <button class="rbtn">นับ</button>
+    <button class="rbtn hot" id="btn-sum">Σ สรุป</button>
+  </div>
+
+  <!-- ===== stage ===== -->
+  <div id="stage">
+    <div class="canvas-note">PDF · canvas</div>
+
+    <!-- layer picker = where the measured quantities come from -->
+    <div id="picker">
+      <div class="h">เลเยอร์ (วัดได้ → เป็นตัวแปร)</div>
+      <div class="cat active"><span class="sw" style="background:#4c8dff"></span><span class="nm">ที่ดิน</span><span class="v">300 ม²</span></div>
+      <div class="cat"><span class="sw" style="background:#39d98a"></span><span class="nm">ปกคลุม</span><span class="v">120 ม²</span></div>
+      <div class="cat"><span class="sw" style="background:#7ee0c0"></span><span class="nm">ที่ซึมน้ำ</span><span class="v">45 ม²</span></div>
+      <div class="cat"><span class="sw" style="background:#b7e08a"></span><span class="nm">สีเขียว</span><span class="v">30 ม²</span></div>
+      <div class="cat"><span class="sw" style="background:#ffb454"></span><span class="nm">อาคารรวม</span><span class="v">480 ม²</span></div>
+      <div class="cat"><span class="sw" style="background:#ff6b6b"></span><span class="nm">ที่จอดรถ</span><span class="v">14 จุด</span></div>
+    </div>
+
+    <div class="callout" style="top:58px;left:222px">① วาด/วัด → แต่ละ layer = ยอด 1 ค่า</div>
+    <div class="callout" style="top:14px;right:14px">② กด "Σ สรุป" เพื่อตั้งตัวแปร</div>
+
+    <!-- ===== Σ summary overlay — feature lives HERE (extends existing #sum) ===== -->
+    <div class="overlay" id="sum">
+      <div class="sumbox">
+        <h3>Σ สรุปการวัด</h3>
+
+        <!-- existing measured table (unchanged) -->
+        <table>
+          <thead><tr><th class="l">ประเภท</th><th>หน้านี้ (ม²)</th><th>ทุกหน้า (ม²)</th></tr></thead>
+          <tbody>
+            <tr><td><span style="color:#4c8dff">■</span> ที่ดิน</td><td class="r">300.00</td><td class="r">300.00</td></tr>
+            <tr><td><span style="color:#39d98a">■</span> ปกคลุม</td><td class="r" id="m-cov">120.00</td><td class="r">120.00</td></tr>
+            <tr><td><span style="color:#7ee0c0">■</span> ที่ซึมน้ำ</td><td class="r">45.00</td><td class="r">45.00</td></tr>
+            <tr><td><span style="color:#b7e08a">■</span> สีเขียว</td><td class="r">30.00</td><td class="r">30.00</td></tr>
+            <tr><td><span style="color:#ffb454">■</span> อาคารรวม</td><td class="r">480.00</td><td class="r">480.00</td></tr>
+            <tr><td><span style="color:#ff6b6b">■</span> ที่จอดรถ</td><td class="r">14 จุด</td><td class="r">14 จุด</td></tr>
+          </tbody>
+        </table>
+
+        <!-- ===== NEW editable block (REPLACES the hardcoded derived at ui-lite.html:1053-1067) ===== -->
+        <div class="seg">
+          <div class="vars-head">
+            <span class="ttl">ค่าที่คำนวณ / ตัวแปร <span class="badge-new">ใหม่ · แก้ได้</span></span>
+          </div>
+          <div id="varList"></div>
+          <button class="addvar" id="addVar">+ เพิ่มตัวแปร</button>
+          <div class="foot">ก่อนหน้านี้ block นี้ hardcode แค่ "พื้นที่อาคารสุทธิ" + "ที่ว่าง/OSR" — ตอนนี้นิยามเองได้ไม่จำกัด · ค่าจะติดไปใน <b>รายงาน (ส่งออก)</b> ด้วย</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><span class="k">workflow:</span> <b>①</b> วาดแต่ละ layer (ที่ดิน/ปกคลุม/…) → ยอดวัดโผล่ในตาราง · <b>②</b> เปิด "Σ สรุป" · <b>③</b> ตั้งตัวแปร derived ด้วย dropdown (ไม่ต้องพิมพ์สูตร) → recalc สด · <b>④</b> ค่าทั้งหมดติดไปใน <code>เมนู ส่งออก → รายงาน</code> (lite-report.html)</div>
+      <div style="margin-top:6px"><span class="k">ที่อยู่จริง:</span> overlay <code>#sum</code> (ปุ่ม Σ สรุป) — ขยายจาก derived block เดิม · persist <code>doc.reportVars</code> additive · <b>ไม่แตะ</b> area math / measure-engine / RS</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ---- mock measured aggregate (วันจริงมาจาก computeSummary()) keyed by layer.id ----
+let MEASURED = [
+  {id:'site_land', name:'ที่ดิน',      kind:'area',  value:300},
+  {id:'coverage',  name:'ปกคลุม',      kind:'area',  value:120},
+  {id:'permeable', name:'ที่ซึมน้ำ',    kind:'area',  value:45},
+  {id:'green',     name:'สีเขียว',      kind:'area',  value:30},
+  {id:'gfa_total', name:'อาคารรวม',    kind:'area',  value:480},
+  {id:'park',      name:'ที่จอดรถ',     kind:'count', value:14},
+];
+// ---- reportVars (persisted additive; seed presets) ----
+let VARS = [
+  {id:'v_open',name:'ที่ว่าง',unit:'ม²',expr:[{ref:'site_land'},{op:'-',ref:'coverage'}]},
+  {id:'v_osr', name:'OSR',   unit:'%', expr:[{ref:'v_open'},{op:'/',ref:'site_land'},{op:'*',lit:100}]},
+  {id:'v_far', name:'FAR',   unit:'',  expr:[{ref:'gfa_total'},{op:'/',ref:'site_land'}]},
+  {id:'v_perm',name:'%ซึมน้ำ',unit:'%',expr:[{ref:'permeable'},{op:'/',ref:'site_land'},{op:'*',lit:100}]},
+];
+const OPS=['+','-','*','/']; let _seq=200;
+const fmt=n=>(n==null)?'—':(Math.abs(n)>=100?n.toFixed(0):n.toFixed(2));
+
+function resolveRef(id,c){const m=MEASURED.find(x=>x.id===id);if(m)return m.value;if(id in c)return c[id];return null;}
+function evalExpr(expr,c){if(!expr.length)return{v:null,err:'ว่าง'};
+  const ov=t=>('lit'in t)?t.lit:resolveRef(t.ref,c);
+  let a=ov(expr[0]);if(a==null)return{v:null,err:'อ้างไม่พบ'};
+  for(let i=1;i<expr.length;i++){const t=expr[i],r=ov(t);if(r==null)return{v:null,err:'อ้างไม่พบ'};
+    if(t.op==='+')a+=r;else if(t.op==='-')a-=r;else if(t.op==='*')a*=r;else if(t.op==='/'){if(r===0)return{v:null,err:'÷0'};a/=r;}}
+  return{v:a,err:null};}
+function computeAll(){const c={};for(const v of VARS){const r=evalExpr(v.expr,c);v._res=r;if(!r.err)c[v.id]=r.v;}return c;}
+function operandOptions(before){const o=[];for(const m of MEASURED)o.push({val:'ref:'+m.id,label:m.name});
+  for(const v of VARS){if(v.id===before)break;o.push({val:'ref:'+v.id,label:'➜ '+v.name});}o.push({val:'lit',label:'ตัวเลข…'});return o;}
+
+function opSel(v,i,t){const s=document.createElement('select');const cur=('lit'in t)?'lit':'ref:'+t.ref;
+  for(const o of operandOptions(v.id)){const e=document.createElement('option');e.value=o.val;e.textContent=o.label;if(o.val===cur)e.selected=true;s.appendChild(e);}
+  s.onchange=ev=>{const x=ev.target.value;if(x==='lit'){delete t.ref;t.lit=0;}else{delete t.lit;t.ref=x.slice(4);}render();};
+  const w=document.createElement('span');w.style.cssText='display:inline-flex;gap:4px;align-items:center';w.appendChild(s);
+  if('lit'in t){const li=document.createElement('input');li.className='lit';li.value=t.lit;li.oninput=e=>{t.lit=parseFloat(e.target.value)||0;render();};w.appendChild(li);}return w;}
+
+function renderVars(){const box=document.getElementById('varList');box.innerHTML='';
+  VARS.forEach(v=>{const row=document.createElement('div');row.className='vrow';
+    const nm=document.createElement('input');nm.className='vname';nm.value=v.name;nm.oninput=e=>{v.name=e.target.value;};row.appendChild(nm);
+    const eq=document.createElement('span');eq.textContent='=';eq.style.color='var(--muted)';row.appendChild(eq);
+    v.expr.forEach((t,i)=>{if(i>0){const os=document.createElement('select');os.className='op';
+      OPS.forEach(o=>{const e=document.createElement('option');e.textContent=o;e.value=o;if(o===t.op)e.selected=true;os.appendChild(e);});
+      os.onchange=ev=>{t.op=ev.target.value;render();};row.appendChild(os);}row.appendChild(opSel(v,i,t));});
+    const more=document.createElement('button');more.className='mini';more.textContent='+ ขั้น';more.onclick=()=>{v.expr.push({op:'+',lit:0});render();};row.appendChild(more);
+    if(v.expr.length>1){const less=document.createElement('button');less.className='mini';less.textContent='−';less.onclick=()=>{v.expr.pop();render();};row.appendChild(less);}
+    const val=document.createElement('span');if(v._res.err){val.className='vval err';val.textContent='⚠ '+v._res.err;}else{val.className='vval';val.textContent=fmt(v._res.v)+(v.unit?' '+v.unit:'');}row.appendChild(val);
+    const del=document.createElement('button');del.className='mini del';del.textContent='✕';del.onclick=()=>{VARS=VARS.filter(x=>x!==v);render();};row.appendChild(del);
+    box.appendChild(row);});}
+
+function render(){computeAll();renderVars();}
+document.getElementById('addVar').onclick=()=>{VARS.push({id:'v_'+(_seq++),name:'ตัวแปรใหม่',unit:'',expr:[{ref:MEASURED[0].id}]});render();};
+// demo: editing "ปกคลุม" live recalcs (number not editable in mock table, but the engine is the same)
+render();
+</script>
+</body>
+</html>

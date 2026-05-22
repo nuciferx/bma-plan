@@ -164,13 +164,34 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### ideas 2026-05-23
 
-- [ ] **Embedded region data model (area / distance / count taxonomy)** — `invent-queued` — from /idea 2026-05-23 (user pasted a 3-column taxonomy table: พื้นที่/ระยะ/นับ at site level and building/floor level)
-    - Source: user 2026-05-23, "แนวคิดเรื่องข้อมูลที่เก็บ ฝังบริเวณ — พื้นที่/ระยะ/นับ (ที่ดิน, ปกคลุม, FAR, OSR, ร่น, ทางหนีไฟ, ที่จอดรถ ...)"
+- [x] **Embedded region data model → lite report variables** — `invent-done-go` — from /idea 2026-05-23, **GO at checkpoint 2026-05-23** → `docs/invent/lite-report-vars.md` · spike `lite/sandbox/invent-report-vars.html`
+    - Source: user 2026-05-23, "แนวคิดเรื่องข้อมูลที่เก็บ ฝังบริเวณ — พื้นที่/ระยะ/นับ" → reframed: "option ในการเลเยอร์ พท/ระยะ/นับ + นำตัวแปรไปคำนวณใน report"
     - Tags: bma-plan, data-model, measure, semantic-meta, export, p-med
-    - Direction: (unframed — pending /bma-invent FRAME phase; full taxonomy table lives in IDEAS.md + user's Google Sheet)
-    - Open questions: (pending /bma-invent — how this maps to the 5 semantic-meta fields; site-level vs floor-level grouping; which are area vs distance vs count profiles; derived values like ที่ว่าง=ที่ดิน-ปกคลุม)
-    - Scope skill: pending (`/bma-invent` decides after research)
-    - Forbidden-surface profile: unknown — `/bma-invent` checks during RESEARCH (likely touches semanticTag/reportTarget metadata + export grouping, NOT area math)
+    - Verdict: `PRIOR_ART_PARTIAL` — research said do NOT add a kind-enum to the layer (lite already splits kind via tool + semanticTag via role). Valuable part = report variable binding (Bluebeam formula-column precedent).
+    - Chosen approach: **A (project-level named-variable registry) + D (visual dropdown composer)** — orchestrator override of inventor's #1 (C), because C's per-role formulas can't split ที่ดิน/ปกคลุม/ที่ซึมน้ำ (all same role). User confirmed A+D after side-by-side compare vs B/C/E.
+    - Forbidden-surface profile: **clean** — never touches measure-engine.js / area math / RS / pdfToC-cToPdf / semanticTag derivation. Persists `doc.reportVars` as additive `.bmaplan` field (proto ignores). Compute+display only — NO law pass/fail (Phase-1 safe).
+
+#### LRV — lite report variables ✅ DONE (built via `/bma-lite-dev`, 2026-05-23)
+
+- [x] **LRV-S1** — `lite/static/js/report-vars.js` (new): registry model + `evalReportExpr` (left-to-right fold over token array `{ref|lit, op}[]`, no parser) + `computeReportVars(agg)` + add/remove/serialize/load + 3 seed presets (อาคารสุทธิ=gfa−ded, OSR=open/site×100, FAR=gfa/site). Pure module. Test `LITE_REPORT_VARS_OK` (5/5).
+- [x] **LRV-S2** — composer UI in Σ overlay: `renderReportVarsEditor(host,agg)` in report-vars.js (DOM+CSS there to spare the cap); `openSum()` replaced the hardcoded derived block with `#rv-host` + call (net −3). Dropdown-chain editor + live recalc. Test `LITE_REPORT_VARS_UI_OK` (5/5, real DOM events).
+- [x] **LRV-S3** — `buildReportPayload()` attaches project-level `payload.reportVars`; `lite-report.html` `buildVarsCard()` renders display-only "ค่าที่คำนวณ / ตัวชี้วัดโครงการ". Test `LITE_REPORT_VARS_REPORT_OK` (9/9); `LITE_REPORT_OK` 17/17 (no regress).
+- [x] **LRV-S4** — save/load `doc.reportVars` additive (new files restore, old files reseed defaults); proto cross-open parity verified by inspection (proto ignores unknown key, version:1 ok). Test `LITE_REPORT_VARS_PERSIST_OK` + `LITE_LAYER_PERSIST_OK` + `MEASURE_PARITY_OK`.
+- **Verification 2026-05-23**: full lite suite 21/21 test files GREEN + py_compile OK. Sizes: ui-lite.html 1138/1200, report-vars.js 412/1000, lite-report.html 230/1000.
+
+- [x] **Layer drag-and-drop reorder + grouping** — `invent-done-go` — from /idea 2026-05-23, **GO (A + D) at checkpoint 2026-05-23** → `docs/invent/lite-layer-dnd.md` · spike `lite/sandbox/invent-layer-dnd.html`
+    - Source: user 2026-05-23, "layer ทำระบบ แดรกแอนดรอป แทนลูกศร และการรวมกลุ่มก้เกิดจากการ แครกแอนดรอปเช่นกัน ui ใน layer จะได้เท่าเดิม จากที่เคยเป็น"
+    - Tags: bma-plan, layer, ui, p-med
+    - Verdict: `PRIOR_ART_PARTIAL` — reorder/nest gesture commoditized but HTML5 native DnD is a trap (no touch); **auto-group-on-collision is genuinely novel** (no incumbent does it).
+    - Chosen approach: **A (vanilla pointer-events, two-zone drop, keyboard fallback) — 26/30**, + **D (auto-group-on-collision) accepted as a first-class slice** (user GO'd A+D, not deferred). Fallback C (right-click menu) if 30px rows make 2-zone hit-test finicky. Rejected: B (SortableJS — model-fit 3, 30 KB vs lite's flat-div CSS-margin tree).
+    - Forbidden-surface profile: **CLEAN** — mutates only `.order` + `.parentId` (already additive in `.bmaplan`); never touches measure-engine.js / RS / pdfToC-cToPdf / area math / semanticTag. Logic → NEW `lite/static/js/layer-dnd.js` (ui-lite.html at 1135/1200, keep logic out of HTML).
+
+#### LDND — lite layer drag-and-drop (built via `/bma-lite-dev`, one reviewable slice each)
+
+- [ ] **LDND-S1** — `lite/static/js/layer-dnd.js`: pointer-events drag engine (ghost, two-zone hit-test ≤30%/40%/≥70%, auto-scroll near panel edges, blue line indicator + folder-highlight) + commit ops reusing `childrenOf`/`reorderLayers`/`.parentId`/`.order`. Self/descendant cycle guard. Wire to `buildPicker()` rows via a `⠿` grip. NO model change.
+- [ ] **LDND-S2** — remove `▲▼→←` button blocks from `layer-tree.js` row render (folder + layer rows; clears ~80 lines → restores pre-LST footprint). Keep keyboard fallback (Shift+↑/↓ reorder, →/← nest/outdent) so accessibility doesn't regress.
+- [ ] **LDND-S3** — auto-group-on-collision (Approach D): drop a root layer onto the middle of another root layer → `addFolder()` wrapping both (green double-ring indicator); clean undo path; behind a setting toggle. Reuses S1's drag skeleton + S1 hit-zone math.
+- [ ] **LDND-S4** — tests: tree reorder/nest/outdent/auto-group parity via DnD ops + keyboard ops; `test_measure_parity.py` GREEN; `/bma-check-forbidden` (no schema change — `.order`/`.parentId` already persisted); cap check on `layer-dnd.js` (≤1000) + `ui-lite.html` (≤1200).
 
 ### ideas 2026-05-22
 
