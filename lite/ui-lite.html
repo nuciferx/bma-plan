@@ -211,7 +211,7 @@ var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น �
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false};
+var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false,moveObj:null};
 CATS.forEach(function(c){state.catVis[c.id]=true; state.catLock[c.id]=false;});
 var SNAP_PX=11; var lastMouse=null;
 
@@ -260,7 +260,7 @@ function draw(){
   var dimJobs=[];
   objectsInZOrder(PSpage().objects).forEach(function(o){
     if(!state.catVis[o.catId])return;
-    var cat=catOf(o.catId), sel=state.sel===o;
+    var cat=catOf(o.catId), sel=state.sel===o||state.selSet.indexOf(o)>=0;
     if(o.counting){ var sp=ptToScreen(o.pts[0]); ctx.beginPath(); ctx.arc(sp.x,sp.y,7,0,7); ctx.fillStyle=cat.color; ctx.fill();
       if(sel){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();} return; }
     if(o.kind==="poly"){ tracePoly(o); ctx.fillStyle=hexA(cat.color,sel?0.30:0.16); ctx.fill();
@@ -348,7 +348,11 @@ function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML=
       state.activeCat=c.id; state.tool=c.counting?"count":(state.tool==="count"?"poly":state.tool); buildPicker(); draw(); });
     el.appendChild(d); });
 }
-function showProps(o){ var box=document.getElementById("props"); if(!o){box.classList.remove("show");return;}
+function showProps(o){ var box=document.getElementById("props");
+  if(state.selSet.length>1){ document.getElementById("p-name").innerHTML='<b>'+state.selSet.length+' objects</b>';
+    document.getElementById("p-area").textContent="—";
+    document.getElementById("p-dim").textContent="dimension"; box.classList.add("show"); return; }
+  if(!o){box.classList.remove("show");return;}
   var cat=catOf(o.catId); document.getElementById("p-name").innerHTML='<b style="color:'+cat.color+'">'+cat.name+'</b>';
   var v = o.counting?"(count)" : (o.kind==="poly"? (areaOf(o)==null?"—":areaOf(o).toFixed(2)+" m²") : "เส้น");
   document.getElementById("p-area").textContent=v;
@@ -381,13 +385,13 @@ async function loadPage(n){
   img.onerror=function(){ hideLoading(); alert("โหลดหน้า "+n+" ไม่ได้"); };
   img.src=api("/page/"+n);
 }
-function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); draw(); }
+function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selSet=[]; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); draw(); }
 
 /* ============================ INTERACTION ============================ */
 var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
 // proto-parity cursor feedback: grabbing while panning, grab when pan armed, crosshair while drawing, default in select.
 function setCursor(){ if(!cv)return;
-  cv.style.cursor = panning ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
+  cv.style.cursor = panning ? "grabbing" : (state.moveObj&&state.moveObj.moved) ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
 cv.addEventListener("mousedown",function(e){
   if(!curImg)return;
   // PAN (proto parity): middle-button OR spacebar-hold OR pan tool — works in ANY mode, even mid-tool.
@@ -398,6 +402,8 @@ cv.addEventListener("mousedown",function(e){
   if(state.shift&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
   else if(state.snapOn&&state.snapHint&&isDrawTool()){ p=state.snapHint.pt; }
   else { p=screenToPt(e.offsetX,e.offsetY); }
+  if((state.tool==="count"||state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref")&&state.catLock[state.activeCat]){
+    var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; return; }
   if(state.tool==="scale"){ state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.draft.length===2){ openCalib(); } draw(); return; }
   if(state.tool==="count"){ pushUndo(); PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
@@ -407,7 +413,7 @@ cv.addEventListener("mousedown",function(e){
   if(state.arcEdit){ var ae=state.arcEdit,ao=ae.obj,ai=ae.edgeIdx,arc=computeArcEdge(ao.pts[ai],ao.pts[(ai+1)%ao.pts.length],screenToPt(e.offsetX,e.offsetY),centroid(ao.pts));
     pushUndo(); ao.edges=ao.edges||[]; ao.edges[ai]=(Math.abs(arc.sweep)>0.001)?{edgeType:"arc",arcSweep:arc.sweep,arcThrough:screenToPt(e.offsetX,e.offsetY)}:{edgeType:"line"};
     state.arcEdit=null; state.dirty=true; showProps(ao); draw(); return; }
-  if(state.tool==="select"&&state.sel&&state.sel.kind==="poly"&&!state.sel.counting){ var eh=edgeHandleHit(state.sel,e.offsetX,e.offsetY); if(eh>=0){ state.arcEdit={obj:state.sel,edgeIdx:eh}; draw(); return; } }
+  if(state.tool==="select"&&state.sel&&state.sel.kind==="poly"&&!state.sel.counting&&state.selSet.length<=1){ var eh=edgeHandleHit(state.sel,e.offsetX,e.offsetY); if(eh>=0){ state.arcEdit={obj:state.sel,edgeIdx:eh}; draw(); return; } }
   if(isAnnTool()){
     if(state.tool==="ann_text"||state.tool==="ann_comment"){ pushUndo();
       var ann=Object.assign({id:state._id++,type:state.tool,pt:p,text:""},ANN_DEFAULTS[state.tool]); PSpage().annotations.push(ann); state.dirty=true;
@@ -424,13 +430,25 @@ cv.addEventListener("mousedown",function(e){
     if(aih>=0){ var aa=PSpage().annotations[aih]; state.selAnn=aa; state.sel=null; showProps(null);
       var asp=ptToScreen(aa.pt||aa.pts[0]); draw(); if(typeof openAnnStyle==="function")openAnnStyle(aa,asp.x,asp.y); return; } }
   var hit=pick(e.offsetX,e.offsetY);
-  if(hit){ state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=hit; showProps(hit); draw(); }
-  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); showProps(null); setCursor(); draw(); }
+  if(hit){ state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle();
+    if(state.shift){ var ix=state.selSet.indexOf(hit); if(ix>=0)state.selSet.splice(ix,1); else state.selSet.push(hit); state.sel=hit; }
+    else { state.selSet=[hit]; state.sel=hit; }
+    showProps(hit);
+    var grp=(state.selSet.length>1&&state.selSet.indexOf(hit)>=0)?state.selSet.slice():[hit];
+    state.moveObj={group:grp, startPt:screenToPt(e.offsetX,e.offsetY), startScr:{x:e.offsetX,y:e.offsetY}, orig:grp.map(function(o){return o.pts.map(function(p){return {x:p.x,y:p.y};});}), moved:false};
+    draw(); }
+  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; state.selSet=[]; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); showProps(null); setCursor(); draw(); }
 });
 window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
   V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
 cv.addEventListener("mousemove",function(e){
   if(state.dragLabel){ var gp=screenToPt(e.offsetX,e.offsetY); state.dragLabel.ann.labelPt={x:gp.x+state.dragLabel.dx,y:gp.y+state.dragLabel.dy}; state.dirty=true; draw(); return; }
+  if(state.moveObj){ var mo=state.moveObj, gp=screenToPt(e.offsetX,e.offsetY);
+    if(!mo.moved){ if(Math.hypot(e.offsetX-mo.startScr.x,e.offsetY-mo.startScr.y)<3)return; pushUndo(); mo.moved=true; }
+    var dx=gp.x-mo.startPt.x, dy=gp.y-mo.startPt.y;
+    for(var gi=0;gi<mo.group.length;gi++){ var go=mo.group[gi],og=mo.orig[gi];
+      for(var mi=0;mi<go.pts.length;mi++){ go.pts[mi].x=og[mi].x+dx; go.pts[mi].y=og[mi].y+dy; } }
+    state.dirty=true; setCursor(); draw(); return; }
   if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!curImg)return;
   var need=state.loupe||isDrawTool()||(isAnnTool()&&state.draft&&state.draft.length===1);   // draw-tool/annotation drafting = redraw every move so live guide/rubber-band follow the cursor
   if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
@@ -438,7 +456,7 @@ cv.addEventListener("mousemove",function(e){
     if(changed){state.snapHint=h;need=true;} }
   else if(state.snapHint){state.snapHint=null;need=true;}
   if(need)draw(); });
-window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();} dragging=false;panning=false;setCursor();});
+window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();} if(state.moveObj){state.moveObj=null;setCursor();} dragging=false;panning=false;setCursor();});
 cv.addEventListener("dblclick",function(e){
   if(!state.draft){
     if(state.selAnn&&state.selAnn.label){ var lb=_labelBox(state.selAnn);
@@ -465,6 +483,7 @@ cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
 function mkObj(pts,kind,counting){ var cat=catOf(state.activeCat);
   return {id:state._id++,catId:state.activeCat,semanticTag:cat.tag,pts:pts,kind:kind,counting:!!counting,dimVisible:!counting}; }
 function finishDraft(){
+  if(state.catLock[state.activeCat]){ state.draft=null; var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; draw(); return; }
   var min=state.tool==="poly"?3:2;
   if(!state.draft||state.draft.length<min){ state.draft=null; draw(); return; }
   var kind=state.tool==="poly"?"poly":(state.tool==="ref"?"ref":"line");
@@ -695,7 +714,9 @@ document.getElementById("cal-cancel").onclick=function(){document.getElementById
 
 /* props buttons */
 document.getElementById("p-dim").onclick=function(){if(state.sel){pushUndo();state.sel.dimVisible=!state.sel.dimVisible;showProps(state.sel);state.dirty=true;draw();}};
-document.getElementById("p-del").onclick=function(){if(state.sel){pushUndo();var o=PSpage().objects;o.splice(o.indexOf(state.sel),1);state.sel=null;showProps(null);state.dirty=true;draw();}};
+document.getElementById("p-del").onclick=function(){
+  if(state.selSet.length){pushUndo();var o=PSpage().objects;state.selSet.forEach(function(s){var i=o.indexOf(s);if(i>=0)o.splice(i,1);});state.selSet=[];state.sel=null;showProps(null);state.dirty=true;draw();}
+  else if(state.sel){pushUndo();var o=PSpage().objects;o.splice(o.indexOf(state.sel),1);state.sel=null;showProps(null);state.dirty=true;draw();}};
 document.getElementById("zin").onclick=function(){if(curImg){V.k*=1.2;draw();}};
 document.getElementById("zout").onclick=function(){if(curImg){V.k/=1.2;draw();}};
 document.getElementById("zfit").onclick=fit;
@@ -706,7 +727,7 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
 
 /* LITE-UNDO: snapshot-based history over the per-page document model.
    Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
@@ -716,7 +737,7 @@ function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pag
 function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
 function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id; }
 function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
-  state.sel=null; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.arcEdit=null; state.dirty=true; showProps(null); buildPicker();
+  state.sel=null; state.selSet=[]; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.arcEdit=null; state.dirty=true; showProps(null); buildPicker();
   if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage);
   if(document.getElementById("sum").classList.contains("show"))openSum();
   draw(); }
@@ -990,7 +1011,7 @@ window.addEventListener("keydown",function(e){
   if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
   if(e.key==="Delete"&&state.selAnn){ pushUndo(); var arr=PSpage().annotations,ix=arr.indexOf(state.selAnn); if(ix>=0)arr.splice(ix,1); state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.dirty=true; draw(); return; }
-  if(e.key==="Delete"&&state.sel){document.getElementById("p-del").onclick();return;}
+  if(e.key==="Delete"&&(state.sel||state.selSet.length)){document.getElementById("p-del").onclick();return;}
   if(e.key==="g"||e.key==="G"){toggleSnap();return;}
   if(e.key==="l"||e.key==="L"){state.loupe=!state.loupe;draw();return;}
   var map={v:"select",s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};

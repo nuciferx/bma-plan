@@ -157,11 +157,37 @@ SCENARIO_B = r"""
 
   out.lockIndependentOfEye = (visBefore === visAfterLockToggle) && (lockBefore === lockAfterVisToggle);
 
+  // --- lockBlocksDraw: drives the REAL app finishDraft() guard, not a copy of it ---
+  // Locked active layer => finishDraft() must discard the draft and commit nothing.
+  // Positive control (unlocked => commits) proves the assertion is not trivially true.
+  setTool('poly');
+  state.activeCat = 'gfa';
+  state.catLock['gfa'] = true;
+  state.draft = [{x:10,y:10},{x:200,y:10},{x:200,y:200}];   // valid 3-pt poly draft
+  const lockedBefore = PSpage().objects.length;
+  finishDraft();                                            // REAL app function (guard at its top)
+  const lockedAfter = PSpage().objects.length;
+  const blockedWhenLocked = (lockedAfter === lockedBefore) && (state.draft === null);
+
+  // positive control: unlock => same finishDraft DOES commit (so the test detects the difference)
+  state.catLock['gfa'] = false;
+  state.draft = [{x:10,y:10},{x:200,y:10},{x:200,y:200}];
+  const unlockedBefore = PSpage().objects.length;
+  finishDraft();
+  const unlockedAfter = PSpage().objects.length;
+  const commitsWhenUnlocked = (unlockedAfter === unlockedBefore + 1);
+
+  out.lockBlocksDraw = blockedWhenLocked && commitsWhenUnlocked;
+
+  // cleanup
+  state.catLock['gfa'] = false;
+  setTool('select');
+
   return out;
 }
 """
 
-CHECKS_B = ["lockBlocksSelect", "lockStillRenders", "lockIndependentOfEye"]
+CHECKS_B = ["lockBlocksSelect", "lockStillRenders", "lockIndependentOfEye", "lockBlocksDraw"]
 
 
 def main():
