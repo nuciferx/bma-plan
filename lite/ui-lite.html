@@ -335,7 +335,7 @@ function updateHUD(){
   if(state.arcEdit)hintEl.innerHTML="🟡 คลิกตำแหน่งที่เส้นโค้งจะผ่าน · Esc ยกเลิก";
   else if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
   else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · จุดน้ำเงินกลางขอบ = ทำขอบโค้ง · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
-  else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ";
+  else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"");
 }
 function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML="";
   layersInOrder().forEach(function(c){ var d=document.createElement("div");
@@ -965,7 +965,10 @@ document.getElementById("btn-focus").onclick=function(){document.body.classList.
 
 /* keys */
 window.addEventListener("keydown",function(e){
-  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();undo();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();
+    if(state.draft&&state.draft.length){state.draft.pop();if(!state.draft.length)state.draft=null;draw();}  // proto-parity: while drawing, Ctrl+Z removes the last placed point
+    else{undo();}                                                                                          // not drawing → object-level history
+    return;}
   if((e.metaKey||e.ctrlKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();redo();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCmdK();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="s"){e.preventDefault();document.getElementById("mi-save").onclick();return;}
