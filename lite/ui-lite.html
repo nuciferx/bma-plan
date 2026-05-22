@@ -74,6 +74,9 @@
   .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--muted);z-index:5;}
   .empty button{background:var(--accent);border:0;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;}
   body.focus #picker,body.focus .hud:not(#hud-br),body.focus .hint{display:none;}
+  .objmenu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:160px;}
+  .objmenu-row{padding:7px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink);white-space:nowrap;}
+  .objmenu-row:hover{background:#222a37;}
   /* LITE-FLOOR: shared tag/floor-kind control (Page Setup + Summary) */
   .floorctl select,.floorctl input{width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px;display:block;margin-top:6px;}
   .floorctl select:first-child{margin-top:0;}
@@ -151,7 +154,7 @@
     </div>
     <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,8,12,.62);z-index:95;backdrop-filter:blur(1px)">
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 22px;font-size:14px;color:var(--ink)"><span id="loading-txt">กำลังโหลด…</span></div></div>
-    <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=ซ่อน/แสดง dimension</div>
+    <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=เมนู</div>
     <div id="picker"><div class="h">กำลังวัดอะไร (= layer = semantic)</div><div id="catlist"></div></div>
     <div class="hud" id="hud-tl"></div>
     <div class="hud" id="hud-tr"></div>
@@ -211,7 +214,7 @@ var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น �
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,arcEdit:null,panTool:false,moveObj:null};
+var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,panTool:false,moveObj:null,vertEdit:null,vertMode:null};
 CATS.forEach(function(c){state.catVis[c.id]=true; state.catLock[c.id]=false;});
 var SNAP_PX=11; var lastMouse=null;
 
@@ -267,9 +270,6 @@ function draw(){
       ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; ctx.stroke(); }
     else { var scr=o.pts.map(ptToScreen); ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
       ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; if(o.kind==="ref")ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]); }
-    if(sel&&o.kind==="poly"){ ctx.fillStyle=(state.arcEdit&&state.arcEdit.obj===o)?"#ffd60a":"#fff"; var ei=(state.arcEdit&&state.arcEdit.obj===o)?state.arcEdit.edgeIdx:-1;
-      for(var k=0;k<o.pts.length;k++){ var mb=ptToScreen({x:(o.pts[k].x+o.pts[(k+1)%o.pts.length].x)/2,y:(o.pts[k].y+o.pts[(k+1)%o.pts.length].y)/2});
-        ctx.fillStyle=(k===ei)?"#ffd60a":"#4c8dff"; ctx.fillRect(mb.x-3,mb.y-3,6,6); } }
     if(o.dimVisible){
       var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
       for(var i=0;i<n;i++){ var a=o.pts[i], b=o.pts[(i+1)%o.pts.length];
@@ -279,6 +279,11 @@ function draw(){
         dimJobs.push({x:cp.x,y:cp.y,txt:cat.name+"  "+(ar==null?"—":ar.toFixed(2)+" m²"),big:true}); }
     }
   });
+  if(state.vertMode&&!state.vertMode.counting&&state.vertMode.pts&&state.vertMode.pts.length>0){
+    var vobj=state.vertMode, vcat=catOf(vobj.catId), vpts=vobj.pts, vactive=state.vertEdit&&state.vertEdit.obj===vobj;
+    for(var vi=0;vi<vpts.length;vi++){ var vs=ptToScreen(vpts[vi]); var ishit=vactive&&state.vertEdit.idx===vi;
+      ctx.fillStyle=ishit?"#ffd60a":"#fff"; ctx.strokeStyle=vcat.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.rect(vs.x-5,vs.y-5,10,10); ctx.fill(); ctx.stroke(); } }
   drawAnnots();
   if(state.draft){ var cat=catOf(state.activeCat); var scr=state.draft.map(ptToScreen);
     ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
@@ -332,9 +337,8 @@ function updateHUD(){
     ' &nbsp; obj '+nobj+' &nbsp; Save <span class="'+(state.dirty?'dot':'ok')+'">'+(state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว')+'</span> &nbsp; zoom '+(V.k*100|0)+'% rot '+V.rot+'°'+
     ' &nbsp; xy <b>'+(co?(Math.round(co.x)+","+Math.round(co.y)):'—')+'</b>';
   var hintEl=document.getElementById("hint");
-  if(state.arcEdit)hintEl.innerHTML="🟡 คลิกตำแหน่งที่เส้นโค้งจะผ่าน · Esc ยกเลิก";
-  else if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
-  else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · จุดน้ำเงินกลางขอบ = ทำขอบโค้ง · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
+  if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
+  else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · คลิกขวา=เมนู · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
   else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"");
 }
 function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML="";
@@ -391,7 +395,7 @@ function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor()
 var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
 // proto-parity cursor feedback: grabbing while panning, grab when pan armed, crosshair while drawing, default in select.
 function setCursor(){ if(!cv)return;
-  cv.style.cursor = panning ? "grabbing" : (state.moveObj&&state.moveObj.moved) ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
+  cv.style.cursor = panning ? "grabbing" : ((state.moveObj&&state.moveObj.moved)||(state.vertEdit&&state.vertEdit.moved)) ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
 cv.addEventListener("mousedown",function(e){
   if(!curImg)return;
   // PAN (proto parity): middle-button OR spacebar-hold OR pan tool — works in ANY mode, even mid-tool.
@@ -410,10 +414,7 @@ cv.addEventListener("mousedown",function(e){
   if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
     state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
     if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } draw(); return; }
-  if(state.arcEdit){ var ae=state.arcEdit,ao=ae.obj,ai=ae.edgeIdx,arc=computeArcEdge(ao.pts[ai],ao.pts[(ai+1)%ao.pts.length],screenToPt(e.offsetX,e.offsetY),centroid(ao.pts));
-    pushUndo(); ao.edges=ao.edges||[]; ao.edges[ai]=(Math.abs(arc.sweep)>0.001)?{edgeType:"arc",arcSweep:arc.sweep,arcThrough:screenToPt(e.offsetX,e.offsetY)}:{edgeType:"line"};
-    state.arcEdit=null; state.dirty=true; showProps(ao); draw(); return; }
-  if(state.tool==="select"&&state.sel&&state.sel.kind==="poly"&&!state.sel.counting&&state.selSet.length<=1){ var eh=edgeHandleHit(state.sel,e.offsetX,e.offsetY); if(eh>=0){ state.arcEdit={obj:state.sel,edgeIdx:eh}; draw(); return; } }
+  if(state.tool==="select"&&state.vertMode&&!state.vertMode.counting){ var vh=vertexHandleHit(state.vertMode,e.offsetX,e.offsetY); if(vh>=0){ state.vertEdit={obj:state.vertMode,idx:vh,startScr:{x:e.offsetX,y:e.offsetY},orig:{x:state.vertMode.pts[vh].x,y:state.vertMode.pts[vh].y},moved:false}; setCursor(); return; } }
   if(isAnnTool()){
     if(state.tool==="ann_text"||state.tool==="ann_comment"){ pushUndo();
       var ann=Object.assign({id:state._id++,type:state.tool,pt:p,text:""},ANN_DEFAULTS[state.tool]); PSpage().annotations.push(ann); state.dirty=true;
@@ -432,12 +433,13 @@ cv.addEventListener("mousedown",function(e){
   var hit=pick(e.offsetX,e.offsetY);
   if(hit){ state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle();
     if(state.shift){ var ix=state.selSet.indexOf(hit); if(ix>=0)state.selSet.splice(ix,1); else state.selSet.push(hit); state.sel=hit; }
-    else { state.selSet=[hit]; state.sel=hit; }
+    else if(state.selSet.length>1&&state.selSet.indexOf(hit)>=0){ state.sel=hit; }   // grab a group member -> preserve group for drag
+    else { state.selSet=[hit]; state.sel=hit; if(state.vertMode!==hit)state.vertMode=null; }
     showProps(hit);
     var grp=(state.selSet.length>1&&state.selSet.indexOf(hit)>=0)?state.selSet.slice():[hit];
     state.moveObj={group:grp, startPt:screenToPt(e.offsetX,e.offsetY), startScr:{x:e.offsetX,y:e.offsetY}, orig:grp.map(function(o){return o.pts.map(function(p){return {x:p.x,y:p.y};});}), moved:false};
     draw(); }
-  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; state.selSet=[]; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); showProps(null); setCursor(); draw(); }
+  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; state.selSet=[]; state.vertMode=null; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); showProps(null); setCursor(); draw(); }
 });
 window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
   V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
@@ -449,6 +451,9 @@ cv.addEventListener("mousemove",function(e){
     for(var gi=0;gi<mo.group.length;gi++){ var go=mo.group[gi],og=mo.orig[gi];
       for(var mi=0;mi<go.pts.length;mi++){ go.pts[mi].x=og[mi].x+dx; go.pts[mi].y=og[mi].y+dy; } }
     state.dirty=true; setCursor(); draw(); return; }
+  if(state.vertEdit){ var ve=state.vertEdit, gp=screenToPt(e.offsetX,e.offsetY);
+    if(!ve.moved){ if(Math.hypot(e.offsetX-ve.startScr.x,e.offsetY-ve.startScr.y)<3)return; pushUndo(); ve.moved=true; }
+    ve.obj.pts[ve.idx].x=gp.x; ve.obj.pts[ve.idx].y=gp.y; state.dirty=true; setCursor(); draw(); return; }
   if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!curImg)return;
   var need=state.loupe||isDrawTool()||(isAnnTool()&&state.draft&&state.draft.length===1);   // draw-tool/annotation drafting = redraw every move so live guide/rubber-band follow the cursor
   if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
@@ -456,7 +461,7 @@ cv.addEventListener("mousemove",function(e){
     if(changed){state.snapHint=h;need=true;} }
   else if(state.snapHint){state.snapHint=null;need=true;}
   if(need)draw(); });
-window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();} if(state.moveObj){state.moveObj=null;setCursor();} dragging=false;panning=false;setCursor();});
+window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();} if(state.moveObj){state.moveObj=null;setCursor();} if(state.vertEdit){state.vertEdit=null;setCursor();} dragging=false;panning=false;setCursor();});
 cv.addEventListener("dblclick",function(e){
   if(!state.draft){
     if(state.selAnn&&state.selAnn.label){ var lb=_labelBox(state.selAnn);
@@ -473,7 +478,7 @@ cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!curImg)re
   var ai=annHit(e.offsetX,e.offsetY); if(ai>=0){ var aa=PSpage().annotations[ai]; state.selAnn=aa; state.sel=null; showProps(null);  // right-click annotation = EDIT (open style/label panel); delete via panel/Delete
     var asp=ptToScreen(aa.pt||aa.pts[0]); draw(); if(typeof openAnnStyle==="function")openAnnStyle(aa,asp.x,asp.y); return; }
   var hit=pick(e.offsetX,e.offsetY);
-  if(hit&&!hit.counting){ pushUndo(); hit.dimVisible=!hit.dimVisible; state.sel=hit; showProps(hit); state.dirty=true; draw(); } });
+  if(hit){ state.sel=hit; if(state.selSet.indexOf(hit)<0)state.selSet=[hit]; showProps(hit); draw(); showObjMenu(e.clientX,e.clientY,hit); } });
 cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
   var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*Math.exp(-e.deltaY*0.0015)));   // proto-parity: smooth exp + clamp
   if(nk===V.k)return;
@@ -488,6 +493,61 @@ function finishDraft(){
   if(!state.draft||state.draft.length<min){ state.draft=null; draw(); return; }
   var kind=state.tool==="poly"?"poly":(state.tool==="ref"?"ref":"line");
   pushUndo(); PSpage().objects.push(mkObj(state.draft,kind,false)); state.draft=null; state.dirty=true; draw();
+}
+function nudgeSel(dxs,dys){
+  var tgt=state.selSet.length?state.selSet:(state.sel?[state.sel]:[]);
+  if(!tgt.length)return;
+  var o0=screenToPt(0,0),o1=screenToPt(dxs,dys),dx=o1.x-o0.x,dy=o1.y-o0.y;
+  pushUndo();
+  tgt.forEach(function(o){ o.pts.forEach(function(p){ p.x+=dx; p.y+=dy; }); });
+  state.dirty=true; draw();
+}
+function duplicateSel(){
+  var src=state.selSet.length?state.selSet.slice():(state.sel?[state.sel]:[]);
+  if(!src.length)return;
+  pushUndo();
+  // ~16 screen px offset expressed in PDF units at the current zoom:
+  var o0=screenToPt(0,0),o1=screenToPt(16,16),dx=o1.x-o0.x,dy=o1.y-o0.y;
+  var arr=PSpage().objects,clones=[];
+  src.forEach(function(o){
+    var c=JSON.parse(JSON.stringify(o));
+    c.id=state._id++;
+    c.pts=c.pts.map(function(p){return {x:p.x+dx,y:p.y+dy};});
+    arr.push(c); clones.push(c);
+  });
+  state.selSet=clones.length>1?clones:[];
+  state.sel=clones[clones.length-1];
+  state.dirty=true; showProps(clones.length>1?null:state.sel); draw();
+}
+var _objMenuEl=null, _objMenuOutside=null;
+function closeObjMenu(){
+  if(_objMenuEl){ _objMenuEl.remove(); _objMenuEl=null; }
+  if(_objMenuOutside){ document.removeEventListener("click",_objMenuOutside,true); _objMenuOutside=null; }
+}
+function showObjMenu(cx,cy,obj){
+  closeObjMenu();
+  var m=document.createElement("div"); m.className="objmenu";
+  function row(label,action){ var r=document.createElement("div"); r.className="objmenu-row"; r.textContent=label;
+    r.addEventListener("click",function(e){ e.stopPropagation(); closeObjMenu(); action(); draw(); }); m.appendChild(r); }
+  // แก้จุด / ออกจากแก้จุด
+  var isVertMode=state.vertMode===obj;
+  row(isVertMode?"ออกจากแก้จุด":"แก้จุด",function(){ state.vertMode=(state.vertMode===obj?null:obj); });
+  // ซ่อน/แสดง dimension — skip for counting objects
+  if(!obj.counting){ row(obj.dimVisible?"ซ่อน dimension":"แสดง dimension",function(){ pushUndo(); obj.dimVisible=!obj.dimVisible; state.dirty=true; showProps(obj); }); }
+  // สำเนา
+  row("สำเนา",function(){ state.sel=obj; state.selSet=[obj]; duplicateSel(); });
+  // ลบ
+  row("ลบ",function(){ pushUndo(); var a=PSpage().objects; var i=a.indexOf(obj); if(i>=0)a.splice(i,1); state.sel=null; state.selSet=[]; state.vertMode=null; showProps(null); state.dirty=true; });
+  // position
+  var vw=window.innerWidth, vh=window.innerHeight;
+  var mw=164, mh=(obj.counting?3:4)*36+8;
+  var left=Math.min(cx,vw-mw-8), top=Math.min(cy,vh-mh-8);
+  m.style.left=left+"px"; m.style.top=top+"px";
+  document.body.appendChild(m); _objMenuEl=m;
+  // one-shot outside-click close (capture phase so it fires before other handlers)
+  _objMenuOutside=function(e){ if(!m.contains(e.target)){ closeObjMenu(); } };
+  // defer to avoid the current right-click event closing the menu immediately
+  setTimeout(function(){ document.addEventListener("click",_objMenuOutside,true); },0);
 }
 function pick(sx,sy){
   // Iterate z-order DESCENDING so the visually-top object (highest layer.order) wins.
@@ -508,6 +568,7 @@ function distSeg(px,py,a,b){var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1)ret
    Re-uses the vendored segIntersect for intersections. Works in SCREEN space. --- */
 function isDrawTool(){ return ["scale","poly","dist","path","ref","count"].indexOf(state.tool)>=0; }
 function edgeHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var m=ptToScreen({x:(o.pts[i].x+o.pts[(i+1)%o.pts.length].x)/2,y:(o.pts[i].y+o.pts[(i+1)%o.pts.length].y)/2}); if(Math.abs(sx-m.x)<7&&Math.abs(sy-m.y)<7)return i; } return -1; }
+function vertexHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var s=ptToScreen(o.pts[i]); if(Math.abs(sx-s.x)<6&&Math.abs(sy-s.y)<6)return i; } return -1; }
 function nearOnSegS(px,py,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1)return{x:a.x,y:a.y};
   var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2)); return{x:a.x+t*dx,y:a.y+t*dy}; }
 function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,kind:(state.tool==="poly"?"poly":"line"),counting:false}]:[]);
@@ -727,7 +788,7 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.arcEdit=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.vertMode=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
 
 /* LITE-UNDO: snapshot-based history over the per-page document model.
    Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
@@ -737,7 +798,7 @@ function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pag
 function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
 function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id; }
 function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
-  state.sel=null; state.selSet=[]; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.arcEdit=null; state.dirty=true; showProps(null); buildPicker();
+  state.sel=null; state.selSet=[]; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.vertMode=null; state.dirty=true; showProps(null); buildPicker();
   if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage);
   if(document.getElementById("sum").classList.contains("show"))openSum();
   draw(); }
@@ -996,17 +1057,26 @@ window.addEventListener("keydown",function(e){
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="o"){e.preventDefault();document.getElementById("file-pdf").click();return;}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="e"){e.preventDefault();document.getElementById("mi-xlsx").onclick();return;}
   if((e.metaKey||e.ctrlKey)&&e.key===","){e.preventDefault();openSetup();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="d"){e.preventDefault();duplicateSel();return;}
   // proto-parity zoom shortcuts (work regardless of focus)
   if((e.metaKey||e.ctrlKey)&&e.key==="0"){e.preventDefault();fit();return;}
   if((e.metaKey||e.ctrlKey)&&e.key==="1"){e.preventDefault();actualSize();return;}
   if((e.metaKey||e.ctrlKey)&&(e.key==="="||e.key==="+")){e.preventDefault();zoomCenter(1.25);return;}
   if((e.metaKey||e.ctrlKey)&&e.key==="-"){e.preventDefault();zoomCenter(1/1.25);return;}
   if(modalOpen())return;
+  if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="ArrowUp"||e.key==="ArrowDown"){
+    if(!(state.sel||state.selSet.length))return;     // nothing selected → let default happen
+    e.preventDefault();
+    var step=e.shiftKey?10:1;
+    var dx=(e.key==="ArrowLeft"?-step:e.key==="ArrowRight"?step:0);
+    var dy=(e.key==="ArrowUp"?-step:e.key==="ArrowDown"?step:0);
+    nudgeSel(dx,dy);return;
+  }
   if(e.key===" "){ e.preventDefault(); if(!spaceDown){spaceDown=true;setCursor();} return; }  // spacebar-hold pan
   if(e.key==="h"||e.key==="H"){ state.panTool=!state.panTool; setCursor(); draw(); return; }     // toggle pan tool
   if(e.key==="f"||e.key==="F"){ fit(); return; }                                                  // fit to window
   if(e.key==="F12"){e.preventDefault();openOv();return;}
-  if(e.key==="Escape"){closeOverlays();if(state.arcEdit){state.arcEdit=null;draw();return;}if(state.draft){state.draft=null;draw();}return;}
+  if(e.key==="Escape"){closeOverlays();closeObjMenu();if(state.vertMode){state.vertMode=null;draw();return;}if(state.draft){state.draft=null;draw();}return;}
   if(e.key==="Enter"&&state.draft){finishDraft();return;}
   if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
