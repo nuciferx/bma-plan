@@ -139,15 +139,14 @@ async () => {
   state.activeCat = 'gfa';
   buildPicker();
 
-  // find the gfa row and click its → indent button
+  // find the gfa row and press ArrowRight (indent keyboard fallback)
   const gfaRow = document.querySelector('[data-catid="gfa"]');
   if (!gfaRow) return {no_gfa_row: true};
-  const btnIndent = gfaRow.querySelector('[data-indent="gfa"]');
-  if (!btnIndent) return {no_indent_btn: true};
 
   const parentIdBefore = gfa.parentId;  // should be null
 
-  btnIndent.click();
+  gfaRow.focus();
+  gfaRow.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', shiftKey: false, bubbles: true}));
   await new Promise(r => setTimeout(r, 50));
 
   const parentIdAfter = gfa.parentId;
@@ -317,13 +316,12 @@ async () => {
 
   const parentIdBefore = gfa.parentId;  // f.id
 
-  // click ← on gfa row
+  // press ArrowLeft on gfa row (outdent keyboard fallback)
   const gfaRow = document.querySelector('[data-catid="gfa"]');
   if (!gfaRow) return {no_gfa_row: true};
-  const btnOutdent = gfaRow.querySelector('[data-outdent="gfa"]');
-  if (!btnOutdent) return {no_outdent_btn: true};
 
-  btnOutdent.click();
+  gfaRow.focus();
+  gfaRow.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', shiftKey: false, bubbles: true}));
   await new Promise(r => setTimeout(r, 50));
 
   const parentIdAfter = gfa.parentId;

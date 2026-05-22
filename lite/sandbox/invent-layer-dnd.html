@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPIKE — layer drag-and-drop (Approach A + D preview)</title>
+<!--
+  Invention spike for idea 2026-05-23-00-59 — "layer drag-and-drop แทนลูกศร + group via drag".
+  Approach A (vanilla pointer-events, two-zone drop, keyboard fallback) scored #1 (26/30).
+  Plus an EXPERIMENTAL toggle that previews Approach D (auto-group-on-collision) — the novel
+  reading of the user's "การรวมกลุ่มก็เกิดจากการแดรกแอนดรอป".
+
+  This is a SANDBOX. It does NOT import lite/static/js/* and never touches the live app.
+  It uses a self-contained mock of the {.order, .parentId} model + childrenOf() walk so the
+  GESTURE can be judged at lite's real ~30px row height. Question to prove:
+  does ghost + line-indicator + 2-zone hit-test feel unambiguous at 30px rows?
+-->
+<style>
+  :root{
+    --bg:#1e1f23; --panel:#26282d; --row:#2d3036; --row-hover:#343841;
+    --row-active:#3a4150; --line:#4aa3ff; --nest:#3b5b3b; --group:#2f6b3f;
+    --txt:#e6e8ec; --muted:#8b909a; --border:#3a3d44;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+  .wrap{display:flex;gap:16px;padding:16px;align-items:flex-start;flex-wrap:wrap}
+  .panel{width:320px;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .panel h3{margin:0;padding:10px 12px;font-size:13px;background:#22242a;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .toolbar{display:flex;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;flex-wrap:wrap}
+  .toolbar label{display:flex;gap:4px;align-items:center;cursor:pointer;color:var(--muted)}
+  #catlist{position:relative;padding:4px 4px 12px;min-height:120px;-webkit-user-select:none;user-select:none}
+
+  .lt-row{display:flex;align-items:center;gap:5px;height:30px;padding:0 6px;margin:2px 0;
+    background:var(--row);border-radius:5px;position:relative;cursor:default}
+  .lt-row:hover{background:var(--row-hover)}
+  .lt-row.active{background:var(--row-active);outline:1px solid #4d5a72}
+  .lt-row.dragging{opacity:.35}
+  .lt-row.kbd-target{outline:2px solid var(--line)}
+
+  .grip{cursor:grab;color:var(--muted);font-size:14px;width:14px;text-align:center;touch-action:none}
+  .grip:active{cursor:grabbing}
+  .ctog{width:13px;text-align:center;color:var(--muted);cursor:pointer;font-size:11px}
+  .sw{width:14px;height:14px;border-radius:3px;border:1px solid #0006;flex:0 0 auto}
+  .fold{font-size:13px}
+  .nm{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nm small{color:var(--muted)}
+  .eye,.lk,.del{width:20px;text-align:center;cursor:pointer;opacity:.85;font-size:12px}
+  .eye:hover,.lk:hover,.del:hover{opacity:1}
+  .del{color:#e08a8a}
+
+  /* drop affordances */
+  .lt-row.drop-into{box-shadow:inset 0 0 0 2px var(--nest);background:#33402f}
+  .lt-row.drop-group{box-shadow:inset 0 0 0 2px var(--group);background:#2c4636}
+  #dropline{position:absolute;left:6px;right:6px;height:2px;background:var(--line);
+    border-radius:2px;display:none;pointer-events:none;box-shadow:0 0 6px var(--line)}
+  #dropline::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--line)}
+
+  #ghost{position:fixed;z-index:9999;pointer-events:none;display:none;
+    background:var(--row-active);border:1px solid var(--line);border-radius:5px;
+    padding:4px 10px;font-size:12px;box-shadow:0 4px 14px #000a;max-width:260px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .note{width:380px;color:var(--muted);font-size:12px}
+  .note h4{color:var(--txt);margin:14px 0 4px}
+  .note code{background:#000a;padding:1px 4px;border-radius:3px;color:#9fd}
+  .badge{font-size:10px;padding:1px 6px;border-radius:8px;background:#0006;color:var(--muted)}
+  #log{font-family:ui-monospace,monospace;font-size:11px;background:#000a;border-radius:6px;
+    padding:8px;height:150px;overflow:auto;white-space:pre-wrap;color:#9fd}
+  .pill{display:inline-block;font-size:10px;padding:1px 7px;border-radius:9px;margin-left:6px}
+  .pill.a{background:#143a5a;color:#9cf}
+  .pill.d{background:#1f4a2e;color:#9f9}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h3>Layers <span class="badge" id="modebadge">DnD mode</span></h3>
+    <div class="toolbar">
+      <label><input type="checkbox" id="optGroup"> auto-group on collision <span class="pill d">D</span></label>
+      <label><input type="checkbox" id="optKbd"> keyboard mode</label>
+      <button id="btnReset" style="margin-left:auto">reset</button>
+    </div>
+    <div id="catlist"></div>
+  </div>
+
+  <div class="note">
+    <h4>What this spike proves <span class="pill a">A</span></h4>
+    Drag the <code>⠿</code> grip. Three drop zones per 30px row:
+    <ul style="margin:4px 0;padding-left:18px">
+      <li><b>top 30%</b> → blue line = insert before (reorder, replaces ▲)</li>
+      <li><b>bottom 30%</b> → blue line = insert after (reorder, replaces ▼)</li>
+      <li><b>middle 40%</b> over a folder → green inset = nest into it (replaces →)</li>
+      <li>drop on the panel's empty area / a root row's outdent zone → move to root (replaces ←)</li>
+    </ul>
+    Only <code>.order</code> + <code>.parentId</code> mutate — both already persisted in
+    <code>.bmaplan</code>. Forbidden-surface profile = <b>CLEAN</b>.
+
+    <h4>Auto-group preview <span class="pill d">D</span> (toggle on)</h4>
+    With <b>auto-group</b> ON: drop a <i>root layer</i> onto the middle of another <i>root layer</i>
+    → a new folder is auto-created wrapping both (green double-ring). This is the novel reading of
+    "การรวมกลุ่มก็เกิดจากการแดรกแอนดรอป" — no incumbent does it. Judge: delightful or surprising?
+
+    <h4>Keyboard / touch fallback</h4>
+    <b>keyboard mode</b> ON: arrow ↑/↓ moves focus, <kbd>Shift+↑/↓</kbd> reorders,
+    <kbd>→</kbd> nests under preceding sibling, <kbd>←</kbd> outdents. (Same model ops, no drag.)
+    Touch works via pointer events (same code path as mouse).
+
+    <h4>event log</h4>
+    <div id="log"></div>
+  </div>
+</div>
+
+<div id="ghost"></div>
+
+<script>
+/* ---------- mock model: mirrors lite's {id,name,color,order,parentId,kind} ---------- */
+var SEED = [
+  {id:"f1", kind:"folder", name:"ที่ดิน + ปกคลุม", color:"#c98", order:0, parentId:null},
+  {id:"l1", kind:"layer",  name:"ขอบเขตที่ดิน",    color:"#e6b800", order:0, parentId:"f1"},
+  {id:"l2", kind:"layer",  name:"พื้นที่ปกคลุม",   color:"#3a9", order:1, parentId:"f1"},
+  {id:"l3", kind:"layer",  name:"ที่ซึมน้ำ",        color:"#5bd", order:1, parentId:null},
+  {id:"l4", kind:"layer",  name:"พื้นที่อาคาร",     color:"#e57", order:2, parentId:null},
+  {id:"l5", kind:"layer",  name:"ทางหนีไฟ",         color:"#fa3", order:3, parentId:null},
+  {id:"f2", kind:"folder", name:"ที่จอดรถ",         color:"#9a9", order:4, parentId:null},
+  {id:"l6", kind:"layer",  name:"จอดรถปกติ",        color:"#88c", order:0, parentId:"f2"},
+  {id:"l7", kind:"layer",  name:"จอดรถคนพิการ",     color:"#c8c", order:1, parentId:"f2"}
+];
+var NODES = [];
+var hidden = {}, collapsed = {}, activeId = null, kbdFocus = null, gid = 100;
+
+function clone(){ NODES = SEED.map(function(n){ return Object.assign({}, n); }); }
+function byId(id){ for(var i=0;i<NODES.length;i++) if(NODES[i].id===id) return NODES[i]; return null; }
+function childrenOf(pid){
+  return NODES.filter(function(n){ return (n.parentId||null)===(pid||null); })
+              .sort(function(a,b){ return a.order-b.order; });
+}
+function reindex(pid){ childrenOf(pid).forEach(function(n,i){ n.order=i; }); }
+function descendants(id){ // ids of all descendants (for cycle guard)
+  var out=[], stack=childrenOf(id);
+  while(stack.length){ var n=stack.pop(); out.push(n.id); stack=stack.concat(childrenOf(n.id)); }
+  return out;
+}
+function log(msg){ var el=document.getElementById("log"); el.textContent=("• "+msg+"\n")+el.textContent; }
+
+/* ---------- render (pre-order walk, like _ltRender) ---------- */
+function render(){
+  var list=document.getElementById("catlist");
+  list.innerHTML="";
+  var dl=document.createElement("div"); dl.id="dropline"; list.appendChild(dl);
+  walk(null, 0, list);
+  document.getElementById("modebadge").textContent = optKbd.checked ? "keyboard mode" : "DnD mode";
+}
+function walk(pid, depth, list){
+  childrenOf(pid).forEach(function(n){
+    list.appendChild(rowEl(n, depth));
+    if(n.kind==="folder" || childrenOf(n.id).length){
+      if(!collapsed[n.id]) walk(n.id, depth+1, list);
+    }
+  });
+}
+function rowEl(n, depth){
+  var d=document.createElement("div");
+  d.className="lt-row"+(activeId===n.id?" active":"")+(kbdFocus===n.id?" kbd-target":"");
+  d.dataset.id=n.id; d.dataset.kind=n.kind; d.dataset.depth=depth;
+  d.style.marginLeft=(depth*16)+"px";
+
+  var grip=document.createElement("span"); grip.className="grip"; grip.textContent="⠿";
+  grip.title="ลากเพื่อย้าย/จัดกลุ่ม"; grip.addEventListener("pointerdown", function(e){ startDrag(e,n); });
+
+  var kids=childrenOf(n.id).length;
+  var tog=document.createElement("span"); tog.className="ctog";
+  if(n.kind==="folder"||kids){ tog.textContent=collapsed[n.id]?"▸":"▾"; tog.style.cursor="pointer";
+    tog.addEventListener("click",function(e){e.stopPropagation();collapsed[n.id]=!collapsed[n.id];render();}); }
+
+  var sw; if(n.kind==="folder"){ sw=document.createElement("span"); sw.className="fold"; sw.textContent=collapsed[n.id]?"📁":"📂"; }
+  else { sw=document.createElement("span"); sw.className="sw"; sw.style.background=n.color; }
+
+  var nm=document.createElement("span"); nm.className="nm";
+  nm.innerHTML = n.name + (n.kind==="folder" ? " <small>("+kids+")</small>" : "");
+
+  var eye=document.createElement("span"); eye.className="eye"; eye.textContent=hidden[n.id]?"🚫":"👁";
+  eye.addEventListener("click",function(e){e.stopPropagation();hidden[n.id]=!hidden[n.id];render();});
+  var del=document.createElement("span"); del.className="del"; del.textContent="✕";
+  del.addEventListener("click",function(e){e.stopPropagation();delNode(n);});
+
+  d.appendChild(grip); d.appendChild(tog); d.appendChild(sw); d.appendChild(nm); d.appendChild(eye); d.appendChild(del);
+  d.addEventListener("click",function(){ activeId=n.id; kbdFocus=n.id; render(); });
+  return d;
+}
+function delNode(n){
+  var pid=n.parentId||null;
+  NODES.filter(function(x){return (x.parentId||null)===n.id;}).forEach(function(x){x.parentId=pid;});
+  NODES=NODES.filter(function(x){return x.id!==n.id;});
+  reindex(pid); log("delete "+n.name); render();
+}
+
+/* ---------- Approach A: pointer-events drag, two-zone hit test ---------- */
+var drag=null;
+function startDrag(e, node){
+  e.preventDefault();
+  drag={id:node.id, name:node.name, x:e.clientX, y:e.clientY, moved:false, target:null};
+  var g=document.getElementById("ghost"); g.textContent="⠿ "+node.name;
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp, {once:true});
+}
+function onMove(e){
+  if(!drag) return;
+  if(!drag.moved && Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<4) return;
+  drag.moved=true;
+  var g=document.getElementById("ghost");
+  g.style.display="block"; g.style.left=(e.clientX+12)+"px"; g.style.top=(e.clientY+8)+"px";
+
+  // auto-scroll near panel edges
+  var list=document.getElementById("catlist"), lr=list.getBoundingClientRect();
+  if(e.clientY<lr.top+30) list.scrollTop-=8;
+  else if(e.clientY>lr.bottom-30) list.scrollTop+=8;
+
+  clearDropViz();
+  var row=rowUnder(e.clientY);
+  drag.target=null;
+  if(!row){ // empty area below = move to root tail
+    drag.target={mode:"root"}; showLineAt(null);
+    return;
+  }
+  var tid=row.dataset.id, kind=row.dataset.kind;
+  if(tid===drag.id || descendants(drag.id).indexOf(tid)>=0){ return; } // no self/descendant
+  var r=row.getBoundingClientRect(), rel=(e.clientY-r.top)/r.height;
+  var dragNode=byId(drag.id), tgtNode=byId(tid);
+
+  if(rel<0.30){ drag.target={mode:"before", id:tid}; showLineBefore(row); }
+  else if(rel>0.70){ drag.target={mode:"after", id:tid}; showLineAfter(row); }
+  else { // middle 40%
+    if(kind==="folder"){ drag.target={mode:"nest", id:tid}; row.classList.add("drop-into"); }
+    else if(optGroup.checked && (dragNode.parentId||null)===null && (tgtNode.parentId||null)===null){
+      drag.target={mode:"group", id:tid}; row.classList.add("drop-group");
+    } else { drag.target={mode:"after", id:tid}; showLineAfter(row); } // layer mid w/o group → after
+  }
+}
+function onUp(){
+  window.removeEventListener("pointermove", onMove);
+  document.getElementById("ghost").style.display="none";
+  clearDropViz();
+  if(drag && drag.moved && drag.target) commit(drag);
+  drag=null; render();
+}
+function commit(d){
+  var n=byId(d.id), t=d.target;
+  if(t.mode==="root"){ var op=n.parentId||null; n.parentId=null; reindex(op);
+    n.order=childrenOf(null).length; reindex(null); log("move "+n.name+" → root"); return; }
+  var tn=byId(t.id);
+  if(t.mode==="nest"){ var op2=n.parentId||null; n.parentId=t.id; reindex(op2);
+    n.order=childrenOf(t.id).length; reindex(t.id); log("nest "+n.name+" → 📂"+tn.name); return; }
+  if(t.mode==="group"){
+    var f={id:"f"+(gid++), kind:"folder", name:tn.name+" group", color:tn.color,
+           order:tn.order, parentId:tn.parentId||null};
+    NODES.push(f);
+    var op3=n.parentId||null;
+    tn.parentId=f.id; n.parentId=f.id;
+    reindex(op3); tn.order=0; n.order=1; reindex(f.id); reindex(f.parentId||null);
+    activeId=f.id; log("AUTO-GROUP: 📂"+f.name+" ⊃ {"+tn.name+", "+n.name+"}"); return;
+  }
+  // before / after within target's sibling group
+  var pid=tn.parentId||null, op4=n.parentId||null;
+  n.parentId=pid;
+  var sibs=childrenOf(pid).filter(function(x){return x.id!==n.id;});
+  var idx=sibs.indexOf(tn); if(t.mode==="after") idx++;
+  sibs.splice(idx,0,n); sibs.forEach(function(x,i){x.order=i;});
+  if(op4!==pid) reindex(op4);
+  log((t.mode)+" "+n.name+" @ "+tn.name);
+}
+
+/* ---------- drop-indicator helpers ---------- */
+function rowUnder(y){
+  var rows=document.querySelectorAll(".lt-row");
+  for(var i=0;i<rows.length;i++){ var r=rows[i].getBoundingClientRect();
+    if(y>=r.top && y<=r.bottom) return rows[i]; }
+  return null;
+}
+function clearDropViz(){
+  document.getElementById("dropline").style.display="none";
+  document.querySelectorAll(".drop-into,.drop-group").forEach(function(el){
+    el.classList.remove("drop-into"); el.classList.remove("drop-group"); });
+}
+function showLineBefore(row){ lineAt(row, true); }
+function showLineAfter(row){ lineAt(row, false); }
+function lineAt(row, before){
+  var list=document.getElementById("catlist"), dl=document.getElementById("dropline");
+  var r=row.getBoundingClientRect(), lr=list.getBoundingClientRect();
+  dl.style.top=((before?r.top:r.bottom)-lr.top+list.scrollTop-1)+"px";
+  dl.style.left=(parseFloat(row.style.marginLeft||0)+6)+"px";
+  dl.style.display="block";
+}
+function showLineAt(){ // root tail
+  var list=document.getElementById("catlist"), dl=document.getElementById("dropline");
+  dl.style.top=(list.scrollHeight-8)+"px"; dl.style.left="6px"; dl.style.display="block";
+}
+
+/* ---------- keyboard fallback (Approach A accessibility) ---------- */
+document.addEventListener("keydown", function(e){
+  if(!optKbd.checked) return;
+  if(!kbdFocus){ var first=childrenOf(null)[0]; if(first){kbdFocus=first.id;render();} return; }
+  var n=byId(kbdFocus); if(!n) return;
+  var flat=[]; (function fw(pid){ childrenOf(pid).forEach(function(x){ flat.push(x.id);
+    if(!collapsed[x.id]) fw(x.id); }); })(null);
+  var pos=flat.indexOf(kbdFocus);
+  if(e.key==="ArrowDown" && !e.shiftKey){ e.preventDefault(); if(pos<flat.length-1){kbdFocus=flat[pos+1];render();} }
+  else if(e.key==="ArrowUp" && !e.shiftKey){ e.preventDefault(); if(pos>0){kbdFocus=flat[pos-1];render();} }
+  else if(e.key==="ArrowDown" && e.shiftKey){ e.preventDefault(); kbReorder(n,1); }
+  else if(e.key==="ArrowUp" && e.shiftKey){ e.preventDefault(); kbReorder(n,-1); }
+  else if(e.key==="ArrowRight"){ e.preventDefault(); kbNest(n); }
+  else if(e.key==="ArrowLeft"){ e.preventDefault(); kbOutdent(n); }
+});
+function kbReorder(n,dir){ var sibs=childrenOf(n.parentId||null); var i=sibs.indexOf(n), j=i+dir;
+  if(j<0||j>=sibs.length) return; var t=sibs[i].order; sibs[i].order=sibs[j].order; sibs[j].order=t;
+  log("kbd reorder "+n.name); render(); }
+function kbNest(n){ var sibs=childrenOf(n.parentId||null); var i=sibs.indexOf(n); if(i<=0) return;
+  var pre=sibs[i-1]; var op=n.parentId||null; n.parentId=pre.id; reindex(op);
+  n.order=childrenOf(pre.id).length; reindex(pre.id); log("kbd nest "+n.name+" → "+pre.name); render(); }
+function kbOutdent(n){ if((n.parentId||null)===null) return; var par=byId(n.parentId);
+  var op=n.parentId||null; n.parentId=par.parentId||null; reindex(op);
+  n.order=childrenOf(n.parentId||null).length; reindex(n.parentId||null);
+  log("kbd outdent "+n.name); render(); }
+
+/* ---------- wiring ---------- */
+var optGroup=document.getElementById("optGroup"), optKbd=document.getElementById("optKbd");
+optKbd.addEventListener("change",render);
+optGroup.addEventListener("change",function(){ log("auto-group "+(optGroup.checked?"ON":"OFF")); });
+document.getElementById("btnReset").addEventListener("click",function(){clone();collapsed={};hidden={};activeId=null;kbdFocus=null;log("reset");render();});
+document.getElementById("catlist").addEventListener("pointerdown",function(e){
+  // clicking empty area below rows during drag handled by onMove "root" mode
+});
+clone(); render(); log("spike ready — A=two-zone DnD, toggle D=auto-group");
+</script>
+</body>
+</html>

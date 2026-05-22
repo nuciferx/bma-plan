@@ -312,12 +312,11 @@ async () => {
   const objB = {catId: b.id};
   const zBefore = objectsInZOrder([objA, objB]).map(o => o.catId);
 
-  // click ▼ on the first row (moves a down past b)
+  // Shift+ArrowDown on the first row (moves a down past b)
   const rowA = document.querySelector('[data-catid="' + a.id + '"]');
-  const btnDn = rowA ? rowA.querySelector('[data-reorder-dn]') : null;
-  if (!btnDn) return {no_btn_dn: true};
-
-  btnDn.click();
+  if (!rowA) return {no_row_a: true};
+  rowA.focus();
+  rowA.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', shiftKey: true, bubbles: true}));
   await new Promise(r => setTimeout(r, 50));
 
   const aAfter = layerById(a.id);

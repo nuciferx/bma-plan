@@ -234,89 +234,6 @@ function _ltRenderFolder(folder, depth, el) {
   lkBtn.setAttribute("data-lock", folder.id);
   lkBtn.textContent = lk ? "🔒" : "🔓";
 
-  /* --- ▲▼ reorder among siblings --- */
-  var siblings = _ltSiblingsOf(folder.id);
-  var sibIdx = -1;
-  for (var i = 0; i < siblings.length; i++) {
-    if (siblings[i].node.id === folder.id) { sibIdx = i; break; }
-  }
-
-  var btnUp = document.createElement("button");
-  btnUp.className = "lp-ord-btn";
-  btnUp.textContent = "▲";
-  btnUp.title = "เลื่อนขึ้น";
-  btnUp.disabled = (sibIdx <= 0);
-  btnUp.setAttribute("data-reorder-up", folder.id);
-  btnUp.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var sibs = _ltSiblingsOf(folder.id);
-    var idx2 = -1;
-    for (var j = 0; j < sibs.length; j++) if (sibs[j].node.id === folder.id) { idx2 = j; break; }
-    if (idx2 <= 0) return;
-    _ltSwapOrder(sibs[idx2].node, sibs[idx2 - 1].node);
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
-  var btnDn = document.createElement("button");
-  btnDn.className = "lp-ord-btn";
-  btnDn.textContent = "▼";
-  btnDn.title = "เลื่อนลง";
-  btnDn.disabled = (sibIdx < 0 || sibIdx >= siblings.length - 1);
-  btnDn.setAttribute("data-reorder-dn", folder.id);
-  btnDn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var sibs = _ltSiblingsOf(folder.id);
-    var idx2 = -1;
-    for (var j = 0; j < sibs.length; j++) if (sibs[j].node.id === folder.id) { idx2 = j; break; }
-    if (idx2 < 0 || idx2 >= sibs.length - 1) return;
-    _ltSwapOrder(sibs[idx2].node, sibs[idx2 + 1].node);
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
-  /* --- → indent (nest under preceding sibling) --- */
-  var btnIn = document.createElement("button");
-  btnIn.className = "lp-ord-btn";
-  btnIn.textContent = "→";
-  btnIn.title = "ซ้อนใต้รายการก่อนหน้า";
-  var preceding = _ltPrecedingNode(folder.id);
-  btnIn.disabled = !preceding;
-  btnIn.setAttribute("data-indent", folder.id);
-  btnIn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var pre = _ltPrecedingNode(folder.id);
-    if (!pre) return;
-    folder.parentId = pre.node.id;
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
-  /* --- ← outdent (move up one level) --- */
-  var btnOut = document.createElement("button");
-  btnOut.className = "lp-ord-btn";
-  btnOut.textContent = "←";
-  btnOut.title = "ย้ายออกจากกลุ่ม";
-  var folderParentId = (folder.parentId !== undefined) ? folder.parentId : null;
-  btnOut.disabled = (folderParentId === null);
-  btnOut.setAttribute("data-outdent", folder.id);
-  btnOut.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var grandParentId = null;
-    var currentParentId = (folder.parentId !== undefined) ? folder.parentId : null;
-    if (currentParentId !== null) {
-      var parentNode = layerById(currentParentId) || folderById(currentParentId);
-      grandParentId = parentNode ? ((parentNode.parentId !== undefined) ? parentNode.parentId : null) : null;
-    }
-    folder.parentId = grandParentId;
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
   /* --- ✕ delete folder --- */
   var btnDel = document.createElement("button");
   btnDel.className = "lp-del-btn";
@@ -371,10 +288,6 @@ function _ltRenderFolder(folder, depth, el) {
   if (rollSpan) d.appendChild(rollSpan);
   d.appendChild(eye);
   d.appendChild(lkBtn);
-  d.appendChild(btnUp);
-  d.appendChild(btnDn);
-  d.appendChild(btnIn);
-  d.appendChild(btnOut);
   d.appendChild(btnDel);
   el.appendChild(d);
 
@@ -480,89 +393,6 @@ function _ltRenderLayer(layer, depth, el) {
   lkBtn.setAttribute("data-lock", layer.id);
   lkBtn.textContent = lk ? "🔒" : "🔓";
 
-  /* --- ▲▼ reorder among siblings --- */
-  var siblings = _ltSiblingsOf(layer.id);
-  var sibIdx = -1;
-  for (var i = 0; i < siblings.length; i++) {
-    if (siblings[i].node.id === layer.id) { sibIdx = i; break; }
-  }
-
-  var btnUp = document.createElement("button");
-  btnUp.className = "lp-ord-btn";
-  btnUp.textContent = "▲";
-  btnUp.title = "เลื่อนขึ้น";
-  btnUp.disabled = (sibIdx <= 0);
-  btnUp.setAttribute("data-reorder-up", layer.id);
-  btnUp.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var sibs = _ltSiblingsOf(layer.id);
-    var idx2 = -1;
-    for (var j = 0; j < sibs.length; j++) if (sibs[j].node.id === layer.id) { idx2 = j; break; }
-    if (idx2 <= 0) return;
-    _ltSwapOrder(sibs[idx2].node, sibs[idx2 - 1].node);
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
-  var btnDn = document.createElement("button");
-  btnDn.className = "lp-ord-btn";
-  btnDn.textContent = "▼";
-  btnDn.title = "เลื่อนลง";
-  btnDn.disabled = (sibIdx < 0 || sibIdx >= siblings.length - 1);
-  btnDn.setAttribute("data-reorder-dn", layer.id);
-  btnDn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var sibs = _ltSiblingsOf(layer.id);
-    var idx2 = -1;
-    for (var j = 0; j < sibs.length; j++) if (sibs[j].node.id === layer.id) { idx2 = j; break; }
-    if (idx2 < 0 || idx2 >= sibs.length - 1) return;
-    _ltSwapOrder(sibs[idx2].node, sibs[idx2 + 1].node);
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
-  /* --- → indent (nest under preceding sibling) --- */
-  var btnIn = document.createElement("button");
-  btnIn.className = "lp-ord-btn";
-  btnIn.textContent = "→";
-  btnIn.title = "ซ้อนใต้รายการก่อนหน้า";
-  var preceding = _ltPrecedingNode(layer.id);
-  btnIn.disabled = !preceding;
-  btnIn.setAttribute("data-indent", layer.id);
-  btnIn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var pre = _ltPrecedingNode(layer.id);
-    if (!pre) return;
-    layer.parentId = pre.node.id;
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
-  /* --- ← outdent (move up one level) --- */
-  var btnOut = document.createElement("button");
-  btnOut.className = "lp-ord-btn";
-  btnOut.textContent = "←";
-  btnOut.title = "ย้ายออกจากกลุ่ม";
-  var layerParentId = (layer.parentId !== undefined) ? layer.parentId : null;
-  btnOut.disabled = (layerParentId === null);
-  btnOut.setAttribute("data-outdent", layer.id);
-  btnOut.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var currentParentId = (layer.parentId !== undefined) ? layer.parentId : null;
-    var grandParentId = null;
-    if (currentParentId !== null) {
-      var parentNode = layerById(currentParentId) || folderById(currentParentId);
-      grandParentId = parentNode ? ((parentNode.parentId !== undefined) ? parentNode.parentId : null) : null;
-    }
-    layer.parentId = grandParentId;
-    state.dirty = true;
-    buildPicker();
-    draw();
-  });
-
   /* --- ✕ delete (custom layers only) --- */
   var btnDel = null;
   if (!isDefaultLayer(layer.id)) {
@@ -608,7 +438,6 @@ function _ltRenderLayer(layer, depth, el) {
       state.catLock[layer.id] = !state.catLock[layer.id];
       buildPicker(); draw(); return;
     }
-    if (e.target.classList.contains("lp-ord-btn")) return;
     if (e.target.classList.contains("lp-del-btn")) return;
     if (e.target.classList.contains("lp-sw")) return;
     if (e.target.classList.contains("nm")) return;
@@ -637,10 +466,6 @@ function _ltRenderLayer(layer, depth, el) {
   if (ownSpan) d.appendChild(ownSpan);
   d.appendChild(eye);
   d.appendChild(lkBtn);
-  d.appendChild(btnUp);
-  d.appendChild(btnDn);
-  d.appendChild(btnIn);
-  d.appendChild(btnOut);
   if (btnDel) d.appendChild(btnDel);
   el.appendChild(d);
 
