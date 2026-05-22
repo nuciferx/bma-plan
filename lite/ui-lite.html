@@ -49,6 +49,17 @@
   .cat:hover{background:#222a37;} .cat.active{background:#1d2735;outline:1px solid var(--accent);}
   .cat .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;} .cat .nm{flex:1;}
   .cat .eye{font-size:13px;color:var(--muted);width:18px;text-align:center;} .cat .eye.off{opacity:.35;}
+  /* L2c-3: layer-panel controls */
+  .lp-sw{cursor:pointer;outline:1px solid transparent;transition:outline .1s;} .lp-sw:hover{outline-color:var(--accent);}
+  .lp-ord-btn,.lp-del-btn{background:transparent;border:1px solid transparent;color:var(--muted);font-size:10px;
+    width:16px;height:16px;border-radius:3px;cursor:pointer;padding:0;line-height:1;flex:0 0 auto;}
+  .lp-ord-btn:hover{background:#2a3140;color:var(--ink);} .lp-ord-btn:disabled{opacity:.2;cursor:default;}
+  .lp-del-btn{color:#ff6b6b;} .lp-del-btn:hover{background:#2a3140;}
+  .lp-rename-inp{flex:1;background:#0c0f14;border:1px solid var(--accent);color:var(--ink);border-radius:4px;
+    font-size:13px;padding:1px 4px;min-width:0;width:100%;}
+  #picker .lp-add-btn{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:13px;
+    width:20px;height:20px;border-radius:4px;cursor:pointer;margin-left:4px;padding:0;line-height:1;}
+  #picker .lp-add-btn:hover{background:#2a3140;color:var(--ink);}
   #props{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(20,24,32,.95);
     border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;display:none;gap:14px;align-items:center;z-index:25;}
   #props.show{display:flex;} #props .val{color:var(--good);font-weight:600;}
@@ -155,7 +166,7 @@
     <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,8,12,.62);z-index:95;backdrop-filter:blur(1px)">
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 22px;font-size:14px;color:var(--ink)"><span id="loading-txt">กำลังโหลด…</span></div></div>
     <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=เมนู</div>
-    <div id="picker"><div class="h">กำลังวัดอะไร (= layer = semantic)</div><div id="catlist"></div></div>
+    <div id="picker"><div class="h" style="display:flex;align-items:center;justify-content:space-between;">กำลังวัดอะไร (= layer = semantic)<button class="lp-add-btn" id="lp-add" title="เพิ่ม layer ใหม่">+</button></div><div id="catlist"></div></div>
     <div class="hud" id="hud-tl"></div>
     <div class="hud" id="hud-tr"></div>
     <div class="hud" id="hud-bl"></div>
@@ -197,6 +208,7 @@
 </script>
 <script src="static/js/measure-engine.js"></script>
 <script src="static/js/layer-system.js"></script>
+<script src="static/js/layer-panel.js"></script>
 <script>
 /* ============================ STATE ============================ */
 var cssVar=function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();};
@@ -341,17 +353,7 @@ function updateHUD(){
   else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · คลิกขวา=เมนู · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
   else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"");
 }
-function buildPicker(){ var el=document.getElementById("catlist"); el.innerHTML="";
-  layersInOrder().forEach(function(c){ var d=document.createElement("div");
-    d.className="cat"+(state.activeCat===c.id?" active":"");
-    d.innerHTML='<span class="sw" style="background:'+c.color+'"></span><span class="nm">'+c.name+'</span>'+
-      '<span class="eye'+(state.catVis[c.id]?'':' off')+'" data-eye="'+c.id+'">'+(state.catVis[c.id]?'👁':'🚫')+'</span>'+
-      '<span class="eye'+(state.catLock[c.id]?' off':'')+'" data-lock="'+c.id+'">'+(state.catLock[c.id]?'🔒':'🔓')+'</span>';
-    d.addEventListener("click",function(e){ if(e.target.dataset.eye){state.catVis[c.id]=!state.catVis[c.id];buildPicker();draw();return;}
-      if(e.target.dataset.lock){state.catLock[c.id]=!state.catLock[c.id];buildPicker();draw();return;}
-      state.activeCat=c.id; state.tool=c.counting?"count":(state.tool==="count"?"poly":state.tool); buildPicker(); draw(); });
-    el.appendChild(d); });
-}
+/* buildPicker() lives in static/js/layer-panel.js (L2c-3 extraction). */
 function showProps(o){ var box=document.getElementById("props");
   if(state.selSet.length>1){ document.getElementById("p-name").innerHTML='<b>'+state.selSet.length+' objects</b>';
     document.getElementById("p-area").textContent="—";
@@ -1059,6 +1061,7 @@ document.getElementById("btn-sum").onclick=openSum;
 function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(o){o.classList.remove("show");});}
 document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("click",function(e){if(e.target===o)closeOverlays();});});
 document.getElementById("btn-focus").onclick=function(){document.body.classList.toggle("focus");};
+document.getElementById("lp-add").onclick=lpHandleAddLayer;
 
 /* keys */
 window.addEventListener("keydown",function(e){

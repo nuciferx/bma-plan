@@ -42,6 +42,29 @@ lite/
     fixtures/measure_parity_v1.json
 ```
 
+## Size discipline (hard rule — 2026-05-22)
+
+Lite stays lean by contract. Runtime source files have a hard line cap:
+
+| File | Cap | Why |
+|---|---|---|
+| `ui-lite.html` | **1200 lines** | the single-page UI shell — bulk logic belongs in `static/js/*.js`, not inline |
+| every other runtime file (`server_lite.py`, `lite-report.html`, `static/js/*.js`) | **1000 lines** | one cohesive region per module |
+
+**When a file crosses its cap, the next slice MUST split it** — extract one cohesive
+region into a new `static/js/<region>.js` (the `layer-system.js` / `layer-panel.js`
+pattern), not bolt more onto the offender. No new feature lands while a file is over cap.
+
+- Test files (`tests/*.py`) are **exempt** from the hard cap, but a single test file
+  over 1000 lines is a smell — split it by feature.
+- Enforced at the `/bma-lite-dev` REVIEW gate: `wc -l` is checked before finalize; a
+  diff that pushes a file over cap is sent back to extract first.
+- Verify anytime: `wc -l ui-lite.html server_lite.py lite-report.html static/js/*.js`.
+
+> Headroom note (2026-05-22): `ui-lite.html` is at 1120 / 1200 (80 lines left). The next
+> slice (L2c-3 custom-layer UI panel) must land its panel logic in `static/js/layer-panel.js`,
+> not inline in `ui-lite.html`.
+
 ## Run
 
 **One-click (Windows):** double-click **`lite/run.bat`** — it finds Python, installs the

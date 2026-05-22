@@ -29,7 +29,7 @@
 | visibility toggle ต่อ layer (👁 `state.catVis`) | ✅ มี |
 | lock ต่อ layer | ✅ (`37ab1e5` + `bcf9201`) — `catLock` + 🔒 picker; locked = เห็นแต่ select/draw ไม่ได้ (ครบ) |
 | z-order (วาดเรียงตาม layer ไม่ใช่ลำดับสร้าง) | ✅ มี (`37ab1e5`) — `objectsInZOrder` ใน layer-system.js |
-| custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | 🟡 model+persist พร้อม (`37add45`+`8a77f3e`) — เหลือ UI panel (L2c-3) |
+| custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | ✅ ครบ (`37add45`+`8a77f3e`+L2c-3) — panel UI อยู่ใน `static/js/layer-panel.js` |
 
 ## L1 — Foundation ✅ DONE (`4cd51ec`, 2026-05-22)
 
@@ -75,6 +75,16 @@ object วาด **และ hit-test เรียงตาม `layer.order`** (
 - ต้องแก้: seed กับ custom รวมกันใน `LAYERS`, save/load LAYERS, reorder เขียน `.order`, ลบ layer ที่มี object (ย้ายไป layer ไหน?), semanticTag ของ custom layer มาจากไหน (role ที่ผู้ใช้เลือก)
 - **ก่อนเริ่ม L2c ต้องเขียน sub-spec แยก + ผ่าน `/bma-check-forbidden` (schema)**
 
+#### L2c-1 ✅ DONE (`37add45`) · L2c-2 ✅ DONE (`8a77f3e`) · **L2c-3 ✅ DONE (2026-05-22)**
+
+L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไป `static/js/layer-panel.js`, +240 บรรทัด, ui-lite.html อยู่ที่ 1120/1200)
+
+- **`+`** = `addLayer(active.role,…)` (layer ใหม่สืบ role จากตัว active → tag role-derived) · **คลิกชื่อ** = inline rename (Enter/Esc, กัน keydown ลั่น shortcut) · **คลิกสี** = `<input type=color>` → `recolorLayer` · **`✕`** (custom เท่านั้น) = `removeLayer` + reassign `catId` ของ object **ทุกหน้าใน `PS`** ไป `reassignTo` + ย้าย `activeCat` · **`▲▼`** = `reorderLayers` (full permutation) → z-order render+hit
+- **ไม่แตะ schema** — persist (`liteLayers`/`liteCatId`) มาจาก L2c-2 แล้ว; delete reassign ใน memory → save เขียน `liteCatId` ชี้ default role ที่ proto resolve `semanticTag` ได้ → cross-open parity คงเดิม
+- **invariant คง**: tag จาก role ไม่ใช่ชื่อ · `LAYERS` identity (splice in-place) · ไม่แตะ `layer-system.js`/`measure-engine.js`/RS/pdfToC
+- test `tests/test_custom_layer_ui.py` → **`LITE_LAYER_UI_OK`** 6/6 (add/rename/recolor/delete-2pages/delete-blocked-default/reorder-z). REVIEW จับ test `recolorKeepsTag` เดิม**ลัด** (เรียก `recolorLayer()` ตรง ไม่ขับ DOM) → Opus แก้เองให้คลิก swatch จริง → ยิง `change` event บน color input (`inputAppeared`/`dirtySet` คุม). parity `MEASURE_PARITY_OK` + persist/model/zorder guards เขียวหมด
+- **ข้อจำกัด**: reorder เป็นปุ่ม ▲▼ (ยังไม่ drag-and-drop) · `+` สืบ role จาก active เท่านั้น (ยังไม่มี dropdown เลือก role อิสระ) — เก็บเป็น enhancement ถ้าต้องการ
+
 ## ลำดับ + Decision log
 
 - **2026-05-22** — เลือกทำ **L2a (z-order) ก่อน** เพราะปลอดภัยสุด (ไม่แตะ schema) และใช้ field `order` ที่ L1 เตรียมไว้ทันที
@@ -84,6 +94,7 @@ object วาด **และ hit-test เรียงตาม `layer.order`** (
 - **2026-05-22** — **L2b ปิดครบ** (`bcf9201`): เติม draw-block. lite-builder ส่ง test ปลอม (tautological — เขียน guard condition ซ้ำในตัว test แทนที่จะเรียก app) → REVIEW จับได้ เขียนใหม่ให้เรียก `finishDraft()` จริง + positive control. **บทเรียนซ้ำ**: worker ชอบเขียน test ที่ยืนยันตัวเอง — reviewer ต้องอ่าน test logic ทุกครั้ง ไม่ใช่แค่ดูว่า marker ผ่าน
 - **2026-05-22** — **L2c-1 (`37add45`) + L2c-2 (`8a77f3e`) เสร็จ**. L2c-1 = runtime CRUD ใน layer-system.js (+fix splice bug ที่ worker ส่ง reassign มา). L2c-2 = persist additive `liteLayers`+`liteCatId` ใน save/load (forbidden `.bmaplan` — additive ล้วน, proto ignore, semanticTag ยังเป็น key); test `LITE_LAYER_PERSIST_OK` (5 check จริง incl `CATS===LAYERS` aliasIntact + backward-compat ไม่มี liteLayers + defaultsAlwaysPresent). worker รอบนี้เขียน test จริง (ไม่ปลอม) — review ผ่าน
 - **2026-05-22 (concurrent edit)** — ระหว่าง loop เจอ ui-lite.html ถูกแก้ขนานจากอีก session (vertex-edit/context-menu/duplicate/nudge แทน arcEdit). ยืนยันกับผู้ใช้ = งานเขา → review (UI ล้วน ไม่แตะ forbidden, full suite เขียว) + commit `a86773a`. **บทเรียน**: โฟลเดอร์ Drive-synced → เช็ค `git status`/diff ก่อนแตะ ui-lite.html ทุกครั้ง
-- **ถัดไป**: **L2c-3 — UI panel** (ปุ่ม +/ลบ/rename/recolor/drag-reorder ใน picker). ไม่ใช่ forbidden (model+persist พร้อมแล้ว) แต่แก้ ui-lite.html → เช็ค settled ก่อน. ลบ layer ต้องเรียก `removeLayer` แล้วย้าย object (catId+liteCatId) ไป `reassignTo`
+- **2026-05-22 — L2c-3 (UI panel) เสร็จ → ปิด L2c ครบ**. ผู้ใช้เลือกทำเต็ม (add+rename+recolor+delete+reorder) ในรอบเดียว (ไม่แตก 3a/3b/3c). lite-builder ส่ง diff ตรง scope (ไม่เกิน) — แต่ test recolor ลัด (ไม่ขับ DOM จริง) → reviewer แก้เอง surgical. **บทเรียนซ้ำ**: worker ยังเลี่ยง path ที่ test ยาก (native color picker) ด้วยการเรียก model ตรง — reviewer ต้องบังคับให้ขับ event จริงผ่าน DOM
+- **ถัดไป**: L2c ปิดแล้ว. enhancement ที่ค้าง (ถ้าต้องการ): drag-and-drop reorder แทน ▲▼ · dropdown เลือก role ตอนกด `+`. ขั้นถัดไปของ layer system = page-scoped (ยังไม่อยู่ในแผน — lite ตั้งใจ slim)
 - **2026-05-22** — เขียน sub-spec แล้ว: **`LITE_L2C_CUSTOM_LAYER_SPEC.md`** (decision: persist additive `liteLayers`+`liteCatId`; ลบ layer→ย้าย object ไป default role; /bma-check-forbidden=WARN additive-only). แตกเป็น **L2c-1 model** (ปลอดภัย, build ก่อน) → **L2c-2 persistence** (แตะ `.bmaplan` — checkpoint คน + forbidden check รอบสอง) → **L2c-3 UI panel**
 - page-scoped layer (แบบ proto) — **ยังไม่อยู่ในแผน** จนกว่าจะมีเหตุผลชัด (lite ตั้งใจ slim)
