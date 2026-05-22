@@ -30,6 +30,7 @@
 | lock ต่อ layer | ✅ (`37ab1e5` + `bcf9201`) — `catLock` + 🔒 picker; locked = เห็นแต่ select/draw ไม่ได้ (ครบ) |
 | z-order (วาดเรียงตาม layer ไม่ใช่ลำดับสร้าง) | ✅ มี (`37ab1e5`) — `objectsInZOrder` ใน layer-system.js |
 | custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | ✅ ครบ (`37add45`+`8a77f3e`+L2c-3) — panel UI อยู่ใน `static/js/layer-panel.js` |
+| sublayer tree (folder + nest + visibility/lock inherit + roll-up Σ) | ✅ ครบ (L3 Approach F, LST-1..3b) — tree UI อยู่ใน `static/js/layer-tree.js` |
 
 ## L1 — Foundation ✅ DONE (`4cd51ec`, 2026-05-22)
 
@@ -85,6 +86,17 @@ L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไ
 - test `tests/test_custom_layer_ui.py` → **`LITE_LAYER_UI_OK`** 6/6 (add/rename/recolor/delete-2pages/delete-blocked-default/reorder-z). REVIEW จับ test `recolorKeepsTag` เดิม**ลัด** (เรียก `recolorLayer()` ตรง ไม่ขับ DOM) → Opus แก้เองให้คลิก swatch จริง → ยิง `change` event บน color input (`inputAppeared`/`dirtySet` คุม). parity `MEASURE_PARITY_OK` + persist/model/zorder guards เขียวหมด
 - **ข้อจำกัด**: reorder เป็นปุ่ม ▲▼ (ยังไม่ drag-and-drop) · `+` สืบ role จาก active เท่านั้น (ยังไม่มี dropdown เลือก role อิสระ) — เก็บเป็น enhancement ถ้าต้องการ
 
+## L3 — Sublayer tree ✅ DONE (Approach F, 2026-05-23)
+
+จาก idea `2026-05-22-23-15` → `/lite-invent` GO (Approach F = A+B Hybrid). Frame+spike: `docs/invent/lite-sublayer-tree.md`, `lite/sandbox/invent-lite-sublayer-tree.html`. Build ผ่าน `/bma-lite-dev` 4 slice:
+
+- **LST-1** (`8842b92`) — model: `parentId` ต่อ layer + `FOLDERS` array (entity แยก ไม่มี role) + folder CRUD + tree accessors (`childrenOf`/`ancestorsOf`/`effVisible`/`effLocked`/`rollupArea`) ใน `layer-system.js`. Invisible refactor (FOLDERS ว่าง → output เท่าเดิม). `LITE_TREE_MODEL_OK`
+- **LST-2** (`98d537e`) — persist `parentId` + key `liteGroups` ใน `.bmaplan` (additive ล้วน; proto cross-open ignore ทั้งคู่ → area เท่าเดิม). integrity pass orphan→root. `LITE_TREE_PERSIST_OK`
+- **LST-3a** (`f145a71`) — tree panel UI ใน **`static/js/layer-tree.js`** ใหม่ (folder row + layer row, collapse, →/← indent-outdent, folder CRUD). wire `effVisible`/`effLocked` เข้า draw/pick/snap (ซ่อน folder → ซ่อนทั้งกิ่งบน canvas). flat buildPicker ออกจาก layer-panel.js (เหลือ 55). reviewer fix: ลบ layer reparent ลูกขึ้น (กัน orphan). `LITE_TREE_UI_OK`
+- **LST-3b** (`9762dd9`) — folder roll-up Σ (realtime, signed, reuse `polyMetrics` เรียกเฉย ไม่เก็บลง schema) + layer own-area. span `pointer-events:none`. `LITE_TREE_ROLLUP_OK`
+
+**โมเดล**: tree เดียว 2 ชนิด node (folder จัดระเบียบ / layer ถือ object), nest ลึกไม่จำกัดด้วย `parentId`; layer **global ต่อโปรเจกต์** (object ผูกหน้าผ่าน `catId`, tree เดียวกันทุกหน้า); **semanticTag จาก role เสมอ ไม่สืบจาก parent** (calc/export ไม่เปลี่ยน). ข้อจำกัด v1: indent/outdent + ▲▼ (ยังไม่ drag-drop); collapse state runtime-only.
+
 ## ลำดับ + Decision log
 
 - **2026-05-22** — เลือกทำ **L2a (z-order) ก่อน** เพราะปลอดภัยสุด (ไม่แตะ schema) และใช้ field `order` ที่ L1 เตรียมไว้ทันที
@@ -95,6 +107,7 @@ L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไ
 - **2026-05-22** — **L2c-1 (`37add45`) + L2c-2 (`8a77f3e`) เสร็จ**. L2c-1 = runtime CRUD ใน layer-system.js (+fix splice bug ที่ worker ส่ง reassign มา). L2c-2 = persist additive `liteLayers`+`liteCatId` ใน save/load (forbidden `.bmaplan` — additive ล้วน, proto ignore, semanticTag ยังเป็น key); test `LITE_LAYER_PERSIST_OK` (5 check จริง incl `CATS===LAYERS` aliasIntact + backward-compat ไม่มี liteLayers + defaultsAlwaysPresent). worker รอบนี้เขียน test จริง (ไม่ปลอม) — review ผ่าน
 - **2026-05-22 (concurrent edit)** — ระหว่าง loop เจอ ui-lite.html ถูกแก้ขนานจากอีก session (vertex-edit/context-menu/duplicate/nudge แทน arcEdit). ยืนยันกับผู้ใช้ = งานเขา → review (UI ล้วน ไม่แตะ forbidden, full suite เขียว) + commit `a86773a`. **บทเรียน**: โฟลเดอร์ Drive-synced → เช็ค `git status`/diff ก่อนแตะ ui-lite.html ทุกครั้ง
 - **2026-05-22 — L2c-3 (UI panel) เสร็จ → ปิด L2c ครบ**. ผู้ใช้เลือกทำเต็ม (add+rename+recolor+delete+reorder) ในรอบเดียว (ไม่แตก 3a/3b/3c). lite-builder ส่ง diff ตรง scope (ไม่เกิน) — แต่ test recolor ลัด (ไม่ขับ DOM จริง) → reviewer แก้เอง surgical. **บทเรียนซ้ำ**: worker ยังเลี่ยง path ที่ test ยาก (native color picker) ด้วยการเรียก model ตรง — reviewer ต้องบังคับให้ขับ event จริงผ่าน DOM
-- **ถัดไป**: L2c ปิดแล้ว. enhancement ที่ค้าง (ถ้าต้องการ): drag-and-drop reorder แทน ▲▼ · dropdown เลือก role ตอนกด `+`. ขั้นถัดไปของ layer system = page-scoped (ยังไม่อยู่ในแผน — lite ตั้งใจ slim)
+- **2026-05-23 — L3 Sublayer tree (Approach F) เสร็จครบ** ผ่าน `/bma-lite-dev` 4 slice (LST-1/2/3a/3b). ทำตามลำดับ smallest-safe-slice: model (invisible) → persist (additive, แตะ `.bmaplan` checkpoint) → UI+inheritance → roll-up. reviewer (Opus) อ่าน diff+test จริงทุก slice — จับบั๊ก orphan ตอนลบ layer มีลูก (LST-3a) แก้ surgical + เพิ่ม test เอง; ทุก test (model/persist/ui/rollup) เป็น Playwright ขับ DOM/state จริง ไม่ tautological. concurrent edit: เจอไฟล์ `lite/sandbox/invent-report-vars*.html` จาก session อื่น → ไม่ commit รวม. **บทเรียนซ้ำ**: อ่าน diff+test จริงทุกครั้ง คุ้ม— จับ orphan bug ที่ test worker ไม่ครอบ
+- **ถัดไป**: L3 ปิดแล้ว. enhancement ที่ค้าง (ถ้าต้องการ): drag-and-drop reorder แทน ▲▼/→← · dropdown เลือก role ตอนกด `+` · roll-up บน parent-layer (ตอนนี้ layer โชว์ own เท่านั้น). ขั้นถัดไปของ layer system = page-scoped (ยังไม่อยู่ในแผน — lite ตั้งใจ slim)
 - **2026-05-22** — เขียน sub-spec แล้ว: **`LITE_L2C_CUSTOM_LAYER_SPEC.md`** (decision: persist additive `liteLayers`+`liteCatId`; ลบ layer→ย้าย object ไป default role; /bma-check-forbidden=WARN additive-only). แตกเป็น **L2c-1 model** (ปลอดภัย, build ก่อน) → **L2c-2 persistence** (แตะ `.bmaplan` — checkpoint คน + forbidden check รอบสอง) → **L2c-3 UI panel**
 - page-scoped layer (แบบ proto) — **ยังไม่อยู่ในแผน** จนกว่าจะมีเหตุผลชัด (lite ตั้งใจ slim)
