@@ -166,7 +166,7 @@
     <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,8,12,.62);z-index:95;backdrop-filter:blur(1px)">
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 22px;font-size:14px;color:var(--ink)"><span id="loading-txt">กำลังโหลด…</span></div></div>
     <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=เมนู</div>
-    <div id="picker"><div class="h" style="display:flex;align-items:center;justify-content:space-between;">กำลังวัดอะไร (= layer = semantic)<button class="lp-add-btn" id="lp-add" title="เพิ่ม layer ใหม่">+</button></div><div id="catlist"></div></div>
+    <div id="picker"><div class="h" style="display:flex;align-items:center;justify-content:space-between;">กำลังวัดอะไร (= layer = semantic)<span style="display:flex;gap:2px;"><button class="lp-add-btn" id="lp-add" title="เพิ่ม layer ใหม่">+</button><button class="lp-add-btn" id="lp-add-folder" title="เพิ่มกลุ่ม">📁+</button></span></div><div id="catlist"></div></div>
     <div class="hud" id="hud-tl"></div>
     <div class="hud" id="hud-tr"></div>
     <div class="hud" id="hud-bl"></div>
@@ -209,6 +209,7 @@
 <script src="static/js/measure-engine.js"></script>
 <script src="static/js/layer-system.js"></script>
 <script src="static/js/layer-panel.js"></script>
+<script src="static/js/layer-tree.js"></script>
 <script>
 /* ============================ STATE ============================ */
 var cssVar=function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();};
@@ -274,7 +275,7 @@ function draw(){
 
   var dimJobs=[];
   objectsInZOrder(PSpage().objects).forEach(function(o){
-    if(!state.catVis[o.catId])return;
+    if(!effVisible(o.catId,_isHidden))return;
     var cat=catOf(o.catId), sel=state.sel===o||state.selSet.indexOf(o)>=0;
     if(o.counting){ var sp=ptToScreen(o.pts[0]); ctx.beginPath(); ctx.arc(sp.x,sp.y,7,0,7); ctx.fillStyle=cat.color; ctx.fill();
       if(sel){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();} return; }
@@ -554,7 +555,7 @@ function showObjMenu(cx,cy,obj){
 function pick(sx,sy){
   // Iterate z-order DESCENDING so the visually-top object (highest layer.order) wins.
   var zObjs=objectsInZOrder(PSpage().objects);
-  for(var i=zObjs.length-1;i>=0;i--){ var o=zObjs[i]; if(!state.catVis[o.catId])continue; if(state.catLock[o.catId])continue;
+  for(var i=zObjs.length-1;i>=0;i--){ var o=zObjs[i]; if(!effVisible(o.catId,_isHidden))continue; if(effLocked(o.catId,_isLocked))continue;
     if(o.counting){ var sp=ptToScreen(o.pts[0]); if(Math.hypot(sx-sp.x,sy-sp.y)<10)return o; continue; }
     var scr=o.pts.map(ptToScreen);
     if(o.kind==="poly"){ if(inPoly(sx,sy,scr))return o; }
@@ -592,7 +593,7 @@ function computeSnap(sx,sy){
   segs.forEach(function(seg){ var m={x:(seg[0].x+seg[1].x)/2,y:(seg[0].y+seg[1].y)/2},s=ptToScreen(m),d=Math.hypot(s.x-sx,s.y-sy);
     if(d<bd){bd=d;best={pt:m,screen:s,type:"midpoint"};} });
   if(best)return best;                                  // midpoint
-  PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!state.catVis[o.catId])return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
+  PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!effVisible(o.catId,_isHidden))return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
     if(d<bd){bd=d;best={pt:c,screen:s,type:"center"};} });
   if(best)return best;                                  // center
   if(state.draft&&state.draft.length){ var lp=state.draft[state.draft.length-1];
@@ -1000,6 +1001,8 @@ function loadProto(doc){ PS={}; excluded={};
   /* re-seed visibility/lock for any layer id that doesn't have a flag yet */
   LAYERS.forEach(function(l){ if(state.catVis[l.id]===undefined)state.catVis[l.id]=true;
     if(state.catLock[l.id]===undefined)state.catLock[l.id]=false; });
+  FOLDERS.forEach(function(f){ if(state.catVis[f.id]===undefined)state.catVis[f.id]=true;
+    if(state.catLock[f.id]===undefined)state.catLock[f.id]=false; });
   if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
     (st.polys||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa")); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true,edges:o.edges}); });
     (st.openings||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"ded"; objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true,edges:o.edges}); });
@@ -1071,6 +1074,7 @@ function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(
 document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("click",function(e){if(e.target===o)closeOverlays();});});
 document.getElementById("btn-focus").onclick=function(){document.body.classList.toggle("focus");};
 document.getElementById("lp-add").onclick=lpHandleAddLayer;
+document.getElementById("lp-add-folder").onclick=function(){ var f=addFolder("กลุ่มใหม่","#ffb454",null); state.catVis[f.id]=true; state.catLock[f.id]=false; state.dirty=true; buildPicker(); draw(); };
 
 /* keys */
 window.addEventListener("keydown",function(e){
