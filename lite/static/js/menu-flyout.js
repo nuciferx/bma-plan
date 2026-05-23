@@ -177,10 +177,11 @@ function _rebuildMeasureMenu() {
   var snapGroup = Object.assign({ key: 'snap' }, FLYOUT_GROUPS.snap);
   var snapParent = _buildParentItem(snapGroup);
 
-  // Insert order: select · scale · [sep] · Area▶ · Distance▶ · ref · count · [sep] · SnapModes▶ · loupe · hint
+  // Insert order: select · scale · [sep] · Area▶ · Distance▶ · ref · count · [sep] · SnapModes▶ · loupe · ortho · hint
   // We rebuild by clearing and re-inserting in order.
-  // Keep the loupe and hint items.
+  // Keep the loupe, ortho, and hint items.
   var loupeItem = dd.querySelector('#mi-loupe');
+  var orthoItem = dd.querySelector('#mi-ortho');
   var hintItem  = dd.querySelector('[style*="pointer-events:none"]');
 
   // Clear all children and rebuild
@@ -203,6 +204,7 @@ function _rebuildMeasureMenu() {
 
   dd.appendChild(snapParent);
   if (loupeItem) dd.appendChild(loupeItem);
+  if (orthoItem) dd.appendChild(orthoItem);
   if (hintItem)  dd.appendChild(hintItem);
 }
 

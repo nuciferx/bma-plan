@@ -138,6 +138,7 @@
       <div class="sep"></div>
       <div class="item" id="mi-snap">Snap: <span id="snap-state">เปิด</span> (ปลาย/กลาง/ศูนย์/ตัด/ตั้งฉาก/บนเส้น)<span class="k">G</span></div>
       <div class="item" id="mi-loupe">แว่นขยาย (Loupe)<span class="k">L</span></div>
+      <div class="item" id="mi-ortho">   Ortho Mode<span class="k">⇧O</span></div>
       <div class="item" style="color:var(--muted);font-size:11px;pointer-events:none">กด Shift ค้าง = ล็อกมุม 45°</div>
     </div></div>
     <div class="menu" data-m="page"><button>Page ▾</button><div class="dd">
@@ -421,7 +422,7 @@ cv.addEventListener("mousedown",function(e){
     dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; setCursor(); return; }
   if(e.button!==0)return;
   var p;
-  if(state.shift&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
+  if((state.shift||state.orthoOn)&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
   else if(state.snapOn&&state.snapHint&&isDrawTool()){ p=state.snapHint.pt; }
   else { p=screenToPt(e.offsetX,e.offsetY); }
   if((state.tool==="count"||state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref")&&state.catLock[state.activeCat]){
@@ -649,7 +650,7 @@ function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy
    live target honours Shift angle-lock and snap exactly like the mousedown path. --- */
 function liveTarget(){ if(!lastMouse||!isDrawTool())return null;
   var raw=screenToPt(lastMouse.x,lastMouse.y), hasLast=state.draft&&state.draft.length;
-  if(state.shift&&hasLast&&state.tool!=="count")return {pt:angleLock(state.draft[state.draft.length-1],raw),locked:true};
+  if((state.shift||state.orthoOn)&&hasLast&&state.tool!=="count")return {pt:angleLock(state.draft[state.draft.length-1],raw),locked:true};
   if(state.snapOn&&state.snapHint)return {pt:state.snapHint.pt,snapped:true};
   return {pt:raw}; }
 function fmtPtLen(ptd){ var s=getScaleForPage(curPage); return s?(ptd/s.pts_per_m).toFixed(2)+" m":ptd.toFixed(1)+" pt"; }
@@ -1186,6 +1187,8 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 </script>
 <!-- LROTATE-1: page render-rotation helpers — rotatePage(delta). -->
 <script src="static/js/page-rotate.js"></script>
+<!-- LORTHO-1: sticky ortho mode toggle (Shift+O) — loaded before menu-flyout.js. -->
+<script src="static/js/ortho-mode.js"></script>
 <!-- LSNAP-1: per-type snap toggles — loaded before menu-flyout.js so toggleSnapType* globals exist at click time. -->
 <script src="static/js/snap-types.js"></script>
 <!-- LMENU-1: flyout submenu chrome — loaded after all dispatch globals (setTool, toggleSnap, openReport). -->
