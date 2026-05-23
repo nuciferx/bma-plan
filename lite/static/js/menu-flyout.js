@@ -42,10 +42,21 @@ var FLYOUT_GROUPS = {
   export: {
     parentLabel: 'Export ▶',
     items: [
-      { label: 'Report HTML', action: 'openReport' }
-      // LEXP-1 will append XLSX Summary here
+      { label: 'Report HTML',  action: 'openReport' },
+      { label: 'XLSX Summary', action: 'exportXlsx' }
     ]
   }
+};
+
+/* ---------------------------------------------------------------------------
+   exportXlsx — global action for XLSX Summary item in Export ▶ submenu.
+   Guards against missing caseId / helpers so it is safe to call at any time.
+--------------------------------------------------------------------------- */
+window.exportXlsx = function () {
+  if (typeof caseId === 'undefined' || !caseId) { alert('เปิด PDF ก่อน'); return; }
+  if (typeof dlPost !== 'function' || typeof buildExportData !== 'function' || typeof baseName !== 'function') return;
+  dlPost('/export-xlsx', buildExportData(), baseName() + '.xlsx');
+  if (typeof closeMenus === 'function') closeMenus();
 };
 
 /* ---------------------------------------------------------------------------
@@ -218,6 +229,11 @@ function _rebuildMeasureMenu() {
 function _rebuildFileMenu() {
   var dd = document.querySelector('.menu[data-m="file"] .dd');
   if (!dd) return;
+
+  // Hide the flat mi-xlsx item (kept in DOM so Ctrl+E via element still works;
+  // Export ▶ submenu now owns the visible XLSX dispatch).
+  var miXlsx = dd.querySelector('#mi-xlsx');
+  if (miXlsx) miXlsx.style.display = 'none';
 
   // Build Export ▶ flyout parent
   var expGroup = Object.assign({ key: 'export' }, FLYOUT_GROUPS.export);
