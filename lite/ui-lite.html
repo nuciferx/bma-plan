@@ -209,6 +209,7 @@
   function getScaleForPage(pg){ var s = (PS[pg]||{}).scale; return s || null; }
 </script>
 <script src="static/js/measure-engine.js"></script>
+<script src="static/js/draw-arc.js"></script>
 <script src="static/js/layer-system.js"></script>
 <script src="static/js/layer-panel.js"></script>
 <script src="static/js/layer-tree.js"></script>
@@ -356,7 +357,7 @@ function updateHUD(){
   var hintEl=document.getElementById("hint");
   if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
   else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · คลิกขวา=เมนู · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
-  else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"");
+  else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"")+(state.tool==="poly"?arcHUDText():"");
 }
 /* buildPicker() lives in static/js/layer-panel.js (L2c-3 extraction). */
 function showProps(o){ var box=document.getElementById("props");
@@ -419,8 +420,18 @@ cv.addEventListener("mousedown",function(e){
     if(state.draft.length===2){ openCalib(); } draw(); return; }
   if(state.tool==="count"){ pushUndo(); PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
   if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
-    state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
-    if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } draw(); return; }
+    state.draft=state.draft||[];
+    if(state.tool==="poly"){ /* LCURVE-1: arc edge sub-state */
+      var _arc=arcOnClick(p,state.draft);
+      if(_arc.consumed){ state.dirty=true; draw(); return; } /* through-point absorbed */
+      state.draft.push(p); state.dirty=true;
+      if(_arc.edgeRecord){ /* arc closed — store edge at [i-1] after push */
+        if(!state.draft.edges)state.draft.edges=[];
+        state.draft.edges[state.draft.length-2]=_arc.edgeRecord; }
+    } else {
+      state.draft.push(p); state.dirty=true;
+      if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } }
+    draw(); return; }
   if(state.tool==="select"&&state.vertMode&&!state.vertMode.counting){ var vh=vertexHandleHit(state.vertMode,e.offsetX,e.offsetY); if(vh>=0){ state.vertEdit={obj:state.vertMode,idx:vh,startScr:{x:e.offsetX,y:e.offsetY},orig:{x:state.vertMode.pts[vh].x,y:state.vertMode.pts[vh].y},moved:false}; setCursor(); return; } }
   if(isAnnTool()){
     if(state.tool==="ann_text"||state.tool==="ann_comment"){ pushUndo();
@@ -495,11 +506,22 @@ cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
 function mkObj(pts,kind,counting){ var cat=catOf(state.activeCat);
   return {id:state._id++,catId:state.activeCat,semanticTag:cat.tag,pts:pts,kind:kind,counting:!!counting,dimVisible:!counting}; }
 function finishDraft(){
-  if(state.catLock[state.activeCat]){ state.draft=null; var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; draw(); return; }
+  if(state.catLock[state.activeCat]){ state.draft=null; arcCancel(); var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; draw(); return; }
   var min=state.tool==="poly"?3:2;
-  if(!state.draft||state.draft.length<min){ state.draft=null; draw(); return; }
+  if(!state.draft||state.draft.length<min){ state.draft=null; arcCancel(); draw(); return; }
   var kind=state.tool==="poly"?"poly":(state.tool==="ref"?"ref":"line");
-  pushUndo(); PSpage().objects.push(mkObj(state.draft,kind,false)); state.draft=null; state.dirty=true; draw();
+  /* LCURVE-1: capture edges from the draft array before clearing.
+     edges is stored as a sparse property on the draft array (not null-padded by default).
+     Include in saved object only if at least one arc edge exists; otherwise omit entirely
+     so wire-compatible payloads for straight-only polys stay identical to pre-arc schema. */
+  var draftEdges = (state.tool==="poly" && state.draft.edges && state.draft.edges.some(function(e){return e&&e.edgeType==="arc";}))
+    ? state.draft.edges.slice() : null;
+  arcCancel();
+  pushUndo();
+  var o = mkObj(state.draft, kind, false);
+  if(draftEdges) o.edges = draftEdges;
+  PSpage().objects.push(o);
+  state.draft=null; state.dirty=true; draw();
 }
 function nudgeSel(dxs,dys){
   var tgt=state.selSet.length?state.selSet:(state.sel?[state.sel]:[]);
@@ -644,7 +666,10 @@ function drawLiveOverlay(){
       for(var i=1;i<state.draft.length;i++)tot+=Math.hypot(state.draft[i].x-state.draft[i-1].x,state.draft[i].y-state.draft[i-1].y); extra="Σ "+fmtPtLen(tot); } }
   else if(state.tool==="poly"&&state.draft.length>=2){ var pa=polyAreaM2(state.draft.concat([lt.pt])); if(pa!=null)extra="▱ "+pa.toFixed(2)+" m²"; }
   if(extra)liveTag(tgt.x+12,tgt.y+16,extra,false);
+  /* LCURVE-1: arc curve preview when through-point is set */
+  if(state.tool==="poly")arcRenderPreview(ctx,lp,lt.pt);
 }
+
 /* --- LITE-ANNOT: render + hit-test --- */
 /* style defaults per annotation type (color/opacity/fontSize all editable via annot-style.js) */
 var ANN_DEFAULTS={ann_text:{color:"#ffe08a",opacity:1,fontSize:13},ann_comment:{color:"#ffe08a",opacity:1,fontSize:13},
@@ -795,7 +820,7 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; state.vertMode=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; arcCancel(); /* LCURVE-1: clear arc sub-state on tool switch */ state.vertMode=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
 
 /* LITE-UNDO: snapshot-based history over the per-page document model.
    Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
@@ -1119,7 +1144,10 @@ window.addEventListener("keydown",function(e){
   if(e.key==="h"||e.key==="H"){ state.panTool=!state.panTool; setCursor(); draw(); return; }     // toggle pan tool
   if(e.key==="f"||e.key==="F"){ fit(); return; }                                                  // fit to window
   if(e.key==="F12"){e.preventDefault();openOv();return;}
-  if(e.key==="Escape"){closeOverlays();closeObjMenu();if(state.vertMode){state.vertMode=null;draw();return;}if(state.draft){state.draft=null;draw();}return;}
+  if(e.key==="Escape"){closeOverlays();closeObjMenu();if(state.vertMode){state.vertMode=null;draw();return;}
+    /* LCURVE-1: Esc clears arc sub-state without killing the draft */
+    if(state.tool==="poly"&&state.draft&&arcCancel()){draw();return;}
+    if(state.draft){state.draft=null;draw();}return;}
   if(e.key==="Enter"&&state.draft){finishDraft();return;}
   if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
   if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
@@ -1127,7 +1155,12 @@ window.addEventListener("keydown",function(e){
   if(e.key==="Delete"&&(state.sel||state.selSet.length)){document.getElementById("p-del").onclick();return;}
   if(e.key==="g"||e.key==="G"){toggleSnap();return;}
   if(e.key==="l"||e.key==="L"){state.loupe=!state.loupe;draw();return;}
-  var map={v:"select",s:"scale",a:"poly",d:"dist",r:"ref",n:"count"};
+  /* LCURVE-1: A while drawing poly → arc toggle; A otherwise → activate poly tool */
+  if(e.key==="a"||e.key==="A"){
+    if(state.tool==="poly"&&state.draft&&state.draft.length>=1){arcToggle();draw();}
+    else{setTool("poly");}
+    return; }
+  var map={v:"select",s:"scale",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
 function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
