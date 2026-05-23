@@ -143,7 +143,9 @@
     <div class="menu" data-m="page"><button>Page ▾</button><div class="dd">
       <div class="item" id="mi-prev">หน้าก่อน<span class="k">PgUp</span></div>
       <div class="item" id="mi-next">หน้าถัดไป<span class="k">PgDn</span></div>
-      <div class="item" id="mi-rot">หมุนหน้า +90°</div>
+      <div class="item" id="mi-rot">หมุนหน้า +90° (View)</div>
+      <div class="item" id="mi-rot-left">หมุน Raster 90° ซ้าย</div>
+      <div class="item" id="mi-rot-right">หมุน Raster 90° ขวา</div>
       <div class="item" id="mi-excl">ยกเว้นหน้านี้ (toggle)</div>
       <div class="sep"></div>
       <div class="item" id="mi-setup">Page Setup… (แท็ก/สเกล/โปรเจกต์)<span class="k">Ctrl+,</span></div>
@@ -403,7 +405,7 @@ async function loadPage(n){
   var img=new Image();
   img.onload=function(){ imgCache[n]=img; curImg=img; hideLoading(); fit(); afterPage(); };
   img.onerror=function(){ hideLoading(); alert("โหลดหน้า "+n+" ไม่ได้"); };
-  img.src=api("/page/"+n);
+  img.src=api("/page/"+n)+"&rot="+(pageRot[n]||0);
 }
 function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selSet=[]; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); draw(); }
 
@@ -857,6 +859,8 @@ document.getElementById("file-pdf").onchange=function(e){var f=e.target.files[0]
 document.getElementById("mi-prev").onclick=function(){if(curPage>1)loadPage(curPage-1);};
 document.getElementById("mi-next").onclick=function(){if(curPage<pageCount)loadPage(curPage+1);};
 document.getElementById("mi-rot").onclick=function(){V.rot=(V.rot+90)%360;fit();};
+document.getElementById("mi-rot-left").onclick=function(){rotatePage(-90);closeMenus();};
+document.getElementById("mi-rot-right").onclick=function(){rotatePage(90);closeMenus();};
 document.getElementById("mi-excl").onclick=function(){pushUndo();excluded[curPage]=!excluded[curPage];state.dirty=true;draw();};
 /* LITE-FLOOR: floor designation logic (ported from proto page-setup.js, gated on tag 'floor').
    Tag + floor controls apply LIVE (proto-parity); only project name + scale defer to Save. */
@@ -1182,6 +1186,8 @@ buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
 </script>
+<!-- LROTATE-1: page render-rotation helpers — rotatePage(delta). -->
+<script src="static/js/page-rotate.js"></script>
 <!-- LMENU-1: flyout submenu chrome — loaded after all dispatch globals (setTool, toggleSnap, openReport). -->
 <script src="static/js/menu-flyout.js"></script>
 <!-- LITE-ANNOT-STYLE: annotation color/opacity/font-size editor — kept OUT of the main file (own module). -->
