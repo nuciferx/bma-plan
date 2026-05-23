@@ -82,6 +82,12 @@
   #modal button.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
   .hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted);
     background:rgba(20,24,32,.8);padding:3px 10px;border-radius:6px;z-index:15;}
+  /* LMENU-1: flyout submenu chrome */
+  .item.has-sub{position:relative;}
+  .item.has-sub::after{content:'▸';float:right;opacity:.6;margin-left:8px;}
+  .item.has-sub>.sub-dd{display:none;position:absolute;left:100%;top:-1px;min-width:200px;background:var(--panel);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.4);z-index:11;border-radius:8px;padding:5px;}
+  .item.has-sub:hover>.sub-dd{display:block;}
+  .item.has-sub>.sub-dd .item{display:flex;align-items:center;}
   .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--muted);z-index:5;}
   .empty button{background:var(--accent);border:0;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;}
   body.focus #picker,body.focus .hud:not(#hud-br),body.focus .hint{display:none;}
@@ -232,7 +238,7 @@ var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น �
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
 var imgCache={}, curImg=null;
 var V={k:1,ox:0,oy:0,rot:0};
-var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,panTool:false,moveObj:null,vertEdit:null,vertMode:null};
+var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,panTool:false,moveObj:null,vertEdit:null,vertMode:null,hintFlash:''};
 CATS.forEach(function(c){state.catVis[c.id]=true; state.catLock[c.id]=false;});
 var SNAP_PX=11; var lastMouse=null;
 
@@ -358,6 +364,8 @@ function updateHUD(){
   if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
   else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · คลิกขวา=เมนู · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
   else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"")+(state.tool==="poly"?arcHUDText():"");
+  /* LMENU-1: hintFlash prepend — shown by flyout items for 5s, then cleared */
+  if(state.hintFlash)hintEl.innerHTML='<b style="color:var(--accent)">'+state.hintFlash+'</b> · '+hintEl.innerHTML;
 }
 /* buildPicker() lives in static/js/layer-panel.js (L2c-3 extraction). */
 function showProps(o){ var box=document.getElementById("props");
@@ -1174,6 +1182,8 @@ buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
 </script>
+<!-- LMENU-1: flyout submenu chrome — loaded after all dispatch globals (setTool, toggleSnap, openReport). -->
+<script src="static/js/menu-flyout.js"></script>
 <!-- LITE-ANNOT-STYLE: annotation color/opacity/font-size editor — kept OUT of the main file (own module). -->
 <script src="static/js/annot-style.js"></script>
 </body>
