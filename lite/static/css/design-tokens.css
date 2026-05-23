@@ -1,0 +1,24 @@
+/* LCAL-S1 (2026-05-23) — Design tokens for v2 (anchor-calibrated) layer panel.
+ * Scoped to body.lt-v2 — when flag is absent, live v1 palette remains active.
+ * Source anchor: lite/sandbox/invent-layer-dnd.html.
+ * Full rationale: docs/invent/lite-layer-ui-spec.md.
+ * Feature-flag = decision-making tool (Approach D). LCAL-S4 will fold these
+ * values into the base :root once the human confirms v2 ถูกใจ.
+ */
+
+body.lt-v2 {
+  /* Tokens that already exist in v1 :root — v2 overrides their VALUES only */
+  --bg: #1e1f23;
+  --panel: #26282d;
+  --line: #3a3d44;
+  --accent: #4aa3ff;
+  --ink: #e6e8ec;
+  --muted: #8b909a;
+
+  /* 5 NEW tokens introduced by v2 (do not exist in v1 :root) */
+  --row: #2d3036;
+  --row-hover: #343841;
+  --row-active: #3a4150;
+  --nest: #3b5b3b;
+  --group: #2f6b3f;
+}

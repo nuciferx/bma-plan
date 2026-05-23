@@ -193,6 +193,36 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 - [ ] **LDND-S3** — auto-group-on-collision (Approach D): drop a root layer onto the middle of another root layer → `addFolder()` wrapping both (green double-ring indicator); clean undo path; behind a setting toggle. Reuses S1's drag skeleton + S1 hit-zone math.
 - [ ] **LDND-S4** — tests: tree reorder/nest/outdent/auto-group parity via DnD ops + keyboard ops; `test_measure_parity.py` GREEN; `/bma-check-forbidden` (no schema change — `.order`/`.parentId` already persisted); cap check on `layer-dnd.js` (≤1000) + `ui-lite.html` (≤1200).
 
+- [x] **UI-calibrate phase between invent-spike and dev (lite)** — `invent-done-nogo` (absorbed into `#11-15` 2026-05-23) — from /idea 2026-05-23-11-16
+    - Source: user 2026-05-23, "เมื่อเราได้ invet แล้ว ก่อน dev ควรจะ มีขั้นต่อ ui แคริเบทก่อนจะลง โปรแกรม เพราะ ui กับ sand box ใช้css คนละตัว"
+    - Resolution: the calibration angle was absorbed into the `#11-15` invent pass (which had a sandbox spike as its anchor anyway, so the CSS-port problem `#11-16` worried about was already inside `#11-15`'s scope). Approach D (feature-flag `body.lt-v2`) effectively *is* the calibration step — it makes the sandbox→live CSS port a visible, toggleable migration rather than a one-shot deploy. No standalone `/lite-calibrate` skill was needed; `/lite-invent` already covers this when the anchor is a sandbox spike.
+    - Pattern crystallized for future invent passes that anchor on a sandbox spike: produce a **byte-faithful v1 reproduction in the spike** so the calibration delta is reviewable; then choose token-housing/width/merge/fidelity/scope axes via `bma-inventor`.
+
+- [x] **Layer panel design-system spec for lite (sandbox-anchored)** — `invent-done-go` — from /idea 2026-05-23-11-15, **GO at checkpoint 2026-05-23** → `docs/invent/lite-layer-ui-spec.md` · spike `lite/sandbox/invent-layer-ui-spec.html`
+    - Source: user 2026-05-23, "ตอนนี้ ยังไม่ถูกใจ ui ทำ skill ที่ดูเฉพาะ ui แล้วให้ เอเจนทำ ดีกว่า"
+    - Tags: bma-plan, lite, ui, layer, design-system, sandbox-parity, p-med
+    - Scope: **lite only**, **layer panel only**. Absorbs `#11-16` calibration angle (sandbox CSS ≠ live CSS).
+    - Anchor: **`lite/sandbox/invent-layer-dnd.html`** (LDND spike, Approach A+D). User picked via Drive link 2026-05-23, byte-identical to repo.
+    - Verdict: `PRIOR_ART_PARTIAL` — Figma-lineage tree+drag UX mature; W3C Design Tokens spec mature; greenfield slice = specific lite visual calibration + safe merge workflow + ongoing token discipline.
+    - Chosen approach: **D (feature-flag `body.lt-v2` toggle)** — scored 23/30 by inventor (top). Strength = UX=5 (real-time A/B in browser without deploy). Approach orchestrator override considered but D matches user's expressed need ("ต้องเห็นก่อน decide").
+    - Forbidden-surface profile: **CLEAN** — touches `lite/static/css/*` (new files), `lite/ui-lite.html` (+~8 lines for `<link>` + toggle), `lite/sandbox/`, `docs/invent/`. NEVER touches measure-engine.js / RS / pdfToC-cToPdf / area math / semanticTag / `.bmaplan` schema rename / proto.
+    - Key insight from real-PDF screenshot at checkpoint: v2 picker is **shorter vertically** despite being wider (rows don't wrap) → net screen area: ~117k px² (v2) vs ~123k px² (v1). Width "cost" is illusory.
+
+#### LCAL — lite layer-panel calibration (built via `/bma-lite-dev`, one reviewable slice each)
+
+- [x] **LCAL-S1** ✅ DONE 2026-05-23 — `lite/static/css/design-tokens.css` (24/1000 lines, `body.lt-v2 {}` with 11 tokens: --bg/--panel/--line/--accent/--ink/--muted overrides + 5 new --row/--row-hover/--row-active/--nest/--group). `lite/ui-lite.html` +1 line (`<link>` after `</style>`). `wc -l ui-lite.html` 1139→1140/1200. `py_compile server_lite.py` exit 0. `test_measure_parity.py` MEASURE_PARITY_OK (forbidden surfaces untouched). Behavior preserved: v1 renders identically since `lt-v2` class not yet attached anywhere (toggle is LCAL-S3).
+- [ ] **LCAL-S2** — `lite/static/css/layer-panel.css` (NEW, ~80 lines): all `body.lt-v2 #picker / .h / #lt-autogroup-bar / #catlist / .cat / .cat .sw / .cat .eye / .cat .nm / .lt-grip` selectors. `lite/ui-lite.html` +1 line: second `<link>`. Test: devtools `body.classList.add("lt-v2")` + `buildPicker()` → visual parity vs `lite/sandbox/invent-layer-ui-spec.html` v2 mode.
+- [ ] **LCAL-S3** — `lite/ui-lite.html` +~6 net lines: toggle button in `#picker .h` next to existing `+` / `📁+` buttons, inline `onclick="document.body.classList.toggle('lt-v2');buildPicker();"`, persist to `localStorage["bmaPlan.lite.layerSkin"]`. Test: `LITE_LDND_OK`, `LITE_LST_OK`, `LITE_LRV_OK`, `LITE_REPORT_OK`, `MEASURE_PARITY_OK` GREEN. `wc -l lite/ui-lite.html` < 1200. Manual: toggle button persists across reload.
+- [ ] **LCAL-S4** *(deferred — only after ≥1 real user session with v2 ON confirms "ถูกใจ")* — move v2 values into base `:root`, delete all `body.lt-v2` selectors, delete toggle button + JS + localStorage key. **Flag = decision-making tool, not permanent feature.**
+
+- [ ] **Raster intelligence — "see lines" in scanned PDFs** — `invent-queued` — from /idea 2026-05-23 (Bluebeam tech-stack compare: Bluebeam strong on vector PDF, weak on scanned/raster — our customers' real files)
+    - Source: user 2026-05-23, "Raster intelligence — ทำให้ BMA-Plan มองเห็นเส้นในภาพสแกน/raster ที่ไม่มี vector geometry เพื่อสร้างจุดแข็งที่ Bluebeam ตามไม่ทัน (Dynamic Fill เขาใช้ไม่ได้เพราะไม่มีเส้น vector)"
+    - Tags: bma-plan, snap, geometry, measure, perf, p-med
+    - Direction: (unframed — pending /bma-invent FRAME phase) — 4 candidate caps: edge/line detection for pixel-snap, deskew/auto-rotate, magnetic boundary trace (=raster Dynamic Fill), flood-fill area
+    - Open questions: (pending /bma-invent) — which caps are "better raster fallback" (Phase-1-arguable) vs "auto boundary detection" (Phase-2, scope-excluded)?
+    - Scope skill: pending (`/bma-invent` decides after research)
+    - Forbidden-surface profile: unknown — likely adjacent to snap / buildSnapIndex; `/bma-invent` checks during RESEARCH. RESEARCH priority: does an inline-JS / OpenCV.js lib exist → may collapse to a normal sprint.
+
 ### ideas 2026-05-22
 
 - [x] **Lite sublayer tree (A+B Hybrid: tree + folders + roll-up)** — `invent-done-go` — from /idea 2026-05-22, GO at checkpoint 2026-05-23 → `docs/invent/lite-sublayer-tree.md`
