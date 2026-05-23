@@ -4,11 +4,12 @@
    This file only restructures menu chrome — no new tools, no new behaviors. */
 
 /* ---------------------------------------------------------------------------
-   FLYOUT_GROUPS — extend by adding entries; LSNAP-1 / LEXP-1 will prepend
-   their own items without touching this structure.
-   Each item must have exactly one of {tool, action}:
-     tool   -> setTool(tool) + optional hintFlash for 5s
-     action -> named global function call
+   FLYOUT_GROUPS — extend by adding entries.
+   Each item must have exactly one of {tool, action, sep}:
+     tool     -> setTool(tool) + optional hintFlash for 5s
+     action   -> named global function call
+     sep:true -> renders a separator element (no click handler)
+     snapType -> (optional) marks item for live ✓ label refresh by snap-types.js
    hint (optional) -> sets state.hintFlash for 5s after activating the tool.
 --------------------------------------------------------------------------- */
 var FLYOUT_GROUPS = {
@@ -30,8 +31,12 @@ var FLYOUT_GROUPS = {
   snap: {
     parentLabel: 'Snap Modes ▶',
     items: [
+      { label: 'Endpoint (E)',   action: 'toggleSnapTypeEndpoint',     snapType: 'endpoint' },
+      { label: 'Midpoint (M)',   action: 'toggleSnapTypeMidpoint',     snapType: 'midpoint' },
+      { label: 'Center (C)',     action: 'toggleSnapTypeCenter',       snapType: 'center' },
+      { label: 'Intersection',   action: 'toggleSnapTypeIntersection', snapType: 'intersection' },
+      { sep: true },
       { label: 'Disable All (G)', action: 'toggleSnap' }
-      // LSNAP-1 will prepend 4 type-toggles here
     ]
   },
   export: {
@@ -44,7 +49,8 @@ var FLYOUT_GROUPS = {
 };
 
 /* ---------------------------------------------------------------------------
-   _callAction — dispatch an item's action or tool.
+   _flyoutDispatch — dispatch an item's action or tool.
+   Sep items are never dispatched (they have no click handler).
 --------------------------------------------------------------------------- */
 function _flyoutDispatch(item) {
   if (item.tool) {
@@ -60,20 +66,52 @@ function _flyoutDispatch(item) {
     var fn = window[item.action];
     if (typeof fn === 'function') fn();
   }
-  if (typeof closeMenus === 'function') closeMenus();
+  // snapType items: toggleSnapType updates labels live; don't close menu so user
+  // can toggle multiple types in one open session. Other items close as before.
+  if (!item.snapType) {
+    if (typeof closeMenus === 'function') closeMenus();
+  }
 }
 
 /* ---------------------------------------------------------------------------
    _buildSubItem — create a single .item inside a .sub-dd.
+   Returns a .sep element for {sep:true} items (no click handler).
+   Returns a .item element for all others.
+   snapType items get data-snap-type attribute and a ✓ chip label (from
+   snapTypeChip if available, else plain label).
 --------------------------------------------------------------------------- */
 function _buildSubItem(item) {
+  // Separator
+  if (item.sep) {
+    var sep = document.createElement('div');
+    sep.className = 'sep';
+    return sep;
+  }
+
   var el = document.createElement('div');
   el.className = 'item';
-  el.textContent = item.label;
+
+  // snapType items: show live ✓ chip; keep menu open so user can multi-toggle
+  if (item.snapType) {
+    el.dataset.snapType = item.snapType;
+    // Initial label: use snapTypeChip if snap-types.js already loaded
+    if (typeof snapTypeChip === 'function') {
+      var shortcut = { endpoint: 'E', midpoint: 'M', center: 'C', intersection: null }[item.snapType];
+      el.textContent = shortcut
+        ? snapTypeChip(item.snapType) + ' (' + shortcut + ')'
+        : snapTypeChip(item.snapType);
+    } else {
+      el.textContent = item.label;
+    }
+  } else {
+    el.textContent = item.label;
+  }
+
   // store data for test assertions
-  if (item.tool) el.dataset.tool = item.tool;
+  if (item.tool)   el.dataset.tool   = item.tool;
   if (item.action) el.dataset.action = item.action;
-  if (item.hint) el.dataset.hint = item.hint;
+  if (item.hint)   el.dataset.hint   = item.hint;
+
   el.addEventListener('click', function (e) {
     e.stopPropagation();
     _flyoutDispatch(item);

@@ -615,23 +615,21 @@ function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[
     for(var i=0;i<n;i++)segs.push([o.pts[i],o.pts[(i+1)%o.pts.length]]); }); return segs; }
 function computeSnap(sx,sy){
   if(!curImg||!state.snapOn)return null;
+  var ST=state.snapTypes||{endpoint:true,midpoint:true,center:true,intersection:true};
   var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,counting:false}]:[]);
   var best=null,bd=SNAP_PX;
-  objs.forEach(function(o){ if(o.counting||!o.pts)return; o.pts.forEach(function(p){ var s=ptToScreen(p),d=Math.hypot(s.x-sx,s.y-sy);
-    if(d<bd){bd=d;best={pt:p,screen:s,type:"endpoint"};} }); });
-  if(best)return best;                                  // endpoint wins
+  if(ST.endpoint){ objs.forEach(function(o){ if(o.counting||!o.pts)return; o.pts.forEach(function(p){ var s=ptToScreen(p),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:p,screen:s,type:"endpoint"};} }); }); if(best)return best; }  // endpoint wins
   var segs=pageSegs();
-  for(var i=0;i<segs.length;i++)for(var j=i+1;j<segs.length;j++){
+  if(ST.intersection){ for(var i=0;i<segs.length;i++)for(var j=i+1;j<segs.length;j++){
     var a0=ptToScreen(segs[i][0]),a1=ptToScreen(segs[i][1]),b0=ptToScreen(segs[j][0]),b1=ptToScreen(segs[j][1]);
     var ix=segIntersect(a0.x,a0.y,a1.x,a1.y,b0.x,b0.y,b1.x,b1.y);   // vendored
     if(ix){ var d=Math.hypot(ix.x-sx,ix.y-sy); if(d<bd){bd=d;best={pt:screenToPt(ix.x,ix.y),screen:ix,type:"intersection"};} } }
-  if(best)return best;                                  // intersection next
-  segs.forEach(function(seg){ var m={x:(seg[0].x+seg[1].x)/2,y:(seg[0].y+seg[1].y)/2},s=ptToScreen(m),d=Math.hypot(s.x-sx,s.y-sy);
-    if(d<bd){bd=d;best={pt:m,screen:s,type:"midpoint"};} });
-  if(best)return best;                                  // midpoint
-  PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!effVisible(o.catId,_isHidden))return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
-    if(d<bd){bd=d;best={pt:c,screen:s,type:"center"};} });
-  if(best)return best;                                  // center
+  if(best)return best; }                                // intersection next
+  if(ST.midpoint){ segs.forEach(function(seg){ var m={x:(seg[0].x+seg[1].x)/2,y:(seg[0].y+seg[1].y)/2},s=ptToScreen(m),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:m,screen:s,type:"midpoint"};} }); if(best)return best; }  // midpoint
+  if(ST.center){ PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!effVisible(o.catId,_isHidden))return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:c,screen:s,type:"center"};} }); if(best)return best; }    // center
   if(state.draft&&state.draft.length){ var lp=state.draft[state.draft.length-1];
     segs.forEach(function(seg){ var foot=footPerp(lp,seg[0],seg[1]); var s=ptToScreen(foot),d=Math.hypot(s.x-sx,s.y-sy);
       if(d<bd){bd=d;best={pt:foot,screen:s,type:"perp"};} }); }
@@ -1188,6 +1186,8 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 </script>
 <!-- LROTATE-1: page render-rotation helpers — rotatePage(delta). -->
 <script src="static/js/page-rotate.js"></script>
+<!-- LSNAP-1: per-type snap toggles — loaded before menu-flyout.js so toggleSnapType* globals exist at click time. -->
+<script src="static/js/snap-types.js"></script>
 <!-- LMENU-1: flyout submenu chrome — loaded after all dispatch globals (setTool, toggleSnap, openReport). -->
 <script src="static/js/menu-flyout.js"></script>
 <!-- LITE-ANNOT-STYLE: annotation color/opacity/font-size editor — kept OUT of the main file (own module). -->
