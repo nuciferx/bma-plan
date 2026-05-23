@@ -1,0 +1,76 @@
+/* LCAL-S2 (2026-05-23) — Layer panel selectors for v2 (anchor-calibrated).
+ * Activates only when body.lt-v2 is present. Uses tokens from design-tokens.css.
+ * Source anchor: lite/sandbox/invent-layer-dnd.html. Visual parity reference:
+ * lite/sandbox/invent-layer-ui-spec.html (v2 mode).
+ *
+ * Forbidden: do not change selectors targeting unscoped (no body.lt-v2 prefix)
+ * elements — those belong to v1 and must remain untouched.
+ */
+
+/* ── panel chrome ─────────────────────────────────────────────────────── */
+body.lt-v2 #picker {
+  width: 320px;
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 0;
+}
+body.lt-v2 #picker .h {
+  padding: 10px 12px 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+body.lt-v2 #lt-autogroup-bar {
+  padding: 5px 10px;
+}
+body.lt-v2 #catlist {
+  padding: 4px 6px 8px;
+}
+
+/* ── row chip rhythm ──────────────────────────────────────────────────── */
+body.lt-v2 .cat {
+  height: 30px;
+  padding: 0 6px;
+  margin: 2px 0;
+  background: var(--row);
+  border-radius: 5px;
+  gap: 5px;
+}
+body.lt-v2 .cat:hover {
+  background: var(--row-hover);
+}
+body.lt-v2 .cat.active {
+  background: var(--row-active);
+  outline: 1px solid #4d5a72;
+}
+
+/* ── row contents ─────────────────────────────────────────────────────── */
+body.lt-v2 .cat .nm {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+body.lt-v2 .cat .sw {
+  width: 14px;
+  height: 14px;
+}
+body.lt-v2 .cat .eye {
+  width: 20px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+body.lt-v2 .cat .eye:hover {
+  opacity: 1;
+}
+
+/* ── grip (LDND drag handle, JS-injected via layer-dnd.js) ───────────── */
+body.lt-v2 .lt-grip {
+  width: 14px;
+  height: 30px;       /* override JS-inject 100% so it matches the row chip */
+  opacity: 0.7;
+  color: var(--muted);
+  font-size: 14px;
+}
