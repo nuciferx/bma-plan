@@ -9,9 +9,11 @@
 
 /* ── panel chrome ─────────────────────────────────────────────────────── */
 body.lt-v2 #picker {
-  width: 440px;       /* LCAL-S5 (2026-05-23): 320→440 — more breathing room for
-                       * long user-created layer names while keeping canvas usable.
-                       * Default 6-layer set already fit at 320; this gives headroom. */
+  width: 320px;       /* LCAL-S6 (2026-05-23): reverted 440→320 — 320 fits all
+                       * default Thai names one-line already; 440 was solving a
+                       * hypothetical long-name problem at real canvas cost
+                       * (-120px). text-overflow: ellipsis below handles overflow
+                       * for any future user-created long names. */
   background: var(--panel);
   border-radius: 8px;
   padding: 0;

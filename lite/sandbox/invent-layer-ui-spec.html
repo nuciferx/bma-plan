@@ -22,9 +22,10 @@
 
   Real pain confirmed by ground-truth screenshot: layer names WRAP TO 2-3 LINES because 190px
   is too tight for Thai names like "ช่องว่าง/หัก", "พื้นที่อาคาร", "นับจำนวน". This is the
-  visible UX problem behind the user's "ยังไม่ถูกใจ ui" complaint. v2's 440px stops the wrap
-  with breathing room (was 320 in initial LCAL-S2 ship; widened to 440 in LCAL-S5 2026-05-23
-  after user requested more breathing room for long user-created layer names).
+  visible UX problem behind the user's "ยังไม่ถูกใจ ui" complaint. v2's 320px stops the wrap
+  (briefly widened to 440 in LCAL-S5 2026-05-23, then reverted to 320 in LCAL-S6 same day —
+  440 was solving a hypothetical long-name layer problem at real canvas cost; 320 fits all
+  default Thai names already, and text-overflow:ellipsis below handles future overflow).
 -->
 <style>
   /* ===========================================================================
@@ -194,7 +195,7 @@
      V2 OVERRIDES — scoped to body.lt-v2 only
      =========================================================================== */
   body.lt-v2 #picker {
-    width: 440px;
+    width: 320px;
     background: var(--panel);
     border-radius: 8px;
     padding: 0;
@@ -328,7 +329,7 @@
     <h4>Layout / row changes</h4>
     <table>
       <tr><td>Property</td><td>v1 (live)</td><td>v2 (anchor)</td></tr>
-      <tr><td>#picker width</td><td>190px</td><td>440px (was 320 in LCAL-S2; widened LCAL-S5)</td></tr>
+      <tr><td>#picker width</td><td>190px</td><td>320px (LCAL-S2 ship; briefly 440 in S5, reverted in S6)</td></tr>
       <tr><td>#picker bg</td><td>rgba(20,24,32,.92)</td><td>var(--panel)</td></tr>
       <tr><td>#picker radius</td><td>10px</td><td>8px</td></tr>
       <tr><td>#picker padding</td><td>8px</td><td>0 (header/list pad internally)</td></tr>
@@ -350,7 +351,7 @@
     <ul>
       <li><b>--line naming inversion:</b> anchor spike ใช้ <code>--line</code> = น้ำเงิน accent, live ใช้ <code>--line</code> = สี separator. Approach D เก็บชื่อตามของ live (line=separator, accent=blue) แค่เปลี่ยน value — ไม่เกิด rename.</li>
       <li><b>Specificity doubling:</b> <code>body.lt-v2 .cat</code> ลึกกว่า <code>.cat</code> 1 ระดับ. ถ้า future inline-injected style จาก <code>layer-dnd.js</code> ไม่ scope ใต้ flag, จะ override v2 colors. Ship sprint ต้อง scope JS-inject หรือ migrate ไป <code>layer-panel.css</code>.</li>
-      <li><b>Canvas overlap risk:</b> 440px panel กิน canvas working area เพิ่ม 250px (was 130 at 320px). ใน live จริงต้องเช็คว่าหน้าจอเล็ก (≤1024px) ยังทำงานได้ — ที่ 1400px viewport ยังเหลือ canvas ~960px ซึ่งใช้งานได้</li>
+      <li><b>Canvas overlap risk:</b> 320px panel กิน canvas working area เพิ่ม 130px (จากเดิม 190px). ใน live จริงต้องเช็คว่าหน้าจอเล็ก (≤1024px) ยังทำงานได้ — ที่ 1400px viewport เหลือ canvas ~1080px ซึ่งสบาย</li>
     </ul>
 
     <h4>หลัง GO — ship plan (LCAL-S1..S3 ผ่าน /bma-lite-dev)</h4>
