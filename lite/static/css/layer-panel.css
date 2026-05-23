@@ -9,7 +9,9 @@
 
 /* ── panel chrome ─────────────────────────────────────────────────────── */
 body.lt-v2 #picker {
-  width: 320px;
+  width: 440px;       /* LCAL-S5 (2026-05-23): 320→440 — more breathing room for
+                       * long user-created layer names while keeping canvas usable.
+                       * Default 6-layer set already fit at 320; this gives headroom. */
   background: var(--panel);
   border-radius: 8px;
   padding: 0;
