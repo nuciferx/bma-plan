@@ -1,12 +1,12 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-25 (updated: Centerline Snap arc PASS — INV-002a proto + INV-002b lite shipped; 2 post-ship bugs fixed (DPR + button overlap); invent pipeline for centerline-snap is CLOSED; 4 follow-on candidates below — user picks priority)
+Date: 2026-05-25 (updated: Centerline Snap arc shipped — synthetic PASS, real-PDF PARTIAL. INV-2026-05-25-001 ACTIVE addressing field misses on `SCR_ผังต่อโฉนด.pdf`)
 
 ## Immediate Next
 
-**Centerline Snap arc done. Invent pipeline (2026-05-24-22-14) is CLOSED. Four follow-on candidates — user decides priority. None are auto-promoted.**
+**Centerline Snap arc shipped (002a/002b). Invent pipeline (2026-05-24-22-14) closed. But user real-PDF test surfaced "บางจุดถูก บางจุดผิด" → INV-2026-05-25-001 OPEN.**
 
-- **(1, recommended first) Real-user verification** — ask user to re-measure `SCR_ผังต่อโฉนด.pdf` with "⊙ CL" toggle ON on both proto + lite, confirm that traces along outer/inner/centerline of the thick dashed boundary converge to the same m². Low-risk, no code change, high-confidence closure. If discrepancy found → file as new bug sprint.
+- **(1, ACTIVE) INV-2026-05-25-001 — centerline-snap real-PDF robustness** — first iterate `3d4a53e` shipped (lite glue: ROI retry ladder 140→200→280 + green/red flash dot per click). Open work: (a) user re-tests `SCR_ผังต่อโฉนด.pdf` with the new feedback and reports which click sites still miss (screenshot + cursor location), (b) add a real-raster fixture PDF to `lite/tests/fixtures/` so misses become deterministic + testable, (c) decide whether to swap Otsu → Sauvola/Niblack adaptive threshold for low-contrast scans, (d) mirror the lite iterate to proto Section B once lite stabilizes. Status: WAITING ON USER FEEDBACK from `3d4a53e`.
 
 - **(2) Vector PDF route (Approach E from diverge)** — extract stroke-width from `extract_snaps_typed()` server response (additive field), client offset by w/2 when `snap.t==='nl'`. Allows centerline snap via vector geometry rather than raster skeleton on PDFs with embedded stroke data. Separate sprint; does not depend on 002a/b; run `/bma-measure-scope` first.
 

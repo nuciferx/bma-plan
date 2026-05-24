@@ -6,7 +6,41 @@
 
 ---
 
-## 2026-05-25 — Centerline Snap arc (invent → 2 sprints → 2 bugfixes) — PASS (branch: main)
+## 2026-05-25 (later) — INV-2026-05-25-001 — centerline-snap field-reality iterate (lite only) — IN PROGRESS (branch: main)
+
+**What changed:** ทันทีหลัง `/bma-sprint-finalize` รัน, ผู้ใช้ทดสอบ lite บน `SCR_ผังต่อโฉนด.pdf` (ตัวเดิม) แล้วรายงาน "บางจุดถูก บางจุดผิด" → algorithm ทำงานแต่ไม่ robust กับเส้นปะจริงทุกเคส. Commit `3d4a53e` เพิ่ม 2 อย่างใน lite glue Section B (Section A algorithm ยังคง drift-locked กับ proto): (1) ROI retry ladder 140→200→280 — ถ้า ROI 140 bail (fgCount ตกขอบหรือ no-skeleton) ลอง 200 แล้ว 280; cost ladder 4ms/8ms/16ms ยังในกรอบ mousemove. ช่วยเคสที่ cursor ตกใน gap ของเส้นปะหรือ ROI captures dark pixels ไม่พอ. (2) Visual feedback flash dots — เขียวที่จุด snap สำเร็จ, แดงที่ cursor ตอน miss, fade 600ms. ผู้ใช้เห็นทันทีว่าคลิกไหน snap ได้/ไม่ได้ → workaround ได้เอง + ให้ diagnostic info สำหรับรอบหน้า. Pure DOM (position:fixed dot, ไม่แตะ canvas, ไม่เปลี่ยน algorithm).
+
+**Why:** ฟีดแบ็คสนาม > synthetic test. Synthetic test ใช้ canvas สะอาด → retry ladder ไม่เคย trigger ตอน test (test ยัง PASS เพราะ behavior เดิมเมื่อ ROI 140 พอ). ของจริง dashed boundary บน scan PDF มี: text label/numbers ใน ROI ที่กวน Otsu, มี parcels ข้างเคียงที่มีเส้นของตัวเอง, dash phase ไม่สม่ำเสมอกัน, contrast ต่ำกว่า synthetic. การ ship แล้วยอมรับว่า "บางเคสยัง miss" + ทำ feedback ให้ผู้ใช้เห็น = honest > ส่ง synthetic-PASS ที่ผู้ใช้เจอ field-FAIL ในวันแรก. ตรงกับ memory: "Progression > perfection — user values visible run-to-run improvement over a perfect single-run".
+
+**Files touched:**
+- `lite/static/js/centerline-snap.js`: Section B `CL_litePolyClick` — ROI retry ladder + `_flashFeedback()` helper + dot flash on both success/miss path. +51/-4 lines. Section A unchanged.
+- `proto/static/js/centerline-snap.js`: untouched (drift-lock contract; proto-side iterate filed under follow-up sprint after lite field data stabilizes).
+
+**Tests:**
+```
+python lite/tests/test_centerline_snap.py
+  → LITE_CENTERLINE_SNAP_OK 8/8 PASS (synthetic, maxDelta=0.1778%)
+  → Note: retry ladder never triggers on synthetic — test validates code
+    path correctness but does not exercise the new retry; real-PDF
+    behavior tracked via user reports until a real-raster fixture exists.
+
+python lite/tests/test_measure_parity.py
+  → MEASURE_PARITY_OK GREEN
+```
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — UNCHANGED (no new field this iterate)
+- ✅ Lite-vendoring contract: Section A of `lite/static/js/centerline-snap.js` byte-identical to proto's `proto/static/js/centerline-snap.js`. Only Section B (lite glue) changed.
+- ✅ Lite size cap: `ui-lite.html` 1199/1200 (unchanged); `centerline-snap.js` 353/1000.
+
+**Known limitation carried forward:** Real-PDF miss rate is not yet quantified — needs either (a) user-supplied annotated misses (screenshot + click coords) or (b) a fixture PDF added to `lite/tests/fixtures/` so we can write a deterministic real-raster test. Sprint INV-2026-05-25-001 is OPEN until field data stabilizes. Until then, the visual feedback (green/red dot) IS the in-product diagnostic.
+
+---
+
+## 2026-05-25 — Centerline Snap arc (invent → 2 sprints → 2 bugfixes) — PASS on synthetic + initial DPR/position fixes (branch: main)
 
 **What changed:** ผู้ใช้รายงาน "วัดที่ดินเส้นปะได้ 3 ค่าต่างกัน" จาก `SCR_ผังต่อโฉนด.pdf` (cadastral deed plan เส้นปะหนา) → รัน `/bma-invent` 7-phase pipeline (invent-id `2026-05-24-22-14`, spike commit `0208314`) → ผลลัพธ์เป็น 2 sprints: INV-2026-05-24-002a สำหรับ proto (commit `6db0461`) — NEW `proto/static/js/centerline-snap.js` 208 LOC (Otsu threshold + Zhang-Suen thinning + ROI snap `CL_snapCanvasToCenterline` + post-draw PCA corner refinement `CL_refineCornersOnSkeleton`; no CDN dependency); `proto/ui.html` +15 lines net (script include, "⊙ CL" Helpers ribbon button, `toggleCenterlineSnap()`, `centerlineSnapOn` state, area mousedown click-hook, `finishCurrentArea` refine call, `PREFS.measure.centerlineSnap` default false, `_applyCenterlineSnapPref()` at boot + Settings save); `proto/e2e_ui_test.py` +162 lines (`_test_centerline_snap` 10 sub-checks, `PHASE_CENTERLINE_SNAP_OK`). Accuracy: maxDelta=0.140% ≤ 0.5% target. Additive schema: `obj.traceMode = "centerline-roi"` on corrected polygons; legacy .bmaplan loads fine. INV-2026-05-24-002b สำหรับ lite (commit `ad920c6`) — NEW `lite/static/js/centerline-snap.js` 306 LOC (Section A = proto algorithm vendored verbatim byte-identical per drift-locked contract; Section B = lite glue: `CL_litePolyClick` + `CL_litePolyFinish` + self-installing toggle button + localStorage persistence); `lite/ui-lite.html` +2 net lines (1197→1199, within 1200 cap); NEW `lite/tests/test_centerline_snap.py` 235 LOC, LITE_CENTERLINE_SNAP_OK 8/8 (expanded from 6 after bugfixes; accuracy maxDelta=0.1778%). Commit `916d379` backfilled PHASE_INDEX.md. Post-ship user-reported 2 bugs in lite same day: BUG-20260525-lite-cl-dpr (commit `ff3f9fe`) — DPR coord mismatch: `cv.width = clientWidth * dpr` makes canvas bitmap dpr× larger than CSS; `getImageData` reads bitmap pixels but `e.offsetX/Y` are CSS pixels → on DPR>1 (Windows 125/150%, Retina 200%) ROI read wrong region → no dark pixels → `found:false` → zero effect; fix: multiply CSS coords by dpr before passing to algorithm, divide back after; also added inline `.active` CSS (green bg + glow) that was missing, making toggle visually indistinguishable; +2 test sub-checks (dprBridge + activeCssRule). BUG-20260525-lite-cl-position (commit `5783df4`) — CL button at `position:fixed; bottom:8px; right:8px` overlapped `#hud-br` zoom controls; fix: insert via `insertBefore(firstChild)` into `#hud-br` as flex-column with 4px gap; fallback to top-right float if `#hud-br` missing. All tests GREEN after both fixes.
 

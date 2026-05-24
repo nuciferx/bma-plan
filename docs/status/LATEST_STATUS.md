@@ -1,6 +1,6 @@
 # LATEST_STATUS.md — BMA-Plan Current Feature State
 
-Date: 2026-05-25 (Centerline Snap arc PASS — INV-002a proto (commit 6db0461) + INV-002b lite (commit ad920c6) shipped; 2 post-ship lite bugs fixed (DPR ff3f9fe, button overlap 5783df4). PHASE_CENTERLINE_SNAP_OK 10/10 (maxDelta=0.140%), LITE_CENTERLINE_SNAP_OK 8/8 (maxDelta=0.1778%). All prior baseline markers GREEN. Zero server changes.)
+Date: 2026-05-25 (Centerline Snap arc — synthetic PASS, real-PDF PARTIAL. INV-002a proto (6db0461) + INV-002b lite (ad920c6) shipped; 2 post-ship lite bugs fixed (DPR ff3f9fe, button overlap 5783df4); markers PHASE_CENTERLINE_SNAP_OK 10/10 + LITE_CENTERLINE_SNAP_OK 8/8 on synthetic dashed-pentagon (maxDelta 0.140% / 0.1778%). **Field reality on `SCR_ผังต่อโฉนด.pdf`: "บางจุดถูก บางจุดผิด" — INV-2026-05-25-001 in progress (commit 3d4a53e: lite glue ROI retry ladder 140→200→280 + green/red flash dot for per-click feedback).** Real-PDF miss rate not yet quantified; tracking via user reports until a real-raster fixture exists. All prior baseline markers GREEN. Zero server changes.)
 
 ## Phase
 
