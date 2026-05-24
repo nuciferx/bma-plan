@@ -271,6 +271,18 @@ Upstream of `/bma-dev-loop`. A bug surfaced by the user (or as a structured find
 |---|---|---|
 | `bma-bug-triager` | sonnet | Single-bug router (not to be confused with `bma-issue-triager`, which clusters MANY findings + drafts NEW specialist specs). Takes one bug, returns severity + category (one of 15) + suspected file:line + recommended scope skill + recommended specialist subagent + recommended regression skill + acceptance criteria + E2E marker name + risk + adjacent forbidden surface. Read-only — never edits code, never writes to PHASE_INDEX, never invokes other skills. Special return codes: `BUG_TRIAGE_NEEDS_REPRO` / `BUG_TRIAGE_FORBIDDEN` / `BUG_TRIAGE_OUT_OF_SCOPE` |
 
+#### Multi-model workflow simulator (Pack J, 2026-05-24)
+
+Lite-only. Runs ONE scenario deeply against `lite/` with explicit model-routing: Opus(plan) → sonnet(drive) → Opus(verify). Stores every run in `artifacts/sim/lite/history.jsonl` so the next run can pull the last 1-3 outcomes as few-shot context — "learning" in the prompt-cache sense (no Claude fine-tuning available). Complements `/lite-sandbox-test` (which is breadth-across-PDFs, shallow → deep); this skill is depth-on-one-PDF with model-split.
+
+| Skill | Trigger phrases | When to use |
+|---|---|---|
+| `/bma-simulate` | "/bma-simulate", "simulate lite workflow", "ลอง simulate lite", "ทดสอบ workflow lite แบบ multi-model" | Want to test the full lite workflow (open → set scale → measure → save → reopen → export) end-to-end on ONE scenario with multi-model orchestration. Reports severity-tagged findings + per-phase model usage breakdown. Does NOT auto-file to PHASE_INDEX |
+
+| Subagent | Model | Use |
+|---|---|---|
+| `bma-sim-driver` | sonnet | Playwright driver — receives a SCENARIO_PLAN from `/bma-simulate`, drives lite end-to-end deterministically, returns a STEP_LOG of observables. Read-only on `lite/` / `proto/`. Time-boxed: 90 s/step, 5 min/scenario. Never decides what to test (orchestrator's job); never diagnoses why something failed (orchestrator's job) — only records faithful evidence |
+
 ### Invariants
 
 - `/bma-sprint-finalize` maintains 7 files: `log.md`, `PATCH_SUMMARY.md`, `TEST_RESULT.md`, `FINAL_REPORT_FOR_CHATGPT.md`, `CURRENT_STATUS.md`, `docs/status/LATEST_STATUS.md`, `docs/status/NEXT_ACTIONS.md`. Do not skip — drift between these is the most common housekeeping bug.

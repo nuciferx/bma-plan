@@ -642,6 +642,14 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
 - **NOGO rationale**: The first-flow pain motivating idea 2026-05-24-02-23 was already 90% covered by sibling slices LEMPTY-1 (empty-state hub, `728e24e`) + LHELP-1 (F1/? cheatsheet, `3f9b445`) that shipped just before this checkpoint. Adding disclosure adds real maintenance (~130 LOC + 4-5 callsites + body state-machine + tests + escape-hatch shortcut) for marginal benefit (helps only first-time user already past LEMPTY-1, staring at Measure menu). Defer until concrete user feedback (e.g. `/bma-human-test` finding) shows newbies actually get stuck at "drew before scale → pt² output".
 - **What stays useful**: research block on CAD incumbent patterns (AutoCAD soft-gate vs Bluebeam hard-gate), spike pattern proving CSS-class state machine + parent-listener tooltip works around `pointer-events:none`. Both reusable if a future feature needs dimmed-menu-item-with-tooltip.
 
+- [ ] **Multi-agent workflow simulator** — `invent-queued` — from /idea 2026-05-24 (user typed after closing the lite first-flow arc — proposes simulating the full real workflow open→scale→measure→save→report by splitting across multiple agent models, with a meta-question on command vs skill vs subagent + what training pattern would let the simulator learn from open/measure patterns; explicitly framed as system-testing not AI-accuracy, but includes a direct "if you can make it accurate, can you actually do it?" challenge)
+    - Source: user 2026-05-24, "simulate การทำงานจริงๆ ตั้งแต่เปิดไฟล์ตั้งสเกลวัดพื้นที่เซฟไฟล์ทำไฟล์รายงาน · แบ่งการทำงานของแต่ละโมเดล..."
+    - Tags: bma-plan, testing, e2e, multi-agent, orchestration, training, p-med
+    - Direction: (unframed — pending /bma-invent FRAME phase). Note: idea spans MULTIPLE meta-questions (form factor / orchestration / training-or-not / accuracy challenge) — FRAME likely needs to decompose before DIVERGE
+    - Open questions: (pending /bma-invent) — preview: command vs skill vs subagent? what does "simulator" mean concretely (replay log? generate synthetic clicks? drive Playwright)? what counts as "accurate" (matches human ground-truth area within X%)? how does this relate to existing `bma-human-journey-tester` / `bma-sandbox-journey-tester`?
+    - Scope skill: pending (`/bma-invent` decides after research)
+    - Forbidden-surface profile: unknown — `/bma-invent` checks during RESEARCH (likely safe — testing infra, not app code)
+
 ## Known leftovers (predate the loop)
 
 | item | type | note |
