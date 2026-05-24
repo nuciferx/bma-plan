@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<title>Spike A — Centerline Snap (ROI Zhang-Suen)</title>
+<style>
+  body { font: 13px/1.5 system-ui, sans-serif; margin: 16px; background: #fafafa; color: #222; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; gap: 6px; }
+  canvas { border: 1px solid #888; background: white; cursor: crosshair; }
+  button { padding: 6px 10px; border: 1px solid #aaa; background: white; cursor: pointer; border-radius: 4px; }
+  button:hover { background: #f0f0f0; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .pill { display: inline-block; padding: 1px 6px; border-radius: 8px; font-weight: 600; }
+  .pill.pass { background: #d4f4d4; color: #1a6b1a; }
+  .pill.fail { background: #f7d4d4; color: #8b1a1a; }
+  .pill.info { background: #d4e4f7; color: #1a3b6b; }
+  pre { background: white; padding: 8px; border: 1px solid #ccc; white-space: pre-wrap; max-width: 480px; }
+  table { border-collapse: collapse; background: white; }
+  th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+  th { background: #f0f0f0; }
+  td.label { text-align: left; }
+  small { color: #666; }
+</style>
+</head>
+<body>
+<h1>Spike A — Centerline Snap (ROI Zhang-Suen)</h1>
+<p><small>
+  Invent <code>centerline-snap-dashed-boundary</code> · Approach A · <code>docs/invent/centerline-snap-dashed-boundary.md</code><br>
+  Test: 3 polygons (outer/center/inner of dashed band) → apply ROI Zhang-Suen correction → all 3 should match ground-truth centerline area within ±0.5%.<br>
+  No server, no build, no CDN — open this file directly in a browser.
+</small></p>
+
+<div class="row">
+  <div class="col">
+    <canvas id="cv" width="800" height="600"></canvas>
+    <div>
+      <button id="btn-redraw">Redraw test PDF</button>
+      <button id="btn-run-auto">▶ Run automatic spike test (3 polygons)</button>
+      <button id="btn-toggle-overlay">Toggle correction overlay</button>
+    </div>
+    <small>
+      Synthetic test: dashed pentagon, stroke=<span id="lbl-stroke">6</span>px, dash=[12,8].<br>
+      Ground-truth pts are the dash centerline (rendered with <code>setLineDash + lineWidth</code>).
+    </small>
+  </div>
+  <div class="col">
+    <div id="result-area"></div>
+    <pre id="log"></pre>
+  </div>
+</div>
+
+<script>
+// =========================================================================
+// Spike A — Centerline Snap via per-click ROI Zhang-Suen thinning
+// =========================================================================
+// Frame: docs/invent/centerline-snap-dashed-boundary.md §Frame
+// Success criteria (spike):
+//   1. Render synthetic raster (dashed pentagon, stroke ~6px).
+//   2. Trace 3 polygons: along outer edge / center / inner edge of dash band.
+//   3. For each, apply ROI Zhang-Suen correction → recover centerline coord.
+//   4. All 3 corrected areas within ±0.5% of ground-truth centerline area.
+//   5. Per-click correction cost ≤ 16ms.
+// =========================================================================
+
+const CANVAS_W = 800, CANVAS_H = 600;
+const STROKE_W = 6;     // px — the visible stroke width of the dashed band
+const DASH = [12, 8];   // px — dash, gap
+const ROI = 140;        // px — research-suggested size to span dash gaps
+const HALF = ROI / 2;
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+document.getElementById('lbl-stroke').textContent = STROKE_W;
+
+// -----------------------------------------------------------------------------
+// Ground-truth polygon — the dash centerline (what user *should* measure).
+// Pentagon, roughly 400×400 px, off-axis to test arbitrary orientations.
+// -----------------------------------------------------------------------------
+const GT = [
+  [200, 150],
+  [600, 180],
+  [650, 460],
+  [380, 530],
+  [160, 420],
+];
+
+// Closed polygon area via shoelace (px²).
+function polyArea(pts) {
+  let s = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % n];
+    s += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(s) / 2;
+}
+
+// Perimeter (px).
+function polyPerim(pts) {
+  let s = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % n];
+    s += Math.hypot(x2 - x1, y2 - y1);
+  }
+  return s;
+}
+
+// Offset every vertex inward/outward by half-stroke along its corner bisector.
+// `dir`: +1 = outward (outer edge of dash), -1 = inward (inner edge), 0 = unchanged.
+function offsetPolygon(pts, dist, dir) {
+  if (dir === 0 || dist === 0) return pts.slice();
+  const n = pts.length;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const prev = pts[(i - 1 + n) % n];
+    const cur = pts[i];
+    const next = pts[(i + 1) % n];
+    // Unit normals (rotated edge vectors) — using outward-pointing normal for CCW polygon.
+    const e1x = cur[0] - prev[0], e1y = cur[1] - prev[1];
+    const e2x = next[0] - cur[0], e2y = next[1] - cur[1];
+    const L1 = Math.hypot(e1x, e1y), L2 = Math.hypot(e2x, e2y);
+    // Outward normal (right-hand of edge direction for CCW = (dy,-dx)/L).
+    // Our GT runs roughly clockwise on canvas (y-down), so outward is (-dy,dx)/L.
+    // We compute both and average — the sign is handled by `dir` × signed area check.
+    const n1x = -e1y / L1, n1y = e1x / L1;
+    const n2x = -e2y / L2, n2y = e2x / L2;
+    let nx = (n1x + n2x), ny = (n1y + n2y);
+    const NL = Math.hypot(nx, ny) || 1;
+    nx /= NL; ny /= NL;
+    // Miter length compensation for sharp corners: scale by 1/cos(half-angle).
+    const cosHalf = (n1x * n2x + n1y * n2y + 1) / 2;  // crude but OK for obtuse corners
+    const miter = 1 / Math.max(0.5, Math.sqrt(Math.max(0.01, cosHalf)));
+    out.push([cur[0] + nx * dist * dir * miter, cur[1] + ny * dist * dir * miter]);
+  }
+  return out;
+}
+
+// Auto-detect winding so dir=+1 means "outward" regardless of CCW/CW input.
+function windingSign(pts) {
+  let s = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % n];
+    s += (x2 - x1) * (y2 + y1);
+  }
+  return s > 0 ? 1 : -1;  // canvas y-down: clockwise = +1
+}
+const GT_SIGN = windingSign(GT);
+
+// Outer / center / inner traces — what the user actually clicks.
+const HALF_STROKE = STROKE_W / 2;
+const TRACE_OUTER = offsetPolygon(GT, HALF_STROKE, +GT_SIGN);
+const TRACE_CENTER = GT.slice();
+const TRACE_INNER = offsetPolygon(GT, HALF_STROKE, -GT_SIGN);
+
+// -----------------------------------------------------------------------------
+// Render the synthetic "PDF" — a dashed pentagon.
+// -----------------------------------------------------------------------------
+function drawTestPdf() {
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  // Light gray watermark behind so contrast is clear
+  ctx.fillStyle = '#fafafa';
+  ctx.beginPath();
+  for (let i = 0; i < GT.length; i++) {
+    const [x, y] = GT[i]; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath(); ctx.fill();
+  // Draw the dashed boundary
+  ctx.strokeStyle = '#202020';
+  ctx.lineWidth = STROKE_W;
+  ctx.setLineDash(DASH);
+  ctx.beginPath();
+  for (let i = 0; i < GT.length; i++) {
+    const [x, y] = GT[i]; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath(); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// -----------------------------------------------------------------------------
+// 4-connect dilation (1 pixel). Used in close-step to bridge dash gaps.
+// `iters`: number of times to apply. iters=4 ≈ closes 8-px gaps.
+// -----------------------------------------------------------------------------
+function dilate(binary, w, h, iters) {
+  const tmp = new Uint8Array(w * h);
+  for (let it = 0; it < iters; it++) {
+    tmp.set(binary);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (tmp[y * w + x]) continue;
+        if ((x > 0 && tmp[y * w + x - 1]) ||
+            (x < w - 1 && tmp[y * w + x + 1]) ||
+            (y > 0 && tmp[(y - 1) * w + x]) ||
+            (y < h - 1 && tmp[(y + 1) * w + x])) binary[y * w + x] = 1;
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Zhang-Suen thinning — operates on a binary Uint8Array (0/1) of size w×h.
+// Returns the same buffer thinned in-place. O(n·k) where k is # passes (~5-20).
+// Reference: Zhang & Suen, "A fast parallel algorithm for thinning digital
+// patterns", CACM 1984.
+// -----------------------------------------------------------------------------
+function zhangSuenThin(binary, w, h) {
+  const get = (x, y) => binary[y * w + x] | 0;
+  let total = 0;
+  while (true) {
+    let removedThisRound = 0;
+    for (let pass = 0; pass < 2; pass++) {
+      const toRemove = [];
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          if (!get(x, y)) continue;
+          const p2 = get(x, y - 1), p3 = get(x + 1, y - 1),
+                p4 = get(x + 1, y),     p5 = get(x + 1, y + 1),
+                p6 = get(x, y + 1),     p7 = get(x - 1, y + 1),
+                p8 = get(x - 1, y),     p9 = get(x - 1, y - 1);
+          const B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+          if (B < 2 || B > 6) continue;
+          const seq = [p2, p3, p4, p5, p6, p7, p8, p9, p2];
+          let A = 0;
+          for (let k = 0; k < 8; k++) if (seq[k] === 0 && seq[k + 1] === 1) A++;
+          if (A !== 1) continue;
+          if (pass === 0) {
+            if (p2 * p4 * p6 !== 0) continue;
+            if (p4 * p6 * p8 !== 0) continue;
+          } else {
+            if (p2 * p4 * p8 !== 0) continue;
+            if (p2 * p6 * p8 !== 0) continue;
+          }
+          toRemove.push(y * w + x);
+        }
+      }
+      for (const idx of toRemove) binary[idx] = 0;
+      removedThisRound += toRemove.length;
+    }
+    total += removedThisRound;
+    if (removedThisRound === 0) break;
+    if (total > w * h * 5) break;  // safety
+  }
+  return binary;
+}
+
+// -----------------------------------------------------------------------------
+// Approach A core: per-click ROI snap to centerline.
+// Steps:
+//   1. Grab ROI×ROI imageData centred at (cx,cy).
+//   2. Binarise — dark pixels (R+G+B < 384) → 1, else 0.
+//   3. Zhang-Suen thin in place.
+//   4. BFS-style search outward from ROI centre for the nearest 1-pixel.
+//   5. Convert that ROI-local coord back to canvas coord. Return.
+// If no foreground found in ROI, return original (cx,cy).
+// -----------------------------------------------------------------------------
+function snapToCenterlineROI(cx, cy) {
+  const t0 = performance.now();
+  const x0 = Math.max(0, Math.min(CANVAS_W - ROI, Math.round(cx - HALF)));
+  const y0 = Math.max(0, Math.min(CANVAS_H - ROI, Math.round(cy - HALF)));
+  const img = ctx.getImageData(x0, y0, ROI, ROI);
+  const binary = new Uint8Array(ROI * ROI);
+  for (let i = 0, j = 0; i < img.data.length; i += 4, j++) {
+    const sum = img.data[i] + img.data[i + 1] + img.data[i + 2];
+    binary[j] = sum < 384 ? 1 : 0;  // simple fixed threshold (Otsu would be lib-grade)
+  }
+  zhangSuenThin(binary, ROI, ROI);
+  // Find nearest 1-pixel to ROI centre.
+  const localCx = Math.round(cx - x0), localCy = Math.round(cy - y0);
+  let bestDist = Infinity, bestLx = -1, bestLy = -1;
+  for (let ly = 0; ly < ROI; ly++) {
+    const dyy = ly - localCy;
+    for (let lx = 0; lx < ROI; lx++) {
+      if (!binary[ly * ROI + lx]) continue;
+      const dxx = lx - localCx;
+      const d = dxx * dxx + dyy * dyy;
+      if (d < bestDist) { bestDist = d; bestLx = lx; bestLy = ly; }
+    }
+  }
+  const t1 = performance.now();
+  if (bestLx < 0) return { x: cx, y: cy, cost: t1 - t0, found: false };
+  return { x: x0 + bestLx, y: y0 + bestLy, cost: t1 - t0, found: true };
+}
+
+function correctPolygon(pts, opts) {
+  opts = opts || {};
+  const refine = opts.refineCorners !== false;
+  let totalCost = 0, found = 0;
+  // Step 1: per-vertex ROI snap (cheap, suitable for live mousemove)
+  const corrected = pts.map(([x, y]) => {
+    const r = snapToCenterlineROI(x, y);
+    totalCost += r.cost; if (r.found) found++;
+    return [r.x, r.y];
+  });
+  if (!refine) {
+    return { pts: corrected, cost: totalCost, avgCost: totalCost / pts.length, found, of: pts.length, refined: false };
+  }
+  // Step 2: post-draw corner refinement. For each edge, sample N points along
+  // it, snap each to skeleton, fit a line (PCA / largest-eigenvector of
+  // covariance). For each corner, intersect adjacent edges' lines. This fixes
+  // the systematic "corner-cutting" bias of nearest-skeleton-pixel at corners.
+  const n = pts.length;
+  const NSAMPLE = 5;
+  const lines = [];
+  let postCost = 0;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[i], p1 = pts[(i + 1) % n];
+    const samples = [];
+    for (let k = 1; k <= NSAMPLE; k++) {
+      const t = k / (NSAMPLE + 1);
+      const sx = p0[0] + (p1[0] - p0[0]) * t;
+      const sy = p0[1] + (p1[1] - p0[1]) * t;
+      const r = snapToCenterlineROI(sx, sy);
+      postCost += r.cost;
+      if (r.found) samples.push([r.x, r.y]);
+    }
+    if (samples.length < 2) { lines.push(null); continue; }
+    // PCA: find principal direction.
+    let mx = 0, my = 0;
+    for (const [x, y] of samples) { mx += x; my += y; }
+    mx /= samples.length; my /= samples.length;
+    let Sxx = 0, Syy = 0, Sxy = 0;
+    for (const [x, y] of samples) {
+      const dx = x - mx, dy = y - my;
+      Sxx += dx * dx; Syy += dy * dy; Sxy += dx * dy;
+    }
+    const trace = Sxx + Syy;
+    const det = Sxx * Syy - Sxy * Sxy;
+    const lambda = trace / 2 + Math.sqrt(Math.max(0, (trace / 2) * (trace / 2) - det));
+    let dx, dy;
+    if (Math.abs(Sxy) > 1e-6) {
+      dx = lambda - Syy; dy = Sxy;
+    } else {
+      dx = (Sxx >= Syy) ? 1 : 0; dy = (Sxx >= Syy) ? 0 : 1;
+    }
+    const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+    // Line implicit: a*x + b*y + c = 0 with (a,b) = (-dy, dx)
+    lines.push({ a: -dy, b: dx, c: dy * mx - dx * my });
+  }
+  const refined = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const prev = lines[(i - 1 + n) % n];
+    const cur = lines[i];
+    if (!prev || !cur) { refined[i] = corrected[i]; continue; }
+    const det = prev.a * cur.b - cur.a * prev.b;
+    if (Math.abs(det) < 1e-6) { refined[i] = corrected[i]; continue; }
+    const x = (prev.b * cur.c - cur.b * prev.c) / det;
+    const y = (cur.a * prev.c - prev.a * cur.c) / det;
+    refined[i] = [x, y];
+  }
+  return {
+    pts: refined, ptsStep1: corrected,
+    cost: totalCost + postCost, avgCost: (totalCost + postCost) / pts.length,
+    found, of: pts.length, refined: true,
+    step1Cost: totalCost / pts.length,
+    step2Cost: postCost,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Render helpers — overlay polygons on the canvas.
+// -----------------------------------------------------------------------------
+function strokePoly(pts, color, dash) {
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.setLineDash(dash || []);
+  ctx.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const [x, y] = pts[i]; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath(); ctx.stroke();
+  ctx.setLineDash([]);
+}
+function dotPoly(pts, color, r) {
+  ctx.fillStyle = color;
+  for (const [x, y] of pts) {
+    ctx.beginPath(); ctx.arc(x, y, r || 3, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Auto spike test — runs all 3 traces, applies correction, reports pass/fail.
+// -----------------------------------------------------------------------------
+let lastCorrection = null;
+let overlayOn = true;
+
+function runAutoSpike() {
+  drawTestPdf();
+  const groundArea = polyArea(GT);
+  const outerArea = polyArea(TRACE_OUTER);
+  const centerArea = polyArea(TRACE_CENTER);
+  const innerArea = polyArea(TRACE_INNER);
+
+  const tOuter = performance.now();
+  const cOuter = correctPolygon(TRACE_OUTER);
+  const cCenter = correctPolygon(TRACE_CENTER);
+  const cInner = correctPolygon(TRACE_INNER);
+  const tTotal = performance.now() - tOuter;
+
+  lastCorrection = { cOuter, cCenter, cInner };
+  redrawWithOverlays();
+
+  const deltaPct = (a) => ((a - groundArea) / groundArea * 100);
+  const PASS_TOL = 0.5;  // ±0.5% per spike criterion
+
+  const rows = [
+    { label: 'Ground truth (GT centerline)', raw: groundArea, corr: null, delta: 0, cost: null },
+    { label: 'Trace OUTER (raw)',  raw: outerArea,  corr: null, delta: deltaPct(outerArea),  cost: null },
+    { label: 'Trace CENTER (raw)', raw: centerArea, corr: null, delta: deltaPct(centerArea), cost: null },
+    { label: 'Trace INNER (raw)',  raw: innerArea,  corr: null, delta: deltaPct(innerArea),  cost: null },
+    { label: 'Trace OUTER (corrected)',  raw: null, corr: polyArea(cOuter.pts),  delta: deltaPct(polyArea(cOuter.pts)),  cost: cOuter.avgCost,  snapped: `${cOuter.found}/${cOuter.of}` },
+    { label: 'Trace CENTER (corrected)', raw: null, corr: polyArea(cCenter.pts), delta: deltaPct(polyArea(cCenter.pts)), cost: cCenter.avgCost, snapped: `${cCenter.found}/${cCenter.of}` },
+    { label: 'Trace INNER (corrected)',  raw: null, corr: polyArea(cInner.pts),  delta: deltaPct(polyArea(cInner.pts)),  cost: cInner.avgCost,  snapped: `${cInner.found}/${cInner.of}` },
+  ];
+
+  // Pass checks
+  const corrDeltas = [deltaPct(polyArea(cOuter.pts)), deltaPct(polyArea(cCenter.pts)), deltaPct(polyArea(cInner.pts))];
+  const maxAbsDelta = Math.max(...corrDeltas.map(Math.abs));
+  const maxAvgCost = Math.max(cOuter.avgCost, cCenter.avgCost, cInner.avgCost);
+  const allSnapped = [cOuter, cCenter, cInner].every(c => c.found === c.of);
+
+  const checks = [
+    { name: '#1 raw OUTER > CENTER > INNER (sanity)', ok: outerArea > centerArea && centerArea > innerArea },
+    { name: '#2 ALL corrected within ±0.5% of GT',     ok: maxAbsDelta <= PASS_TOL,  detail: `max |Δ| = ${maxAbsDelta.toFixed(3)}%` },
+    { name: '#3 per-click correction ≤ 16ms',          ok: maxAvgCost <= 16,         detail: `max avg = ${maxAvgCost.toFixed(2)}ms` },
+    { name: '#4 every vertex snapped (no empty ROI)',  ok: allSnapped },
+  ];
+
+  // Render results table
+  let html = '<table>';
+  html += '<tr><th class="label">Polygon</th><th>Area raw (px²)</th><th>Area corrected (px²)</th><th>Δ vs GT (%)</th><th>Avg cost (ms)</th><th>Snapped</th></tr>';
+  for (const r of rows) {
+    html += `<tr>
+      <td class="label">${r.label}</td>
+      <td>${r.raw == null ? '—' : r.raw.toFixed(0)}</td>
+      <td>${r.corr == null ? '—' : r.corr.toFixed(0)}</td>
+      <td>${r.delta == null ? '—' : r.delta.toFixed(3)}</td>
+      <td>${r.cost == null ? '—' : r.cost.toFixed(2)}</td>
+      <td>${r.snapped || '—'}</td>
+    </tr>`;
+  }
+  html += '</table>';
+  html += '<h3>Spike checks</h3>';
+  for (const c of checks) {
+    html += `<div><span class="pill ${c.ok ? 'pass' : 'fail'}">${c.ok ? 'PASS' : 'FAIL'}</span> ${c.name}${c.detail ? ' — <small>' + c.detail + '</small>' : ''}</div>`;
+  }
+  const overall = checks.every(c => c.ok);
+  html += `<h2>Overall: <span class="pill ${overall ? 'pass' : 'fail'}">${overall ? 'SPIKE PASS' : 'SPIKE FAIL'}</span></h2>`;
+  document.getElementById('result-area').innerHTML = html;
+
+  // Log
+  const log = `total wall time = ${tTotal.toFixed(1)} ms across ${TRACE_OUTER.length + TRACE_CENTER.length + TRACE_INNER.length} vertices.\n` +
+              `outer raw area = ${outerArea.toFixed(0)} px² (Δ ${deltaPct(outerArea).toFixed(2)}%)\n` +
+              `center raw area = ${centerArea.toFixed(0)} px² (Δ ${deltaPct(centerArea).toFixed(2)}%)\n` +
+              `inner raw area = ${innerArea.toFixed(0)} px² (Δ ${deltaPct(innerArea).toFixed(2)}%)\n` +
+              `outer corrected = ${polyArea(cOuter.pts).toFixed(0)} (Δ ${corrDeltas[0].toFixed(3)}%)\n` +
+              `center corrected = ${polyArea(cCenter.pts).toFixed(0)} (Δ ${corrDeltas[1].toFixed(3)}%)\n` +
+              `inner corrected = ${polyArea(cInner.pts).toFixed(0)} (Δ ${corrDeltas[2].toFixed(3)}%)\n` +
+              `max |Δ| corrected = ${maxAbsDelta.toFixed(3)}% (target ≤0.5%)\n` +
+              `max avg per-click cost = ${maxAvgCost.toFixed(2)} ms (target ≤16ms)\n` +
+              `snapped: outer ${cOuter.found}/${cOuter.of}, center ${cCenter.found}/${cCenter.of}, inner ${cInner.found}/${cInner.of}`;
+  document.getElementById('log').textContent = log;
+
+  window.__SPIKE_PASS = overall;
+  window.__SPIKE_REPORT = { rows, checks, maxAbsDelta, maxAvgCost, allSnapped };
+  return overall;
+}
+
+function redrawWithOverlays() {
+  drawTestPdf();
+  if (!overlayOn || !lastCorrection) return;
+  // Raw traces (faint)
+  strokePoly(TRACE_OUTER, 'rgba(200,40,40,0.5)', [4, 4]);
+  strokePoly(TRACE_INNER, 'rgba(40,40,200,0.5)', [4, 4]);
+  strokePoly(TRACE_CENTER, 'rgba(40,140,40,0.5)', [4, 4]);
+  // Corrected (bold)
+  strokePoly(lastCorrection.cOuter.pts, 'rgba(220,50,50,1)', []);
+  strokePoly(lastCorrection.cInner.pts, 'rgba(50,50,220,1)', []);
+  strokePoly(lastCorrection.cCenter.pts, 'rgba(50,170,50,1)', []);
+  // Vertex dots
+  dotPoly(TRACE_OUTER, 'rgba(200,40,40,0.4)', 2);
+  dotPoly(TRACE_INNER, 'rgba(40,40,200,0.4)', 2);
+  dotPoly(lastCorrection.cOuter.pts, 'rgb(220,50,50)', 3);
+  dotPoly(lastCorrection.cInner.pts, 'rgb(50,50,220)', 3);
+  dotPoly(lastCorrection.cCenter.pts, 'rgb(50,170,50)', 3);
+}
+
+// Wire up buttons
+document.getElementById('btn-redraw').addEventListener('click', () => {
+  drawTestPdf();
+  document.getElementById('result-area').innerHTML = '<span class="pill info">Test PDF rendered. Click "Run automatic spike test".</span>';
+  document.getElementById('log').textContent = '';
+  lastCorrection = null;
+});
+document.getElementById('btn-run-auto').addEventListener('click', runAutoSpike);
+document.getElementById('btn-toggle-overlay').addEventListener('click', () => {
+  overlayOn = !overlayOn; redrawWithOverlays();
+});
+
+// Optional: also allow manual clicks for the user to feel the snap.
+let manualPts = [];
+cv.addEventListener('click', (ev) => {
+  const rect = cv.getBoundingClientRect();
+  const cx = (ev.clientX - rect.left) * (CANVAS_W / rect.width);
+  const cy = (ev.clientY - rect.top) * (CANVAS_H / rect.height);
+  if (ev.shiftKey) {
+    // Shift+click = raw click, no correction
+    manualPts.push([cx, cy]);
+    redrawWithOverlays();
+    ctx.fillStyle = 'orange';
+    for (const [x, y] of manualPts) { ctx.beginPath(); ctx.arc(x, y, 3, 0, 6.28); ctx.fill(); }
+  } else {
+    const r = snapToCenterlineROI(cx, cy);
+    if (r.found) {
+      ctx.strokeStyle = 'orange'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(r.x, r.y); ctx.stroke();
+      ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.arc(r.x, r.y, 4, 0, 6.28); ctx.fill();
+      ctx.fillStyle = 'rgba(255,165,0,0.4)'; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 6.28); ctx.fill();
+    }
+  }
+});
+
+// Initial render
+drawTestPdf();
+document.getElementById('result-area').innerHTML = '<span class="pill info">Test PDF rendered. Click "Run automatic spike test" to execute the spike.</span>';
+
+// Auto-run for headless verification
+if (window.location.search.includes('auto=1')) {
+  setTimeout(runAutoSpike, 50);
+}
+</script>
+</body>
+</html>
