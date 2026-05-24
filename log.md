@@ -6,6 +6,48 @@
 
 ---
 
+## 2026-05-24 — LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop) — PASS (branch: main)
+
+**What changed:** Fixed two `lite/ui-lite.html` bugs surfaced by the Opus-4.7-self-drive multi-model simulator on 2026-05-24. LITE-BUG-MODAL-NEST (BROKEN): `<div id="modal">` at line 191 was missing its closing `</div>`, causing `#setupModal` (line 195) to be nested inside `#modal` (calibration modal). Because `#modal` defaults to `display:none`, `#setupModal` was invisible regardless of `openSetup()` setting `style.display='flex'` — `getBoundingClientRect()=0×0`, `offsetParent=null`. Fix: added the missing `</div>` at end of line 194 to properly close `#modal` before `#setupModal`. LITE-BUG-DBLCLICK-OVER-POP (FRICTION): `cv.addEventListener("dblclick", ...)` had an unbounded `while` loop popping trailing pts within 6 screen-px of the dblclick spot. Intended to remove 2 stray points from dblclick's two mousedowns, but without an upper bound it also ate any intentional vertex placed within 6 px, causing saved polygons to be triangles (confirmed: 4 pts → 3 pts, area 713 m² → 356 m²). Fix: replaced with bounded `for(_np<2)`. Zero net lines across both patches. `lite/ui-lite.html` stays at 1197 lines (cap 1200).
+
+**Why:** The Opus-4.7 multi-model simulator (Pack J, `/bma-simulate`) ran a full lite workflow on `lite/test.pdf` and identified both regressions as BROKEN/FRICTION severity. LITE-BUG-MODAL-NEST blocked the Page Setup flow entirely — users clicking Page → Page Setup saw nothing. LITE-BUG-DBLCLICK-OVER-POP silently corrupted polygon vertex counts, causing wrong areas in saved projects. Both were silent bugs (no console error) that standard py_compile/smoke did not surface — proving the value of the multi-model simulator as a finding mechanism.
+
+**Files touched:**
+- `lite/ui-lite.html`: Added missing `</div>` at line 194 end (closes `#modal`); replaced unbounded `while` with bounded `for(_np<2)` at lines 502-503 (0 net lines)
+- `sprints/completed/2026-05-24-lite-bug-2-opus47-findings/LITE-BUG-2-OPUS47-FINDINGS-2026-05-24.md`: NEW sprint card (moved from active/)
+
+**Tests:**
+```
+python -c "open('lite/ui-lite.html', encoding='utf-8').read()"  → parseable PASS
+wc -l lite/ui-lite.html                                          → 1197 (≤1200 cap) PASS
+<div> vs </div> regex balance: opens=92 closes=92 delta=0        PASS (was delta=1)
+cd lite && python -m py_compile server_lite.py                   → PASS
+cd lite && python tests/test_pan_controls.py                     → BUG_20260521_LITE_PAN_OK PASS
+
+Live Playwright verify (artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/verify_bug_fixes.py):
+  BUG_A_modal_rect_nonzero:     PASS — #setupModal now renders 1600×958, parent=#stage
+  BUG_A_calib_modal_still_works: PASS — no regression, 1600×958
+  BUG_B_dblclick_preserves_vertex: PASS — 4 pts saved, area=714.07 m² (drift 0.13% from screen-to-pt rounding — acceptable)
+
+No proto/ E2E run (lite-only sprint, zero proto/ edits).
+```
+
+**Phase 1 scope check:**
+- ✅ polyAreaM2 / polyMetrics / polySelfIntersects unchanged
+- ✅ pdfToC / cToPdf / RS / scale math unchanged
+- ✅ proto/server.py core endpoints unchanged (zero proto edits — lite-only sprint)
+- ✅ .bmaplan schema additive only (untouched)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ lite/static/js/measure-engine.js (drift-locked vendored copy) unchanged
+- ✅ Size cap honored — lite/ui-lite.html still 1197 ≤ 1200
+
+**Known gaps / follow-ups:**
+- Simulator reflection-loop hardening: read last 1-3 history.jsonl entries in Phase A and add closed bugs as regression checks so they are not re-found.
+- Snap-to-walls polygon strategy: replace synthetic 80%-quad placeholder with real measurement (read PDF vector edges, snap to walls).
+- Lite PDF page classifier: auto-tag floor/site/cover from title block OCR or layout hints, eliminating the manual tagging step.
+
+---
+
 ## 2026-05-22 — LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS (branch: main)
 
 **What changed:** Added a standalone editable web-report page (`lite/lite-report.html`) to the lite tree. The report opens in a new window via a File-menu item "ส่งออกรายงาน (แก้ไขได้)…" in `lite/ui-lite.html`. Payload (geometry metadata + page info, not images) is handed off through `sessionStorage["bmaReportPayload"]`; plan images reference `/page/{n}` URLs directly so sessionStorage stays under 5 MB. The page renders one A4-landscape sheet per measured page: left half = plan image + SVG polygon overlay + numbered badges; right half = area table grouped by semanticTag category with per-group subtotals + page net (deductions sign −1) + header (project/page#/tag/scale-state/date). Header fields, row labels, and a per-row note column are `contenteditable`; area number cells are read-only gray (raw-geometry contract preserved). `@page` CSS + `@media print page-break-after:always` per sheet → WYSIWYG browser-print-to-PDF. A sample standalone fallback renders when opened with no payload. `lite/server_lite.py` gained a `GET /report` route (+9 lines, additive). New Playwright test `lite/tests/test_report.py` validates the full flow (LITE_REPORT_OK, 17/17). A `realflow_check.py` real-PDF acceptance test verified: real permit upload → openReport → popup caught → plan image naturalWidth 3576, viewBox "0 0 3576 2526" → overlay polygon → net 222.22.
@@ -46,40 +88,8 @@ New E2E marker: LITE_REPORT_OK
 
 ---
 
-## 2026-05-21 — BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS (branch: main)
-
-**What changed:** Forked proto's entire view/navigation control system into `lite/ui-lite.html` — adapted to lite's `V={k,ox,oy,rot}` single-canvas transform model (not proto's CSS-transform). Added: spacebar-hold pan + middle-mouse-button pan work in ANY mode including while a draw tool is selected (the headline bug); sticky H pan-tool (`state.panTool`); `setCursor()` helper (grab/grabbing/crosshair/default); smooth exponential wheel zoom (`exp(-deltaY*0.0015)`) clamped to `[ZMIN=0.02, ZMAX=40]` (anti-runaway); `zoomCenter(f)` (zoom about viewport center); `actualSize()` (reset to 1:1); keyboard shortcuts F/Ctrl+0 = fit, Ctrl+1 = actual size, Ctrl+=/Ctrl+- = zoom in/out; enriched canvas hint text. New Playwright regression guard `lite/tests/test_pan_controls.py` (13/13 checks GREEN, `BUG_20260521_LITE_PAN_OK`). ZERO edits to any file under `proto/`. `MEASURE_PARITY_OK` unchanged (ptToScreen/screenToPt/RS untouched).
-
-**Why:** User directive via `/bma-bug-report`: "fork ระบบการควบคุมทั้งหมด มาจาก proto". Lite's view controls were impoverished: pan only worked in select/empty mode (any draw tool blocked mousedown early); no spacebar or middle-mouse pan at all; no zoom clamp (runaway to infinity/zero); no fit/actual-size keyboard shortcuts. These are table-stakes interactions for any CAD-like tool.
-
-**Files touched:**
-- `lite/ui-lite.html`: mousedown/mousemove/mouseup/wheel/keydown/keyup handlers + setTool + new zoomCenter/actualSize/setCursor helpers + hint text + state.panTool default (~39 insertions / 12 deletions)
-- `lite/tests/test_pan_controls.py`: NEW Playwright regression guard (13 checks: midPan, spaceArmed, spacePanMidDraw, panToolOn/Drag/Off, selectPan, clampMax, clampMin, wheelZoomIn, actualSize, fit, ctrlZoomIn)
-- `docs/status/PHASE_INDEX.md`: bug filed at top of Active queue then marked done
-
-**Tests:**
-```
-py -3 -m py_compile lite/server_lite.py lite/tests/test_pan_controls.py lite/tests/test_menu_clickable.py  → PYCOMPILE_OK
-lite/tests/test_pan_controls.py  → BUG_20260521_LITE_PAN_OK GREEN (13/13)
-lite/tests/test_menu_clickable.py  → BUG_20260521_LITE_MENU_CLIP_OK GREEN (no regression)
-lite/tests/test_measure_parity.py  → MEASURE_PARITY_OK GREEN (ptToScreen/screenToPt/RS untouched)
-proto E2E: NOT run — zero edits to any file under proto/; lite tree isolated, no proto regression risk.
-```
-
-**Phase 1 scope check:**
-- ✅ polyAreaM2 / polyMetrics / polySelfIntersects unchanged (lite vendors them in measure-engine.js — untouched)
-- ✅ pdfToC / cToPdf / RS / scale math unchanged (lite ptToScreen/screenToPt/RS untouched)
-- ✅ proto/server.py core endpoints unchanged (no proto edits at all)
-- ✅ .bmaplan schema additive only (not touched)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
-**Known gaps / follow-ups:**
-- Rotation parity intentionally omitted: lite uses a single global V.rot while proto persists per-page server-side rotation into the saved file — porting that is a deeper save-format/server change, out of view-control scope.
-- Middle-button autoscroll suppression relies on preventDefault in mousedown; verified fine on canvas in headless — note for manual cross-browser check.
-
----
-
-<!-- LITE-REPORT (2026-05-22) and BUG-20260521-lite-pan-controls (2026-05-21) are the 2 sessions kept in this file -->
+<!-- LITE-BUG-2-OPUS47-FINDINGS (2026-05-24) and LITE-REPORT (2026-05-22) are the 2 sessions kept in this file -->
+<!-- BUG-20260521-lite-pan-controls archived to docs/archive/log-2026-05-21.md on 2026-05-24 (LITE-BUG-2 sprint) -->
 <!-- BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series archived to docs/archive/log-2026-05-21.md -->
 <!-- Earlier 2026-05-20 entries archived to docs/archive/log-2026-05-20.md -->
 <!-- BLOAT-2 and BLOAT-1 entries archived to docs/archive/log-2026-05-19.md -->

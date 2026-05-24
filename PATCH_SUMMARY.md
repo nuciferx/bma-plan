@@ -4,7 +4,64 @@
 
 ---
 
-# Latest: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
+# Latest: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
+
+Branch: main
+
+Date: 2026-05-24
+
+## Outcome: PASS — Fixed LITE-BUG-MODAL-NEST (BROKEN: #setupModal nested inside hidden #modal, invisible regardless of openSetup()) and LITE-BUG-DBLCLICK-OVER-POP (FRICTION: unbounded while loop ate intentional vertices, saved polygon as triangle). Both surfaced by Opus-4.7 multi-model simulator (Pack J). Zero net lines. lite/ui-lite.html stays at 1197 ≤ 1200. All live Playwright verify checks PASS.
+
+## Summary
+
+Two silent bugs in `lite/ui-lite.html` fixed — both found by the multi-model simulator (Pack J `/bma-simulate`) running the full Page Setup + polygon-draw workflow on `lite/test.pdf`. LITE-BUG-MODAL-NEST: a missing `</div>` caused `#setupModal` to be nested inside the hidden `#modal` container, making Page Setup invisible on click. LITE-BUG-DBLCLICK-OVER-POP: an unbounded `while` loop in the dblclick handler consumed legitimate polygon vertices (4 pts saved as 3 pts, 713 m² reported as 356 m²). Both patches are surgical zero-net-line changes. Live Playwright verify confirms all 3 PASS assertions (modal rect nonzero, calib modal regression-clean, dblclick preserves vertex count at 714.07 m²).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/ui-lite.html` | Added missing `</div>` after line 194 (closes `#modal` before `#setupModal`); replaced unbounded `while` with bounded `for(_np<2)` at lines 502-503; 0 net lines; 1197 total (cap 1200) |
+| `sprints/completed/2026-05-24-lite-bug-2-opus47-findings/LITE-BUG-2-OPUS47-FINDINGS-2026-05-24.md` | NEW — sprint card with bug IDs, root causes, patches, self-check |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (zero proto/ edits — lite-only sprint)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; untouched
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+
+## Tests Run
+
+```
+python -c "open('lite/ui-lite.html', encoding='utf-8').read()"    → parseable PASS
+wc -l lite/ui-lite.html                                            → 1197 (≤1200 cap) PASS
+<div> vs </div> regex balance: opens=92 closes=92 delta=0          PASS (was delta=1)
+cd lite && python -m py_compile server_lite.py                     → PASS
+cd lite && python tests/test_pan_controls.py                       → BUG_20260521_LITE_PAN_OK PASS
+
+Live Playwright verify (artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/verify_bug_fixes.py):
+  BUG_A_modal_rect_nonzero:        PASS — #setupModal 1600×958, parent=#stage
+  BUG_A_calib_modal_still_works:   PASS — no regression, 1600×958
+  BUG_B_dblclick_preserves_vertex: PASS — 4 pts saved, area=714.07 m² (drift 0.13% acceptable)
+
+No-test rationale for proto E2E: lite-only sprint; zero proto/ edits.
+Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (measure-engine.js untouched)
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (untouched)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ Size cap honored — lite/ui-lite.html 1197 ≤ 1200
+
+---
+
+# Previous: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
 
 Branch: main
 
@@ -58,7 +115,7 @@ Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchang
 
 ---
 
-# Previous: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
+# Previous (older): BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
 
 Branch: main
 

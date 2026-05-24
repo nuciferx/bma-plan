@@ -4,7 +4,67 @@
 
 ---
 
-# Latest: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
+# Latest: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
+
+Branch: main
+Date: 2026-05-24
+
+## Result: PASS (no-test rationale for proto full E2E — zero proto/ edits; lite tree isolated)
+
+## No-Test Rationale
+
+Per AGENTS.md §1, sprints that make ZERO changes to proto/ record a no-test rationale instead of running proto E2E. This sprint changed only `lite/ui-lite.html` and added a sprint card under `sprints/completed/`. No source code, UI, test code, or schema under `proto/` changed. Therefore proto `py_compile + smoke + full` were not run as regression tests.
+
+## Tests Run
+
+```bash
+python -c "open('lite/ui-lite.html', encoding='utf-8').read()"
+  → parseable PASS
+
+wc -l lite/ui-lite.html
+  → 1197 (≤1200 cap) PASS
+
+<div> vs </div> regex balance: opens=92 closes=92 delta=0
+  → PASS (was delta=1 before patch)
+
+cd lite && python -m py_compile server_lite.py
+  → PASS
+
+cd lite && python tests/test_pan_controls.py
+  → BUG_20260521_LITE_PAN_OK PASS (regression guard, no regression)
+
+Live Playwright verify (artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/verify_bug_fixes.py):
+  BUG_A_modal_rect_nonzero:
+    → PASS — #setupModal now renders 1600×958, parent=#stage, select.offsetParent exists
+  BUG_A_calib_modal_still_works:
+    → PASS — calibration modal not regressed, still 1600×958
+  BUG_B_dblclick_preserves_vertex:
+    → PASS — 4 pts saved, area=714.07 m² (expected ~713.12; drift 0.13% from screen-to-pt rounding — acceptable)
+```
+
+Evidence trail:
+- Original finding: `artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/summary.json`
+- Verify script + screenshots: same dir, `verify_bug_fixes.py` + `screenshots/VERIFY_A_*.png` + `screenshots/VERIFY_B_*.png`
+
+## Reference Baseline (from previous sprint LITE-REPORT 2026-05-22)
+
+```
+py_compile lite/server_lite.py lite/launch_lite.py    → PY_COMPILE_OK
+lite/tests/test_report.py                             → LITE_REPORT_OK GREEN (17/17)
+lite/tests/test_measure_parity.py                     → MEASURE_PARITY_OK GREEN (16 fns + 2 consts)
+lite/tests/test_menu_clickable.py                     → BUG_20260521_LITE_MENU_CLIP_OK GREEN
+lite/tests/test_pan_controls.py                       → BUG_20260521_LITE_PAN_OK GREEN
+artifacts/realflow_check.py                           → REALFLOW_OK (net 222.22)
+
+proto baseline (unchanged):
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → PASS (18 baseline markers)
+python3.11 proto/e2e_ui_test.py full                           → PASS (102 _OK markers)
+```
+
+---
+
+# Previous: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
 
 Branch: main
 Date: 2026-05-22
@@ -54,7 +114,7 @@ Markers include: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK
 
 ---
 
-# Previous: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
+# Previous (older): BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
 
 Branch: main
 Date: 2026-05-21

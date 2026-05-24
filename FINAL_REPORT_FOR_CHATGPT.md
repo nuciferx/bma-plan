@@ -4,7 +4,34 @@
 
 ---
 
-# Latest: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS
+# Latest: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop) — PASS
+
+**Date:** 2026-05-24
+**Branch:** main
+
+## Outcome
+
+PASS. Two silent bugs in `lite/ui-lite.html` found by the Opus-4.7 multi-model simulator (Pack J) and fixed in a zero-net-line patch. LITE-BUG-MODAL-NEST (BROKEN): `#setupModal` was nested inside hidden `#modal` — Page Setup modal was completely invisible to users. LITE-BUG-DBLCLICK-OVER-POP (FRICTION): unbounded `while` loop in the dblclick handler consumed intentional polygon vertices, saving 4-point polygons as triangles (713 m² reported as 356 m²). All live Playwright verify checks PASS: modal renders 1600x958, polygon saves 4 pts at 714.07 m² (0.13% drift from screen-to-pt rounding, acceptable). `lite/ui-lite.html` stays at 1197 lines (cap 1200). ZERO proto/ edits.
+
+## What was delivered
+
+- `lite/ui-lite.html` — two surgical patches: missing `</div>` at line 194 (closes `#modal` before `#setupModal`); bounded `for(_np<2)` replacing unbounded `while` at lines 502-503; 0 net lines
+- `sprints/completed/2026-05-24-lite-bug-2-opus47-findings/LITE-BUG-2-OPUS47-FINDINGS-2026-05-24.md` — sprint card with bug IDs, root causes, patches, self-check
+
+## What's next
+
+- **(1) Simulator reflection-loop hardening** — read last 1-3 `history.jsonl` entries in Phase A and add the closed bugs as regression checks so they are not re-found in future simulator runs
+- **(2) Snap-to-walls polygon strategy** — replace synthetic 80%-quad placeholder with real measurement (read PDF vector edges, snap to walls)
+- **(3) Lite PDF page classifier** — auto-tag floor/site/cover from title block OCR or layout hints, eliminating the manual tagging step
+- User decides priority after commit.
+
+## Position in Plan
+
+Phase 1 adjacent — BMA-Plan Lite epic. This is a bug-fix sprint on the lite tree, closing two simulator-found regressions. No Phase 2 scope boundary crossed. Proto/ runtime untouched. LITE-7 (packaging) remains the only deferred epic item.
+
+---
+
+# Previous: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS
 
 **Date:** 2026-05-22
 **Branch:** main
@@ -33,7 +60,7 @@ Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001 / INV-2026-05-21-002
 
 ---
 
-# Previous: BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS
+# Previous (older): BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS
 
 **Date:** 2026-05-21
 **Branch:** main
