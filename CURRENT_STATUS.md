@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-24 (updated: LITE-BUG-2-OPUS47-FINDINGS PASS — fixed 2 lite bugs surfaced by Opus-4.7 simulator: #setupModal nested inside hidden #modal (Page Setup invisible); unbounded dblclick pop-loop corrupted polygon vertex count (4 pts saved as 3 pts, 713 m² reported as 356 m²). Zero net lines. Live Playwright verify PASS. ZERO proto/ edits. proto 102-marker baseline unchanged.)
+Date: 2026-05-24 (updated: SIM-2 PASS — /bma-simulate gains permanent regression probes: regression_probes.json (tracked) holds 2 hard probes (LITE-BUG-MODAL-NEST + LITE-BUG-DBLCLICK-OVER-POP) that are prepended to every SCENARIO_PLAN; false assertion = REGRESSION severity above CRASH. Both probes PASS (860ms + 2919ms). Zero lite/proto runtime changes. LITE-BUG-2 bugs now guarded against silent regression.)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,10 +8,11 @@ Date: 2026-05-24 (updated: LITE-BUG-2-OPUS47-FINDINGS PASS — fixed 2 lite bugs
 
 ## One-Line Status
 
-2026-05-24 — LITE-BUG-2-OPUS47-FINDINGS PASS: fixed 2 silent bugs in lite/ui-lite.html found by the Opus-4.7 multi-model simulator — Page Setup modal invisible (missing </div> nesting fix) and dblclick vertex-pop loop corrupted polygon vertex count (bounded for loop). Zero net lines. Live verify PASS. ZERO proto/ edits; proto 102 _OK unchanged.
+2026-05-24 — SIM-2 PASS: /bma-simulate gains permanent regression probes (regression_probes.json, tracked); 2 probes registered guard LITE-BUG-MODAL-NEST + LITE-BUG-DBLCLICK-OVER-POP from silent regression; false assertion = REGRESSION severity above CRASH. Both PASS. Zero lite/proto edits; proto 102 _OK unchanged.
 
 ## Latest Sprint
 
+- SIM-2 — /bma-simulate regression-probe hardening: PASS (2026-05-24) — regression_probes.json (tracked, curated per sprint) added as hard memory channel; 2 probes (LITE-BUG-MODAL-NEST evaluate-type 860ms + LITE-BUG-DBLCLICK-OVER-POP mouse_sequence-type 2919ms) prepended to every SCENARIO_PLAN; REGRESSION severity (above CRASH) + SIM_REGRESSION stop condition; SKILL.md + bma-sim-driver.md updated; zero lite/proto runtime edits.
 - LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop): PASS (2026-05-24) — LITE-BUG-MODAL-NEST: missing </div> caused #setupModal nested in hidden #modal, Page Setup invisible; LITE-BUG-DBLCLICK-OVER-POP: unbounded while loop ate intentional vertex (4 pts → 3 pts, 713→356 m²); bounded for(_np<2) fix; zero net lines; 1197 lines (cap 1200); live Playwright verify 3/3 PASS; ZERO proto/ edits.
 - LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite: PASS (2026-05-22) — A4 landscape, plan image+SVG polygon overlay left, area table grouped by semanticTag right, contenteditable header/row-name/note, read-only area cells, @page print-to-PDF, sessionStorage handoff, sample fallback; LITE_REPORT_OK GREEN (17/17); REALFLOW_OK (net 222.22); ZERO proto/ edits; MEASURE_PARITY_OK unchanged.
 - BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite: PASS (2026-05-21) — spacebar/middle-mouse pan in any mode + H pan-tool + setCursor helper + smooth exp zoom clamped [0.02,40] + zoomCenter/actualSize + F/Ctrl+0/Ctrl+1/Ctrl+=/Ctrl+- shortcuts; BUG_20260521_LITE_PAN_OK GREEN (13/13); ZERO proto/ edits; MEASURE_PARITY_OK unchanged.

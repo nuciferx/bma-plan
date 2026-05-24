@@ -4,7 +4,64 @@
 
 ---
 
-# Latest: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
+# Latest: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
+
+Branch: main
+
+Date: 2026-05-24
+
+## Outcome: PASS — /bma-simulate gains a permanent hard-probe channel: regression_probes.json (tracked, curated per sprint) holds mandatory steps prepended to every SCENARIO_PLAN. Two probes registered (LITE-BUG-MODAL-NEST + LITE-BUG-DBLCLICK-OVER-POP) and verified PASS against current build. False assertion = REGRESSION severity (above CRASH). Zero runtime changes to lite/ or proto/.
+
+## Summary
+
+Added a permanent regression-probe mechanism to Pack J `/bma-simulate`. Two memory channels now coexist: the existing soft channel (`artifacts/sim/lite/history.jsonl`, rolling, gitignored, few-shot context) and a new hard channel (`.claude/skills/bma-simulate/regression_probes.json`, tracked, permanent). Phase A reads the hard channel and prepends one `regression_probe` step per entry to the SCENARIO_PLAN right after `open_pdf`. `bma-sim-driver` supports the new step type with setup_js → trigger → assertion_js → cleanup_js recipe. A false assertion returns REGRESSION severity — a new tier above CRASH — and triggers the new `SIM_REGRESSION` stop condition. Two initial probes verify PASS against the current build: LITE-BUG-MODAL-NEST (evaluate-type, 860 ms) and LITE-BUG-DBLCLICK-OVER-POP (mouse_sequence-type, 2919 ms).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `.claude/skills/bma-simulate/regression_probes.json` | NEW — 2 active probes + `_schema` docs block (~50 lines) |
+| `.claude/skills/bma-simulate/SKILL.md` | Phase A reads probes; prepends probe steps to SCENARIO_PLAN; REGRESSION severity added (highest); SIM_REGRESSION + SIM_PROBES_MALFORMED stop conditions; soft/hard memory table (~+30 lines) |
+| `.claude/agents/bma-sim-driver.md` | `regression_probe` step type added to step types table; "How to execute regression_probe" sub-section (~+45 lines) |
+| `sprints/active/SIM-2-REGRESSION-PROBES-2026-05-24.md` | NEW sprint card (to be moved to `sprints/completed/2026-05-24-sim-2-regression-probes/`) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; untouched (probes read PS in-memory, ephemeral)
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+- `lite/ui-lite.html` — NOT TOUCHED (zero lite/ runtime edits)
+
+## Tests Run
+
+```
+python -c "import json; json.load(open('.claude/skills/bma-simulate/regression_probes.json', encoding='utf-8'))"
+  → PASS (2 probes registered, both schema-valid)
+
+artifacts/sim/lite/regression-probes-verify-20260524T200000/probe_executor.py
+  → LITE-BUG-MODAL-NEST:       PASS (860ms)
+  → LITE-BUG-DBLCLICK-OVER-POP: PASS (2919ms)
+  → 2 PASS · 0 FAIL
+
+No proto/lite source changes → proto py_compile + E2E not re-run.
+Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (untouched; probes read in-memory PS only)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ Size cap honored (no lite/ runtime files touched)
+
+---
+
+# Previous: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
 
 Branch: main
 
@@ -61,7 +118,7 @@ Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchang
 
 ---
 
-# Previous: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
+# Previous (older): LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
 
 Branch: main
 

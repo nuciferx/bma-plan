@@ -1,8 +1,53 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004) · [docs/archive/log-2026-05-21.md](docs/archive/log-2026-05-21.md) (BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004) · [docs/archive/log-2026-05-21.md](docs/archive/log-2026-05-21.md) (BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series) · [docs/archive/log-2026-05-22.md](docs/archive/log-2026-05-22.md) (LITE-REPORT INV-2026-05-21-002)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-05-24 — SIM-2 — /bma-simulate regression-probe hardening — PASS (branch: main)
+
+**What changed:** Added a permanent regression-probe mechanism to `/bma-simulate` (Pack J). Two memory channels now coexist: the existing soft channel (`artifacts/sim/lite/history.jsonl`, rolling ~30 entries, gitignored, used for few-shot context in Phase A) and a new hard channel (`.claude/skills/bma-simulate/regression_probes.json`, tracked, permanent until retired, curated per sprint). Each probe in the hard channel is a mandatory step prepended to every SCENARIO_PLAN right after `open_pdf` — a false assertion returns a new REGRESSION severity tier, which ranks above CRASH and triggers the new `SIM_REGRESSION` stop condition. Two initial probes registered and verified PASS against the current build: LITE-BUG-MODAL-NEST (evaluate-type, 860 ms — verifies `#setupModal` renders with non-zero rect, `parent === #stage`, `select.offsetParent` exists when `openSetup()` runs) and LITE-BUG-DBLCLICK-OVER-POP (mouse_sequence-type, 2919 ms — verifies a 4-vertex polygon survives dblclick at the last click position, asserting `PS[1].objects[0].pts.length === 4`). `SKILL.md` and `bma-sim-driver.md` updated to document the new probe step type, severity list, and stop conditions. Zero changes to `lite/` or `proto/` runtime code.
+
+**Why:** SIM-1.1 found 2 real lite bugs (LITE-BUG-MODAL-NEST and LITE-BUG-DBLCLICK-OVER-POP) that LITE-BUG-2-OPUS47-FINDINGS fixed. Without a regression-probe mechanism those bugs could silently reopen in a future sprint — the simulator would re-find them and they would appear as new findings rather than regressions. The hard probe channel closes this loop: each closed bug becomes a mandatory assertion that every future `/bma-simulate` run must pass before the scenario plan even starts, making regressions immediately visible at the highest severity tier (REGRESSION > CRASH > BROKEN > FRICTION > COSMETIC).
+
+**Files touched:**
+- `.claude/skills/bma-simulate/regression_probes.json`: NEW — 2 active probes + `_schema` documentation block (~50 lines)
+- `.claude/skills/bma-simulate/SKILL.md`: Phase A gains steps to read probes file and prepend probe steps to SCENARIO_PLAN; Phase C severity list gains REGRESSION (highest); stop conditions extended with SIM_REGRESSION + SIM_PROBES_MALFORMED; "Few-shot learning loop" section rewritten with soft/hard memory table (~+30 lines)
+- `.claude/agents/bma-sim-driver.md`: Step types table gains `regression_probe`; new "How to execute regression_probe" sub-section documenting setup_js → trigger → assertion_js → cleanup_js recipe (~+45 lines)
+- `sprints/active/SIM-2-REGRESSION-PROBES-2026-05-24.md`: NEW sprint card (to be moved to `sprints/completed/2026-05-24-sim-2-regression-probes/`)
+
+**Tests:**
+```
+python -c "import json; json.load(open('.claude/skills/bma-simulate/regression_probes.json', encoding='utf-8'))"
+  → PASS (2 probes registered, both schema-valid)
+
+artifacts/sim/lite/regression-probes-verify-20260524T200000/probe_executor.py
+  (loads regression_probes.json, runs both probes against current lite build
+   using the exact bma-sim-driver recipe: setup_js → trigger → assertion_js → cleanup_js)
+  === LITE-BUG-MODAL-NEST ===
+    result: PASS  (860ms)
+  === LITE-BUG-DBLCLICK-OVER-POP ===
+    result: PASS  (2919ms)
+  2 PASS · 0 FAIL
+
+No proto/lite source changes → proto py_compile + E2E not re-run (baseline unchanged).
+```
+
+**Phase 1 scope check:**
+- ✅ polyAreaM2 / polyMetrics / polySelfIntersects unchanged
+- ✅ pdfToC / cToPdf / RS / scale math unchanged
+- ✅ proto/server.py core endpoints unchanged (zero proto edits)
+- ✅ .bmaplan schema additive only (probes read PS in-memory, ephemeral — schema untouched)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ buildSnapIndex / snap engine unchanged
+- ✅ lite/static/js/measure-engine.js (drift-locked vendored copy) unchanged
+- ✅ Size cap honored (no lite/ runtime files touched)
+
+**Known gaps / follow-ups:**
+- Option 2: snap-to-walls polygon strategy — replace synthetic 80%-quad placeholder with real wall-snap geometry (read PDF vector edges, snap to walls), new `lite/static/js/snap-walls.js`, run via `/bma-lite-dev`
+- Option 3: Lite PDF page classifier — auto-tag floor/site/cover from title block OCR or layout hints; invention-level, run `/bma-invent` first
 
 ---
 
@@ -48,47 +93,8 @@ No proto/ E2E run (lite-only sprint, zero proto/ edits).
 
 ---
 
-## 2026-05-22 — LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS (branch: main)
-
-**What changed:** Added a standalone editable web-report page (`lite/lite-report.html`) to the lite tree. The report opens in a new window via a File-menu item "ส่งออกรายงาน (แก้ไขได้)…" in `lite/ui-lite.html`. Payload (geometry metadata + page info, not images) is handed off through `sessionStorage["bmaReportPayload"]`; plan images reference `/page/{n}` URLs directly so sessionStorage stays under 5 MB. The page renders one A4-landscape sheet per measured page: left half = plan image + SVG polygon overlay + numbered badges; right half = area table grouped by semanticTag category with per-group subtotals + page net (deductions sign −1) + header (project/page#/tag/scale-state/date). Header fields, row labels, and a per-row note column are `contenteditable`; area number cells are read-only gray (raw-geometry contract preserved). `@page` CSS + `@media print page-break-after:always` per sheet → WYSIWYG browser-print-to-PDF. A sample standalone fallback renders when opened with no payload. `lite/server_lite.py` gained a `GET /report` route (+9 lines, additive). New Playwright test `lite/tests/test_report.py` validates the full flow (LITE_REPORT_OK, 17/17). A `realflow_check.py` real-PDF acceptance test verified: real permit upload → openReport → popup caught → plan image naturalWidth 3576, viewBox "0 0 3576 2526" → overlay polygon → net 222.22.
-
-**Why:** INV-2026-05-21-002 invention verdict: PRIOR_ART_PARTIAL → Approach A (sessionStorage + new-window contenteditable) chosen over Approach B (postMessage+Blob). This delivers the "editable report" user story — the user can annotate measurement results in a Word-like web page and print to PDF — without touching the measurement engine, save format, or proto runtime. The sprint closes the last user-facing output gap in the lite epic (the only missing output was a human-readable, printable, editable document).
-
-**Files touched:**
-- `lite/lite-report.html`: NEW — standalone editable report page (A4 landscape, plan+SVG overlay, area table, contenteditable, @page print CSS, sample fallback)
-- `lite/server_lite.py`: +9 lines — `_REPORT_FILE` const + `GET /report` FileResponse route (additive)
-- `lite/ui-lite.html`: +52 lines — File-menu item #mi-report + `reportPageTitle()` / `buildReportPayload()` / `openReport()` functions (reads polyMetrics/PS/catOf READ-ONLY; hands off via sessionStorage + window.open)
-- `lite/tests/test_report.py`: NEW — LITE_REPORT_OK Playwright guard (17 checks)
-- `docs/status/PHASE_INDEX.md`: LITE-REPORT marked done
-
-**Tests:**
-```
-py_compile lite/server_lite.py lite/launch_lite.py  → PY_COMPILE_OK
-lite/tests/test_report.py  → LITE_REPORT_OK GREEN (17/17)
-lite/tests/test_measure_parity.py  → MEASURE_PARITY_OK GREEN (16 fns + 2 consts unchanged)
-lite/tests/test_menu_clickable.py  → BUG_20260521_LITE_MENU_CLIP_OK GREEN
-lite/tests/test_pan_controls.py  → BUG_20260521_LITE_PAN_OK GREEN
-artifacts/realflow_check.py  → REALFLOW_OK (real PDF → openReport → popup → naturalWidth 3576 → polygon overlay → net 222.22)
-Proto E2E: n/a — lite-only tree; zero proto/ edits.
-```
-New E2E marker: LITE_REPORT_OK
-
-**Phase 1 scope check:**
-- ✅ polyAreaM2 / polyMetrics / polySelfIntersects unchanged (read-only consumer)
-- ✅ pdfToC / cToPdf / RS / scale math unchanged (measure-engine.js untouched; MEASURE_PARITY_OK)
-- ✅ proto/server.py core endpoints unchanged (zero proto edits)
-- ✅ .bmaplan schema additive only (no schema touch — report reads in-memory PS, ephemeral edits)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail (area facts only)
-
-**Known gaps / follow-ups:**
-- sessionStorage 5 MB quota: images pass as /page URLs so only geometry+metadata are serialised — not hit in practice, but documented in code.
-- Fallback B (postMessage+Blob) documented in code comments if the quota is ever hit.
-- LITE-REPORT v2 ideas (custom branding, cross-page roll-up summary, persist edits to .bmaplan) are out of scope for this sprint.
-- LITE-7 PyInstaller .exe still deferred.
-
----
-
-<!-- LITE-BUG-2-OPUS47-FINDINGS (2026-05-24) and LITE-REPORT (2026-05-22) are the 2 sessions kept in this file -->
+<!-- SIM-2 (2026-05-24) and LITE-BUG-2-OPUS47-FINDINGS (2026-05-24) are the 2 sessions kept in this file -->
+<!-- LITE-REPORT (INV-2026-05-21-002, 2026-05-22) archived to docs/archive/log-2026-05-22.md on 2026-05-24 (SIM-2 sprint) -->
 <!-- BUG-20260521-lite-pan-controls archived to docs/archive/log-2026-05-21.md on 2026-05-24 (LITE-BUG-2 sprint) -->
 <!-- BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series archived to docs/archive/log-2026-05-21.md -->
 <!-- Earlier 2026-05-20 entries archived to docs/archive/log-2026-05-20.md -->

@@ -42,7 +42,13 @@ Use both at different times. They are not redundant.
 1. **Resolve target PDF**. If user gave `pdf_path`, use it. Else default to `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` at repo root (the canonical 45-page permit). If neither exists → emit `SIM_NO_PDF` and stop.
 2. **Read PDF metadata** cheaply — file size, modified time. Do NOT render the PDF in the planning phase; that's the driver's job.
 3. **Read past-run history** from `artifacts/sim/lite/`. Take the last 1-3 runs' final summary JSON files (NOT full logs — too big). If the dir is empty, that's a first run; note it.
-4. **Generate a SCENARIO_PLAN** as a JSON list of step specs. **Pick the right scenario class for the goal** — do NOT default to the smoke plan when the user is testing real-world workflow.
+4. **Read active regression probes** from `.claude/skills/bma-simulate/regression_probes.json`. Each entry is a closed bug the simulator must re-verify so the fix doesn't silently regress. **Every probe in that file becomes a mandatory step in this scenario.** If a probe is no longer applicable (e.g. the surface it tested was removed), DELETE it from `regression_probes.json` in the same sprint that removed the surface — don't disable it silently.
+
+   The probe schema is documented in `regression_probes.json` itself. Each probe must specify: `id`, `preconditions`, `trigger` (either `evaluate`-type or `mouse_sequence`-type), `assertion_js`, `cleanup_js`. The orchestrator decides WHERE to inject the probe in the scenario based on `preconditions` — most probes only need "PDF loaded", so they go right after `open_pdf`. Probes requiring a fully-set-up page should land later (after `set_scale`).
+
+5. **Generate a SCENARIO_PLAN** as a JSON list of step specs. **Pick the right scenario class for the goal** — do NOT default to the smoke plan when the user is testing real-world workflow.
+
+   **Always-prepended regression steps:** for each probe in `regression_probes.json`, add a step of type `regression_probe` to the SCENARIO_PLAN right after the latest precondition step it depends on. The step body is the probe JSON itself, copied verbatim. Driver knows how to execute it (see `bma-sim-driver` agent spec). These run BEFORE the main workflow so a regression halts the run cheaply.
 
    **Scenario class A — `*-smoke` (~7 steps, ~30 s)** — dev sanity. Opens PDF, sets scale, draws ONE test polygon on page 1, saves+reopens. Useful to prove the driver/lite boot still works. NOT useful as a real workflow test.
 
@@ -75,8 +81,8 @@ Use both at different times. They are not redundant.
    For NON-`permit-45p` PDFs, Opus must either: (a) consult past-run history for a known plan for this PDF, OR (b) generate a smoke plan + flag in the report that "full-loop needs page classification — please tag pages manually OR supply a tags fixture".
 
    Keep total ≤20 steps so the driver stays under its 5-min cap. The measure_loop step itself counts as 1 step but the driver expands it internally to N navigate+draw+verify sub-actions; the per-step 90-second cap applies to each sub-action.
-5. **Pick a `scenario_id`** in kebab-case (e.g. `permit-45p-baseline`, `permit-45p-arc-edge-probe`).
-6. Create `artifacts/sim/lite/<scenario_id>-<timestamp>/` directory.
+6. **Pick a `scenario_id`** in kebab-case (e.g. `permit-45p-baseline`, `permit-45p-arc-edge-probe`).
+7. Create `artifacts/sim/lite/<scenario_id>-<timestamp>/` directory.
 
 ### Phase B — DRIVE (delegate to `bma-sim-driver`, sonnet)
 
@@ -94,13 +100,14 @@ If the driver returns `SIM_DRIVE_ABORTED:<reason>` → record the abort in the r
 Read the STEP_LOG. For each step:
 - If `status === "pass"` AND `observed` matches the `expect` block within tolerance → ✅
 - If `status === "fail"` OR a critical `observed` is missing → derive severity:
+  - **REGRESSION** — a previously-fixed bug returned: a `regression_probe` step's `assertion_js` returned false. This is the **HIGHEST** severity, above CRASH, because it means a closed sprint has reopened — the team thought this was done. Always halt the report with a loud verdict (`SIM_REGRESSION`); do NOT bury under other findings.
   - **CRASH** — `boot_lite` failed, uvicorn died, browser tab errored
   - **BROKEN** — wrong/missing result (area mismatch beyond tolerance, polygon lost on reopen, empty export)
   - **FRICTION** — works but slow/confusing (per-step > 30 s, error messages in browser console even if step passed)
   - **COSMETIC** — visual / polish only
 - Console errors + network 5xx across all steps are aggregated and reported even if the step they belong to "passed".
 
-Severity definitions match the existing `bma-human-journey-tester` so reports are comparable.
+Severity definitions match the existing `bma-human-journey-tester` so reports are comparable. **REGRESSION** is unique to this skill because only `/bma-simulate` carries forward closed-bug probes; other testers don't have that memory.
 
 ### Phase D — REPORT (Opus, in-skill)
 
@@ -112,8 +119,9 @@ Severity definitions match the existing `bma-human-journey-tester` so reports ar
      "pdf_path": "...",
      "model_split": { "plan": "opus", "drive": "sonnet", "verify": "opus" },
      "step_results": [ ... ],
-     "findings": [ { "severity": "BROKEN", "step": "reopen_bmaplan", "what": "...", "what_should_happen": "..." } ],
-     "verdict": "SIM_OK | SIM_ISSUES | SIM_CRASH"
+     "findings": [ { "severity": "REGRESSION|CRASH|BROKEN|FRICTION|COSMETIC", "step": "...", "probe_id": "<set only if regression>", "what": "...", "what_should_happen": "..." } ],
+     "regression_summary": { "probes_run": N, "probes_passed": M, "regressions": ["LITE-BUG-..."] },
+     "verdict": "SIM_OK | SIM_ISSUES | SIM_CRASH | SIM_REGRESSION"
    }
    ```
 2. **Append the summary into `artifacts/sim/lite/history.jsonl`** (one line per run; this is the few-shot source for future runs).
@@ -145,7 +153,16 @@ Severity definitions match the existing `bma-human-journey-tester` so reports ar
 
 ## Few-shot learning loop
 
-After each run, `summary.json` is appended to `artifacts/sim/lite/history.jsonl`. Phase A of the NEXT run reads the last 1-3 lines and feeds them to both itself (Opus) and the driver (sonnet) as context. This is "**learning**" in the prompt-cache sense: the orchestrator notices "the last 3 runs all failed at `reopen_bmaplan` with edges loss" and biases its SCENARIO_PLAN to probe that specific regression. No weight updates, no fine-tuning.
+After each run, `summary.json` is appended to `artifacts/sim/lite/history.jsonl`. Phase A of the NEXT run reads the last 1-3 lines and feeds them to both itself (Opus) and the driver (sonnet) as context.
+
+**Two memory channels, distinct cadence:**
+
+| Channel | File | Lifetime | Mutability | Purpose |
+|---|---|---|---|---|
+| Soft (few-shot) | `artifacts/sim/lite/history.jsonl` (gitignored) | rolling last ~30 | append-only | Phase A reads last 1-3 entries to bias scenario_id choice + spot "the last 3 runs all failed at X" patterns |
+| Hard (regression) | `.claude/skills/bma-simulate/regression_probes.json` (tracked) | permanent until probe is retired | curated | every probe becomes a mandatory step; a failing assertion is a `REGRESSION` finding (highest severity) |
+
+When a closed sprint adds a probe to `regression_probes.json`, the fix is permanently guarded — even if the soft-history is wiped or the next 10 runs forget about it, the hard-probe is still executed. Closed bugs never silently reopen.
 
 If `history.jsonl` exceeds 100 lines (a year+ of weekly runs), prune to last 30 + keep a monthly digest at the top. Not implemented v1 — flag if it ever matters.
 
@@ -163,8 +180,10 @@ If `history.jsonl` exceeds 100 lines (a year+ of weekly runs), prune to last 30 
 
 | # | Condition | Emit |
 |---|---|---|
-| 1 | Run completed, no CRASH or BROKEN | `SIM_OK` |
-| 2 | Run completed, has BROKEN or FRICTION | `SIM_ISSUES` |
+| 1 | Run completed, no findings of REGRESSION/CRASH/BROKEN | `SIM_OK` |
+| 2 | Run completed, has BROKEN or FRICTION (no REGRESSION) | `SIM_ISSUES` |
 | 3 | `boot_lite` failed OR driver returned `SIM_DRIVE_ABORTED` | `SIM_CRASH` |
-| 4 | No PDF resolvable | `SIM_NO_PDF` |
-| 5 | `artifacts/sim/lite/` dir cannot be written (permission) | `SIM_ARTIFACTS_BLOCKED` |
+| 4 | One or more `regression_probe` assertions returned false | `SIM_REGRESSION` (highest — outranks ISSUES; report names every reopened bug) |
+| 5 | No PDF resolvable | `SIM_NO_PDF` |
+| 6 | `artifacts/sim/lite/` dir cannot be written (permission) | `SIM_ARTIFACTS_BLOCKED` |
+| 7 | `regression_probes.json` exists but is malformed JSON | `SIM_PROBES_MALFORMED` (halt before driver — don't run the scenario blind) |

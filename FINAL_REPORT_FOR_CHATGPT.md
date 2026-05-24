@@ -4,7 +4,34 @@
 
 ---
 
-# Latest: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop) — PASS
+# Latest: SIM-2 — /bma-simulate regression-probe hardening — PASS
+
+**Date:** 2026-05-24
+**Branch:** main
+
+## Outcome
+
+PASS. `/bma-simulate` (Pack J) gains a permanent hard-probe channel: `.claude/skills/bma-simulate/regression_probes.json` (tracked, curated per sprint) holds mandatory probe steps prepended to every SCENARIO_PLAN. Two probes are registered — LITE-BUG-MODAL-NEST and LITE-BUG-DBLCLICK-OVER-POP (both closed by LITE-BUG-2-OPUS47-FINDINGS) — and both verify PASS against the current build (860 ms + 2919 ms). A false probe assertion returns a new REGRESSION severity tier (above CRASH), triggering the SIM_REGRESSION stop condition. Zero changes to `lite/` or `proto/` runtime code. Proto 102-marker baseline unchanged.
+
+## What was delivered
+
+- `.claude/skills/bma-simulate/regression_probes.json` — NEW: 2 active probes (evaluate-type: MODAL-NEST; mouse_sequence-type: DBLCLICK-OVER-POP) + `_schema` block (~50 lines, tracked)
+- `.claude/skills/bma-simulate/SKILL.md` — Phase A reads probes + prepends probe steps; REGRESSION severity (highest tier) added; SIM_REGRESSION + SIM_PROBES_MALFORMED stop conditions; soft/hard memory channel table
+- `.claude/agents/bma-sim-driver.md` — `regression_probe` step type + execution recipe sub-section
+- `sprints/active/SIM-2-REGRESSION-PROBES-2026-05-24.md` — sprint card (to move to completed/)
+
+## What's next
+
+- **(OPTION 2) Snap-to-walls polygon strategy** — replace synthetic 80%-quad placeholder with real wall-snap geometry (read PDF vector edges, snap to walls); new `lite/static/js/snap-walls.js`; run via `/bma-lite-dev`
+- **(OPTION 3) Lite PDF page classifier** — auto-tag floor/site/cover from title block OCR or layout hints; invention-level — run `/bma-invent` first
+
+## Position in Plan
+
+Phase 1 adjacent — BMA-Plan Lite epic, simulator tooling hardening sub-track. SIM-2 closes the "simulator reflection-loop" follow-up filed in LITE-BUG-2-OPUS47-FINDINGS. No Phase 2 scope boundary crossed. Proto/ and lite/ runtime untouched. LITE-7 (packaging) remains the only deferred epic item.
+
+---
+
+# Previous: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop) — PASS
 
 **Date:** 2026-05-24
 **Branch:** main
@@ -20,18 +47,17 @@ PASS. Two silent bugs in `lite/ui-lite.html` found by the Opus-4.7 multi-model s
 
 ## What's next
 
-- **(1) Simulator reflection-loop hardening** — read last 1-3 `history.jsonl` entries in Phase A and add the closed bugs as regression checks so they are not re-found in future simulator runs
-- **(2) Snap-to-walls polygon strategy** — replace synthetic 80%-quad placeholder with real measurement (read PDF vector edges, snap to walls)
-- **(3) Lite PDF page classifier** — auto-tag floor/site/cover from title block OCR or layout hints, eliminating the manual tagging step
-- User decides priority after commit.
+- (1) Simulator reflection-loop hardening (SIM-2 — DONE)
+- (2) Snap-to-walls polygon strategy
+- (3) Lite PDF page classifier
 
 ## Position in Plan
 
-Phase 1 adjacent — BMA-Plan Lite epic. This is a bug-fix sprint on the lite tree, closing two simulator-found regressions. No Phase 2 scope boundary crossed. Proto/ runtime untouched. LITE-7 (packaging) remains the only deferred epic item.
+Phase 1 adjacent — BMA-Plan Lite epic. Bug-fix sprint closing two simulator-found regressions. No Phase 2 scope boundary crossed. Proto/ runtime untouched. LITE-7 (packaging) remains the only deferred epic item.
 
 ---
 
-# Previous: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS
+# Previous (older): LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS
 
 **Date:** 2026-05-22
 **Branch:** main

@@ -1,0 +1,52 @@
+{
+  "_doc": "Active regression probes for /bma-simulate. Each probe is a closed bug that the next simulator run must re-verify so the fix doesn't silently regress. Probes are prepended to the SCENARIO_PLAN in Phase A.",
+  "_schema": {
+    "id": "bug ID matching the sprint that fixed it",
+    "fixed_in_sprint": "sprint short name",
+    "fixed_in_commit": "short sha",
+    "description": "one-line what we're checking",
+    "preconditions": "human-readable state the driver should be in before running this probe (the orchestrator decides where to insert the probe in the scenario)",
+    "trigger": {
+      "type": "'evaluate' (call evaluate_js) or 'mouse_sequence' (run a list of mouse actions in PDF coords)",
+      "evaluate_js": "() => { ... } — used when type=evaluate",
+      "mouse_sequence": "[{action:'click'|'dblclick', pdf_pt:{x,y}}, ...] — used when type=mouse_sequence"
+    },
+    "assertion_js": "() => boolean — returns true iff the fix is still in place",
+    "cleanup_js": "() => { ... } — restore neutral state so subsequent scenario steps are unaffected"
+  },
+  "probes": [
+    {
+      "id": "LITE-BUG-MODAL-NEST",
+      "fixed_in_sprint": "LITE-BUG-2-OPUS47-FINDINGS",
+      "fixed_in_commit": "2dae5c0",
+      "description": "Page Setup modal (#setupModal) must be a child of #stage (NOT nested inside #modal) and render with non-zero rect when openSetup() runs.",
+      "preconditions": "PDF loaded (caseId set, curImg non-null). Do not nest inside another modal flow.",
+      "trigger": {
+        "type": "evaluate",
+        "evaluate_js": "() => { openSetup(); return true; }"
+      },
+      "assertion_js": "() => { var m=document.getElementById('setupModal'); if(!m)return false; var r=m.getBoundingClientRect(); var parentOk=m.parentElement && m.parentElement.id==='stage'; var sel=document.querySelector('#su-floor select.fc-tag'); var selOk=sel && !!sel.offsetParent; return r.width>100 && r.height>100 && parentOk && selOk; }",
+      "cleanup_js": "() => { var b=document.getElementById('su-cancel'); if(b)b.click(); }"
+    },
+    {
+      "id": "LITE-BUG-DBLCLICK-OVER-POP",
+      "fixed_in_sprint": "LITE-BUG-2-OPUS47-FINDINGS",
+      "fixed_in_commit": "2dae5c0",
+      "description": "Polygon dblclick at the same screen position as the last click MUST preserve the intentional vertex (final polygon has 4 pts, not 3). Asserts the pop-loop cap of 2 from cv.dblclick handler.",
+      "preconditions": "PDF loaded; the probe sets PS[1].scale + active layer + poly tool itself in setup_js so it does not depend on prior scenario state.",
+      "trigger": {
+        "type": "mouse_sequence",
+        "setup_js": "() => { if(!PS[1])return; PS[1].objects=[]; PS[1].scale={pts_per_m:30.0}; setTool('poly'); state.draft=null; }",
+        "mouse_sequence": [
+          { "action": "click",    "pdf_pt": { "x": 84.2,  "y": 119.1  } },
+          { "action": "click",    "pdf_pt": { "x": 757.8, "y": 119.1  } },
+          { "action": "click",    "pdf_pt": { "x": 757.8, "y": 1071.9 } },
+          { "action": "click",    "pdf_pt": { "x": 84.2,  "y": 1071.9 } },
+          { "action": "dblclick", "pdf_pt": { "x": 84.2,  "y": 1071.9 } }
+        ]
+      },
+      "assertion_js": "() => { var objs=PS[1] && PS[1].objects; if(!objs || objs.length!==1)return false; return objs[0].pts && objs[0].pts.length===4; }",
+      "cleanup_js": "() => { if(PS[1]){ PS[1].objects=[]; } state.draft=null; setTool('select'); }"
+    }
+  ]
+}

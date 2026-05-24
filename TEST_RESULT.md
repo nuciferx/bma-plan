@@ -4,7 +4,64 @@
 
 ---
 
-# Latest: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
+# Latest: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
+
+Branch: main
+Date: 2026-05-24
+
+## Result: PASS (no-test rationale for proto/lite — zero source changes; probe verifier is the relevant smoke test)
+
+## No-Test Rationale
+
+Per AGENTS.md §1, sprints that make ZERO changes to proto/ or lite/ source record a no-test rationale instead of running proto E2E. This sprint changed only files under `.claude/` (SKILL.md, bma-sim-driver.md, regression_probes.json) and added a sprint card under `sprints/`. The `regression_probes.json` mechanism is a READ-ONLY observer of the running lite app — it does not modify lite or proto code. Therefore proto `py_compile + smoke + full` and lite tests were not re-run (would only re-verify unchanged baseline). The probe verifier below IS the relevant smoke test for this sprint.
+
+## Tests Run
+
+```bash
+python -c "import json; json.load(open('.claude/skills/bma-simulate/regression_probes.json', encoding='utf-8'))"
+  → PASS (2 probes registered, both schema-valid)
+
+artifacts/sim/lite/regression-probes-verify-20260524T200000/probe_executor.py
+  (loads regression_probes.json; runs each probe against current lite build using
+   the exact bma-sim-driver recipe: setup_js → trigger → assertion_js → cleanup_js)
+
+  === LITE-BUG-MODAL-NEST ===
+    type: evaluate
+    result: PASS  (860ms)
+    assertion: #setupModal has non-zero rect, parent=#stage, select.offsetParent exists
+
+  === LITE-BUG-DBLCLICK-OVER-POP ===
+    type: mouse_sequence (4 clicks + 1 dblclick at last-click position)
+    result: PASS  (2919ms)
+    assertion: PS[1].objects[0].pts.length === 4
+
+  2 PASS · 0 FAIL
+```
+
+Evidence trail:
+- Probe JSON: `.claude/skills/bma-simulate/regression_probes.json`
+- Verifier results: `artifacts/sim/lite/regression-probes-verify-20260524T200000/verify_result.json`
+- Screenshots: `artifacts/sim/lite/regression-probes-verify-20260524T200000/screenshots/probe_*.png`
+- Closed bugs protected: commit `2dae5c0` (LITE-BUG-2-OPUS47-FINDINGS)
+
+## Reference Baseline (from previous sprint LITE-BUG-2-OPUS47-FINDINGS 2026-05-24)
+
+```
+python -c "open('lite/ui-lite.html', encoding='utf-8').read()"    → parseable PASS
+wc -l lite/ui-lite.html                                            → 1197 (≤1200 cap) PASS
+<div> vs </div> balance: delta=0 PASS
+cd lite && python -m py_compile server_lite.py                     → PASS
+cd lite && python tests/test_pan_controls.py                       → BUG_20260521_LITE_PAN_OK PASS
+
+proto baseline (unchanged):
+python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python3.11 proto/e2e_ui_test.py smoke                          → PASS (18 baseline markers)
+python3.11 proto/e2e_ui_test.py full                           → PASS (102 _OK markers)
+```
+
+---
+
+# Previous: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
 
 Branch: main
 Date: 2026-05-24

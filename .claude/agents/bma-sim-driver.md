@@ -52,6 +52,51 @@ You ARE responsible for:
 | `export_xlsx` | — | Trigger XLSX export (Ctrl+E or click `#mi-xlsx`); capture downloaded file path; verify non-empty + sheet count | `{file_nonempty: bool, ext: str, sheet_count_ge: int}` |
 | `save_bmaplan` | — | Trigger save (Ctrl+S → FSAPI download fallback `dlBlob`); capture blob bytes; verify size | `{blob_size_gt: int}` |
 | `reopen_bmaplan` | — | Clear state (`PS={}`), load saved blob back through lite's load path; verify object counts per page match pre-save | `{object_count_per_page_match: bool, total_area_unchanged_within_pct: float}` |
+| `regression_probe` | `{id, preconditions, trigger:{type, evaluate_js \| mouse_sequence, setup_js?}, assertion_js, cleanup_js}` | Run a CLOSED-bug probe: 1) Verify the probe's `preconditions` text against current scenario state (informational — don't gate on it). 2) If `trigger.setup_js` is present, evaluate it. 3) Execute the trigger: `evaluate` type → `page.evaluate(trigger.evaluate_js)`; `mouse_sequence` type → for each entry use `page.mouse.click`/`page.mouse.dblclick` at PDF→screen-mapped coords via `ptToScreen` + canvas bbox offset, with realistic 0.15s spacing between clicks. 4) Evaluate `assertion_js` — MUST return boolean. 5) Evaluate `cleanup_js`. 6) Record `observed = {probe_id, assertion_result, trigger_type}`. If assertion is false → status="fail" with severity REGRESSION (the highest tier). | `{assertion_result: bool}` — pass iff true |
+
+### How to execute `regression_probe`
+
+A regression_probe step has this shape (the orchestrator hands it to you verbatim from `.claude/skills/bma-simulate/regression_probes.json`):
+
+```json
+{
+  "step": "regression_probe",
+  "args": {
+    "id": "LITE-BUG-DBLCLICK-OVER-POP",
+    "preconditions": "PDF loaded; ...",
+    "trigger": {
+      "type": "mouse_sequence",
+      "setup_js": "() => { ... }",
+      "mouse_sequence": [
+        {"action": "click",    "pdf_pt": {"x": 84.2, "y": 119.1}},
+        {"action": "dblclick", "pdf_pt": {"x": 84.2, "y": 1071.9}}
+      ]
+    },
+    "assertion_js": "() => boolean",
+    "cleanup_js": "() => { ... }"
+  }
+}
+```
+
+Execution recipe:
+1. If `trigger.setup_js` present, evaluate it via `page.evaluate(trigger.setup_js)`.
+2. Branch on `trigger.type`:
+   - **`evaluate`**: `page.evaluate(trigger.evaluate_js)`
+   - **`mouse_sequence`**: for each entry:
+     - `sp = page.evaluate(f"() => {{ var p=ptToScreen({{x:{pt.x},y:{pt.y}}}); return {{x:p.x,y:p.y}}; }}")`
+     - `box = canvas.bounding_box()`
+     - Move + small sleep + click/dblclick at `(box.x + sp.x, box.y + sp.y)` with `time.sleep(0.15)` between events to give the lite handlers a tick
+3. `result = page.evaluate(args.assertion_js)` — must be `True`/`False`. If anything else, mark step status=`fail` with note "probe assertion did not return boolean".
+4. `page.evaluate(args.cleanup_js)` — always run, even if assertion failed (so subsequent steps see clean state).
+5. Record:
+   ```json
+   {"step":"regression_probe","status":"pass|fail","observed":{
+       "probe_id":"<id>","assertion_result":<bool>,"trigger_type":"evaluate|mouse_sequence"},
+     "notes":"..."}
+   ```
+   A `fail` here means a REOPENED bug — surface loudly in the human summary line.
+
+If the probe THROWS (assertion_js raises), record status=`fail` + observed.assertion_result=`null` + the exception in notes. Continue to subsequent scenario steps — one bad probe should not abort the whole run.
 
 ### How to expand `measure_loop`
 

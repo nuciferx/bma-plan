@@ -1,14 +1,12 @@
 # NEXT_ACTIONS.md — BMA-Plan Next Recommended Actions
 
-Date: 2026-05-24 (updated: LITE-BUG-2-OPUS47-FINDINGS PASS — 2 silent lite bugs fixed by Opus-4.7 simulator; next = simulator hardening or snap-to-walls or page classifier)
+Date: 2026-05-24 (updated: SIM-2 PASS — /bma-simulate gains permanent regression probes (regression_probes.json tracked); LITE-BUG-2 bugs now guarded; next = snap-to-walls polygon strategy or page classifier)
 
 ## Immediate Next
 
-**LITE-BUG-2-OPUS47-FINDINGS done. The Opus-4.7 multi-model simulator has now surfaced and closed 2 real bugs. Three next slice options — user decides priority after commit.**
+**SIM-2 done. Simulator reflection-loop hardening is complete — option 1 is closed. Two next slice options remain — user decides priority.**
 
-- **(OPTION 1) Simulator reflection-loop hardening** — read last 1-3 `history.jsonl` entries in Phase A of `/bma-simulate` and add the closed bugs (LITE-BUG-MODAL-NEST, LITE-BUG-DBLCLICK-OVER-POP) as explicit regression checks so the simulator does not re-find them in future runs. Lite-only, zero proto/ edits. Low risk; high trust-building value for the simulator pipeline.
-
-- **(OPTION 2) Snap-to-walls polygon strategy** — replace the synthetic 80%-quad placeholder in the lite simulator scenario plan with real measurement: read PDF vector edges from `server_lite.py`, snap polygon vertices to wall edges. More complex; touches lite/server_lite.py (additive endpoint) and lite/ui-lite.html snap logic. Run `/bma-measure-scope` first.
+- **(OPTION 2) Snap-to-walls polygon strategy** — replace the synthetic 80%-quad placeholder in the lite simulator scenario plan with real measurement: read PDF vector edges from `server_lite.py`, snap polygon vertices to wall edges. Likely a new `lite/static/js/snap-walls.js`. More complex; touches lite/server_lite.py (additive endpoint) and lite/ui-lite.html snap logic. Run via `/bma-lite-dev`. Run `/bma-measure-scope` first.
 
 - **(OPTION 3) Lite PDF page classifier** — auto-tag floor/site/cover from title block text (OCR via PyMuPDF text extraction) or layout heuristics, eliminating the manual tagging step. Invention-level feature — run `/bma-invent` first before committing to a sprint card.
 
@@ -27,6 +25,7 @@ Date: 2026-05-24 (updated: LITE-BUG-2-OPUS47-FINDINGS PASS — 2 silent lite bug
 
 ## Recently Done
 
+- **SIM-2 — /bma-simulate regression-probe hardening** — 2026-05-24. PASS. Added `.claude/skills/bma-simulate/regression_probes.json` (tracked, permanent hard channel) with 2 probes: LITE-BUG-MODAL-NEST (evaluate-type, 860ms PASS) + LITE-BUG-DBLCLICK-OVER-POP (mouse_sequence-type, 2919ms PASS). Each probe is prepended to every SCENARIO_PLAN as a mandatory step; false assertion = REGRESSION severity (highest tier, above CRASH) + SIM_REGRESSION stop condition. SKILL.md + bma-sim-driver.md updated. Verifier 2 PASS · 0 FAIL. Zero lite/proto runtime edits. Proto 102 _OK baseline unchanged.
 - **LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)** — 2026-05-24. PASS. LITE-BUG-MODAL-NEST: missing `</div>` at line 194 caused `#setupModal` nested in hidden `#modal` — Page Setup invisible on click; fixed by adding closing `</div>`. LITE-BUG-DBLCLICK-OVER-POP: unbounded `while` loop in dblclick handler consumed intentional vertices (4-pt polygon saved as triangle, 713→356 m²); fixed with bounded `for(_np<2)`. Zero net lines; 1197 lines (cap 1200). Live Playwright verify 3/3 PASS. Both bugs surfaced by Opus-4.7 multi-model simulator (Pack J). ZERO proto/ edits. Proto 102 _OK baseline unchanged.
 - **LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite** — 2026-05-22. PASS. A4-landscape `lite/lite-report.html` opened from File menu via sessionStorage handoff. Plan image + SVG polygon overlay (left); area table grouped by semanticTag with per-group subtotals + page net (right); contenteditable header/row-name/note; read-only area cells; @page print-to-PDF. `GET /report` route added (+9 lines). LITE_REPORT_OK GREEN (17/17). REALFLOW_OK on real 562 MB permit (net 222.22). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
 - **BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite** — 2026-05-21. PASS. Spacebar/middle-mouse pan in any mode (including mid-draw); H sticky pan-tool; setCursor helper; smooth exponential wheel zoom clamped [0.02, 40]; zoomCenter/actualSize; F/Ctrl+0/Ctrl+1/Ctrl+=/Ctrl+- shortcuts; enriched hint text. BUG_20260521_LITE_PAN_OK GREEN (13/13). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
