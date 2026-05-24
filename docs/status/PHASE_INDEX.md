@@ -603,6 +603,45 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Open questions: (1) which area first — snap/scale defaults vs UI layout vs export format? (2) persist in localStorage or also embed in `.bmaplan` per-project?
     - Scope skill: `/bma-ui-scope` (likely modal region) — but real scope decision waits on follow-up answers. May warrant `/bma-invent` first if user wants a holistic settings architecture rather than incremental options.
 
+### ideas 2026-05-24
+
+- [x] **Lite first-flow UI** — `invent-done-split` (→ LEMPTY-1 + LHELP-1 + INV-2026-05-24-001) — from /idea 2026-05-24
+    - Source: user 2026-05-24, "Lite ควรมี first-flow UI แบบไหน โดยไม่ทำลาย workflow เดิม, layer system, report variables, menu-flyout..."
+    - Tags: bma-plan, lite, ui, workflow, onboarding, p-med
+    - Pre-analysis spike: `lite/sandbox/invent-lite-first-flow.html` (5-tab interactive picker)
+    - User vote 2026-05-24: KEEP A, D, G · DROP CE (wizard), B (coach-marks)
+    - Split into 3 children:
+        - `LEMPTY-1` (A, queued, sprint via /bma-lite-dev)
+        - `LHELP-1` (D, queued, sprint via /bma-lite-dev)
+        - `INV-2026-05-24-001` (G, invent-queued, pipeline via /bma-invent)
+
+#### LEMPTY-1 — Lite empty-state hub (no PDF loaded) [queued]
+- **Goal**: เปลี่ยน canvas ดำตอนยังไม่เปิด PDF เป็น hub (3 ปุ่มหลัก + recent projects + drag-drop hint). หายไปเอง หลังเปิด PDF
+- **From**: idea 2026-05-24-02-23, mockup tab "A" in `lite/sandbox/invent-lite-first-flow.html`
+- **Scope skill**: `/bma-lite-dev` (single slice)
+- **Files**: `lite/static/js/empty-hub.js` (NEW), `lite/ui-lite.html` (small)
+- **Forbidden**: no schema change, no measure-engine, no menu-flyout. layer/reportVars untouched.
+- **Acceptance**: `LITE_EMPTY_HUB_OK` marker — hub renders when no curImg; hides after PDF load; drag-drop wires to existing file input; recent-projects reads `bmaPlan.recentProjects.v1` (already in lite localStorage)
+- **Effort**: S
+
+#### LHELP-1 — Cheatsheet panel (F1 / ?) [queued]
+- **Goal**: Overlay panel แสดง shortcut + tool ทั้งหมด — สำคัญหลัง LSNAP+LORTHO+LCURVE เพิ่ม key เยอะ (E/M/C/⇧O/A→A/⇧D). Trigger F1 หรือ ?. ปิด Esc / click outside
+- **From**: idea 2026-05-24-02-23, mockup tab "D"
+- **Scope skill**: `/bma-lite-dev` (single slice)
+- **Verdict**: MATURE — universal pattern, no invention needed
+- **Files**: `lite/static/js/cheatsheet.js` (NEW), `lite/ui-lite.html` (script include + 1-line trigger guard)
+- **Forbidden**: no schema, no measure-engine, no menu-flyout structural changes
+- **Acceptance**: `LITE_CHEATSHEET_OK` marker — F1 toggles overlay; data structure covers all 20+ shortcuts; Esc closes; input-focus guard
+- **Effort**: S
+
+#### INV-2026-05-24-001 — Progressive disclosure (G) [invent-done-nogo]
+- **Outcome**: NOGO at human checkpoint 2026-05-24. Closed.
+- **Pipeline ran**: all 7 phases (`/bma-invent`) — verdict PRIOR_ART_PARTIAL, 4 approaches scored, Approach D (CSS-class state machine) won 27/30 with spike PASS at code level.
+- **Artifact**: `docs/invent/progressive-disclosure.md` (full research + frame + diverge + score + spike + decision)
+- **Spike**: `lite/sandbox/invent-progressive-disclosure.html` (kept for future reference — pattern is reusable)
+- **NOGO rationale**: The first-flow pain motivating idea 2026-05-24-02-23 was already 90% covered by sibling slices LEMPTY-1 (empty-state hub, `728e24e`) + LHELP-1 (F1/? cheatsheet, `3f9b445`) that shipped just before this checkpoint. Adding disclosure adds real maintenance (~130 LOC + 4-5 callsites + body state-machine + tests + escape-hatch shortcut) for marginal benefit (helps only first-time user already past LEMPTY-1, staring at Measure menu). Defer until concrete user feedback (e.g. `/bma-human-test` finding) shows newbies actually get stuck at "drew before scale → pt² output".
+- **What stays useful**: research block on CAD incumbent patterns (AutoCAD soft-gate vs Bluebeam hard-gate), spike pattern proving CSS-class state machine + parent-listener tooltip works around `pointer-events:none`. Both reusable if a future feature needs dimmed-menu-item-with-tooltip.
+
 ## Known leftovers (predate the loop)
 
 | item | type | note |

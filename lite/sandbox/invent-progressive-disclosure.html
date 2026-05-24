@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Lite Progressive Disclosure — Approach D spike (INV-2026-05-24-001)</title>
+<style>
+  /* lite token mirror — must match real lite values for visual parity check */
+  :root{
+    --bg:#1a1a1e; --panel:#26262c; --panel2:#2e2e36; --line:#3a3a44;
+    --ink:#e7e7ec; --muted:#8b8b95; --accent:#6ea8ff; --good:#3ecf8e;
+    --warn:#ffb547; --bad:#ef6363;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;}
+  header{padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);
+    display:flex;justify-content:space-between;align-items:center;}
+  header h1{margin:0;font-size:15px;}
+  .stage-badge{font-size:11.5px;padding:4px 10px;border-radius:14px;
+    background:var(--panel2);border:1px solid var(--line);}
+  .stage-badge .lbl{color:var(--muted);}
+  .stage-badge .v{color:var(--accent);font-weight:600;margin-left:6px;}
+  .stage-badge.empty .v{color:var(--bad);}
+  .stage-badge.pdf .v{color:var(--warn);}
+  .stage-badge.scale .v{color:var(--accent);}
+  .stage-badge.objects .v{color:var(--good);}
+  body.wf-power .stage-badge::after{content:' · POWER';color:var(--warn);font-weight:600;}
+
+  /* === controls — for testing only, not part of the real feature === */
+  .controls{padding:10px 18px;background:#1e1e22;border-bottom:1px solid var(--line);
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;}
+  .controls .group{display:flex;gap:6px;align-items:center;}
+  .controls label{color:var(--muted);font-size:11px;}
+  .controls button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    padding:5px 11px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11.5px;}
+  .controls button.on{background:var(--accent);color:#06122a;border-color:var(--accent);font-weight:600;}
+  .controls button:hover{filter:brightness(1.15);}
+  .controls .hint{color:var(--muted);font-size:11px;margin-left:auto;}
+
+  /* === mock lite menu bar === */
+  .mb{display:flex;height:30px;background:#16161a;border-bottom:1px solid var(--line);
+    align-items:stretch;font-size:12px;}
+  .menu{position:relative;}
+  .menu > button{height:100%;padding:0 14px;background:transparent;border:0;color:var(--ink);
+    cursor:pointer;font-family:inherit;font-size:12px;display:flex;align-items:center;}
+  .menu > button:hover{background:var(--panel2);}
+  .menu.open > button{background:var(--panel2);}
+  .dd{display:none;position:absolute;top:30px;left:0;min-width:240px;
+    background:#1a1a1f;border:1px solid var(--line);border-radius:0 0 6px 6px;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);z-index:50;padding:4px;}
+  .menu.open > .dd{display:block;}
+  .item{display:flex;align-items:center;padding:6px 12px;cursor:pointer;
+    border-radius:3px;position:relative;font-size:12px;}
+  .item:hover{background:var(--panel2);}
+  .item .sk{margin-left:auto;color:var(--muted);font-size:11px;font-family:ui-monospace,monospace;}
+  .sep{height:1px;background:var(--line);margin:4px 6px;}
+
+  /* === THE KEY: dim mechanism via stage class on <body> === */
+  /* Approach D — CSS does ALL the dimming based on body stage class. */
+  .item.ds-dim{
+    opacity:.35;
+    pointer-events:none;       /* native click blocked */
+    transition:opacity .15s;
+  }
+  /* But — pointer-events:none ALSO blocks browser-native title="..." hover.
+     So we need a parent-container hover-listener fallback for tooltips. */
+
+  /* Stage-class rules — declarative, additive */
+  body.wf-empty   .item[data-req="pdf"],
+  body.wf-empty   .item[data-req="scale"],
+  body.wf-empty   .item[data-req="objects"]{ opacity:.35; pointer-events:none; }
+
+  body.wf-pdf     .item[data-req="scale"],
+  body.wf-pdf     .item[data-req="objects"]{ opacity:.35; pointer-events:none; }
+
+  body.wf-scale   .item[data-req="objects"]{ opacity:.35; pointer-events:none; }
+
+  /* wf-objects = everything enabled (no rules) */
+
+  /* Power-user escape hatch: body.wf-power overrides ALL dimming */
+  body.wf-power .item{ opacity:1 !important; pointer-events:auto !important; }
+
+  /* Highlight the NEXT-needed item — "do this now" */
+  body.wf-empty .item[data-next="pdf"],
+  body.wf-pdf   .item[data-next="scale"],
+  body.wf-scale .item[data-next="measure"]{
+    background:rgba(110,168,255,.18);
+    border:1px solid rgba(110,168,255,.45);
+    padding:5px 11px;          /* compensate border */
+  }
+
+  /* Dim parent menu button when ALL its items are dimmed.
+     For the spike we use explicit attribute on the parent. */
+  body.wf-empty   .menu[data-req-all="pdf"] > button{ opacity:.35; }
+  body.wf-pdf     .menu[data-req-all="scale"] > button{ opacity:.35; }
+  body.wf-pdf     .menu[data-req-all="objects"] > button{ opacity:.35; }
+  body.wf-scale   .menu[data-req-all="objects"] > button{ opacity:.35; }
+  body.wf-power   .menu > button{ opacity:1 !important; }
+
+  /* === Custom tooltip (works WITH pointer-events:none because we hover on the .dd parent, not the .item) === */
+  #ds-tip{position:fixed;display:none;background:#16161a;border:1px solid var(--accent);
+    color:var(--ink);padding:6px 10px;border-radius:4px;font-size:11px;z-index:200;
+    box-shadow:0 4px 16px rgba(0,0,0,.5);max-width:260px;pointer-events:none;}
+  #ds-tip b{color:var(--warn);}
+  #ds-tip::before{content:'⚠ ';color:var(--warn);}
+
+  /* === canvas placeholder === */
+  .stage-area{padding:16px 18px;display:grid;grid-template-columns:1fr 320px;gap:16px;}
+  .canvas-mock{background:#222228;border:1px solid var(--line);border-radius:6px;
+    height:320px;display:flex;align-items:center;justify-content:center;color:var(--muted);
+    font-size:14px;position:relative;overflow:hidden;}
+  body.wf-empty .canvas-mock::after{content:'— ยังไม่เปิด PDF —';color:var(--muted);}
+  body.wf-pdf .canvas-mock::after{content:'📄 PDF loaded (mock)';color:var(--ink);font-size:20px;}
+  body.wf-scale .canvas-mock::after{content:'📄 PDF · scale 1:200';color:var(--ink);font-size:18px;}
+  body.wf-objects .canvas-mock::after{content:'📄 PDF · 1 object drawn';color:var(--good);font-size:18px;}
+
+  /* === log === */
+  .log-pane{background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:10px;font-size:11px;height:320px;overflow:auto;font-family:ui-monospace,monospace;}
+  .log-pane h3{margin:0 0 6px;font-size:11.5px;color:var(--muted);font-family:-apple-system,sans-serif;}
+  .log-line{padding:2px 0;border-bottom:1px solid #2a2a30;}
+  .log-line.tool{color:var(--good);}
+  .log-line.block{color:var(--bad);}
+  .log-line.kb{color:var(--accent);}
+
+  /* === info panel === */
+  .info{padding:14px 18px;background:#1c1c22;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--muted);}
+  .info code{background:var(--panel2);padding:1px 4px;border-radius:3px;color:var(--ink);}
+  .info b{color:var(--ink);}
+  .info .test{margin-top:6px;color:var(--good);}
+  .info .test.fail{color:var(--bad);}
+</style>
+</head>
+<body class="wf-empty">
+
+<header>
+  <h1>📐 Spike: Lite Progressive Disclosure (Approach D — CSS-class state machine)</h1>
+  <div class="stage-badge empty" id="badge">
+    <span class="lbl">stage:</span><span class="v" id="badge-v">EMPTY</span>
+  </div>
+</header>
+
+<!-- ===== control bar (testing only) ===== -->
+<div class="controls">
+  <div class="group">
+    <label>simulate stage:</label>
+    <button onclick="setStage('empty')" id="b-empty" class="on">1·empty</button>
+    <button onclick="setStage('pdf')" id="b-pdf">2·pdf-loaded</button>
+    <button onclick="setStage('scale')" id="b-scale">3·scale-set</button>
+    <button onclick="setStage('objects')" id="b-objects">4·object-drawn</button>
+  </div>
+  <div class="group" style="margin-left:auto;">
+    <label>escape hatch:</label>
+    <button onclick="togglePower()" id="b-power">⏎ POWER (Ctrl+⇧U)</button>
+  </div>
+  <div class="hint">↑ ทดสอบแต่ละ stage · hover รายการ dim → ดู tooltip</div>
+</div>
+
+<!-- ===== mock lite menu bar ===== -->
+<div class="mb" id="mb">
+
+  <div class="menu" data-m="file">
+    <button onclick="openMenu(this)">File ▾</button>
+    <div class="dd">
+      <div class="item" data-tool="open-pdf"      data-next="pdf">📂 เปิด PDF…<span class="sk">Ctrl+O</span></div>
+      <div class="item" data-tool="open-project"  data-next="pdf">📋 เปิด .bmaplan…<span class="sk">⇧Ctrl+O</span></div>
+      <div class="sep"></div>
+      <div class="item" data-tool="save"          data-req="objects">💾 Save<span class="sk">Ctrl+S</span></div>
+      <div class="item" data-tool="save-as"       data-req="objects">💾 Save As…</div>
+      <div class="sep"></div>
+      <div class="item" data-tool="export-report" data-req="objects">📄 Export Report</div>
+      <div class="item" data-tool="export-xlsx"   data-req="objects">📊 Export XLSX<span class="sk">Ctrl+E</span></div>
+    </div>
+  </div>
+
+  <div class="menu" data-m="edit" data-req-all="objects">
+    <button onclick="openMenu(this)">Edit ▾</button>
+    <div class="dd">
+      <div class="item" data-tool="undo"   data-req="objects">↶ Undo<span class="sk">Ctrl+Z</span></div>
+      <div class="item" data-tool="redo"   data-req="objects">↷ Redo<span class="sk">Ctrl+Y</span></div>
+      <div class="item" data-tool="delete" data-req="objects">🗑 Delete<span class="sk">Del</span></div>
+    </div>
+  </div>
+
+  <div class="menu" data-m="page" data-req-all="pdf">
+    <button onclick="openMenu(this)">Page ▾</button>
+    <div class="dd">
+      <div class="item" data-tool="prev"   data-req="pdf">← Prev<span class="sk">PgUp</span></div>
+      <div class="item" data-tool="next"   data-req="pdf">→ Next<span class="sk">PgDn</span></div>
+      <div class="item" data-tool="rotL"   data-req="pdf">⟲ Rotate L</div>
+      <div class="item" data-tool="rotR"   data-req="pdf">⟳ Rotate R</div>
+    </div>
+  </div>
+
+  <div class="menu" data-m="measure" data-req-all="pdf">
+    <button onclick="openMenu(this)">Measure ▾</button>
+    <div class="dd">
+      <div class="item" data-tool="select" data-req="pdf">⌖ Select<span class="sk">V</span></div>
+      <div class="item" data-tool="pan"    data-req="pdf">✋ Pan<span class="sk">H</span></div>
+      <div class="sep"></div>
+      <div class="item" data-tool="scale"  data-req="pdf" data-next="scale">📐 Set Scale…<span class="sk">S</span></div>
+      <div class="sep"></div>
+      <div class="item" data-tool="poly"   data-req="scale" data-next="measure">▱ Polygon<span class="sk">A</span></div>
+      <div class="item" data-tool="dist"   data-req="scale">↔ Distance<span class="sk">D</span></div>
+      <div class="item" data-tool="path"   data-req="scale">∿ Continuous path</div>
+      <div class="item" data-tool="ref"    data-req="scale">┊ Reference line<span class="sk">R</span></div>
+      <div class="item" data-tool="count"  data-req="scale">⊕ Count marker<span class="sk">N</span></div>
+    </div>
+  </div>
+
+  <div class="menu" data-m="annotate" data-req-all="objects">
+    <button onclick="openMenu(this)">Annotate ▾</button>
+    <div class="dd">
+      <div class="item" data-tool="ann-text"   data-req="objects">𝕋 Text<span class="sk">T</span></div>
+      <div class="item" data-tool="ann-sticky" data-req="objects">📌 Sticky</div>
+      <div class="item" data-tool="ann-arrow"  data-req="objects">➜ Arrow</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== stage area ===== -->
+<div class="stage-area">
+  <div class="canvas-mock"></div>
+  <div class="log-pane">
+    <h3>📋 dispatch log (clicks + keyboard)</h3>
+    <div id="log"></div>
+  </div>
+</div>
+
+<!-- ===== info / spike acceptance checks ===== -->
+<div class="info">
+  <b>Approach D spike — acceptance checks:</b>
+  <div class="test" id="t1">[1] body.wf-* class drives dimming via pure CSS (no per-item JS iteration) — observe by changing stage above ↑</div>
+  <div class="test" id="t2">[2] dimmed items show ⚠ tooltip on hover EVEN with pointer-events:none — bind on .dd parent, not .item</div>
+  <div class="test" id="t3">[3] keyboard always works regardless of disclosure (try pressing <code>A</code> while stage=empty — should still log "kbd dispatch poly" even though menu item is dimmed)</div>
+  <div class="test" id="t4">[4] Ctrl+⇧U toggles body.wf-power → all dimming removed (escape hatch)</div>
+  <div class="test" id="t5">[5] highlight on the "next" item (blue tint) — observable in Measure ▶ when stage=pdf (Set Scale highlighted) and when stage=scale (Polygon highlighted)</div>
+  <div class="test" id="t6">[6] parent menu button itself dims when ALL its items are dimmed (e.g. Edit/Annotate dim when no objects yet)</div>
+</div>
+
+<!-- tooltip popover -->
+<div id="ds-tip"></div>
+
+<script>
+/* ====================== Approach D — CSS-class state machine ====================== */
+
+var STAGES = ['empty','pdf','scale','objects'];
+var REQ_REASONS = {
+  pdf:     'เปิด PDF ก่อน',
+  scale:   'ตั้ง scale ก่อน',
+  objects: 'วาด object อย่างน้อย 1 ชิ้นก่อน'
+};
+
+function setStage(s){
+  STAGES.forEach(function(x){ document.body.classList.remove('wf-'+x); });
+  document.body.classList.add('wf-'+s);
+  document.getElementById('badge-v').textContent = s.toUpperCase();
+  var b = document.getElementById('badge');
+  b.className = 'stage-badge ' + s;
+  // also reflect in control buttons
+  STAGES.forEach(function(x){
+    var btn = document.getElementById('b-'+x);
+    if(btn) btn.classList.toggle('on', x===s);
+  });
+  log('stage → ' + s, 'stage');
+}
+
+function togglePower(){
+  document.body.classList.toggle('wf-power');
+  var on = document.body.classList.contains('wf-power');
+  document.getElementById('b-power').classList.toggle('on', on);
+  if(on) localStorage.setItem('bmaPlan.lite.disclosureOff','1');
+  else   localStorage.removeItem('bmaPlan.lite.disclosureOff');
+  log('power mode → ' + (on?'ON':'OFF'), 'kb');
+}
+
+/* restore power mode from localStorage */
+if(localStorage.getItem('bmaPlan.lite.disclosureOff')==='1'){
+  document.body.classList.add('wf-power');
+  document.getElementById('b-power').classList.add('on');
+}
+
+/* ====================== Menu open/close (mock of lite's menu-flyout pattern) ====================== */
+function openMenu(btn){
+  var menu = btn.parentElement;
+  var wasOpen = menu.classList.contains('open');
+  document.querySelectorAll('.menu.open').forEach(function(m){ m.classList.remove('open'); });
+  if(!wasOpen) menu.classList.add('open');
+}
+window.addEventListener('click', function(e){
+  if(!e.target.closest('.menu')){
+    document.querySelectorAll('.menu.open').forEach(function(m){ m.classList.remove('open'); });
+    hideTip();
+  }
+});
+
+/* ====================== Click dispatch (only fires on enabled items) ====================== */
+document.querySelectorAll('.item[data-tool]').forEach(function(it){
+  it.addEventListener('click', function(){
+    log('menu click → setTool("'+it.dataset.tool+'")', 'tool');
+    // close menus
+    document.querySelectorAll('.menu.open').forEach(function(m){ m.classList.remove('open'); });
+    hideTip();
+  });
+});
+
+/* ====================== THE KEY ANSWER: tooltip ON the dropdown container, NOT on the item.
+   We hover the .dd; if the topmost element under cursor is a dimmed .item (computed from
+   getComputedStyle), we show the tip explaining the requirement. pointer-events:none on
+   the .item doesn't block this because mouseenter/mousemove bubbles up through .dd which
+   has pointer-events:auto. ====================== */
+var tipEl = document.getElementById('ds-tip');
+
+document.querySelectorAll('.dd').forEach(function(dd){
+  dd.addEventListener('mousemove', function(e){
+    // find which item is under the cursor
+    var rect = dd.getBoundingClientRect();
+    var x = e.clientX, y = e.clientY;
+    var items = dd.querySelectorAll('.item[data-req]');
+    var hit = null;
+    items.forEach(function(it){
+      var ir = it.getBoundingClientRect();
+      if(x>=ir.left && x<=ir.right && y>=ir.top && y<=ir.bottom) hit = it;
+    });
+    if(!hit){ hideTip(); return; }
+    // Is this item currently dimmed? Check computed opacity.
+    var op = parseFloat(getComputedStyle(hit).opacity);
+    if(op > 0.7){ hideTip(); return; }   // not dimmed
+    var req = hit.dataset.req;
+    var reason = REQ_REASONS[req] || ('ต้องการ: ' + req);
+    showTip(reason, e.clientX, e.clientY);
+  });
+  dd.addEventListener('mouseleave', hideTip);
+});
+
+function showTip(text, x, y){
+  tipEl.innerHTML = '<b>blocked:</b> ' + text;
+  tipEl.style.display = 'block';
+  // position to the right of cursor, clamped to viewport
+  var w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  var px = x + 14, py = y + 4;
+  if(px + w > window.innerWidth - 8) px = x - w - 14;
+  if(py + h > window.innerHeight - 8) py = y - h - 4;
+  tipEl.style.left = px + 'px';
+  tipEl.style.top = py + 'px';
+}
+function hideTip(){ tipEl.style.display = 'none'; }
+
+/* ====================== Keyboard — ALWAYS works (escape hatch) ====================== */
+var KB_MAP = {
+  'v':'select','h':'pan','s':'scale','a':'poly','d':'dist','r':'ref','n':'count'
+};
+window.addEventListener('keydown', function(e){
+  if(document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  // Ctrl+Shift+U toggles power mode
+  if(e.ctrlKey && e.shiftKey && (e.key==='u' || e.key==='U')){
+    e.preventDefault();
+    togglePower();
+    return;
+  }
+  var key = e.key.toLowerCase();
+  if(KB_MAP[key]){
+    var tool = KB_MAP[key];
+    log('kbd dispatch → setTool("'+tool+'") [bypasses disclosure ✓]', 'kb');
+  }
+});
+
+/* ====================== Log helper ====================== */
+function log(msg, kind){
+  var d = document.createElement('div');
+  d.className = 'log-line ' + (kind||'');
+  var t = new Date();
+  d.textContent = t.toLocaleTimeString() + '  ' + msg;
+  var el = document.getElementById('log');
+  el.insertBefore(d, el.firstChild);
+  // keep only 40 entries
+  while(el.children.length > 40) el.removeChild(el.lastChild);
+}
+
+log('spike loaded — Approach D ready. body class = wf-empty', 'kb');
+log('Try: hover Polygon in Measure ▶ (should show ⚠ blocked tooltip)', 'kb');
+log('Try: press A while stage=empty (kbd still works — escape hatch ✓)', 'kb');
+</script>
+</body>
+</html>
