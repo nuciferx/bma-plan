@@ -42,6 +42,12 @@ def _free_port(start=8570):
 # ---------------------------------------------------------------------------
 SC_PRESENCE = """
 () => {
+  // dprBridge: locks in the BUG-20260525-lite-cl-dpr fix — the lite glue
+  // must scale CSS coords (e.offsetX/Y, ptToScreen output) to bitmap coords
+  // (cv.width = clientWidth*dpr) before calling getImageData, else snap reads
+  // the wrong pixel region on HiDPI displays. Source-string check.
+  const clickSrc = window.CL_litePolyClick ? window.CL_litePolyClick.toString() : '';
+  const finishSrc = window.CL_litePolyFinish ? window.CL_litePolyFinish.toString() : '';
   return {
     fnsExist:    typeof window.CL_snapCanvasToCenterline === 'function' &&
                  typeof window.CL_refineCornersOnSkeleton === 'function',
@@ -49,7 +55,9 @@ SC_PRESENCE = """
     liteFnsExist: typeof window.CL_litePolyClick === 'function' &&
                   typeof window.CL_litePolyFinish === 'function',
     buttonExists: !!document.getElementById('lite-btn-centerline'),
-    defaultOff:   window.centerlineSnapOn === false
+    defaultOff:   window.centerlineSnapOn === false,
+    dprBridge:    /dpr/.test(clickSrc) && /dpr/.test(finishSrc),
+    activeCssRule: !!document.getElementById('lite-btn-centerline-css')
   };
 }
 """
@@ -190,7 +198,7 @@ def main():
         name = "presence+state (fnsExist/versionExists/liteFnsExist/buttonExists/defaultOff)"
         try:
             r = pg.evaluate(SC_PRESENCE)
-            sub_checks = ["fnsExist", "versionExists", "liteFnsExist", "buttonExists", "defaultOff"]
+            sub_checks = ["fnsExist", "versionExists", "liteFnsExist", "buttonExists", "defaultOff", "dprBridge", "activeCssRule"]
             sub_ok = all(r.get(k) is True for k in sub_checks)
             print(f"  {'presence+state':46s} -> {'PASS' if sub_ok else 'FAIL'}  {r}")
             if not sub_ok:

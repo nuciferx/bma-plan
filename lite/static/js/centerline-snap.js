@@ -230,13 +230,21 @@
       return;
     }
 
+    // Inject inline CSS for .active state (visible feedback) ONCE.
+    if (!document.getElementById("lite-btn-centerline-css")) {
+      var st = document.createElement("style");
+      st.id = "lite-btn-centerline-css";
+      st.textContent = "#lite-btn-centerline.active{background:#1f6b3a !important;color:#fff !important;border-color:#3acc77 !important;box-shadow:0 0 0 2px rgba(58,204,119,.3);}";
+      document.head.appendChild(st);
+    }
+
     // Inject toggle button — fixed bottom-right to avoid disturbing existing HUD layout.
     var btn = document.getElementById("lite-btn-centerline");
     if (!btn) {
       btn = document.createElement("button");
       btn.id = "lite-btn-centerline";
       btn.textContent = "⊙ CL";
-      btn.title = "Centerline snap (เส้นปะหนา → กลางเส้น)";
+      btn.title = "Centerline snap (เส้นปะหนา → กลางเส้น). คลิกเพื่อเปิด/ปิด — สีเขียว=เปิด, เทา=ปิด.";
       btn.style.cssText = [
         "position:fixed", "bottom:8px", "right:8px", "z-index:9999",
         "padding:4px 8px", "font-size:12px", "cursor:pointer",
@@ -262,22 +270,33 @@
     installCenterlineBtn();
   }
 
+  // ---- DPR (devicePixelRatio) bridge ----
+  // Lite's canvas uses `cv.width = clientWidth * dpr` (line 260 of ui-lite.html)
+  // so canvas BITMAP coords differ from CSS coords by a factor of dpr.
+  // `getImageData` is bitmap-space; mouse offsetX/Y + ptToScreen/screenToPt
+  // are all CSS-space. We must bridge.
+  function _dpr() { return window.devicePixelRatio || 1; }
+
   // ---- Click-hook helper: called per mousedown point in poly tool ----
-  // Returns a corrected {x,y} PDF point, or null (caller uses original).
+  // Inputs:  p ({x,y} PDF pt, already computed by caller)
+  //          screenX/screenY (CSS pixels — e.offsetX/e.offsetY from mousedown)
+  // Returns: corrected {x,y} PDF pt, or null (caller falls back to original p).
   window.CL_litePolyClick = function (p, screenX, screenY) {
     if (!window.centerlineSnapOn) return null;
     if (typeof window.CL_snapCanvasToCenterline !== "function") return null;
     var cvEl = document.getElementById("cv");
     if (!cvEl) return null;
     var ctx2d = cvEl.getContext("2d");
-    var result = window.CL_snapCanvasToCenterline(ctx2d, screenX, screenY);
+    var dpr = _dpr();
+    // Convert CSS -> bitmap for getImageData inside the algorithm.
+    var result = window.CL_snapCanvasToCenterline(ctx2d, screenX * dpr, screenY * dpr);
     if (!result || !result.found) return null;
     if (typeof window.screenToPt !== "function") return null;
-    return window.screenToPt(result.x, result.y);
+    // Algorithm returns bitmap coords; convert back to CSS for screenToPt.
+    return window.screenToPt(result.x / dpr, result.y / dpr);
   };
 
   // ---- Finish-hook helper: called post-Enter on poly draft ----
-  // Receives draft as [{x,y}] (PDF coords). Returns [{x,y}]|null.
   window.CL_litePolyFinish = function (pts) {
     if (!window.centerlineSnapOn) return null;
     if (!pts || pts.length < 3) return null;
@@ -287,19 +306,20 @@
     var cvEl = document.getElementById("cv");
     if (!cvEl) return null;
     var ctx2d = cvEl.getContext("2d");
+    var dpr = _dpr();
 
-    // Convert {x,y} PDF pts -> [sx,sy] canvas pts for the algorithm.
+    // Convert {x,y} PDF pts -> CSS canvas coords -> bitmap coords for algorithm.
     var canvasPts = pts.map(function (p) {
       var sp = window.ptToScreen(p);
-      return [sp.x, sp.y];
+      return [sp.x * dpr, sp.y * dpr];
     });
 
     var res = window.CL_refineCornersOnSkeleton(ctx2d, canvasPts);
     if (!res || !res.refined) return null;
 
-    // Convert [sx,sy] canvas pts back -> {x,y} PDF pts.
+    // Convert bitmap pts back -> CSS coords -> PDF pts.
     var refined = res.pts.map(function (cp) {
-      return window.screenToPt(cp[0], cp[1]);
+      return window.screenToPt(cp[0] / dpr, cp[1] / dpr);
     });
     return refined;
   };
