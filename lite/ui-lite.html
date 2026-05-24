@@ -408,7 +408,7 @@ async function loadPage(n){
   img.onerror=function(){ hideLoading(); alert("โหลดหน้า "+n+" ไม่ได้"); };
   img.src=api("/page/"+n)+"&rot="+(pageRot[n]||0);
 }
-function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selSet=[]; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); draw(); }
+function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selSet=[]; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); if(typeof hideEmptyHub==="function")hideEmptyHub(); draw(); }
 
 /* ============================ INTERACTION ============================ */
 var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
@@ -1191,7 +1191,8 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 <script src="static/js/ortho-mode.js"></script>
 <!-- LSNAP-1: per-type snap toggles — loaded before menu-flyout.js so toggleSnapType* globals exist at click time. -->
 <script src="static/js/snap-types.js"></script>
-<!-- LMENU-1: flyout submenu chrome — loaded after all dispatch globals (setTool, toggleSnap, openReport). -->
+<!-- LEMPTY-1: empty-state hub | LMENU-1: flyout submenu chrome -->
+<script src="static/js/empty-hub.js"></script>
 <script src="static/js/menu-flyout.js"></script>
 <!-- LITE-ANNOT-STYLE: annotation color/opacity/font-size editor — kept OUT of the main file (own module). -->
 <script src="static/js/annot-style.js"></script>
