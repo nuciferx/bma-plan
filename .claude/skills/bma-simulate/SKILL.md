@@ -42,19 +42,39 @@ Use both at different times. They are not redundant.
 1. **Resolve target PDF**. If user gave `pdf_path`, use it. Else default to `20250616_RAMA4 APARTMENT PERMIT rev 1.pdf` at repo root (the canonical 45-page permit). If neither exists → emit `SIM_NO_PDF` and stop.
 2. **Read PDF metadata** cheaply — file size, modified time. Do NOT render the PDF in the planning phase; that's the driver's job.
 3. **Read past-run history** from `artifacts/sim/lite/`. Take the last 1-3 runs' final summary JSON files (NOT full logs — too big). If the dir is empty, that's a first run; note it.
-4. **Generate a SCENARIO_PLAN** as a JSON list of step specs:
+4. **Generate a SCENARIO_PLAN** as a JSON list of step specs. **Pick the right scenario class for the goal** — do NOT default to the smoke plan when the user is testing real-world workflow.
+
+   **Scenario class A — `*-smoke` (~7 steps, ~30 s)** — dev sanity. Opens PDF, sets scale, draws ONE test polygon on page 1, saves+reopens. Useful to prove the driver/lite boot still works. NOT useful as a real workflow test.
+
+   **Scenario class B — `*-full-loop` (~12-20 steps, ~3-5 min)** — real user workflow. Walks every MEASURABLE page (skipping cover/legend/section/detail/schedule), draws a per-page polygon, then opens the Report Review and verifies per-floor totals roll up. THIS is the default for any "simulate lite end-to-end" request.
+
+   Baseline `permit-45p-full-loop` (for the canonical RAMA4 45-page permit):
    ```json
    [
-     { "step": "boot_lite",    "expect": { "server_up": true, "port_range": [8240, 8299] } },
-     { "step": "open_pdf",     "args": { "path": "<resolved>" }, "expect": { "pages_ge": 1, "case_id_set": true } },
-     { "step": "set_scale",    "args": { "page": 1, "pt_per_m": 1.0, "via": "page.evaluate" }, "expect": { "scale_state": "manual" } },
-     { "step": "draw_polygon", "args": { "page": 1, "pts_pdf": [[0,0],[100,0],[100,100],[0,100]] }, "expect": { "object_count": 1, "area_m2_approx": 10000, "tolerance_m2": 1 } },
-     { "step": "export_xlsx",  "expect": { "file_nonempty": true, "ext": ".xlsx" } },
-     { "step": "save_bmaplan", "expect": { "blob_size_gt": 100 } },
-     { "step": "reopen_bmaplan", "expect": { "object_count": 1, "area_unchanged_within_m2": 0.001 } }
+     { "step": "boot_lite",     "expect": { "server_up": true, "port_range": [8240, 8299] } },
+     { "step": "open_pdf",      "args": { "path": "<resolved>" }, "expect": { "pages_ge": 45 } },
+     { "step": "tag_pages",     "args": { "fixture": "permit-45p-tags.json", "fallback_inline": {
+         "site": [5, 7, 8],
+         "floor": [11, 12, 13, 14, 15, 16],
+         "ignore": "all-others"
+       }}, "expect": { "tagged_count_ge": 9 } },
+     { "step": "set_scale",     "args": { "page": 11, "pt_per_m": 30.0, "via": "page.evaluate" }, "expect": { "scale_state": "manual" } },
+     { "step": "measure_loop",  "args": { "pages": [5, 7, 8, 11, 12, 13, 14, 15, 16], "polygon_strategy": "page-quad-80%" }, "expect": { "objects_per_page_ge": 1, "areas_nonzero": true } },
+     { "step": "open_report_review", "expect": { "report_panel_visible": true } },
+     { "step": "verify_report_totals", "args": { "expect_floor_count_ge": 5, "expect_site_present": true, "tolerance_pct": 50 }, "expect": { "totals_render": true } },
+     { "step": "save_bmaplan",  "expect": { "blob_size_gt": 1000 } },
+     { "step": "reopen_bmaplan","expect": { "object_count_per_page_match": true, "total_area_unchanged_within_pct": 0.1 } },
+     { "step": "export_xlsx",   "expect": { "file_nonempty": true, "sheet_count_ge": 1 } }
    ]
    ```
-   The defaults above are the **baseline scenario**. If past runs revealed a regression pattern (e.g. "save fails when arc edges present"), Opus may add or branch steps to probe that pattern specifically — but keep total ≤12 steps so the driver stays under its 5-min cap.
+
+   The measurable-pages list `[5, 7, 8, 11, 12, 13, 14, 15, 16]` is the **same classification** the sandbox spike `lite/sandbox/invent-45page-permit-spike.html` uses (p5/7/8 = site, p11-16 = floor + roof). If a real fixture file `lite/tests/fixtures/permit-45p-tags.json` exists, prefer that; otherwise use the inline fallback shown above.
+
+   `polygon_strategy: "page-quad-80%"` = inscribe an axis-aligned quad covering 80% of the page raster (driver computes from canvas dimensions at runtime). Not "the right area" — just "a measurable polygon big enough to prove the measure tool worked on this page". Real accuracy comes later via INV-SIM-2.
+
+   For NON-`permit-45p` PDFs, Opus must either: (a) consult past-run history for a known plan for this PDF, OR (b) generate a smoke plan + flag in the report that "full-loop needs page classification — please tag pages manually OR supply a tags fixture".
+
+   Keep total ≤20 steps so the driver stays under its 5-min cap. The measure_loop step itself counts as 1 step but the driver expands it internally to N navigate+draw+verify sub-actions; the per-step 90-second cap applies to each sub-action.
 5. **Pick a `scenario_id`** in kebab-case (e.g. `permit-45p-baseline`, `permit-45p-arc-edge-probe`).
 6. Create `artifacts/sim/lite/<scenario_id>-<timestamp>/` directory.
 

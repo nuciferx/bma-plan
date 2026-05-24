@@ -1,0 +1,29 @@
+{
+  "_comment": "Page classification fixture for the canonical RAMA4 45-page permit PDF. Used by /bma-simulate scenario `permit-45p-full-loop` to know which pages are measurable. Derived from manual text-scan in lite/sandbox/invent-45page-permit-spike.html (PAGES array, see line ~155 of that file).",
+  "_pdf": "20250616_RAMA4 APARTMENT PERMIT rev 1.pdf",
+  "_total_pages": 45,
+  "_source": "lite/sandbox/invent-45page-permit-spike.html DATASET",
+  "tags": {
+    "site": [5, 7, 8],
+    "floor": [11, 12, 13, 14, 15, 16]
+  },
+  "scale_reference_page": 11,
+  "scale_reference_pt_per_m": 30.0,
+  "page_labels": {
+    "5":  "site plan",
+    "7":  "site rev A",
+    "8":  "site rev B",
+    "11": "floor 1 / ground",
+    "12": "floor 2",
+    "13": "floor 3",
+    "14": "floor 4",
+    "15": "floor 5",
+    "16": "roof deck"
+  },
+  "expected_rollup": {
+    "floor_count_ge": 5,
+    "site_present": true,
+    "total_gfa_m2_approx": 3956,
+    "tolerance_pct_for_smoke": 50
+  }
+}

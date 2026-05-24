@@ -30,22 +30,51 @@ You ARE responsible for:
 ```json
 {
   "pdf_path": "<absolute path>",
-  "scenario_id": "<short-name e.g. permit-45p-baseline>",
-  "scenario_plan": [
-    { "step": "boot_lite", "expect": { "server_up": true, "port_range": [8240, 8299] } },
-    { "step": "open_pdf",  "args": { "path": "..." }, "expect": { "pages_ge": 1, "case_id_set": true } },
-    { "step": "set_scale", "args": { "page": 1, "pt_per_m": 1.0, "via": "page.evaluate" }, "expect": { "scale_state": "manual" } },
-    { "step": "draw_polygon", "args": { "page": 1, "pts_pdf": [[0,0],[100,0],[100,100],[0,100]] }, "expect": { "object_count": 1, "area_m2_approx": 10000, "tolerance_m2": 1 } },
-    { "step": "export_xlsx", "expect": { "file_nonempty": true, "ext": ".xlsx" } },
-    { "step": "save_bmaplan", "expect": { "blob_size_gt": 100 } },
-    { "step": "reopen_bmaplan", "expect": { "object_count": 1, "area_unchanged_within_m2": 0.001 } }
-  ],
-  "few_shot_past_runs": [
-    "<inline summaries of last 1-3 runs — for context only; do not copy outcomes>"
-  ],
+  "scenario_id": "<short-name e.g. permit-45p-full-loop>",
+  "scenario_plan": [ /* see step types below */ ],
+  "few_shot_past_runs": [ "<inline summaries of last 1-3 runs — context only; do not copy outcomes>" ],
   "artifacts_dir": "artifacts/sim/lite/<scenario_id>-<timestamp>/"
 }
 ```
+
+### Supported step types
+
+| step | args | what you do | expect schema |
+|---|---|---|---|
+| `boot_lite` | — | boot uvicorn (mirror `lite/tests/test_pan_controls.py`), launch Playwright, open lite | `{server_up: bool, port_range: [int,int]}` |
+| `open_pdf` | `{path}` | upload the PDF via lite UI; capture `caseId`, `pageCount` | `{pages_ge: int, case_id_set: bool}` |
+| `tag_pages` | `{fixture: "<name>.json" \| null, fallback_inline: {<tag>: [page_indices...]}}` | If fixture exists at `lite/tests/fixtures/<fixture>`, load it and apply via `page.evaluate` writing to `pageTags`. Otherwise apply the inline `fallback_inline`. Lite already serializes `pageTags` in `.bmaplan` (per ui-lite L930). Record actual tagged count. | `{tagged_count_ge: int}` |
+| `set_scale` | `{page, pt_per_m, via: "page.evaluate"}` | Navigate to page, inject scale via `page.evaluate` (same pattern lite tests use), verify `scaleState` becomes `"manual"` | `{scale_state: "manual" \| "auto" \| "missing"}` |
+| `draw_polygon` | `{page, pts_pdf: [[x,y],...]}` OR `{page, polygon_strategy: "page-quad-80%"}` | Navigate to page, set tool to poly via `setTool('poly')`, push the explicit `pts_pdf` into `state.draft` (mirror what mousedown branch does), then call `finishDraft()`. If `polygon_strategy` given, compute pts from page raster width/height (80% inscribed quad in PDF coords) | `{object_count: int, area_m2_approx: float, tolerance_m2: float}` |
+| `measure_loop` | `{pages: [int,...], polygon_strategy: "page-quad-80%"}` | Expand internally to N×(navigate+draw_polygon+capture) sub-actions. Time-box each sub-action at 90 s. Continue past per-page failures (record each as a separate STEP_LOG sub-row). Final aggregate: `objects_per_page` map + total area | `{objects_per_page_ge: int, areas_nonzero: bool}` |
+| `open_report_review` | — | Click the lite Report button / open the report panel (find selector by reading ui-lite.html — likely `#mi-report` or a Summary widget). Verify the panel becomes visible | `{report_panel_visible: bool}` |
+| `verify_report_totals` | `{expect_floor_count_ge, expect_site_present, tolerance_pct}` | Read the rendered report DOM; extract floor count + site rollup. Check they're within tolerance (loose — `tolerance_pct: 50` is intentional; we're proving rollup runs, not measuring accuracy). | `{totals_render: bool, observed_floor_count: int, observed_site_area_m2: float \| null}` |
+| `export_xlsx` | — | Trigger XLSX export (Ctrl+E or click `#mi-xlsx`); capture downloaded file path; verify non-empty + sheet count | `{file_nonempty: bool, ext: str, sheet_count_ge: int}` |
+| `save_bmaplan` | — | Trigger save (Ctrl+S → FSAPI download fallback `dlBlob`); capture blob bytes; verify size | `{blob_size_gt: int}` |
+| `reopen_bmaplan` | — | Clear state (`PS={}`), load saved blob back through lite's load path; verify object counts per page match pre-save | `{object_count_per_page_match: bool, total_area_unchanged_within_pct: float}` |
+
+### How to expand `measure_loop`
+
+When the SCENARIO_PLAN says `{step: "measure_loop", args: {pages: [5,7,8,11,12,13,14,15,16], polygon_strategy: "page-quad-80%"}}`, you EXPAND it internally into STEP_LOG sub-rows:
+
+```json
+[
+  {"step": "measure_loop", "sub_step": "navigate", "page": 5, "status": "pass", "observed": {...}},
+  {"step": "measure_loop", "sub_step": "draw", "page": 5, "status": "pass", "observed": {"area_m2": 123.4, "object_id": 7}},
+  {"step": "measure_loop", "sub_step": "navigate", "page": 7, "status": "pass", "observed": {...}},
+  ...
+  {"step": "measure_loop", "sub_step": "summary", "status": "pass", "observed": {"pages_attempted": 9, "pages_passed": 8, "pages_failed": [13], "total_area_m2": 4521.7}}
+]
+```
+
+The `summary` sub-row is mandatory — it's what the orchestrator's Phase C reads to derive severity. If any page fails (e.g. tool didn't activate, polygon push didn't increment object_count), include `failed_pages` list in `summary.observed`.
+
+### `polygon_strategy: "page-quad-80%"` computation
+
+Given page raster size `{w_pt, h_pt}` (from lite's `pageData.size.orig_w_pt / orig_h_pt`):
+- `margin = 0.1` (10% inset on each side → 80% × 80% = 64% of page area)
+- Quad pts in PDF coords: `[[w_pt*0.1, h_pt*0.1], [w_pt*0.9, h_pt*0.1], [w_pt*0.9, h_pt*0.9], [w_pt*0.1, h_pt*0.9]]`
+- Push directly into `state.draft` via `page.evaluate` (don't try to simulate canvas clicks — too DPI-dependent in headless)
 
 ## How to run
 
