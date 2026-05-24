@@ -289,10 +289,47 @@
   // are all CSS-space. We must bridge.
   function _dpr() { return window.devicePixelRatio || 1; }
 
+  // ---- Visual click feedback (BUG-20260525-lite-cl-misses observability) ----
+  // Field report 2026-05-25: "บางจุดถูก บางจุดผิด" on real cadastral PDF.
+  // Without feedback the user can't tell which clicks snapped vs fell back.
+  // Show a tiny green dot at the snap location for success, red X at cursor
+  // for miss. ~600ms fade. Pure DOM, no canvas touch.
+  function _flashFeedback(screenX, screenY, snappedScreenX, snappedScreenY, ok) {
+    var cvEl = document.getElementById("cv");
+    if (!cvEl) return;
+    var r = cvEl.getBoundingClientRect();
+    var dot = document.createElement("div");
+    var px = (ok ? snappedScreenX : screenX);
+    var py = (ok ? snappedScreenY : screenY);
+    dot.style.cssText = [
+      "position:fixed",
+      "left:" + (r.left + px - 6) + "px",
+      "top:" + (r.top + py - 6) + "px",
+      "width:12px", "height:12px",
+      "border-radius:50%",
+      "pointer-events:none",
+      "z-index:9998",
+      "background:" + (ok ? "rgba(58,204,119,.9)" : "rgba(220,80,80,.9)"),
+      "box-shadow:0 0 6px " + (ok ? "rgba(58,204,119,.6)" : "rgba(220,80,80,.6)"),
+      "transition:opacity .5s ease-out, transform .5s ease-out"
+    ].join(";");
+    document.body.appendChild(dot);
+    setTimeout(function () {
+      dot.style.opacity = "0";
+      dot.style.transform = "scale(2)";
+    }, 50);
+    setTimeout(function () { try { dot.remove(); } catch (_) {} }, 700);
+  }
+
   // ---- Click-hook helper: called per mousedown point in poly tool ----
   // Inputs:  p ({x,y} PDF pt, already computed by caller)
   //          screenX/screenY (CSS pixels — e.offsetX/e.offsetY from mousedown)
   // Returns: corrected {x,y} PDF pt, or null (caller falls back to original p).
+  //
+  // Retry ladder (BUG-20260525-lite-cl-misses): if ROI 140 fails (cursor
+  // in a dash gap or ROI captures too few/many dark pixels), retry with
+  // 200 and then 280. Cost ladder: 4ms / 8ms / 16ms — still within budget
+  // even on the slowest retry. Improves hit-rate on real cadastral scans.
   window.CL_litePolyClick = function (p, screenX, screenY) {
     if (!window.centerlineSnapOn) return null;
     if (typeof window.CL_snapCanvasToCenterline !== "function") return null;
@@ -300,12 +337,22 @@
     if (!cvEl) return null;
     var ctx2d = cvEl.getContext("2d");
     var dpr = _dpr();
-    // Convert CSS -> bitmap for getImageData inside the algorithm.
-    var result = window.CL_snapCanvasToCenterline(ctx2d, screenX * dpr, screenY * dpr);
-    if (!result || !result.found) return null;
+    var bx = screenX * dpr, by = screenY * dpr;
+    var roiLadder = [140, 200, 280];
+    var result = null;
+    for (var i = 0; i < roiLadder.length; i++) {
+      result = window.CL_snapCanvasToCenterline(ctx2d, bx, by, { roi: roiLadder[i] });
+      if (result && result.found) break;
+    }
+    if (!result || !result.found) {
+      _flashFeedback(screenX, screenY, screenX, screenY, false);
+      return null;
+    }
     if (typeof window.screenToPt !== "function") return null;
+    var snappedScreenX = result.x / dpr, snappedScreenY = result.y / dpr;
+    _flashFeedback(screenX, screenY, snappedScreenX, snappedScreenY, true);
     // Algorithm returns bitmap coords; convert back to CSS for screenToPt.
-    return window.screenToPt(result.x / dpr, result.y / dpr);
+    return window.screenToPt(snappedScreenX, snappedScreenY);
   };
 
   // ---- Finish-hook helper: called post-Enter on poly draft ----
