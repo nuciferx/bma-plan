@@ -4,7 +4,77 @@
 
 ---
 
-# Latest: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
+# Latest: Centerline Snap arc (invent 2026-05-24-22-14 → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
+
+Branch: main
+
+Date: 2026-05-25
+
+## Outcome: PASS — Centerline snap shipped to proto (INV-002a, commit 6db0461) + lite (INV-002b, commit ad920c6); 2 user-reported lite bugs fixed same day (DPR coord mismatch ff3f9fe; button overlap 5783df4). PHASE_CENTERLINE_SNAP_OK 10/10 (maxDelta=0.140%), LITE_CENTERLINE_SNAP_OK 8/8 (maxDelta=0.1778%). All prior baseline markers GREEN. Zero server changes.
+
+## Summary
+
+User reported "วัดที่ดินเส้นปะได้ 3 ค่าต่างกัน" (SCR_ผังต่อโฉนด.pdf, thick dashed cadastral boundary). Correct measurement = stroke centerline. `/bma-invent` 7-phase pipeline (commit `0208314`) selected Approach A: click-time local-ROI Zhang-Suen thinning + post-draw PCA corner refinement. Spike pass 3 achieved maxDelta=0.185% PASS 4/4; user GO + requested lite vendor. INV-002a (proto): NEW `proto/static/js/centerline-snap.js` 208 LOC (Otsu + Zhang-Suen + ROI snap + PCA refine); `proto/ui.html` +15 lines net; E2E +162 lines; PHASE_CENTERLINE_SNAP_OK 10/10. INV-002b (lite): NEW `lite/static/js/centerline-snap.js` 306 LOC (Section A byte-identical to proto per drift-locked vendoring contract, Section B lite glue); `lite/ui-lite.html` +2 net lines (1197→1199 ≤ 1200 cap); LITE_CENTERLINE_SNAP_OK 8/8. Two user-reported bugs fixed same day: DPR coord mismatch (Windows 125/150% scaling → ROI read wrong canvas region → zero effect; fix: multiply CSS coords by dpr before algorithm, divide back after; also added missing `.active` CSS to make toggle visually distinguishable) and CL button overlapping zoom controls (moved from fixed position into `#hud-br` flex-column). Additive schema field: `obj.traceMode = "centerline-roi"` on corrected polygons (optional; legacy .bmaplan loads fine).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `docs/invent/centerline-snap-dashed-boundary.md` | NEW — full 7-phase invent record (PICK→RESEARCH→FRAME→DIVERGE→SCORE→SPIKE→CHECKPOINT) |
+| `proto/sandbox/invent-centerline-snap-dashed-boundary.html` | NEW — interactive spike, commit `0208314` |
+| `proto/static/js/centerline-snap.js` | NEW 208 LOC — Otsu threshold + Zhang-Suen thinning + CL_snapCanvasToCenterline + CL_refineCornersOnSkeleton (IIFE, no CDN) |
+| `proto/ui.html` | +15 lines net — script include, "⊙ CL" Helpers ribbon button, toggleCenterlineSnap() + state, area mousedown click-hook, finishCurrentArea refine call, PREFS.measure.centerlineSnap false, _applyCenterlineSnapPref() |
+| `proto/e2e_ui_test.py` | +162 lines — _test_centerline_snap 10 sub-checks + PHASE_CENTERLINE_SNAP_OK |
+| `lite/static/js/centerline-snap.js` | NEW 306 LOC — Section A: proto algo byte-identical (drift-locked); Section B: lite glue (CL_litePolyClick + CL_litePolyFinish + floating toggle + localStorage) |
+| `lite/ui-lite.html` | +2 net lines (1197→1199, ≤1200 cap) — script include + poly click hook + finishDraft hook; DPR bugfix: dpr multiply/divide + inline .active CSS; button position bugfix: insertBefore #hud-br firstChild |
+| `lite/tests/test_centerline_snap.py` | NEW 235 LOC — LITE_CENTERLINE_SNAP_OK Playwright; 6 sub-checks in 002b, expanded to 8 post-bugfix (dprBridge + activeCssRule) |
+| `docs/status/PHASE_INDEX.md` | 002a + 002b sprint rows added, backlog flipped, commit hashes backfilled (commit `916d379`) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (zero server changes across entire arc; purely client-side feature)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (centerline snap is pre-processing, injects corrected pts before area math reads them; uses `getImageData` public API only)
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED (centerline snap fires only AFTER vector snap found no match)
+- `.bmaplan` schema version stays 1; NEW additive `obj.traceMode` optional field only (absent = legacy behavior)
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+
+## Tests Run
+
+```
+python -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
+python proto/e2e_ui_test.py smoke                          → 18/18 PASS
+python proto/e2e_ui_test.py full                           → 21/21 PASS
+  NEW: PHASE_CENTERLINE_SNAP_OK 10/10 (accuracy maxDelta=0.140%, target ≤0.5%)
+  PROJECT_OK + PERSIST_OK confirm obj.traceMode additive field round-trips through save/load
+
+python lite/tests/test_centerline_snap.py  → LITE_CENTERLINE_SNAP_OK 8/8 PASS
+  accuracy maxDelta=0.1778% ≤0.5%; dprBridge + activeCssRule regression locks added post-bugfix
+python lite/tests/test_measure_parity.py   → MEASURE_PARITY_OK GREEN (no regression)
+wc -l lite/ui-lite.html                    → 1199 (≤1200 cap) PASS
+
+TEST-H skipped per AGENTS.md rationale: feature defaults OFF, user must opt-in via Helpers ribbon;
+existing journey tester does not toggle Helpers ribbon options; full E2E + 10/8-sub-check synthetic
+proof = sufficient verification.
+
+Commit trail: 0208314 (invent spike GO) → 6db0461 (INV-002a proto)
+            → ad920c6 (INV-002b lite) → 916d379 (roadmap chore)
+            → ff3f9fe (DPR bugfix) → 5783df4 (button position bugfix)
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
+- ✅ `proto/server.py` — NOT TOUCHED
+- ✅ `.bmaplan` schema — additive only (`obj.traceMode` optional; version stays 1)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail (centerline-of-stroke is geometry/snap, in-scope Phase 1)
+- ✅ Lite-vendoring contract honored — `measure-engine.js` UNCHANGED; `centerline-snap.js` Section A byte-identical to proto
+- ✅ Lite size cap — `ui-lite.html` 1199/1200 (1-line headroom); all `lite/static/js/*.js` ≤1000
+
+---
+
+# Previous: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
 
 Branch: main
 
@@ -42,12 +112,12 @@ python -c "import json; json.load(open('.claude/skills/bma-simulate/regression_p
   → PASS (2 probes registered, both schema-valid)
 
 artifacts/sim/lite/regression-probes-verify-20260524T200000/probe_executor.py
-  → LITE-BUG-MODAL-NEST:       PASS (860ms)
+  → LITE-BUG-MODAL-NEST:        PASS (860ms)
   → LITE-BUG-DBLCLICK-OVER-POP: PASS (2919ms)
   → 2 PASS · 0 FAIL
 
 No proto/lite source changes → proto py_compile + E2E not re-run.
-Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
+Reference baseline: proto full E2E = 21 markers (HT-ACC 2026-05-20, unchanged).
 ```
 
 ## Phase 1 Scope Check
@@ -61,226 +131,4 @@ Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchang
 
 ---
 
-# Previous: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
-
-Branch: main
-
-Date: 2026-05-24
-
-## Outcome: PASS — Fixed LITE-BUG-MODAL-NEST (BROKEN: #setupModal nested inside hidden #modal, invisible regardless of openSetup()) and LITE-BUG-DBLCLICK-OVER-POP (FRICTION: unbounded while loop ate intentional vertices, saved polygon as triangle). Both surfaced by Opus-4.7 multi-model simulator (Pack J). Zero net lines. lite/ui-lite.html stays at 1197 ≤ 1200. All live Playwright verify checks PASS.
-
-## Summary
-
-Two silent bugs in `lite/ui-lite.html` fixed — both found by the multi-model simulator (Pack J `/bma-simulate`) running the full Page Setup + polygon-draw workflow on `lite/test.pdf`. LITE-BUG-MODAL-NEST: a missing `</div>` caused `#setupModal` to be nested inside the hidden `#modal` container, making Page Setup invisible on click. LITE-BUG-DBLCLICK-OVER-POP: an unbounded `while` loop in the dblclick handler consumed legitimate polygon vertices (4 pts saved as 3 pts, 713 m² reported as 356 m²). Both patches are surgical zero-net-line changes. Live Playwright verify confirms all 3 PASS assertions (modal rect nonzero, calib modal regression-clean, dblclick preserves vertex count at 714.07 m²).
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/ui-lite.html` | Added missing `</div>` after line 194 (closes `#modal` before `#setupModal`); replaced unbounded `while` with bounded `for(_np<2)` at lines 502-503; 0 net lines; 1197 total (cap 1200) |
-| `sprints/completed/2026-05-24-lite-bug-2-opus47-findings/LITE-BUG-2-OPUS47-FINDINGS-2026-05-24.md` | NEW — sprint card with bug IDs, root causes, patches, self-check |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (zero proto/ edits — lite-only sprint)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; untouched
-- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
-
-## Tests Run
-
-```
-python -c "open('lite/ui-lite.html', encoding='utf-8').read()"    → parseable PASS
-wc -l lite/ui-lite.html                                            → 1197 (≤1200 cap) PASS
-<div> vs </div> regex balance: opens=92 closes=92 delta=0          PASS (was delta=1)
-cd lite && python -m py_compile server_lite.py                     → PASS
-cd lite && python tests/test_pan_controls.py                       → BUG_20260521_LITE_PAN_OK PASS
-
-Live Playwright verify (artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/verify_bug_fixes.py):
-  BUG_A_modal_rect_nonzero:        PASS — #setupModal 1600×958, parent=#stage
-  BUG_A_calib_modal_still_works:   PASS — no regression, 1600×958
-  BUG_B_dblclick_preserves_vertex: PASS — 4 pts saved, area=714.07 m² (drift 0.13% acceptable)
-
-No-test rationale for proto E2E: lite-only sprint; zero proto/ edits.
-Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (measure-engine.js untouched)
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (untouched)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ Size cap honored — lite/ui-lite.html 1197 ≤ 1200
-
----
-
-# Previous (older): LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
-
-Branch: main
-
-Date: 2026-05-22
-
-## Outcome: PASS — Lite gains an editable web report (plan-left / area-table-right, A4 landscape) opened in a new window via sessionStorage handoff, edited Word-style, printed to PDF. Area numbers read-only. LITE_REPORT_OK GREEN (17/17). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
-
-## Summary
-
-Added `lite/lite-report.html` — a standalone A4-landscape web page that opens in a new window from the File menu "ส่งออกรายงาน (แก้ไขได้)…". The report shows one sheet per measured page: left = plan image with SVG polygon overlay + numbered badges; right = area table grouped by semanticTag with per-group subtotals + page net (deductions sign −1) + header. Header fields, row labels, and notes are `contenteditable`; area cells are read-only (raw-geometry contract). `@page` + `@media print` CSS enables WYSIWYG browser-print-to-PDF. Payload passed via `sessionStorage["bmaReportPayload"]` — images reference `/page/{n}` URLs so only geometry+metadata are serialised (well under 5 MB). A sample standalone fallback renders when opened without a payload.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/lite-report.html` | NEW — standalone editable report page (A4 landscape, plan+SVG overlay, area table, contenteditable, @page print CSS, sample fallback) |
-| `lite/server_lite.py` | +9 lines — `_REPORT_FILE` const + `GET /report` FileResponse route (additive) |
-| `lite/ui-lite.html` | +52 lines — File-menu item #mi-report + `reportPageTitle()` / `buildReportPayload()` / `openReport()` (reads polyMetrics/PS/catOf READ-ONLY; handoff via sessionStorage + window.open) |
-| `lite/tests/test_report.py` | NEW — LITE_REPORT_OK Playwright guard (17 checks) |
-| `docs/status/PHASE_INDEX.md` | LITE-REPORT marked done |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (read-only consumer; MEASURE_PARITY_OK)
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED (measure-engine.js untouched)
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; no schema touch at all (report reads in-memory PS, ephemeral edits)
-
-## Tests Run
-
-```
-py_compile lite/server_lite.py lite/launch_lite.py         → PY_COMPILE_OK
-lite/tests/test_report.py                                  → LITE_REPORT_OK GREEN (17/17)
-lite/tests/test_measure_parity.py                          → MEASURE_PARITY_OK GREEN (16 fns + 2 consts)
-lite/tests/test_menu_clickable.py                          → BUG_20260521_LITE_MENU_CLIP_OK GREEN
-lite/tests/test_pan_controls.py                            → BUG_20260521_LITE_PAN_OK GREEN
-artifacts/realflow_check.py                                → REALFLOW_OK (real PDF → popup → naturalWidth 3576 → polygon overlay → net 222.22)
-
-No-test rationale for proto E2E: lite-only tree; zero proto/ edits.
-Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (read-only consumer)
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (measure-engine.js untouched; MEASURE_PARITY_OK)
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (no schema touch)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail (area facts only)
-
----
-
-# Previous (older): BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
-
-Branch: main
-
-Date: 2026-05-21
-
-## Outcome: PASS — Spacebar/middle-mouse pan in any mode + H pan-tool + smooth clamped zoom + fit/actual-size/zoom shortcuts forked from proto into lite. BUG_20260521_LITE_PAN_OK GREEN (13/13). ZERO proto/ edits. MEASURE_PARITY_OK unchanged.
-
-## Summary
-
-Lite's view/navigation controls were impoverished vs proto: pan only worked in select/empty mode (draw tools blocked mousedown early), no spacebar or middle-mouse pan, no zoom clamp (runaway zoom), no fit/actual-size/zoom keyboard shortcuts. This sprint adapted proto's entire view-control BEHAVIOR onto lite's `V={k,ox,oy,rot}` single-canvas model (proto uses CSS-transform + per-page server rotation, so functions could not be copied verbatim). New Playwright regression guard `test_pan_controls.py` validates all 13 control paths. MEASURE_PARITY_OK confirms ptToScreen/screenToPt/RS untouched.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/ui-lite.html` | mousedown/mousemove/mouseup/wheel/keydown/keyup handlers + setTool; new zoomCenter/actualSize/setCursor helpers; hint text; state.panTool default (~39 insertions / 12 deletions) |
-| `lite/tests/test_pan_controls.py` | NEW — Playwright regression guard (13 checks: midPan, spaceArmed, spacePanMidDraw, panToolOn/Drag/Off, selectPan, clampMax, clampMin, wheelZoomIn, actualSize, fit, ctrlZoomIn) |
-| `docs/status/PHASE_INDEX.md` | bug filed at top of Active queue then marked done |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (lite vendors in measure-engine.js — untouched)
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED (lite ptToScreen/screenToPt/RS untouched)
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; additive fields only (not touched)
-
-## Tests Run
-
-```
-py -3 -m py_compile lite/server_lite.py lite/tests/test_pan_controls.py lite/tests/test_menu_clickable.py
-  -> PYCOMPILE_OK
-lite/tests/test_pan_controls.py  -> BUG_20260521_LITE_PAN_OK GREEN (13/13 checks)
-lite/tests/test_menu_clickable.py  -> BUG_20260521_LITE_MENU_CLIP_OK GREEN (no regression)
-lite/tests/test_measure_parity.py  -> MEASURE_PARITY_OK GREEN (ptToScreen/screenToPt/RS untouched)
-
-No-test rationale for proto full E2E: zero edits to any file under proto/; lite tree is isolated.
-Reference baseline: proto full E2E = 102 _OK markers (HT-ACC 2026-05-20, unchanged).
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (lite vendors them in measure-engine.js — untouched)
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED (lite ptToScreen/screenToPt/RS untouched)
-- ✅ `buildSnapIndex` / `snap` internals — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only; version stays 1
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-# Previous (older): LITE-0 — scaffold standalone /lite/ tree (sub-sprint 1 of epic INV-2026-05-21-001)
-
-Branch: main
-
-Date: 2026-05-21
-
-## Outcome: PASS — /lite/ sibling tree scaffolded; measurement engine vendored byte-identical from proto/ui.html + anti-drift parity gate; proto/ untouched; MEASURE_PARITY_OK; py_compile PASS both trees; Playwright self-test 0 errors.
-
-## Summary
-
-LITE-0 scaffolds a standalone `/lite/` sibling tree (own FastAPI server, launcher, and UI shell) as the foundation of BMA-Plan Lite (Approach A: vendored-copy + contract-test). The measurement engine is vendored verbatim from `proto/ui.html` — `RS`, `pdfToC`, `cToPdf`, `polyAreaM2`, `polyMetrics`, `polySelfIntersects`, `pathAreaM2`, and 6 path helpers — with a new lite-only `objectAreaM2Lite` wrapper. An anti-drift parity gate verifies both source byte-identity (10 fns + 2 consts) and numeric parity on 5 polys, 2 paths, and 4 coordinate pairs. Zero edits to any file under `proto/`.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/static/js/measure-engine.js` | NEW — vendored verbatim measure engine + lite-only `objectAreaM2Lite` |
-| `lite/tests/test_measure_parity.py` | NEW — anti-drift gate: byte-identity + numeric parity via Node |
-| `lite/tests/fixtures/measure_parity_v1.json` | NEW — 5 polys / 2 paths / 4 coords test vectors |
-| `lite/server_lite.py` | NEW — skeleton FastAPI (static mount + /health + /); endpoints deferred to LITE-1 |
-| `lite/launch_lite.py` | NEW — free-port (8100+) launcher |
-| `lite/ui-lite.html` | NEW — LITE-0 shell: host globals + engine load + self-test (unit square = 25.00 m2) |
-| `lite/README.md` | NEW — vendoring contract + version-sync policy |
-| `docs/invent/bma-plan-lite-standalone.md` | NEW — invent research + approach decision record |
-| `proto/sandbox/invent-bma-plan-lite-standalone.html` | NEW — invention spike |
-| `docs/status/PHASE_INDEX.md` | MODIFIED — sprint card LITE-0 added + status flipped to done |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (LITE-0 has its own `lite/server_lite.py`)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED in proto (vendored copy byte-identical, enforced by parity gate)
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED in proto
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; additive fields only
-
-## Tests Run
-
-```
-python lite/tests/test_measure_parity.py
-  -> MEASURE_PARITY_OK (10 fns + 2 consts byte-identical; 5 polys/2 paths/4 coords numeric parity; unit square = 25.00 m2 verified)
-python3.11 -m py_compile lite/server_lite.py lite/launch_lite.py  -> PASS
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py     -> PASS (proto regression guard)
-Playwright render lite/ui-lite.html -> self-test "engine wired", 0 console errors
-
-No-test rationale for proto full E2E: LITE-0 is purely additive in /lite/ tree; ZERO proto/ changes.
-Reference baseline: proto full E2E = 21 markers / 102 _OK (HT-ACC 2026-05-20, unchanged).
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED (vendored copy byte-identical, enforced by parity gate)
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `buildSnapIndex` / `snap` internals — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only; version stays 1
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-
----
-
-<!-- HT-ACC series and earlier entries archived to docs/archive/patch-history-2026-05-09.md -->
+<!-- LITE-BUG-2-OPUS47-FINDINGS and older entries archived to docs/archive/patch-history-2026-05-09.md -->

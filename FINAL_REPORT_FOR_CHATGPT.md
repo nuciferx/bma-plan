@@ -4,14 +4,49 @@
 
 ---
 
-# Latest: SIM-2 — /bma-simulate regression-probe hardening — PASS
+# Latest: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes) — PASS
+
+**Date:** 2026-05-25
+**Branch:** main
+**Commits:** `0208314` (invent spike GO) · `6db0461` (INV-002a proto) · `ad920c6` (INV-002b lite) · `916d379` (roadmap chore) · `ff3f9fe` (DPR bugfix) · `5783df4` (button position bugfix)
+
+## Outcome
+
+PASS. Centerline snap is now available in both proto and lite as an opt-in feature. Users who trace the outer, inner, or centerline of a thick dashed cadastral boundary will now all get the same m² result when "⊙ CL" is toggled ON. The full invent pipeline (7 phases, commit `0208314`) ran from user problem report to SPIKE PASS 4/4 in one day. Two user-reported post-ship bugs in lite (silent no-op on HiDPI displays and CL button overlapping zoom controls) were filed and fixed within hours of the lite ship. PHASE_CENTERLINE_SNAP_OK 10/10 (accuracy maxDelta=0.140%). LITE_CENTERLINE_SNAP_OK 8/8 (accuracy maxDelta=0.1778%). All 21 prior proto markers GREEN. Zero server changes across the entire arc.
+
+## What was delivered
+
+- **`docs/invent/centerline-snap-dashed-boundary.md`** — full 7-phase invent record: research verdict PRIOR_ART_PARTIAL (Zhang-Suen 1984 exists; no incumbent exposes it as user choice); 5 approaches scored; Approach A 27/30 wins; 3 spike passes; CHECKPOINT: user GO + "ทำลง lite ด้วย"
+- **`proto/static/js/centerline-snap.js`** (208 LOC, commit `6db0461`) — Otsu adaptive threshold + Zhang-Suen thinning + CL_snapCanvasToCenterline (click-time, ~4ms) + CL_refineCornersOnSkeleton (post-draw PCA, ~6ms); no CDN dependency; IIFE
+- **`proto/ui.html`** (+15 lines net, commit `6db0461`) — "⊙ CL" Helpers ribbon button; feature defaults OFF; click-hook fires only when no vector snap matched; `obj.traceMode = "centerline-roi"` additive schema field
+- **`proto/e2e_ui_test.py`** (+162 lines, commit `6db0461`) — PHASE_CENTERLINE_SNAP_OK 10/10 sub-checks including accuracy gate (maxDelta=0.140% ≤ 0.5%)
+- **`lite/static/js/centerline-snap.js`** (306 LOC, commit `ad920c6`) — Section A byte-identical to proto (drift-locked vendoring contract); Section B lite glue with toggle button + localStorage persistence
+- **`lite/ui-lite.html`** (+2 net lines, 1197→1199, commit `ad920c6` + `ff3f9fe` + `5783df4`) — DPR coord bridge (multiply/divide by devicePixelRatio) + inline `.active` CSS (green glow when ON) + CL button repositioned inside `#hud-br` flex-column (no overlap with zoom controls)
+- **`lite/tests/test_centerline_snap.py`** (235 LOC, 8/8 sub-checks) — LITE_CENTERLINE_SNAP_OK with accuracy gate + dprBridge + activeCssRule regression locks
+
+## What's next
+
+The invent pipeline for centerline snap is fully closed. Four follow-on candidates — user decides priority (none auto-promoted):
+
+- **(1) Real-user verification** — ask user to re-measure SCR_ผังต่อโฉนด.pdf with CL ON on both proto + lite; confirm 3 traces (outer/inner/center) converge to same m². Low-risk, high-confidence closure.
+- **(2) Vector PDF route (Approach E from diverge)** — extract stroke-width from `extract_snaps_typed()` server response, surface as additive field, client offset by w/2 when `snap.t==='nl'`. Separate sprint; does not depend on 002a/b.
+- **(3) Real-raster threshold robustness** — if contrast-faded scans misfire with Otsu, swap to adaptive Sauvola/Niblack. Wait for user reports before committing to this sprint.
+- **(4) Sharp corner < 60° fallback** — PCA fit from 5 samples can be unstable on very short edges; add step-1-only fallback when refine confidence is low.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic + proto geometry/snap track. The centerline snap feature is a Phase 1 in-scope capability (geometry/snap, not auto-boundary-detection). Invent pipeline (Pack H) ran correctly: idea filed → 7-phase research+diverge+spike → human CHECKPOINT → two sprint cards → dev loop ships → bugs fixed. No Phase 2 scope boundary crossed. Proto/ server untouched. Lite size cap respected (1199/1200). LITE-7 (PyInstaller .exe) remains the only deferred epic item.
+
+---
+
+# Previous: SIM-2 — /bma-simulate regression-probe hardening — PASS
 
 **Date:** 2026-05-24
 **Branch:** main
 
 ## Outcome
 
-PASS. `/bma-simulate` (Pack J) gains a permanent hard-probe channel: `.claude/skills/bma-simulate/regression_probes.json` (tracked, curated per sprint) holds mandatory probe steps prepended to every SCENARIO_PLAN. Two probes are registered — LITE-BUG-MODAL-NEST and LITE-BUG-DBLCLICK-OVER-POP (both closed by LITE-BUG-2-OPUS47-FINDINGS) — and both verify PASS against the current build (860 ms + 2919 ms). A false probe assertion returns a new REGRESSION severity tier (above CRASH), triggering the SIM_REGRESSION stop condition. Zero changes to `lite/` or `proto/` runtime code. Proto 102-marker baseline unchanged.
+PASS. `/bma-simulate` (Pack J) gains a permanent hard-probe channel: `.claude/skills/bma-simulate/regression_probes.json` (tracked, curated per sprint) holds mandatory probe steps prepended to every SCENARIO_PLAN. Two probes are registered — LITE-BUG-MODAL-NEST and LITE-BUG-DBLCLICK-OVER-POP (both closed by LITE-BUG-2-OPUS47-FINDINGS) — and both verify PASS against the current build (860 ms + 2919 ms). A false probe assertion returns a new REGRESSION severity tier (above CRASH), triggering the SIM_REGRESSION stop condition. Zero changes to `lite/` or `proto/` runtime code. Proto 21-marker baseline unchanged.
 
 ## What was delivered
 
@@ -31,114 +66,4 @@ Phase 1 adjacent — BMA-Plan Lite epic, simulator tooling hardening sub-track. 
 
 ---
 
-# Previous: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop) — PASS
-
-**Date:** 2026-05-24
-**Branch:** main
-
-## Outcome
-
-PASS. Two silent bugs in `lite/ui-lite.html` found by the Opus-4.7 multi-model simulator (Pack J) and fixed in a zero-net-line patch. LITE-BUG-MODAL-NEST (BROKEN): `#setupModal` was nested inside hidden `#modal` — Page Setup modal was completely invisible to users. LITE-BUG-DBLCLICK-OVER-POP (FRICTION): unbounded `while` loop in the dblclick handler consumed intentional polygon vertices, saving 4-point polygons as triangles (713 m² reported as 356 m²). All live Playwright verify checks PASS: modal renders 1600x958, polygon saves 4 pts at 714.07 m² (0.13% drift from screen-to-pt rounding, acceptable). `lite/ui-lite.html` stays at 1197 lines (cap 1200). ZERO proto/ edits.
-
-## What was delivered
-
-- `lite/ui-lite.html` — two surgical patches: missing `</div>` at line 194 (closes `#modal` before `#setupModal`); bounded `for(_np<2)` replacing unbounded `while` at lines 502-503; 0 net lines
-- `sprints/completed/2026-05-24-lite-bug-2-opus47-findings/LITE-BUG-2-OPUS47-FINDINGS-2026-05-24.md` — sprint card with bug IDs, root causes, patches, self-check
-
-## What's next
-
-- (1) Simulator reflection-loop hardening (SIM-2 — DONE)
-- (2) Snap-to-walls polygon strategy
-- (3) Lite PDF page classifier
-
-## Position in Plan
-
-Phase 1 adjacent — BMA-Plan Lite epic. Bug-fix sprint closing two simulator-found regressions. No Phase 2 scope boundary crossed. Proto/ runtime untouched. LITE-7 (packaging) remains the only deferred epic item.
-
----
-
-# Previous (older): LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite — PASS
-
-**Date:** 2026-05-22
-**Branch:** main
-
-## Outcome
-
-PASS. Lite gains a standalone editable web-report page (`lite/lite-report.html`) opened in a new window from the File menu. The report renders one A4-landscape sheet per measured page — plan image with SVG polygon overlay on the left, area table grouped by category on the right — and supports WYSIWYG browser-print-to-PDF. Area numbers are read-only (raw-geometry contract preserved); header fields, row labels, and per-row notes are `contenteditable`. LITE_REPORT_OK GREEN (17/17). REALFLOW_OK confirmed on a real 562 MB permit PDF (net 222.22). ZERO proto/ edits; proto 102-marker baseline unchanged.
-
-## What was delivered
-
-- `lite/lite-report.html` — A4 landscape report page: plan+SVG overlay with numbered polygon badges; area table grouped by semanticTag; per-group subtotals; page net (deductions −1); contenteditable header/row-name/note; read-only area cells; @page + @media print WYSIWYG; sample standalone fallback
-- `lite/server_lite.py` — additive `GET /report` FileResponse route (+9 lines)
-- `lite/ui-lite.html` — File-menu item #mi-report + `reportPageTitle()` / `buildReportPayload()` / `openReport()` (+52 lines); sessionStorage["bmaReportPayload"] handoff; images via /page/{n} URLs
-- `lite/tests/test_report.py` — NEW LITE_REPORT_OK Playwright guard (17 checks)
-- `docs/status/PHASE_INDEX.md` — LITE-REPORT sprint card marked done
-
-## What's next
-
-- Optional LITE-REPORT v2 follow-ups: custom branding, cross-page roll-up summary sheet, persist header/notes edits to .bmaplan — all out of scope for this sprint, queued as backlog.
-- LITE-7 PyInstaller .exe — still deferred by user.
-- "Lock the site-plan line" E2E guard (queued optional) — verifies no FAR/OSR/setback verdict UI renders in lite.
-
-## Position in Plan
-
-Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001 / INV-2026-05-21-002). LITE-REPORT closes the last user-facing output gap in the lite epic (the only missing output was a human-readable, printable, editable document). No Phase 2 scope boundary crossed. Proto/ runtime untouched. LITE-7 (packaging) is the only remaining epic item, and it is deferred.
-
----
-
-# Previous (older): BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite — PASS
-
-**Date:** 2026-05-21
-**Branch:** main
-
-## Outcome
-
-PASS. Forked proto's entire view/navigation control system into `lite/ui-lite.html`, adapted to lite's single-canvas `V={k,ox,oy,rot}` transform model. The headline bug (pan blocked entirely when any draw tool was selected) is fixed. All 7 control gaps are closed: spacebar/middle-mouse pan in any mode, sticky H pan-tool, cursor feedback, smooth exponential zoom clamped to [0.02, 40], fit/actual-size/zoom keyboard shortcuts. New Playwright regression guard validates 13 control paths (BUG_20260521_LITE_PAN_OK GREEN). ZERO proto/ edits. MEASURE_PARITY_OK confirms ptToScreen/screenToPt/RS untouched.
-
-## What was delivered
-
-- `lite/ui-lite.html` — full view-control system: spacebar/middle-mouse pan intercept at top of mousedown (works in any mode including mid-draw); sticky H pan-tool (`state.panTool`); `setCursor()` helper (grab/grabbing/crosshair/default); smooth exponential wheel zoom `exp(-deltaY*0.0015)` clamped to [ZMIN=0.02, ZMAX=40]; `zoomCenter(f)` zoom about viewport center; `actualSize()` reset to 1:1; keyboard shortcuts F/Ctrl+0=fit, Ctrl+1=actual, Ctrl+=/Ctrl+-=zoom; enriched hint text
-- `lite/tests/test_pan_controls.py` — NEW Playwright regression guard (13 checks)
-- `docs/status/PHASE_INDEX.md` — bug filed + marked done
-
-## What's next
-
-- Continue lite epic: LITE-7 PyInstaller .exe (deferred by user), or pick next queued PHASE_INDEX item.
-- Optional follow-up: lite per-page rotation parity with proto (V.rot global vs. proto per-page server-side rotation — deeper change, out of view-control scope).
-
-## Position in Plan
-
-Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001). This is a bug-fix sprint on the lite tree. No Phase 2 scope boundary crossed. Proto/ runtime untouched. All lite functionality (snap, export, save/load cross-open) remains intact.
-
----
-
-# Previous (older): LITE-0 — scaffold standalone /lite/ tree (epic INV-2026-05-21-001 sub-sprint 1) — PASS
-
-**Date:** 2026-05-21
-**Branch:** main
-
-## Outcome
-
-PASS. LITE-0 scaffolds the `/lite/` sibling tree as the foundation of BMA-Plan Lite (Approach A: vendored-copy + contract-test). The measurement engine is vendored byte-identical from `proto/ui.html` and protected by an anti-drift parity gate that verifies both source byte-identity (10 fns + 2 consts) and numeric parity. The LITE-0 UI shell self-tests on load (unit square = 25.00 m2, 0 console errors). Proto full E2E baseline is unchanged at 102 _OK markers — zero proto/ edits were made.
-
-## What was delivered
-
-- `lite/static/js/measure-engine.js` — vendored engine (RS, pdfToC, cToPdf, polyAreaM2, polyMetrics, polySelfIntersects, pathAreaM2, 6 path helpers) + lite-only `objectAreaM2Lite`
-- `lite/tests/test_measure_parity.py` + `lite/tests/fixtures/measure_parity_v1.json` — anti-drift parity gate (MEASURE_PARITY_OK)
-- `lite/server_lite.py` — skeleton FastAPI (static mount + /health + /); endpoints deferred to LITE-1
-- `lite/launch_lite.py` — free-port (8100+) launcher
-- `lite/ui-lite.html` — LITE-0 shell with self-test
-- `lite/README.md` — vendoring contract + version-sync policy
-- `docs/invent/bma-plan-lite-standalone.md` — invent research + approach decision record
-- `proto/sandbox/invent-bma-plan-lite-standalone.html` — invention spike
-- `docs/status/PHASE_INDEX.md` — LITE-0 sprint card added + status done
-
-## What's next
-
-LITE-1: backend endpoints (`/upload`, `/page/{n}`, `/thumb`) reusing PyMuPDF for the raster render path. Epic continues LITE-1..7 (chrome, tools, dimension rendering, save/load+count, export, packaging).
-
-## Position in Plan
-
-Phase 1 adjacent — BMA-Plan Lite epic (INV-2026-05-21-001). LITE-0 is the scaffold sprint (sub-sprint 1 of 8). No Phase 2 scope boundary crossed. Proto/ runtime untouched. Parity gate enforces that any future proto engine change is immediately visible.
-
-<!-- HT-ACC series and older reports archived to docs/archive/reports-2026-05-09.md -->
+<!-- LITE-BUG-2-OPUS47-FINDINGS and older reports archived to docs/archive/reports-2026-05-09.md -->

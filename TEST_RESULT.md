@@ -4,7 +4,98 @@
 
 ---
 
-# Latest: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
+# Latest: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
+
+Branch: main
+Date: 2026-05-25
+
+## Result: PASS
+
+Proto full E2E PASS (21/21 + NEW PHASE_CENTERLINE_SNAP_OK 10/10). Lite LITE_CENTERLINE_SNAP_OK 8/8 PASS. MEASURE_PARITY_OK GREEN. All prior baseline markers retained. Commits: `0208314` `6db0461` `ad920c6` `916d379` `ff3f9fe` `5783df4`.
+
+## Commands
+
+```bash
+# Proto
+python -m py_compile proto/server.py proto/e2e_ui_test.py
+python proto/e2e_ui_test.py smoke
+python proto/e2e_ui_test.py full
+
+# Lite
+python lite/tests/test_centerline_snap.py
+python lite/tests/test_measure_parity.py
+```
+
+## Proto — Smoke (18 baseline markers)
+
+| Marker | Result |
+|---|---|
+| CACHE_OK | PASS |
+| SETUP_OK | PASS |
+| MAIN_UI_OK | PASS |
+| VECTOR_OK | PASS |
+| RECAL_OK | PASS |
+| SITE_UI_OK | PASS |
+| XLSX_OK | PASS |
+| PROJECT_OK | PASS |
+| RASTER_OK | PASS |
+| WHEEL_OK | PASS |
+| SNAP_OK | PASS |
+| SELECT_OK | PASS |
+| SETBACK_OK | PASS |
+| EXT_MEASURE_OK | PASS |
+| MENU_OK | PASS |
+| PATH_GEOMETRY_OK | PASS |
+| PHASE_I_A_OK | PASS |
+| PHASE_I_B1_OK | PASS |
+
+## Proto — Full (3 additional markers + NEW centerline marker)
+
+| Marker | Result |
+|---|---|
+| ANNOT_OK | PASS |
+| PERSIST_OK | PASS |
+| REAL_OK | PASS |
+| **PHASE_CENTERLINE_SNAP_OK (10/10 sub-checks)** | **PASS — NEW** |
+
+Sub-checks for PHASE_CENTERLINE_SNAP_OK:
+- fnsExist, versionExists, toggleExists, stateExists, buttonExists, prefDefault: all PASS
+- sanity: PASS (skeleton pixels found on synthetic dashed canvas)
+- accuracy: PASS (maxDelta=0.140%, target ≤0.5%)
+- subFnsExist: PASS (CL_snapCanvasToCenterline + CL_refineCornersOnSkeleton)
+- refineHookInFinish: PASS (finishCurrentArea calls refine for poly branch)
+
+Note: PROJECT_OK + PERSIST_OK confirm `obj.traceMode = "centerline-roi"` additive field round-trips through save/load without breaking existing .bmaplan files.
+
+## Lite — LITE_CENTERLINE_SNAP_OK (8/8 sub-checks)
+
+| Sub-check | Result |
+|---|---|
+| jsFnsExist | PASS (CL_snapCanvasToCenterline + CL_litePolyClick + CL_litePolyFinish present) |
+| toggleBtnInstalled | PASS (floating toggle button self-installs on page load) |
+| localStoragePersist | PASS (centerlineSnapOn state persists across page reload) |
+| accuracy | PASS (maxDelta=0.1778% ≤0.5% on synthetic dashed pentagon) |
+| skeletonFound | PASS (algorithm finds dark pixels on synthetic canvas) |
+| refineHookInFinish | PASS (finishDraft calls CL_litePolyFinish for poly branch) |
+| dprBridge | PASS (source scan confirms both glue functions reference `dpr` for coord conversion) |
+| activeCssRule | PASS (.active CSS rule present: green background + glow when toggle ON) |
+
+## Lite — MEASURE_PARITY_OK
+
+```bash
+python lite/tests/test_measure_parity.py  → GREEN
+```
+
+16 functions + 2 constants in `lite/static/js/measure-engine.js` are byte-identical to proto.
+`centerline-snap.js` Section A is byte-identical to `proto/static/js/centerline-snap.js` per drift-locked vendoring contract.
+
+## TEST-H Rationale (Skipped)
+
+Per AGENTS.md: feature defaults OFF; user must opt-in via "⊙ CL" Helpers ribbon button (proto) or floating toggle (lite). The existing `bma-human-journey-tester` does not toggle Helpers ribbon options. The full E2E with 10/8 sub-check synthetic proof (including accuracy gate, hook wiring, DPR bridge, and active CSS verification) constitutes sufficient verification. TEST-H will be relevant when the feature is promoted to default-ON.
+
+---
+
+# Previous: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
 
 Branch: main
 Date: 2026-05-24
@@ -56,200 +147,9 @@ cd lite && python tests/test_pan_controls.py                       → BUG_20260
 proto baseline (unchanged):
 python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
 python3.11 proto/e2e_ui_test.py smoke                          → PASS (18 baseline markers)
-python3.11 proto/e2e_ui_test.py full                           → PASS (102 _OK markers)
+python3.11 proto/e2e_ui_test.py full                           → PASS (21 markers)
 ```
 
 ---
 
-# Previous: LITE-BUG-2-OPUS47-FINDINGS — 2 lite bugs fixed (modal nesting + dblclick vertex pop)
-
-Branch: main
-Date: 2026-05-24
-
-## Result: PASS (no-test rationale for proto full E2E — zero proto/ edits; lite tree isolated)
-
-## No-Test Rationale
-
-Per AGENTS.md §1, sprints that make ZERO changes to proto/ record a no-test rationale instead of running proto E2E. This sprint changed only `lite/ui-lite.html` and added a sprint card under `sprints/completed/`. No source code, UI, test code, or schema under `proto/` changed. Therefore proto `py_compile + smoke + full` were not run as regression tests.
-
-## Tests Run
-
-```bash
-python -c "open('lite/ui-lite.html', encoding='utf-8').read()"
-  → parseable PASS
-
-wc -l lite/ui-lite.html
-  → 1197 (≤1200 cap) PASS
-
-<div> vs </div> regex balance: opens=92 closes=92 delta=0
-  → PASS (was delta=1 before patch)
-
-cd lite && python -m py_compile server_lite.py
-  → PASS
-
-cd lite && python tests/test_pan_controls.py
-  → BUG_20260521_LITE_PAN_OK PASS (regression guard, no regression)
-
-Live Playwright verify (artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/verify_bug_fixes.py):
-  BUG_A_modal_rect_nonzero:
-    → PASS — #setupModal now renders 1600×958, parent=#stage, select.offsetParent exists
-  BUG_A_calib_modal_still_works:
-    → PASS — calibration modal not regressed, still 1600×958
-  BUG_B_dblclick_preserves_vertex:
-    → PASS — 4 pts saved, area=714.07 m² (expected ~713.12; drift 0.13% from screen-to-pt rounding — acceptable)
-```
-
-Evidence trail:
-- Original finding: `artifacts/sim/lite/test-pdf-opus47-direct-20260524T194000/summary.json`
-- Verify script + screenshots: same dir, `verify_bug_fixes.py` + `screenshots/VERIFY_A_*.png` + `screenshots/VERIFY_B_*.png`
-
-## Reference Baseline (from previous sprint LITE-REPORT 2026-05-22)
-
-```
-py_compile lite/server_lite.py lite/launch_lite.py    → PY_COMPILE_OK
-lite/tests/test_report.py                             → LITE_REPORT_OK GREEN (17/17)
-lite/tests/test_measure_parity.py                     → MEASURE_PARITY_OK GREEN (16 fns + 2 consts)
-lite/tests/test_menu_clickable.py                     → BUG_20260521_LITE_MENU_CLIP_OK GREEN
-lite/tests/test_pan_controls.py                       → BUG_20260521_LITE_PAN_OK GREEN
-artifacts/realflow_check.py                           → REALFLOW_OK (net 222.22)
-
-proto baseline (unchanged):
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → PASS (18 baseline markers)
-python3.11 proto/e2e_ui_test.py full                           → PASS (102 _OK markers)
-```
-
----
-
-# Previous: LITE-REPORT (INV-2026-05-21-002) — editable web report page for lite
-
-Branch: main
-Date: 2026-05-22
-
-## Result: PASS (no-test rationale for proto full E2E — zero proto/ edits; lite tree isolated)
-
-## No-Test Rationale
-
-Per AGENTS.md §1, sprints that make ZERO changes to proto/ record a no-test rationale instead of running proto E2E. This sprint changed only files under `lite/` and `docs/status/PHASE_INDEX.md`. No source code, UI, test code, or schema under `proto/` changed. Therefore proto `py_compile + smoke + full` were not run as regression tests.
-
-## Tests Run
-
-```bash
-py_compile lite/server_lite.py lite/launch_lite.py
-  -> PY_COMPILE_OK
-
-lite/tests/test_report.py
-  -> LITE_REPORT_OK GREEN (17/17 checks)
-
-lite/tests/test_measure_parity.py
-  -> MEASURE_PARITY_OK GREEN (16 fns + 2 consts byte-identical; area math unaffected)
-
-lite/tests/test_menu_clickable.py
-  -> BUG_20260521_LITE_MENU_CLIP_OK GREEN (no regression)
-
-lite/tests/test_pan_controls.py
-  -> BUG_20260521_LITE_PAN_OK GREEN (no regression)
-
-artifacts/realflow_check.py
-  -> REALFLOW_OK
-     real permit PDF upload → openReport → popup window caught
-     plan image naturalWidth 3576, viewBox "0 0 3576 2526"
-     SVG polygon overlay rendered → net area 222.22
-```
-
-New E2E marker: LITE_REPORT_OK
-
-## Reference Baseline (from previous sprint HT-ACC series 2026-05-20)
-
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  -> PASS
-python3.11 proto/e2e_ui_test.py smoke                          -> PASS (18 baseline markers)
-python3.11 proto/e2e_ui_test.py full                           -> PASS (102 _OK markers)
-```
-
-Markers include: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK, HT_ACC_OK, and 80+ additional sprint markers. Total 102 _OK. All unchanged by this sprint.
-
----
-
-# Previous (older): BUG-20260521-lite-pan-controls — Fork proto view/navigation control system into lite
-
-Branch: main
-Date: 2026-05-21
-
-## Result: PASS (no-test rationale for proto full E2E — zero proto/ edits; lite tree isolated)
-
-## No-Test Rationale
-
-Per AGENTS.md §1, sprints that make ZERO changes to proto/ record a no-test rationale instead of running proto E2E. This sprint changed only files under `lite/` and `docs/status/PHASE_INDEX.md`. No source code, UI, test code, or schema under `proto/` changed. Therefore proto `py_compile + smoke + full` were not run as regression tests.
-
-## Tests Run
-
-```bash
-py -3 -m py_compile lite/server_lite.py lite/tests/test_pan_controls.py lite/tests/test_menu_clickable.py
-  -> PYCOMPILE_OK
-
-lite/tests/test_pan_controls.py
-  -> BUG_20260521_LITE_PAN_OK GREEN (13/13 checks)
-     midPan, spaceArmed, spacePanMidDraw, panToolOn, panToolDrag, panToolOff,
-     selectPan, clampMax, clampMin, wheelZoomIn, actualSize, fit, ctrlZoomIn
-
-lite/tests/test_menu_clickable.py
-  -> BUG_20260521_LITE_MENU_CLIP_OK GREEN (no regression)
-
-lite/tests/test_measure_parity.py
-  -> MEASURE_PARITY_OK GREEN (ptToScreen/screenToPt/RS untouched; coordinate math byte-identical)
-```
-
-## Reference Baseline (from previous sprint HT-ACC series 2026-05-20)
-
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  -> PASS
-python3.11 proto/e2e_ui_test.py smoke                          -> PASS (18 baseline markers)
-python3.11 proto/e2e_ui_test.py full                           -> PASS (102 _OK markers)
-```
-
-Markers include: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK, HT_ACC_OK, and 80+ additional sprint markers. Total 102 _OK. All unchanged by this sprint.
-
----
-
-# Previous (older): LITE-0 — scaffold standalone /lite/ tree
-
-Branch: main
-Date: 2026-05-21
-
-## Result: PASS (no-test rationale for proto full E2E — docs/additive-only sprint in new /lite/ tree)
-
-## No-Test Rationale
-
-Per AGENTS.md §1, sprints that make ZERO changes to proto/ record a no-test rationale instead of running proto E2E. LITE-0 added only new files under `lite/`, `docs/invent/`, `proto/sandbox/`, and `docs/status/PHASE_INDEX.md`. No source code, UI, test code, or schema under `proto/` changed. Therefore proto `py_compile + smoke + full` were not run as regression tests (proto py_compile was run as a sanity guard and passed).
-
-## Tests Run
-
-```bash
-python lite/tests/test_measure_parity.py
-  -> MEASURE_PARITY_OK
-     10 fns + 2 consts byte-identical between proto/ui.html and lite/static/js/measure-engine.js
-     5 polys / 2 paths / 4 coords numeric parity via Node.js
-     unit square = 25.00 m2 verified
-
-python3.11 -m py_compile lite/server_lite.py lite/launch_lite.py
-  -> PASS
-
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py
-  -> PASS (proto sanity guard — confirmed proto untouched)
-
-Playwright render lite/ui-lite.html
-  -> self-test "engine wired", 0 console errors
-```
-
-## Reference Baseline (from previous sprint HT-ACC series 2026-05-20)
-
-```
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  -> PASS
-python3.11 proto/e2e_ui_test.py smoke                          -> PASS (18 baseline markers)
-python3.11 proto/e2e_ui_test.py full                           -> PASS (102 _OK markers)
-```
-
-Markers include: CACHE_OK, SETUP_OK, MAIN_UI_OK, VECTOR_OK, RECAL_OK, SITE_UI_OK, XLSX_OK, PROJECT_OK, RASTER_OK, WHEEL_OK, SNAP_OK, SELECT_OK, SETBACK_OK, EXT_MEASURE_OK, MENU_OK, PATH_GEOMETRY_OK, PHASE_I_A_OK, PHASE_I_B1_OK, ANNOT_OK, PERSIST_OK, REAL_OK, HT_ACC_OK, and 80+ additional sprint markers. Total 102 _OK. All unchanged by LITE-0.
-
-<!-- HT-ACC series and older test results archived to docs/archive/test-history-2026-05-09.md -->
+<!-- LITE-BUG-2-OPUS47-FINDINGS and older test results archived to docs/archive/test-history-2026-05-09.md -->
