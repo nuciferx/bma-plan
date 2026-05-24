@@ -435,7 +435,7 @@ cv.addEventListener("mousedown",function(e){
     if(state.tool==="poly"){ /* LCURVE-1: arc edge sub-state */
       var _arc=arcOnClick(p,state.draft);
       if(_arc.consumed){ state.dirty=true; draw(); return; } /* through-point absorbed */
-      state.draft.push(p); state.dirty=true;
+      var _clP=window.CL_litePolyClick&&window.CL_litePolyClick(p,e.offsetX,e.offsetY); state.draft.push(_clP||p); state.dirty=true;
       if(_arc.edgeRecord){ /* arc closed — store edge at [i-1] after push */
         if(!state.draft.edges)state.draft.edges=[];
         state.draft.edges[state.draft.length-2]=_arc.edgeRecord; }
@@ -528,6 +528,7 @@ function finishDraft(){
   var draftEdges = (state.tool==="poly" && state.draft.edges && state.draft.edges.some(function(e){return e&&e.edgeType==="arc";}))
     ? state.draft.edges.slice() : null;
   arcCancel();
+  if(state.tool==="poly"&&window.CL_litePolyFinish){var _clR=window.CL_litePolyFinish(state.draft);if(_clR){if(state.draft.edges)_clR.edges=state.draft.edges;state.draft=_clR;}}
   pushUndo();
   var o = mkObj(state.draft, kind, false);
   if(draftEdges) o.edges = draftEdges;
@@ -1193,5 +1194,6 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 <script src="static/js/cheatsheet.js"></script>
 <script src="static/js/menu-flyout.js"></script>
 <script src="static/js/annot-style.js"></script>
+<script src="static/js/centerline-snap.js"></script>
 </body>
 </html>
