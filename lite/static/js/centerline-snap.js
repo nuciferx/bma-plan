@@ -234,24 +234,36 @@
     if (!document.getElementById("lite-btn-centerline-css")) {
       var st = document.createElement("style");
       st.id = "lite-btn-centerline-css";
-      st.textContent = "#lite-btn-centerline.active{background:#1f6b3a !important;color:#fff !important;border-color:#3acc77 !important;box-shadow:0 0 0 2px rgba(58,204,119,.3);}";
+      // BUG-20260525-lite-cl-position: place inside #hud-br ABOVE zoomctl,
+      // styled to match zoom buttons. Stacked via flex-column on the hud
+      // container's first child. `.active` = green pill.
+      st.textContent = [
+        "#hud-br{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}",
+        "#lite-btn-centerline{background:#222a37;color:#ccc;border:1px solid var(--line,#555);height:24px;padding:0 6px;border-radius:5px;cursor:pointer;font-size:12px;line-height:1;}",
+        "#lite-btn-centerline:hover{background:#2d3848;}",
+        "#lite-btn-centerline.active{background:#1f6b3a !important;color:#fff !important;border-color:#3acc77 !important;box-shadow:0 0 0 2px rgba(58,204,119,.25);}"
+      ].join("");
       document.head.appendChild(st);
     }
 
-    // Inject toggle button — fixed bottom-right to avoid disturbing existing HUD layout.
+    // Place button inside #hud-br (bottom-right HUD) so it stacks above the
+    // zoom controls instead of overlapping them. Fallback to floating top-right
+    // if #hud-br is missing for some reason.
     var btn = document.getElementById("lite-btn-centerline");
     if (!btn) {
       btn = document.createElement("button");
       btn.id = "lite-btn-centerline";
       btn.textContent = "⊙ CL";
       btn.title = "Centerline snap (เส้นปะหนา → กลางเส้น). คลิกเพื่อเปิด/ปิด — สีเขียว=เปิด, เทา=ปิด.";
-      btn.style.cssText = [
-        "position:fixed", "bottom:8px", "right:8px", "z-index:9999",
-        "padding:4px 8px", "font-size:12px", "cursor:pointer",
-        "background:#2a2a2a", "color:#ccc", "border:1px solid #555",
-        "border-radius:4px", "line-height:1.4"
-      ].join(";");
-      document.body.appendChild(btn);
+      var hudBr = document.getElementById("hud-br");
+      if (hudBr) {
+        // Prepend so it sits ABOVE the existing zoomctl.
+        hudBr.insertBefore(btn, hudBr.firstChild);
+      } else {
+        // Fallback: top-right floating (far from zoom in bottom-right).
+        btn.style.cssText = "position:fixed;top:48px;right:10px;z-index:9999;";
+        document.body.appendChild(btn);
+      }
     }
 
     // Reflect initial state.
