@@ -1185,16 +1185,13 @@ buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
 </script>
-<!-- LROTATE-1: page render-rotation helpers — rotatePage(delta). -->
+<!-- static/js/ modules: page-rotate(LROTATE-1) · ortho-mode(LORTHO-1) · snap-types(LSNAP-1) · empty-hub(LEMPTY-1) · cheatsheet(LHELP-1) · menu-flyout(LMENU-1) · annot-style(LITE-ANNOT-STYLE) -->
 <script src="static/js/page-rotate.js"></script>
-<!-- LORTHO-1: sticky ortho mode toggle (Shift+O) — loaded before menu-flyout.js. -->
 <script src="static/js/ortho-mode.js"></script>
-<!-- LSNAP-1: per-type snap toggles — loaded before menu-flyout.js so toggleSnapType* globals exist at click time. -->
 <script src="static/js/snap-types.js"></script>
-<!-- LEMPTY-1: empty-state hub | LMENU-1: flyout submenu chrome -->
 <script src="static/js/empty-hub.js"></script>
+<script src="static/js/cheatsheet.js"></script>
 <script src="static/js/menu-flyout.js"></script>
-<!-- LITE-ANNOT-STYLE: annotation color/opacity/font-size editor — kept OUT of the main file (own module). -->
 <script src="static/js/annot-style.js"></script>
 </body>
 </html>
