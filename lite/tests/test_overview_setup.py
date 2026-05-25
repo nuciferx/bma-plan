@@ -468,6 +468,94 @@ async () => {
 }
 """
 
+CHECK_REAL_BINDING = r"""
+async () => {
+  // Reset to controlled state
+  for (var k in pageTags) delete pageTags[k];
+  for (var k in pageFloorNum) delete pageFloorNum[k];
+  for (var k in pageFloorKind) delete pageFloorKind[k];
+  for (var k in PS) delete PS[k];
+  pageCount = 5;
+  // pages: 1=cover, 2=site, 3=floor#1, 4=floor#2, 5=detail
+  pageTags[2] = 'site'; pageTags[3] = 'floor'; pageTags[4] = 'floor'; pageTags[5] = 'detail';
+  pageFloorKind[3] = 'normal'; pageFloorNum[3] = 1;
+  pageFloorKind[4] = 'normal'; pageFloorNum[4] = 2;
+
+  // Seed scales (1 pt = 1 m for easy math)
+  for (var n = 1; n <= 5; n++) PS[n] = {objects: [], scale: {pts_per_m: 1.0}, annotations: []};
+
+  // Reset LAYERS + FOLDERS, then seed PFL folders + custom layers
+  LAYERS.length = 0; FOLDERS.length = 0; initLayers();
+
+  // Seed PF folders via real LPFL API
+  state.pageFolderMode = true;
+  if (typeof seedPageFolders === 'function') {
+    seedPageFolders([1,2,3,4,5], pageTags, pageFloorNum);
+  }
+
+  // Find seeded layers we'll attach measurements to
+  var siteLandLayer = null, coverLayer = null, f1GfaLayer = null, f2GfaLayer = null, f1DedLayer = null;
+  LAYERS.forEach(function(l) {
+    if (l.parentId === 'PF_site') {
+      if (l.role === 'site' && !siteLandLayer) siteLandLayer = l;
+      if (l.role === 'gfa' && !coverLayer) coverLayer = l;
+    }
+    if (l.parentId === 'PF_floor_1' && l.role === 'gfa') f1GfaLayer = l;
+    if (l.parentId === 'PF_floor_2' && l.role === 'gfa') f2GfaLayer = l;
+    if (l.parentId === 'PF_floor_1' && l.role === 'ded' && !f1DedLayer) f1DedLayer = l;
+  });
+
+  // Add poly objects with known areas (axis-aligned squares):
+  // p2 (site page): land = 100x100 m square  → 10000 m² for siteLandLayer
+  // p2 (site page): cover = 60x40 m square   → 2400 m² for coverLayer
+  // p3 (floor 1):   gfa = 50x40 m square     → 2000 m² for f1GfaLayer
+  // p3 (floor 1):   ded = 10x10              → 100 m² (deduction)
+  // p4 (floor 2):   gfa = 50x40              → 2000 m² for f2GfaLayer
+  function rect(w, h, ox, oy) {
+    ox = ox || 0; oy = oy || 0;
+    return [{x:ox,y:oy},{x:ox+w,y:oy},{x:ox+w,y:oy+h},{x:ox,y:oy+h}];
+  }
+  if (siteLandLayer) PS[2].objects.push({id:1, kind:'poly', pts: rect(100,100,0,0),   catId: siteLandLayer.id, counting:false});
+  if (coverLayer)    PS[2].objects.push({id:2, kind:'poly', pts: rect(60,40,200,0),   catId: coverLayer.id,    counting:false});
+  if (f1GfaLayer)    PS[3].objects.push({id:3, kind:'poly', pts: rect(50,40,0,0),     catId: f1GfaLayer.id,    counting:false});
+  if (f1DedLayer)    PS[3].objects.push({id:4, kind:'poly', pts: rect(10,10,100,0),   catId: f1DedLayer.id,    counting:false});
+  if (f2GfaLayer)    PS[4].objects.push({id:5, kind:'poly', pts: rect(50,40,0,0),     catId: f2GfaLayer.id,    counting:false});
+
+  // Re-render step 3
+  var step3 = document.querySelector('#ov-steps .step[data-step="3"]');
+  if (step3) { step3.click(); await new Promise(r => setTimeout(r, 200)); }
+
+  var html = document.getElementById('report').innerHTML;
+
+  // Verify real numbers appear and old mock numbers DON'T
+  // pts_per_m=1, area = poly area in pt² interpreted as m². 100x100=10000, 60x40=2400.
+  var has10000 = html.indexOf('10,000.00') >= 0;
+  var has2400  = html.indexOf('2,400.00')  >= 0;
+  var hasGFATot = html.indexOf('4,000.00') >= 0;  // f1+f2 gross = 2000+2000
+  // mock land 1,919.20 must NOT appear
+  var mockLandGone = html.indexOf('1,919.20') < 0;
+  // mock cover 839.10 must NOT appear
+  var mockCoverGone = html.indexOf('839.10') < 0;
+
+  // Export button visible on step 3
+  var expBtn = document.getElementById('ov-export');
+  var expVisible = expBtn && expBtn.style.display !== 'none';
+
+  return {
+    siteLayerFound: !!siteLandLayer,
+    coverLayerFound: !!coverLayer,
+    f1GfaFound: !!f1GfaLayer,
+    has10000_land: has10000,
+    has2400_cover: has2400,
+    hasGFATot4000: hasGFATot,
+    mockLandGone: mockLandGone,
+    mockCoverGone: mockCoverGone,
+    expVisible: !!expVisible,
+    allOk: has10000 && has2400 && hasGFATot && mockLandGone && mockCoverGone && !!expVisible
+  };
+}
+"""
+
 CHECKS = [
     ("overrideInstalled",      CHECK_OVERRIDE_INSTALLED,      ["allOk"]),
     ("threeTabsRender",        CHECK_THREE_TABS_RENDER,        ["allOk"]),
@@ -478,6 +566,7 @@ CHECKS = [
     ("step3ReportRenders",     CHECK_STEP3_REPORT_RENDERS,     ["allOk"]),
     ("closeOnEsc",             CHECK_CLOSE_ON_ESC,             ["allOk"]),
     ("floorKindDropdown",      CHECK_FLOOR_KIND_DROPDOWN,      ["allOk"]),
+    ("realDataBinding",        CHECK_REAL_BINDING,             ["allOk"]),
 ]
 
 

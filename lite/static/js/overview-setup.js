@@ -223,6 +223,7 @@ function _lovsBuiltPanelHTML() {
     '<div id="ov-nav">' +
       '<button id="ov-prev">← ย้อน</button><span class="prog" id="ov-prog">Step 1 of 3</span>' +
       '<span class="sp"></span><span class="prog" id="ov-step-prog"></span>' +
+      '<button id="ov-export" style="display:none">📄 ส่งออก PDF</button>' +
       '<button id="ov-next" class="pri">ถัดไป →</button>' +
     '</div>' +
   '</div><div id="ov-ctxmenu"></div>';
@@ -267,6 +268,9 @@ function _lovsGoStep(s) {
   var next = document.getElementById("ov-next");
   if (next) { next.disabled = false; next.className = "pri";
     next.textContent = s === 3 ? "เสร็จ ✓" : s === 2 ? "ถัดไป → Review" : "ถัดไป →"; }
+  /* Export button visible only on Step 3 (Review) */
+  var exp = document.getElementById("ov-export");
+  if (exp) exp.style.display = s === 3 ? "" : "none";
   _lovsRenderCurStep();
 }
 
@@ -579,7 +583,56 @@ function _lovsClearFloors() {
   _lovsRenderFloors(); _lovsUpdateHeader();
 }
 
-/* ============================================================  STEP 3 */
+/* ============================================================  STEP 3 — REAL BINDING (LOVS-3)
+   Replaces the LOVS-2 mock constants with computeSummary() + folder-scoped
+   layer aggregation. Falls back to global-role sum when LPFL mode is OFF
+   or no PF folders exist. ที่ดิน + ปกคลุม shown as INDEPENDENT quantities;
+   ที่ว่าง = ที่ดิน − ปกคลุม (derived, formula explicit).
+============================================================ */
+
+/* Sum poly object areas for a single layerId across all NON-excluded pages.
+   Uses vendored polyMetrics + per-page scale. Returns 0 if no data. */
+function _lovsLayerArea(layerId) {
+  if (typeof PS === "undefined" || typeof polyMetrics !== "function") return 0;
+  var total = 0;
+  Object.keys(PS).forEach(function(k) {
+    var pg = +k;
+    if (typeof excluded !== "undefined" && excluded[pg]) return;
+    var objs = (PS[k] && PS[k].objects) || [];
+    for (var i = 0; i < objs.length; i++) {
+      var o = objs[i];
+      if (o.catId !== layerId || o.counting || o.kind !== "poly") continue;
+      var a = polyMetrics({pts: o.pts}, pg).area;
+      if (a != null && isFinite(a)) total += a;
+    }
+  });
+  return total;
+}
+
+/* Sum areas of all descendant layers under folderId, optionally filtered by role.
+   Walks ancestorsOf for each layer to check folder membership (handles nested folders). */
+function _lovsFolderArea(folderId, roleFilter) {
+  if (typeof LAYERS === "undefined" || typeof ancestorsOf !== "function") return 0;
+  var total = 0;
+  for (var i = 0; i < LAYERS.length; i++) {
+    var l = LAYERS[i];
+    if (roleFilter && l.role !== roleFilter) continue;
+    var chain = ancestorsOf(l.id);
+    if (chain.indexOf(folderId) >= 0) total += _lovsLayerArea(l.id);
+  }
+  return total;
+}
+
+/* Sum across all layers with a given role (no folder scope). Fallback when LPFL OFF. */
+function _lovsRoleArea(role) {
+  if (typeof LAYERS === "undefined") return 0;
+  var total = 0;
+  for (var i = 0; i < LAYERS.length; i++) {
+    if (LAYERS[i].role === role) total += _lovsLayerArea(LAYERS[i].id);
+  }
+  return total;
+}
+
 function _lovsRenderReview() {
   var r = document.getElementById("report"); if (!r) return;
   var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
@@ -591,65 +644,162 @@ function _lovsRenderReview() {
   floorPages.sort(function(a, b) {
     return ((pageFloorNum[a] === "roof" ? 9999 : pageFloorNum[a] || 0)) - ((pageFloorNum[b] === "roof" ? 9999 : pageFloorNum[b] || 0));
   });
-  var PER = 650, ROOF_G = 298, MEC_G = 120, BASEMENT_G = 700, DED = 38;
+  function fmt(n) { return n.toLocaleString("th-TH", {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+
+  /* === SITE / COVERAGE BINDING ===
+     ที่ดิน + ปกคลุม are INDEPENDENT quantities (NOT summed):
+       - ที่ดิน  = Σ area of role='site' layers (boundary polygons)
+       - ปกคลุม = Σ area of role='gfa' layers under PF_site folder if LPFL ON;
+                  fallback: 0 (cannot infer ปกคลุม from global gfa role
+                  because that includes per-floor GFA from PF_floor_*)
+       - ที่ว่าง = ที่ดิน − ปกคลุม  (always derived, formula shown)
+  */
+  var hasPFSite = (typeof folderById === "function") && !!folderById("PF_site");
+  var landArea  = _lovsRoleArea("site");
+  var coverArea = hasPFSite ? _lovsFolderArea("PF_site", "gfa") : 0;
+  var coverSource = hasPFSite ? "PF_site / gfa layers" : "—";
+  var openArea  = Math.max(0, landArea - coverArea);
+
+  /* === GFA PER-FLOOR BINDING ===
+     For each tag=floor page, build a row from its PF_floor_<N> folder
+     (gfa = gross, ded = deduction, both summed across pages in folder).
+     Falls back to "—" if LPFL mode OFF or no PF folder.
+  */
   var rows = floorPages.map(function(p) {
     var fl = pageFloorNum[p];
     var kind = pageFloorKind[p] || (fl === "roof" ? "rooftop" : (fl != null ? "normal" : ""));
     var label = _lovsFloorLabel(p);
-    var gross;
-    if (kind === "rooftop") gross = ROOF_G;
-    else if (kind === "mechanical") gross = MEC_G;
-    else if (kind === "basement") gross = BASEMENT_G;
-    else gross = PER;
-    // Has-floor logic: rooftop+mechanical don't need a number; normal+basement do.
     var hasFloor = (kind === "rooftop" || kind === "mechanical") || (fl != null && fl !== "roof");
-    return {p: p, label: label, kind: kind, gross: gross, ded: DED, net: gross - DED, hasFloor: hasFloor};
+    var floorId = "PF_floor_" + (fl != null ? fl : "?");
+    var hasPF = (typeof folderById === "function") && !!folderById(floorId);
+    var gross = hasPF ? _lovsFolderArea(floorId, "gfa") : 0;
+    var ded   = hasPF ? _lovsFolderArea(floorId, "ded") : 0;
+    return {p: p, label: label, kind: kind, gross: gross, ded: ded, net: gross - ded, hasFloor: hasFloor, hasPF: hasPF, pfId: floorId};
   });
   var totG = 0, totD = 0; rows.forEach(function(rw) { totG += rw.gross; totD += rw.ded; });
-  var totN = totG - totD, LAND = 1919.20, COVER = 839.10;
-  var FAR = LAND > 0 ? totN / LAND : 0, COV = LAND > 0 ? COVER / LAND * 100 : 0;
-  var OSR = totN > 0 ? (LAND - COVER) / totN * 100 : 0;
-  function fmt(n) { return n.toLocaleString("th-TH", {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  var totN = totG - totD;
+  var FAR = landArea > 0 ? totN / landArea : 0;
+  var COV = landArea > 0 ? coverArea / landArea * 100 : 0;
+  var OSR = totN > 0 ? openArea / totN * 100 : 0;
+
+  /* === LRV / report-vars ===
+     If global computeReportVars exists (lite/static/js/report-vars.js), pull
+     named quantities. They render alongside derived Section 4 for parity
+     with #btn-sum / lite-report.html. */
+  var lrv = [];
+  if (typeof computeReportVars === "function" && typeof computeSummary === "function") {
+    try {
+      var _s = computeSummary();
+      var _agg = {}; Object.keys(_s.all || {}).forEach(function(k){_agg[k]=_s.all[k];});
+      Object.keys(_s.allCnt || {}).forEach(function(k){_agg[k]=_s.allCnt[k];});
+      lrv = computeReportVars(_agg);
+    } catch (e) { /* LRV not initialized — silent */ }
+  }
+
+  /* === traceability + counts === */
   var tagged = 0; for (var n2 = 1; n2 <= pc; n2++) { if (pageTags[n2]) tagged++; }
   var excPages = [], measPages = [], missingFloor = rows.filter(function(rw) { return !rw.hasFloor; }).length;
+  var missingPF = rows.filter(function(rw) { return rw.hasFloor && !rw.hasPF; }).length;
   var excCount = 0; for (var xk in excluded) { if (excluded[xk]) excCount++; }
   for (var ni = 1; ni <= pc; ni++) {
     var tg = pageTags[ni] || "";
     if (excluded[ni] || !tg || tg === "detail" || tg === "plan" || tg === "parking" || tg === "amenity") excPages.push(ni);
     else if (tg === "site" || tg === "floor") measPages.push(ni);
   }
-  var html = '<h1>รายงานสรุป — Page Setup Wizard</h1><div class="sub">tagged ' + tagged + '/' + pc + ' · ' + floorPages.length + ' floor pages</div>';
-  if (missingFloor) html += '<div class="warn">⚠ มี ' + missingFloor + ' หน้า tag=floor ยังไม่มีเลขชั้น</div>';
-  if (!sitePages.length) html += '<div class="warn">⚠ ยังไม่มีหน้า tag=site — ใช้ mock 1,919.20 m²</div>';
-  html += '<h2>1. สรุป Page Setup</h2><table><tr><th>รายการ</th><th class="num">จำนวน</th><th>หมายเหตุ</th></tr>' +
+
+  /* === RENDER === */
+  var html = '<h1>รายงานสรุป — Page Setup Wizard</h1>' +
+    '<div class="sub">tagged ' + tagged + '/' + pc + ' · ' + floorPages.length + ' floor pages · ' +
+    'data: real (polyMetrics + folder aggregation)</div>';
+
+  if (missingFloor) html += '<div class="warn">⚠ มี ' + missingFloor + ' หน้า tag=floor ยังไม่ได้ใส่เลขชั้น/ประเภท</div>';
+  if (!sitePages.length) html += '<div class="warn">⚠ ยังไม่มีหน้า tag=site — ที่ดินจะเป็น 0 จนกว่าจะวาดขอบเขตในหน้า site</div>';
+  if (!hasPFSite) html += '<div class="warn">⚠ ยังไม่ได้เปิด <b>📂 page-folder mode</b> หรือยังไม่มี folder PF_site — พื้นที่อาคารปกคลุมจะเป็น 0</div>';
+  if (missingPF) html += '<div class="warn">⚠ มี ' + missingPF + ' floor page ที่ยังไม่มี folder PF_floor_N (เปิด page-folder mode เพื่อ auto-seed)</div>';
+  if (landArea === 0 && coverArea === 0 && totG === 0)
+    html += '<div class="warn">ℹ️ ยังไม่มีพื้นที่ที่วัด — ตั้งสเกล (S) + วาด polygon (A) บนหน้าที่ tag เรียบร้อย แล้วเปิด page-folder mode (📂)</div>';
+
+  html += '<h2>1. สรุป Page Setup</h2><table>' +
+    '<tr><th>รายการ</th><th class="num">จำนวน</th><th>หมายเหตุ</th></tr>' +
     '<tr><td>หน้าทั้งหมด</td><td class="num">' + pc + '</td><td></td></tr>' +
     '<tr><td>ติด tag</td><td class="num">' + tagged + '</td><td>' + (pc ? (tagged / pc * 100).toFixed(0) : 0) + '%</td></tr>' +
-    '<tr><td>site</td><td class="num">' + sitePages.length + '</td><td>' + (sitePages.map(function(p){return"p"+p;}).join(",")||"—") + '</td></tr>' +
+    '<tr><td>site</td><td class="num">' + sitePages.length + '</td><td>' + (sitePages.map(function(p){return"p"+p;}).join(", ")||"—") + '</td></tr>' +
     '<tr><td>floor</td><td class="num">' + floorPages.length + '</td><td>' + rows.filter(function(rw){return rw.hasFloor;}).length + '/' + floorPages.length + ' numbered</td></tr>' +
     '<tr><td>excluded</td><td class="num">' + excCount + '</td><td></td></tr></table>';
-  html += '<h2>2. Site Coverage (mock)</h2><table><tr><th>รายการ</th><th class="num">พื้นที่ (m²)</th><th>ที่มา</th></tr>' +
-    '<tr><td>ที่ดิน</td><td class="num">' + fmt(LAND) + '</td><td>' + (sitePages.map(function(p){return"p"+p;}).join(",")||"mock") + '</td></tr>' +
-    '<tr><td>อาคารปกคลุม</td><td class="num">' + fmt(COVER) + '</td><td>mock</td></tr>' +
-    '<tr><td>ที่ว่าง</td><td class="num">' + fmt(LAND - COVER) + '</td><td>derived</td></tr>' +
-    '<tr class="tot"><td>Coverage</td><td class="num">' + COV.toFixed(2) + ' %</td><td></td></tr></table>';
-  html += '<h2>3. GFA Breakdown ต่อชั้น</h2><table><tr><th>ชั้น</th><th>หน้า</th><th class="num">Gross</th><th class="num">หัก</th><th class="num">Net</th></tr>';
-  if (!rows.length) html += '<tr><td colspan="5" style="text-align:center;color:#a04">ไม่มี floor page</td></tr>';
+
+  /* === Section 2: Site + Coverage as 2 INDEPENDENT root quantities === */
+  html += '<h2>2. ที่ดิน + พื้นที่ปกคลุม (independent quantities)</h2>' +
+    '<table><tr><th>รายการ</th><th class="num" style="width:130px">พื้นที่ (m²)</th><th>ที่มา</th></tr>' +
+    '<tr><td><b>ที่ดิน</b> (Land area)</td><td class="num"><b>' + fmt(landArea) + '</b></td>' +
+      '<td>Σ layer role=site · ' + (sitePages.map(function(p){return"p"+p;}).join(", ")||"ยังไม่มี") + '</td></tr>' +
+    '<tr><td><b>พื้นที่อาคารปกคลุม</b> (Coverage)</td><td class="num"><b>' + fmt(coverArea) + '</b></td>' +
+      '<td>Σ ' + coverSource + '</td></tr>' +
+    '</table>' +
+    '<div class="calc" style="margin-top:8px"><div class="row">' +
+      '<span><b>ที่ว่าง</b> (Open Space) = ที่ดิน − พื้นที่อาคารปกคลุม</span>' +
+      '<b>' + fmt(landArea) + ' − ' + fmt(coverArea) + ' = <span style="color:#0a6">' + fmt(openArea) + '</span> m²</b>' +
+    '</div></div>';
+
+  html += '<h2>3. GFA Breakdown ต่อชั้น</h2>' +
+    '<table><tr><th>ชั้น</th><th>หน้า</th><th class="num">Gross (m²)</th><th class="num">หัก (m²)</th><th class="num">Net (m²)</th><th>folder</th></tr>';
+  if (!rows.length) html += '<tr><td colspan="6" style="text-align:center;color:#a04">ไม่มี floor page</td></tr>';
   rows.forEach(function(rw) {
-    html += '<tr' + (rw.hasFloor ? "" : ' style="color:#a04"') + '><td>' + rw.label + '</td><td>p' + rw.p + '</td>' +
-      '<td class="num">' + fmt(rw.gross) + '</td><td class="num">−' + fmt(rw.ded) + '</td><td class="num"><b>' + fmt(rw.net) + '</b></td></tr>';
+    var rowStyle = !rw.hasFloor ? ' style="color:#a04"' : (!rw.hasPF ? ' style="color:#a60"' : "");
+    html += '<tr' + rowStyle + '><td>' + rw.label + '</td><td>p' + rw.p + '</td>' +
+      '<td class="num">' + fmt(rw.gross) + '</td><td class="num">−' + fmt(rw.ded) + '</td>' +
+      '<td class="num"><b>' + fmt(rw.net) + '</b></td>' +
+      '<td style="font-size:10px;color:#888">' + (rw.hasPF ? rw.pfId : "—") + '</td></tr>';
   });
-  html += '<tr class="tot"><td colspan="2">รวม</td><td class="num">' + fmt(totG) + '</td><td class="num">−' + fmt(totD) + '</td><td class="num">' + fmt(totN) + '</td></tr></table>';
-  html += '<h2>4. ตัวเลขควบคุม</h2><div class="calc">' +
-    '<div class="row"><span>FAR</span><b>' + FAR.toFixed(2) + '</b></div>' +
-    '<div class="row"><span>Coverage</span><b>' + COV.toFixed(2) + ' %</b></div>' +
-    '<div class="row"><span>OSR</span><b>' + (totN > 0 ? OSR.toFixed(2) : "—") + ' %</b></div>' +
-    '<div class="row tot"><span>หมายเหตุ</span><span style="font-weight:400;font-size:11px">ตัวเลข mock — production จะดึงจาก polyMetrics + LRV registry</span></div></div>';
-  html += '<h2>5. Traceability</h2>' +
+  html += '<tr class="tot"><td colspan="2">รวม GFA</td><td class="num">' + fmt(totG) +
+    '</td><td class="num">−' + fmt(totD) + '</td><td class="num"><b>' + fmt(totN) + '</b></td><td></td></tr></table>';
+
+  html += '<h2>4. ตัวเลขควบคุม (Derived)</h2><div class="calc">' +
+    '<div class="row"><span>FAR = GFA / ที่ดิน</span><b>' + (landArea > 0 ? fmt(totN) + " / " + fmt(landArea) + " = " + FAR.toFixed(3) : "— (ยังไม่มีที่ดิน)") + '</b></div>' +
+    '<div class="row"><span>Coverage = ปกคลุม / ที่ดิน × 100</span><b>' + (landArea > 0 ? COV.toFixed(2) + " %" : "—") + '</b></div>' +
+    '<div class="row"><span>OSR = ที่ว่าง / GFA × 100</span><b>' + (totN > 0 ? OSR.toFixed(2) + " %" : "—") + '</b></div>' +
+    '<div class="row tot"><span>หมายเหตุ</span><span style="font-weight:400;font-size:11px">' +
+      (landArea > 0 || coverArea > 0 || totG > 0 ?
+        "ข้อมูลจริงจาก polyMetrics (per-page scale) + folder aggregation" :
+        "ยังไม่มีข้อมูล — ที่ดิน/ปกคลุม/GFA ทั้งหมด = 0") +
+    '</span></div></div>';
+
+  if (lrv && lrv.length) {
+    html += '<h2>5. ตัวแปรรายงาน (LRV registry)</h2><table>' +
+      '<tr><th>ชื่อ</th><th class="num">ค่า</th><th>หน่วย</th></tr>' +
+      lrv.map(function(v) {
+        var val = (v.err ? '<span style="color:#a04">' + v.err + '</span>' : (v.value != null ? fmt(v.value) : "—"));
+        return '<tr><td>' + (v.name || "") + '</td><td class="num">' + val + '</td><td>' + (v.unit || "") + '</td></tr>';
+      }).join('') + '</table>';
+  }
+
+  html += '<h2>' + (lrv && lrv.length ? '6' : '5') + '. Traceability</h2>' +
     '<div style="font-size:11px;color:#555">หน้าที่ใช้คำนวณ (' + measPages.length + ')</div>' +
-    '<div class="pl">' + (measPages.map(function(p){return '<span>p'+p+' '+pageTags[p]+(pageFloorNum[p]!=null?' '+pageFloorNum[p]:'')+' </span>';}).join('')||'—') + '</div>' +
+    '<div class="pl">' + (measPages.map(function(p){return '<span>p'+p+' '+pageTags[p]+(pageFloorNum[p]!=null?' '+pageFloorNum[p]:'')+'</span>';}).join('')||'—') + '</div>' +
     '<div style="font-size:11px;color:#555;margin-top:6px">หน้าที่ไม่ใช้ (' + excPages.length + ')</div>' +
-    '<div class="pl">' + (excPages.map(function(p){return '<span class="exc">p'+p+' '+(pageTags[p]||'ว่าง')+' </span>';}).join('')||'—') + '</div>';
+    '<div class="pl">' + (excPages.map(function(p){return '<span class="exc">p'+p+' '+(pageTags[p]||'ว่าง')+'</span>';}).join('')||'—') + '</div>';
   r.innerHTML = html;
+}
+
+/* Export-to-PDF / open-report — reuse live's buildReportPayload + openReport flow.
+   Called from Step 3 nav button. If openReport() exists (mi-report wired in
+   ui-lite.html L1019), call it directly. Otherwise, alert + close. */
+function _lovsExportReport() {
+  if (typeof caseId !== "undefined" && !caseId) { alert("เปิด PDF ก่อน"); return; }
+  if (typeof openReport === "function") {
+    var ov = document.getElementById("ov");
+    if (ov) ov.classList.remove("show");
+    openReport();
+    return;
+  }
+  if (typeof buildReportPayload === "function") {
+    var payload = buildReportPayload();
+    if (!payload.pages.length) { alert("ยังไม่มีพื้นที่ที่วัด — วาด polygon ก่อน"); return; }
+    try { sessionStorage.setItem("bmaReportPayload", JSON.stringify(payload)); }
+    catch (e) { alert("เตรียมรายงานไม่สำเร็จ: " + e.message); return; }
+    window.open("/report", "_blank");
+    return;
+  }
+  alert("ฟังก์ชันสร้างรายงานไม่พร้อม — ยืนยันว่าโหลด lite/static/js/report-vars.js แล้ว");
 }
 
 /* -- nav wiring -- */
@@ -665,6 +815,7 @@ function _lovsWireNav() {
   document.querySelectorAll("#ov-steps .step").forEach(function(el) { el.addEventListener("click", function() { _lovsGoStep(+el.dataset.step); }); });
   var sq = document.getElementById("ov-seq"); if (sq) sq.addEventListener("click", _lovsSequentialFloor);
   var cf = document.getElementById("ov-clear-floor"); if (cf) cf.addEventListener("click", _lovsClearFloors);
+  var ex = document.getElementById("ov-export"); if (ex) ex.addEventListener("click", _lovsExportReport);
 }
 
 /* -- keyboard -- */
