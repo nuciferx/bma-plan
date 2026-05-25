@@ -170,6 +170,11 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
 
+### housekeeping 2026-05-25
+
+- [ ] **HK-1** — `queued` — `.gitignore` ยังไม่ครอบ `*.gsheet` → Google Drive shortcuts (เช่น `menu BCO.gsheet`) โผล่ใน git status ทุกครั้ง. Action = `echo "*.gsheet" >> .gitignore` แล้ว commit. Source: /bma-housekeep audit 2026-05-25
+- [ ] **HK-2** — `queued` — `menu BCO.gsheet` ที่ root ไม่อยู่ใน allowlist (CLAUDE.md root-files list = 12 ไฟล์). Action = `mv "menu BCO.gsheet" archive/links/` หรือลบถ้าไม่ใช้. ขึ้นกับ HK-1 (ถ้า gitignore แล้ว ไม่ต้อง move ก็ได้). Source: /bma-housekeep audit 2026-05-25
+
 ### ideas 2026-05-25
 
 - [ ] **LOVS Step 3 Review — site/coverage calc model wrong** — `bug-queued` — from user 2026-05-25 (post-LOVS-2 ship)
