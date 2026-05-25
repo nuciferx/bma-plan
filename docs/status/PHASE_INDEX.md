@@ -199,6 +199,27 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
     - Combines: `lite-layer-dnd` DnD UX (Approach A, scored 26/30) + `lite-45page-permit-spike` 45-page dataset
     - Open Qs: (1) site 3 หน้า = 3 folder หรือ 1 folder? (2) cross-floor layer (ลิฟต์) = symlink / copy / shared folder?
     - Next: user reviews spike → GO/RESHAPE/NOGO at checkpoint
+- [~] **Layer = folder-only mode + auto-sort by Page Setup + click-to-warp + hide orphans + floor-numbering convention** — `invent-done-split` (3 first-slices shipped 2026-05-25, 7 follow-ups queued) — from /idea 2026-05-25 (follow-up refinement on LPFL-1 + Page Setup Wizard bug)
+    - Source: user 2026-05-25, "ทำให้เหลือแต่ page foder mode … เมื่อ ทำ page เสร็จแล้ว จะทำการเรียง โพเดอร์อัตโนมัต … กดที่เลยเยอร์ก้ วาปไป เพจนั้นที่ตั้งไว้ … ต้องบอกได้ว่าจะเพิ่ม layer อะไร เวลาเพิ่ม" (full body + floor-numbering rules in IDEAS.md `2026-05-25-22-31`)
+    - Tags: lite, layer, ui, page-setup, floor-numbering, p-high
+    - Direction: Multi-concept dump split into 3 blocks (a) Layer panel folder-only + 5 sub-points, (b) Page Setup Wizard bug, (c) Floor numbering convention. Block 2 was a 1-line CSS fix; block 1 + 3 each have 4-5 sub-points → smallest first-slice shipped, follow-ups queued below.
+    - Routing decision (2026-05-25 via /bma-lite-dev not /lite-invent — user wanted "ทำทีละก้อน"): each block's first slice goes direct to sprint card; remaining sub-points become standalone sprints rather than batched invent
+    - **Shipped first-slices** (3 commits 2026-05-25):
+        - `LWIZ-1` block 2 — wizard panel height fix → commit `deb6e31` (overview-setup.js:71)
+        - `LFOC-1a` block 1 — hide orphan layers + count banner → commit `4eb8321` (commingled with CFSS-MOVE-EXTRACT — separate commit was lost to parallel session race)
+        - `LFLOOR-1a` block 3 — mezzanine kind + Sequential skip → commit `116136c` (overview-setup.js dropdown + _lovsSequentialFloor)
+    - **Follow-up sprint cards** (queued below in active queue)
+    - Forbidden-surface profile: clean for both shipped + queued slices. Schema additive only (`pageFloorKind` enum gained `mezzanine`)
+
+#### Follow-up sprints from /idea 2026-05-25-22-31 (queued, ordered by likely sequencing)
+
+- [ ] **LFOC-1b** — `queued` — Drop non-folder layer modes (refactor mode-switching code so page-folder is the only mode; remove flat/global mode rendering paths). Touches `layer-panel.js` + possibly `layer-tree.js`. Block 1 sub-point (a). After LPFL-1b/1c ship for stability.
+- [ ] **LFOC-1c** — `queued` — Empty default folders (don't pre-populate base layers when page-folder created; let user add their own). Touches `page-folder-layers.js` `_pflEnsureBaseLayer*` or seed function. Block 1 sub-point (b).
+- [ ] **LFOC-1d** — `queued` — Add-layer kind selector UX (modal/dropdown asks role/kind when creating new layer in a folder, instead of generic add). Touches `layer-panel.js` + `layer-system.js`. Block 1 sub-point (c). May need small /lite-invent on UX pattern (modal vs inline dropdown vs ⌘K palette).
+- [ ] **LFOC-1e** — `queued` — Click layer/obj in panel → warp to that page (jump to page where layer's first object lives). Find sandbox precedent first (user says "เหมือนใน sandbox เคยทำลักษณะนี้ไว้"). Touches `layer-panel.js` click handler. Block 1 sub-point (d).
+- [ ] **LFLOOR-1b** — `queued` — Basement reverse numbering (B3→B2→B1 auto-assign). Sequential button detects basement kind run and assigns negative counter or B-prefix. Touches `_lovsSequentialFloor` + `_floorLabel`. Block 3 sub-point (basement convention).
+- [ ] **LFLOOR-1c** — `queued` — Separate sequences for elevation/section/detail tags (1>2>3>4 elevations, 1>2>3 sections, separate detail group — not floor numbering at all). Touches overview-setup.js Step 2 to expose non-floor tag-based numbering. Block 3 sub-point (multi-tag sequences).
+- [ ] **LFLOOR-1d** — `queued` — Label fix: `MEC` badge → `MEZ` for mezzanine kind (cosmetic — currently shows wrong label because `fkindNeedsNum` else-branch hardcodes ROOF/MEC dichotomy at overview-setup.js:346). Block 3 sub-point (cosmetic followup).
 
 ### ideas 2026-05-23
 
