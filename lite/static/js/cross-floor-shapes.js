@@ -400,16 +400,460 @@ function cfssWrapLoad() {
   window.loadProto.__cfssWrapped = true;
 }
 
+/* ================================================================== */
+/* CFSS-3: UI — render, hit-test, context-menu, promote dialog        */
+/* ================================================================== */
+
+/* --- CSS for the promote dialog (injected once, scoped to #cfss-*) --- */
+function _cfssInjectCSS() {
+  if (document.getElementById('cfss-style')) return;
+  var s = document.createElement('style');
+  s.id = 'cfss-style';
+  s.textContent = [
+    '#cfss-overlay{position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:310;',
+    '  display:flex;align-items:center;justify-content:center;}',
+    '#cfss-dlg{background:#161a22;border:1px solid #2a3140;border-radius:12px;',
+    '  padding:18px 20px;width:360px;max-height:80vh;display:flex;flex-direction:column;',
+    '  color:#e7ecf3;font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;}',
+    '#cfss-dlg h4{margin:0 0 8px;font-size:14px;color:#4c8dff;}',
+    '#cfss-dlg .cfss-info{font-size:11px;color:#8b97a8;margin-bottom:10px;}',
+    '#cfss-dlg .cfss-field{margin-bottom:10px;}',
+    '#cfss-dlg .cfss-field label{display:block;color:#8b97a8;font-size:11px;margin-bottom:3px;}',
+    '#cfss-dlg .cfss-field input{width:100%;background:#0c0f14;border:1px solid #2a3140;',
+    '  color:#e7ecf3;border-radius:6px;padding:6px 9px;font-size:13px;}',
+    '#cfss-pages{flex:1;overflow-y:auto;max-height:220px;margin-bottom:12px;',
+    '  border:1px solid #2a3140;border-radius:6px;padding:6px;}',
+    '#cfss-pages .cfss-pg-row{display:flex;align-items:center;gap:8px;',
+    '  padding:5px 6px;border-radius:5px;font-size:12px;cursor:pointer;}',
+    '#cfss-pages .cfss-pg-row:hover{background:#222a37;}',
+    '#cfss-pages .cfss-pg-warn{font-size:11px;color:#ffb454;padding:4px 6px;}',
+    '#cfss-dlg .cfss-btns{display:flex;gap:8px;justify-content:flex-end;}',
+    '#cfss-dlg .cfss-btn{padding:6px 14px;border-radius:7px;border:1px solid #2a3140;',
+    '  background:#222a37;color:#e7ecf3;cursor:pointer;font-size:12px;}',
+    '#cfss-dlg .cfss-btn.pri{background:#4c8dff;border-color:#4c8dff;color:#fff;}',
+    '#cfss-dlg .cfss-btn:hover{filter:brightness(1.15);}'
+  ].join('\n');
+  document.head.appendChild(s);
+}
+
+/* --- Render hook (second pass after original draw) --- */
+function cfssRenderInstances() {
+  var canvas = document.getElementById('cv');
+  if (!canvas) return;
+  var ctx2 = canvas.getContext('2d');
+  if (!ctx2) return;
+  var pg = window.curPage;
+  if (!window.PS || !window.PS[pg]) return;
+  var objs = window.PS[pg].objects;
+  if (!objs || !objs.length) return;
+  var scale = (window.PS[pg] && window.PS[pg].scale) ? window.PS[pg].scale : null;
+  var ppm = scale && scale.pts_per_m > 0 ? scale.pts_per_m : null;
+
+  for (var i = 0; i < objs.length; i++) {
+    var inst = objs[i];
+    if (!isInstance(inst)) continue;
+    var master = masterById(inst.masterId);
+    if (!master) continue; // orphaned but not yet frozen — skip
+    var resolved = ppm ? resolveInstancePts(inst, ppm) : null;
+    if (!resolved || !resolved.pts || resolved.pts.length < 2) continue;
+    _cfssDrawInstance(ctx2, inst, master, resolved, ppm);
+  }
+}
+
+function _cfssDrawInstance(ctx2, inst, master, resolved, ppm) {
+  if (!window.ptToScreen) return;
+  var pts = resolved.pts;
+  var sel = (window.state && (window.state.sel === inst ||
+             (window.state.selSet && window.state.selSet.indexOf(inst) >= 0)));
+  var color = master.color || '#4c8dff';
+
+  // Draw dashed outline
+  var scr = pts.map(window.ptToScreen);
+  ctx2.save();
+  ctx2.setLineDash([6, 4]);
+  ctx2.beginPath();
+  ctx2.moveTo(scr[0].x, scr[0].y);
+  for (var j = 1; j < scr.length; j++) ctx2.lineTo(scr[j].x, scr[j].y);
+  ctx2.closePath();
+  // semi-transparent fill
+  var hex = color.replace('#','');
+  var nr = parseInt(hex.slice(0,2),16)||0, ng = parseInt(hex.slice(2,4),16)||0, nb = parseInt(hex.slice(4,6),16)||0;
+  ctx2.fillStyle = 'rgba('+nr+','+ng+','+nb+','+(sel?0.26:0.12)+')';
+  ctx2.fill();
+  ctx2.strokeStyle = color;
+  ctx2.lineWidth = sel ? 2.5 : 1.5;
+  ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.restore();
+
+  // Label at bbox center
+  cfssRenderInstanceLabel(ctx2, inst, master, resolved, ppm);
+}
+
+function cfssRenderInstanceLabel(ctx2, inst, master, resolved, ppm) {
+  var area = instanceAreaM2(inst, ppm);
+  var areaStr = area !== null ? area.toFixed(2) + ' m²' : '—';
+  var txt = '📏 ' + (master.name || 'Master') + '  ' + areaStr;
+  var bbox = resolved.bbox;
+  var cx = bbox.x + bbox.w / 2, cy = bbox.y + bbox.h / 2;
+  if (!window.ptToScreen) return;
+  var cp = window.ptToScreen({x: cx, y: cy});
+  ctx2.save();
+  ctx2.font = '600 11px Segoe UI';
+  ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+  var w = ctx2.measureText(txt).width + 10, h = 17;
+  // background pill
+  ctx2.fillStyle = 'rgba(15,17,21,.85)';
+  _cfssRR(ctx2, cp.x - w/2, cp.y - h/2, w, h, 4);
+  ctx2.fill();
+  ctx2.fillStyle = '#9cd4ff';
+  ctx2.fillText(txt, cp.x, cp.y);
+  ctx2.restore();
+}
+
+/* rounded-rect helper (mirrors rr() in ui-lite, used without accessing it) */
+function _cfssRR(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+
+/* --- Hit-test hook (second pass after original pick) --- */
+function cfssPickInstance(sx, sy) {
+  var pg = window.curPage;
+  if (!window.PS || !window.PS[pg]) return null;
+  var objs = window.PS[pg].objects;
+  if (!objs) return null;
+  var scale = window.PS[pg].scale;
+  var ppm = scale && scale.pts_per_m > 0 ? scale.pts_per_m : null;
+  if (!ppm) return null;
+  if (!window.ptToScreen) return null;
+
+  // iterate in reverse (top-most visually)
+  for (var i = objs.length - 1; i >= 0; i--) {
+    var inst = objs[i];
+    if (!isInstance(inst)) continue;
+    var master = masterById(inst.masterId);
+    if (!master) continue;
+    var resolved = resolveInstancePts(inst, ppm);
+    if (!resolved) continue;
+    var scrPts = resolved.pts.map(window.ptToScreen);
+    if (_cfssInPoly(sx, sy, scrPts)) return inst;
+  }
+  return null;
+}
+
+function _cfssInPoly(x, y, poly) {
+  var c = false;
+  for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    var xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c;
+  }
+  return c;
+}
+
+/* --- Wrap objectsInZOrder to filter instances out (CFSS-3) --- */
+function cfssWrapZOrder() {
+  if (typeof window.objectsInZOrder !== 'function' || window.objectsInZOrder.__cfssWrapped) return;
+  var orig = window.objectsInZOrder;
+  window.objectsInZOrder = function(objs) {
+    var filtered = Array.isArray(objs) ? objs.filter(function(o) { return !isInstance(o); }) : objs;
+    return orig.call(this, filtered);
+  };
+  window.objectsInZOrder.__cfssWrapped = true;
+}
+
+/* --- Wrap draw() to append instance render pass (CFSS-3) --- */
+function cfssWrapDraw() {
+  if (typeof window.draw !== 'function' || window.draw.__cfssWrapped) return;
+  var origDraw = window.draw;
+  window.draw = function() {
+    origDraw.apply(this, arguments);
+    try { cfssRenderInstances(); } catch(e) { /* fail-safe */ }
+  };
+  window.draw.__cfssWrapped = true;
+}
+
+/* --- Wrap pick() to fall back to instance hit-test (CFSS-3) --- */
+function cfssWrapPick() {
+  if (typeof window.pick !== 'function' || window.pick.__cfssWrapped) return;
+  var origPick = window.pick;
+  window.pick = function(sx, sy) {
+    var result = origPick.apply(this, arguments);
+    if (result !== null && result !== undefined) return result;
+    return cfssPickInstance(sx, sy);
+  };
+  window.pick.__cfssWrapped = true;
+}
+
+/* --- Wrap showObjMenu() to append CFSS rows (CFSS-3) --- */
+function cfssWrapShowObjMenu() {
+  if (typeof window.showObjMenu !== 'function' || window.showObjMenu.__cfssWrapped) return;
+  var origShowObjMenu = window.showObjMenu;
+  window.showObjMenu = function(cx, cy, obj) {
+    origShowObjMenu.apply(this, arguments);
+    // Append extra rows to the menu element after original builds it
+    cfssExtendObjMenu(obj);
+  };
+  window.showObjMenu.__cfssWrapped = true;
+}
+
+/* --- Context-menu extension --- */
+function cfssExtendObjMenu(obj) {
+  // Find the most recently added objmenu
+  var menus = document.querySelectorAll('.objmenu');
+  if (!menus.length) return;
+  var m = menus[menus.length - 1];
+
+  if (isInstance(obj)) {
+    // Instance: offer delete-master
+    var r = document.createElement('div');
+    r.className = 'objmenu-row';
+    r.textContent = '📏 ลบมาสเตอร์ (instance ทุกหน้าเป็นอิสระ)';
+    r.style.color = '#ff6b6b';
+    r.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // close menu
+      if (typeof window.closeObjMenu === 'function') window.closeObjMenu();
+      cfssDeleteMaster(obj.masterId);
+    });
+    m.appendChild(r);
+  } else if (obj && obj.kind === 'poly' && Array.isArray(obj.pts) && obj.pts.length >= 3 && !obj.orphan) {
+    // Non-counting polygon: offer promote
+    var r2 = document.createElement('div');
+    r2.className = 'objmenu-row';
+    r2.textContent = '📏 ทำเป็นต้นแบบข้ามชั้น'; // ทำเป็นต้นแบบข้ามชั้น
+    r2.style.color = '#00aaff';
+    r2.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (typeof window.closeObjMenu === 'function') window.closeObjMenu();
+      cfssOpenPromoteDialog(obj);
+    });
+    m.appendChild(r2);
+  }
+}
+
+/* --- Delete master --- */
+function cfssDeleteMaster(masterId) {
+  if (!window.confirm('ลบมาสเตอร์? Instances ทุกหน้าจะกลายเป็น polygon แยกอิสระ')) return;
+  // Build allPages array for freeze
+  var allPages = [];
+  Object.keys(window.PS || {}).forEach(function(k) {
+    var pg = window.PS[k];
+    var sc = pg && pg.scale;
+    var ppm = sc && sc.pts_per_m > 0 ? sc.pts_per_m : 1;
+    allPages.push({page: pg, ppm: ppm});
+  });
+  freezeOrphansForMaster(masterId, allPages);
+  removeMaster(masterId);
+  if (window.state) window.state.dirty = true;
+  if (typeof window.draw === 'function') window.draw();
+}
+
+/* --- Promote: internal commit logic (testability hook) --- */
+function cfssCommitPromote(sourcePoly, name, targetPageNumbers) {
+  if (!sourcePoly || !Array.isArray(sourcePoly.pts) || sourcePoly.pts.length < 3) return null;
+
+  // Find which page contains sourcePoly
+  var srcPg = null;
+  var srcIdx = -1;
+  var pgKeys = Object.keys(window.PS || {});
+  for (var ki = 0; ki < pgKeys.length; ki++) {
+    var k = pgKeys[ki];
+    var objs = window.PS[k] && window.PS[k].objects;
+    if (!objs) continue;
+    var idx = objs.indexOf(sourcePoly);
+    if (idx >= 0) { srcPg = +k; srcIdx = idx; break; }
+  }
+  if (srcPg === null || srcIdx < 0) return null;
+
+  var srcScale = window.PS[srcPg] && window.PS[srcPg].scale;
+  var ppm = srcScale && srcScale.pts_per_m > 0 ? srcScale.pts_per_m : null;
+  if (!ppm) return null;
+
+  // Compute bbox in pt-space of sourcePoly.pts
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  sourcePoly.pts.forEach(function(p) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  });
+
+  // metricPts: 0-anchored in metric space
+  var metricPts = sourcePoly.pts.map(function(p) {
+    return {x_m: (p.x - minX) / ppm, y_m: (p.y - minY) / ppm};
+  });
+
+  var masterId = addMaster(name || 'Master', metricPts, sourcePoly.color || '#888');
+  if (!masterId) return null;
+
+  // Replace source poly with instance (offset = bbox min in pt-space)
+  var srcInstance = makeInstance(masterId, {x: minX, y: minY});
+  window.PS[srcPg].objects[srcIdx] = srcInstance;
+
+  // Place on target pages
+  if (Array.isArray(targetPageNumbers)) {
+    targetPageNumbers.forEach(function(tgtPg) {
+      tgtPg = +tgtPg;
+      if (tgtPg === srcPg) return;
+      if (!window.PS[tgtPg]) return;
+      window.PS[tgtPg].objects.push(makeInstance(masterId, {x: minX, y: minY}));
+    });
+  }
+
+  if (window.state) window.state.dirty = true;
+  return masterId;
+}
+
+/* Testability hook — called by tests directly, also by dialog UI */
+window.__cfssTestPromote = cfssCommitPromote;
+
+/* --- Promote dialog --- */
+var _cfssDlgEl = null;
+
+function cfssOpenPromoteDialog(sourcePoly) {
+  _cfssInjectCSS();
+  // Close any previous dialog
+  if (_cfssDlgEl) { _cfssDlgEl.remove(); _cfssDlgEl = null; }
+
+  // Find source page and ppm
+  var srcPg = null;
+  var pgKeys = Object.keys(window.PS || {});
+  for (var ki = 0; ki < pgKeys.length; ki++) {
+    var k = pgKeys[ki];
+    var objs = window.PS[k] && window.PS[k].objects;
+    if (objs && objs.indexOf(sourcePoly) >= 0) { srcPg = +k; break; }
+  }
+  var srcScale = srcPg && window.PS[srcPg] && window.PS[srcPg].scale;
+  var ppm = srcScale && srcScale.pts_per_m > 0 ? srcScale.pts_per_m : null;
+
+  // Compute bbox for info display
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  (sourcePoly.pts || []).forEach(function(p) {
+    if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y;
+  });
+  var wM = ppm ? ((maxX - minX) / ppm).toFixed(2) : '—';
+  var hM = ppm ? ((maxY - minY) / ppm).toFixed(2) : '—';
+  var aM = ppm ? instanceAreaM2(
+    makeInstance('__tmp__', {x: minX, y: minY}),
+    ppm
+  ) : null;
+  // Use a quick shoelace on source pts directly (master not created yet)
+  if (ppm) {
+    var n = sourcePoly.pts.length, a2 = 0;
+    for (var ii = 0; ii < n; ii++) {
+      var jj = (ii + 1) % n;
+      a2 += (sourcePoly.pts[ii].x / ppm) * (sourcePoly.pts[jj].y / ppm)
+           - (sourcePoly.pts[jj].x / ppm) * (sourcePoly.pts[ii].y / ppm);
+    }
+    aM = (Math.abs(a2) / 2).toFixed(2);
+  }
+
+  var defaultName = sourcePoly.name || ('Master ' + (window.__cfss_nextMasterIdN || 1));
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cfss-overlay';
+  var dlg = document.createElement('div');
+  dlg.id = 'cfss-dlg';
+
+  dlg.innerHTML = [
+    '<h4>📏 ทำเป็นต้นแบบข้ามชั้น — เลือกหน้าที่จะติด</h4>',
+    '<div class="cfss-info">',
+    (ppm
+      ? (wM + ' m × ' + hM + ' m = ' + aM + ' m²')
+      : '<span style="color:#ffb454">⚠ ยังไม่ได้ตั้งสเกลหน้านี้</span>'),
+    '</div>',
+    '<div class="cfss-field"><label>ชื่อ (ชื่อมาสเตอร์)</label>',
+    '<input id="cfss-name-inp" type="text" value="' + defaultName.replace(/"/g,'&quot;') + '"></div>',
+    '<div id="cfss-pages"></div>',
+    '<div class="cfss-btns">',
+    '<button class="cfss-btn" id="cfss-cancel">ยกเลิก</button>',
+    '<button class="cfss-btn pri" id="cfss-install">ติดตั้ง</button>',
+    '</div>'
+  ].join('');
+
+  // Build page list
+  var pagesDiv = dlg.querySelector('#cfss-pages');
+  var totalPages = window.pageCount || 1;
+  var hasNoScalePage = false;
+  for (var pg = 1; pg <= totalPages; pg++) {
+    if (pg === srcPg) continue;
+    var pgScale = window.PS[pg] && window.PS[pg].scale;
+    var pgPpm = pgScale && pgScale.pts_per_m > 0;
+    var label = 'หน้า ' + pg; // หน้า N
+    // Add floor label if available
+    var tg = window.pageTags && window.pageTags[pg];
+    if (tg === 'floor') {
+      var fk = window.pageFloorKind && window.pageFloorKind[pg];
+      var fnum = window.pageFloorNum && window.pageFloorNum[pg];
+      var fLabel = window.FLOOR_KIND_LABELS && fk && window.FLOOR_KIND_LABELS[fk]
+                   ? window.FLOOR_KIND_LABELS[fk] : '';
+      if (fLabel) label += ' — ' + fLabel + (fnum ? (' ' + fnum) : '') + (fk !== 'custom' ? '' : '');
+    }
+    var row = document.createElement('div');
+    row.className = 'cfss-pg-row';
+    if (!pgPpm) {
+      row.innerHTML = '<span style="color:#ffb454">⚠ หน้า ' + pg + ' — ยังไม่มีสเกล</span>';
+      row.title = 'ตั้งสเกลหน้านี้ก่อนจึงจะติดได้';
+      hasNoScalePage = true;
+    } else {
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.value = pg; cb.id = 'cfss-pg-' + pg;
+      var lbl = document.createElement('label');
+      lbl.htmlFor = 'cfss-pg-' + pg; lbl.textContent = label; lbl.style.cursor = 'pointer';
+      row.appendChild(cb); row.appendChild(lbl);
+      row.addEventListener('click', function(ev) {
+        if (ev.target.tagName !== 'INPUT') {
+          var inp = row.querySelector('input[type=checkbox]');
+          if (inp) inp.checked = !inp.checked;
+        }
+      });
+    }
+    pagesDiv.appendChild(row);
+  }
+  if (hasNoScalePage) {
+    var warn = document.createElement('div');
+    warn.className = 'cfss-pg-warn';
+    warn.textContent = '⚠ หน้าที่ไม่มีสเกลจะไม่ถูกเลือก';
+    pagesDiv.appendChild(warn);
+  }
+
+  overlay.appendChild(dlg);
+  document.body.appendChild(overlay);
+  _cfssDlgEl = overlay;
+
+  dlg.querySelector('#cfss-cancel').addEventListener('click', function() {
+    overlay.remove(); _cfssDlgEl = null;
+  });
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) { overlay.remove(); _cfssDlgEl = null; }
+  });
+
+  dlg.querySelector('#cfss-install').addEventListener('click', function() {
+    var nameVal = (dlg.querySelector('#cfss-name-inp').value || '').trim() || 'Master';
+    var targetPgs = [];
+    pagesDiv.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb) {
+      targetPgs.push(+cb.value);
+    });
+    cfssCommitPromote(sourcePoly, nameVal, targetPgs);
+    overlay.remove(); _cfssDlgEl = null;
+    if (typeof window.draw === 'function') window.draw();
+  });
+}
+
 /**
  * cfssBootstrap()
  * Called once at DOMContentLoaded (or immediately if DOM already ready).
- * Installs both wrappers. cfssWrapSave has its own guard in case onclick
- * is not yet bound when this runs — should not happen since page-folder-layers.js
- * loads synchronously, but the guard makes it safe.
+ * Installs all wrappers. Each has its own idempotent guard.
  */
 function cfssBootstrap() {
   cfssWrapSave();
   cfssWrapLoad();
+  cfssWrapZOrder();
+  cfssWrapDraw();
+  cfssWrapPick();
+  cfssWrapShowObjMenu();
 }
 
 if (document.readyState === 'loading') {
