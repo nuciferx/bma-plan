@@ -338,6 +338,7 @@ function _lovsRenderClassify() {
             ? '<select class="ov-fkind-sel" data-fkind="' + n + '" title="ประเภทชั้น">' +
                 '<option value="normal"'     + (fkind === "normal"     ? " selected" : "") + '>🏢 ชั้น</option>' +
                 '<option value="basement"'   + (fkind === "basement"   ? " selected" : "") + '>⬇ ใต้ดิน</option>' +
+                '<option value="mezzanine"'  + (fkind === "mezzanine"  ? " selected" : "") + '>🪜 ชั้นลอย</option>' +
                 '<option value="mechanical"' + (fkind === "mechanical" ? " selected" : "") + '>⚙ ห้องเครื่อง</option>' +
                 '<option value="rooftop"'    + (fkind === "rooftop"    ? " selected" : "") + '>⛅ ดาดฟ้า</option>' +
               '</select>' +
@@ -570,8 +571,15 @@ function _lovsSequentialFloor() {
   if (!pns.length) return;
   var n = start;
   for (var i = 0; i < pns.length; i++) {
-    if (i === pns.length - 1 && pns.length >= 4) _lovsSetFloorNum(pns[i], "roof");
-    else { _lovsSetFloorNum(pns[i], n); n++; }
+    var pi = pns[i];
+    var kind = pageFloorKind[pi] || "normal";
+    // Skip non-counted kinds: mezzanine/mechanical/rooftop are inserted but don't consume a number
+    if (kind === "mezzanine" || kind === "mechanical" || kind === "rooftop") {
+      delete pageFloorNum[pi];
+      continue;
+    }
+    if (i === pns.length - 1 && pns.length >= 4 && kind === "normal") _lovsSetFloorNum(pi, "roof");
+    else { _lovsSetFloorNum(pi, n); n++; }
   }
   if (typeof reseedActivePageFolders === "function" && typeof state !== "undefined" && state.pageFolderMode) reseedActivePageFolders();
   _lovsRenderFloors(); _lovsUpdateHeader();
