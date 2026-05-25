@@ -24,6 +24,16 @@
      folder.kind?: 'page-folder'|'user' — undefined on legacy = 'user'
    ============================================================ */
 
+/* LOVS-1: dynamically load overview-setup.js (avoids editing ui-lite.html which is at cap) */
+(function() {
+  if (document.getElementById("__lovs_script__")) return;
+  var s = document.createElement("script");
+  s.src = "static/js/overview-setup.js";
+  s.id = "__lovs_script__";
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
 var PAGE_FOLDER_PREFIX = "PF_";
 
 /* Return deterministic PF_* id for a page.

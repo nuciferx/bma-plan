@@ -123,6 +123,26 @@ L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไ
 
 > **หมายเหตุ scope**: LRV เป็น **feature ต่อยอด layer model** (named quantity ผูกกับ `layer.id`) แต่ผลผูกพันถึง report/export ด้วย — เก็บไว้ใน roadmap นี้เพราะ binding หลักคือ layer; ถ้ามี report-roadmap แยกในอนาคต ค่อยย้าย
 
+## LOVS — Lite Overview Setup wizard ✅ DONE (`<COMMIT>`, 2026-05-25)
+
+Sequel to LPFL-1. User asked: "ในหน้า overview ทำให้ setup page ได้ เหมือน sandbox [wizard-H]" + "ทำ multi-select และทำ tab Number Floors / Review ตาม wizard". Build via `/bma-lite-dev` 1 atomic slice (LOVS-1) after 2 sandbox iterations (`invent-overview-setup.html` v1 → v2):
+
+- **LOVS-1** — replaces live `openOv()` (ui-lite.html ~line 1083 was a flat thumbnail grid) with a 3-tab wizard inside the SAME `#ov` overlay:
+  - **Step 1 Classify** — tile grid with inline tag-chip cycle + floor input + **multi-select** (shift+click range, ctrl+click toggle, drag-rectangle box-select, Ctrl+A). Bulk-bar appears when selection ≥2 → apply tag to all / exclude-toggle. Right-click chip = context menu (multi-select aware). Keyboard: 1-6 set tag (bulk if multi-selected), 0 clear, ←→ focus (Shift extends), Enter navigate, X exclude.
+  - **Step 2 Number Floors** — filter to `tag=floor` pages, render as draggable chips. HTML5 drag = swap floor#. ⚡ Sequential auto-assigns 1→N (last = `roof` if ≥4 floors). ↺ clear. Per-chip ✕ to clear single floor#.
+  - **Step 3 Review** — mock BCR/FAR/OSR report from current tags+floors. Traceability lists. Warnings when floor pages lack floor# or no site page.
+  - Header step tabs always clickable (jump). Prev/Next + progress bar.
+- **ui-lite.html UNTOUCHED** (1200/1200 cap). Module `lite/static/js/overview-setup.js` (668/900 lines) loaded via 9-line IIFE injection at top of `page-folder-layers.js` (557/1000) — `document.head.appendChild(<script>)` with idempotent guard `#__lovs_script__`. CSS scoped under `#ov-panel` prefix to avoid clobbering live styles.
+- **openOv wrap**: idempotent (`__lovsWrapped` guard); preserves live's `!caseId → return` guard. Saves original as `_lovsOrigOpenOv` (not used in v1).
+- **LPFL integration**: tag/floor changes call REAL `liteSetTag()` → LPFL-1c's wrapper triggers PF folder reseed automatically if mode ON. Step 2 floor swap also calls `reseedActivePageFolders()` directly. Wizard + page-folder model stay in sync.
+- **Real thumbnails** via `api("/thumb/" + n)` with `onerror` fallback. Live URL contract preserved.
+- `LITE_OVERVIEW_SETUP_OK` 8/8 (overrideInstalled / threeTabsRender / classifyRendersTiles / tagCycleViaKeyboard / multiSelectShiftRange / step2Sequential / step3ReportRenders / closeOnEsc). Regression GREEN: `LITE_PAGE_FOLDER_*` (UI/MODEL/PERSIST), `LITE_TREE_UI_OK`, `LITE_LAYER_DND_OK`, `MEASURE_PARITY_OK`.
+- Forbidden surfaces UNTOUCHED: `measure-engine.js`, RS, pdfToC, cToPdf, area math, semanticTag (role-derived), snap, `.bmaplan` schema, layer-system/tree/panel/dnd internals.
+
+**Esc-stopPropagation fix**: live ui-lite.html has a global window Escape handler that calls `closeOverlays()` unconditionally. LOVS's overlay-level Esc handler must `e.stopPropagation()` when clearing selection so the live handler doesn't ALSO fire and close the overlay. Documented in module; covered by `closeOnEsc` sub-check.
+
+**Pattern note**: This is the second ship that proves the "DOM-injection + monkey-patch from a sibling module" pattern (after LPFL-1c). Both use `page-folder-layers.js` as the bootstrap surface — once `page-folder-layers.js` is loaded, it can pull in additional modules dynamically. If future sprints need the same pattern AND `page-folder-layers.js` grows past comfort (~700/1000), extract a tiny `lite/static/js/lite-bootstrap.js` whose only job is dynamic script loading. Not needed yet.
+
 ## LPFL — Per-page-setup folder layer tree ✅ DONE (`<COMMIT>`, 2026-05-25)
 
 จาก idea `2026-05-25` → user signed off (Copy-per-floor base layers + 1-folder-per-site-group + ลุยเลย). Frame+spike: `docs/invent/lite-page-folder-layers.md`, `lite/sandbox/invent-page-folder-layers.html` (calibrated to live v2 skin). Build ผ่าน `/bma-lite-dev` 3 slice:

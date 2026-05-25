@@ -6,6 +6,49 @@
 
 ---
 
+## 2026-05-25 (LOVS-1) — Lite Overview Setup wizard — DONE — branch: main
+
+**Trigger**: user followed up on LPFL-1 — "ในหน้า overview ทำให้ setup page ได้ เหมือน sandbox [wizard-H]" → 1st spike `invent-overview-setup.html` (inline edit only) → user added "ทำ multi-select และทำ tab Number Floors + Review" → spike v2 (3-tab wizard + multi-select) → user `/goal ทำให้เรียบร้อย` → ship LOVS-1.
+
+**What shipped (1 atomic slice)**:
+- NEW `lite/static/js/overview-setup.js` (668/900) — 3-tab wizard wraps live `openOv()`:
+  - **Step 1 Classify**: tile grid with inline tag-chip cycle + floor-input + **multi-select** (shift+click range / ctrl+click toggle / drag-rectangle box-select / Ctrl+A) → bulk-bar applies tag to all / exclude-toggle. Right-click context menu (multi-select aware). Keyboard 1-6 (bulk if multi), 0 clear, ←→ focus (Shift extends), Enter navigate, X exclude.
+  - **Step 2 Number Floors**: floor pages as draggable HTML5 chips → swap floor# on drop. ⚡ Sequential auto-assigns 1→N (last = `roof` if ≥4 floors). ↺ clear.
+  - **Step 3 Review**: mock BCR/FAR/OSR report + traceability + warnings.
+- EDIT `lite/static/js/page-folder-layers.js` (547 → 557) — 9-line IIFE injects `<script src="static/js/overview-setup.js">` into `document.head` (idempotent via `#__lovs_script__` guard). Pattern same as LPFL-1c's dynamic UI injection — keeps ui-lite.html at cap.
+- NEW `lite/tests/test_overview_setup.py` — 8 sub-checks Playwright, marker `LITE_OVERVIEW_SETUP_OK`.
+
+**Tests run** (Opus verified each by running locally — not trusting worker self-report):
+- `LITE_OVERVIEW_SETUP_OK` 8/8 (overrideInstalled / threeTabsRender / classifyRendersTiles / tagCycleViaKeyboard / multiSelectShiftRange / step2Sequential / step3ReportRenders / closeOnEsc)
+- `LITE_PAGE_FOLDER_UI_OK` 7/7 (LPFL-1c regression)
+- `LITE_PAGE_FOLDER_MODEL_OK` 12/12 (LPFL-1a regression)
+- `LITE_PAGE_FOLDER_PERSIST_OK` 6/6 (LPFL-1b regression)
+- `LITE_TREE_UI_OK` 9/9 (existing tree UI regression)
+- `LITE_LAYER_DND_OK` 4/4 (DnD regression)
+- `MEASURE_PARITY_OK` (no math touched)
+
+**Forbidden surfaces**: NONE touched (measure-engine.js, RS, pdfToC, cToPdf, area math, semanticTag, snap, .bmaplan schema, layer-system/tree/panel/dnd internals — all UNTOUCHED).
+
+**Size discipline**: `ui-lite.html` STAYED at 1200/1200 (UNTOUCHED). `page-folder-layers.js` 547 → 557 (still <1000). New module 668/900. Cap held cleanly — 2nd ship to prove "DOM-injection from sibling module" pattern works without bending the rule.
+
+**LPFL hookup**: tag/floor changes in wizard call REAL `liteSetTag()` → LPFL-1c's wrapper triggers PF folder reseed automatically when page-folder mode is ON. Step 2 floor swap also calls `reseedActivePageFolders()` directly. Both systems stay in sync.
+
+**Esc-stopPropagation fix**: live ui-lite.html has a global window Escape handler that calls `closeOverlays()` unconditionally for ALL overlays. LOVS's overlay-level Esc handler calls `e.stopPropagation()` when clearing multi-select (so the live handler doesn't ALSO fire and close the overlay). Covered by `closeOnEsc` sub-check.
+
+**Files**:
+- NEW `lite/static/js/overview-setup.js` (668)
+- NEW `lite/tests/test_overview_setup.py` (469)
+- NEW `lite/sandbox/invent-overview-setup.html` (calibrated spike, 2 iterations — kept as design ref)
+- MODIFIED `lite/static/js/page-folder-layers.js` (+9 lines IIFE)
+- MODIFIED `lite/sandbox/invent-page-folder-layers.html` (earlier rewrite — workbench loading live modules; kept as canonical LPFL workbench)
+- UPDATED `docs/design/LITE_LAYER_ROADMAP.md` (LOVS section)
+- UPDATED `docs/status/PHASE_INDEX.md` (LOVS-1 marked ✅ done)
+- UPDATED `log.md` (this entry)
+
+**Lesson reinforced (3rd time)**: Worker (sonnet) reported `LITE_BUILD_DONE` claiming all 8 sub-checks PASS. Per decision-log discipline, Opus (me) read the actual diff (3 hunks: PFL +10, overview-setup NEW 668, test NEW 469), opened `overview-setup.js` to verify `.ov-tile` class naming + monkey-patch pattern + Esc fix, ran all 7 markers locally in parallel — all GREEN with rich sub-check detail (not tautological). Initial screenshot probe failed because my own diag script used wrong selector `.tile` instead of `.ov-tile` — caught by the diag returning `tileCount: 0` immediately, fixed by reading the source. The "verify by running" rule paid off: caught the selector mismatch in MY script, not the worker's; worker's test was correct because it used the right class name from start. Never trust self-report.
+
+---
+
 ## 2026-05-25 (LPFL-1) — Per-page-setup folder layer tree (lite) — DONE (3 slices) — branch: main
 
 **Trigger**: user idea 2026-05-25 — "ในแต่ละแผ่น = ชั้นที่ setup จะมีโฟลเดอร์แต่ละชั้นของ pagesetup ในแต่ละโฟลเดอร์จะมี layer พื้นฐาน และสามารถเพิ่มเลเยอร์ในแต่ละโฟลเดอร์ได้". Built spike `lite/sandbox/invent-page-folder-layers.html` (calibrated to live v2 skin) → user signed off (Copy-per-floor + 1-folder-per-site-group + ลุยเลย) → 3-slice `/bma-lite-dev` series.

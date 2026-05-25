@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPIKE — Overview wizard (3 tabs + multi-select)</title>
+<!--
+  SPIKE 2026-05-25 v2 (extended)
+  Goal: bring Wizard-H's 3-step flow (Classify → Number Floors → Review) into
+  the live Overview overlay (#ov), with multi-select bulk actions.
+
+  Tabs:
+    1. Classify — inline tag-chip cycle + floor input + multi-select bulk tag
+    2. Number Floors — drag-reorder floor chips + sequential 1..N auto
+    3. Review — BCR/OSR/FAR mock report from current tags + floors
+
+  Multi-select:
+    - click tile = single select (replaces selection)
+    - shift+click = range from anchor
+    - ctrl/cmd+click = toggle
+    - drag-rectangle on empty area = box-select
+    - Esc / click empty = clear
+    - selection shown via outline color + count in header
+    - bulk tag (1-6 / 0) and exclude (X) apply to ALL selected tiles
+
+  Loads REAL live modules `../static/js/layer-system.js`,
+  `../static/js/page-folder-layers.js`. Uses real liteSetTag → LPFL auto-reseeds.
+
+  Sandbox-only. file:// runs (relative script paths).
+-->
+<style>
+:root{
+  --bar-h:42px;
+  --bg:#0f1115; --panel:#161a22; --line:#2a3140;
+  --ink:#e7ecf3; --muted:#8b97a8;
+  --accent:#4c8dff; --good:#39d98a; --warn:#ffb454; --bad:#ff6b6b;
+}
+body.lt-v2{
+  --bg:#1e1f23; --panel:#26282d; --line:#3a3d44; --accent:#4aa3ff;
+  --ink:#e6e8ec; --muted:#8b909a;
+  --row:#2d3036; --row-hover:#343841; --row-active:#3a4150;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",system-ui,sans-serif}
+html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* topbar */
+#topbar{height:var(--bar-h);min-height:var(--bar-h);max-height:var(--bar-h);
+  display:flex;align-items:center;gap:4px;padding:0 8px;background:var(--panel);
+  border-bottom:1px solid var(--line);position:relative;z-index:60}
+#topbar .logo{font-weight:700;color:var(--accent);margin-right:4px;font-size:14px}
+#topbar .tag{font-size:10px;color:var(--muted);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;margin-right:8px}
+.rbtn{background:transparent;color:var(--ink);border:1px solid var(--line);
+  padding:6px 9px;border-radius:6px;cursor:pointer;font-size:12px;height:30px;margin-left:4px}
+.rbtn:hover{background:#343841}
+.spike-pill{font-size:10px;color:#9cf;background:#143a5a;border:1px solid #1a4a6a;
+  padding:1px 8px;border-radius:10px;margin-left:6px}
+.dataset-pill{font-size:10px;color:#cfa;background:#1c3a2c;border:1px solid #2c5c44;
+  padding:1px 8px;border-radius:10px;margin-left:6px;cursor:pointer}
+.dataset-pill:hover{background:#244a36}
+.spacer{flex:1}
+
+/* stage */
+#stage{position:relative;flex:1;overflow:hidden;background:#16181c}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;color:var(--muted);gap:10px;text-align:center;padding:20px}
+.empty .big{font-size:20px;color:var(--ink);font-weight:600}
+.empty button{background:var(--accent);border:0;color:#fff;padding:10px 22px;border-radius:8px;
+  font-size:14px;cursor:pointer;margin-top:6px}
+.empty button:hover{background:#3a7fe8}
+
+/* overlay */
+.overlay{position:absolute;inset:0;background:rgba(6,8,12,.78);z-index:80;display:none;
+  align-items:flex-start;justify-content:center;padding-top:60px}
+.overlay.show{display:flex}
+
+/* overview wizard panel */
+#ov-panel{width:min(96vw,1280px);height:88vh;display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+#ov-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);
+  background:#1a1d24}
+#ov-head h3{font-size:14px;font-weight:600;margin-right:8px}
+#ov-head .meta{color:var(--muted);font-size:12px}
+#ov-head .sp{flex:1}
+#ov-head .kv{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);margin-left:4px}
+#ov-head .kv b{color:var(--ink);font-variant-numeric:tabular-nums}
+#ov-head .kv b.acc{color:var(--accent)}
+#ov-head .kv b.warn{color:var(--warn)}
+#ov-head button{background:#2d3036;color:var(--ink);border:1px solid var(--line);
+  padding:5px 11px;border-radius:5px;cursor:pointer;font-size:12px}
+#ov-head button:hover{background:#343841}
+
+/* step strip */
+#ov-steps{display:flex;border-bottom:1px solid var(--line);background:#11141a}
+.step{flex:1;padding:9px 14px;border-right:1px solid var(--line);display:flex;align-items:center;gap:9px;
+  cursor:pointer;color:var(--muted);font-size:12px;user-select:none}
+.step:last-child{border-right:0}
+.step.act{background:var(--panel);color:var(--ink)}
+.step.done{color:var(--good)}
+.step .num{width:22px;height:22px;border-radius:50%;background:#2d3036;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.step.act .num{background:var(--accent);color:#001218;border-color:var(--accent)}
+.step.done .num{background:var(--good);color:#011;border-color:var(--good)}
+.step .lbl b{display:block;color:inherit;font-size:12px}
+.step .lbl span{display:block;color:var(--muted);font-size:10px;margin-top:1px}
+
+/* hint bar */
+.hint{padding:7px 14px;font-size:11px;color:var(--muted);background:#10131a;border-bottom:1px solid var(--line);
+  display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.hint kbd{background:#26282d;border:1px solid var(--line);padding:1px 6px;border-radius:3px;
+  font-family:ui-monospace,monospace;font-size:10px;color:var(--ink)}
+.hint .legend{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.hint .legend span.tag-chip{padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;color:#001218;cursor:default}
+
+/* tab body */
+.tab-body{flex:1;overflow:auto;padding:0;display:none;position:relative}
+.tab-body.act{display:block}
+
+/* === STEP 1 grid === */
+#grid-classify{padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:10px;position:relative;min-height:100%}
+
+.tile{background:#0c0f14;border:2px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;
+  cursor:pointer;transition:transform .08s,border-color .1s;position:relative;user-select:none}
+.tile:hover{transform:translateY(-1px);border-color:#3a4150}
+.tile.cur{border-color:var(--accent);box-shadow:0 0 0 2px rgba(76,141,255,.25)}
+.tile.foc{border-color:var(--warn);box-shadow:0 0 0 2px rgba(255,180,84,.35)}
+.tile.sel{border-color:var(--accent);background:#16263d;box-shadow:0 0 0 2px rgba(76,141,255,.45)}
+.tile.foc.sel{border-color:var(--warn);box-shadow:0 0 0 2px rgba(255,180,84,.5)}
+.tile.exc{opacity:.45}
+
+.tile .thumb{height:78px;background:#1a212c;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:22px;position:relative;border-bottom:1px solid var(--line);pointer-events:none}
+.tile .pn{position:absolute;top:4px;left:6px;background:rgba(0,0,0,.7);padding:1px 5px;border-radius:3px;
+  font-size:10px;color:var(--ink);font-weight:600}
+.tile .objc{position:absolute;top:4px;right:6px;background:rgba(57,217,138,.85);color:#001;padding:1px 5px;
+  border-radius:3px;font-size:9px;font-weight:700}
+.tile .selchk{position:absolute;bottom:4px;left:6px;background:var(--accent);color:#fff;padding:0 5px;
+  border-radius:3px;font-size:9px;font-weight:700;display:none}
+.tile.sel .selchk{display:block}
+
+.tile .info{padding:5px 7px;display:flex;flex-direction:column;gap:4px;min-height:62px}
+.tile .nm{font-size:11px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.tile .row{display:flex;gap:4px;align-items:center}
+
+.tag-chip{padding:2px 7px;border-radius:9px;font-size:10px;font-weight:600;color:#001218;cursor:pointer;
+  white-space:nowrap;flex:1;text-align:center;line-height:1.4}
+.tag-chip:hover{outline:1px solid var(--accent);outline-offset:1px}
+.tag-untagged{background:#2a2f38;color:var(--muted);border:1px dashed var(--muted)}
+.tag-site{background:#9ad14b}
+.tag-floor{background:#4cc9f0;color:#001218}
+.tag-plan{background:#8da4be;color:#001218}
+.tag-parking{background:#c87cae;color:#fff}
+.tag-amenity{background:#d49a3b}
+.tag-detail{background:#cf6f44;color:#fff}
+
+.floor-input{background:#1a1c20;border:1px solid var(--line);color:var(--ink);padding:2px 5px;
+  border-radius:3px;font-size:11px;width:50px;text-align:center;font-variant-numeric:tabular-nums}
+.floor-input:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+.floor-lab{font-size:10px;color:var(--muted);margin-right:2px}
+
+.excl-btn{font-size:10px;color:var(--muted);background:transparent;border:1px solid var(--line);
+  border-radius:3px;padding:1px 5px;cursor:pointer}
+.excl-btn:hover{color:var(--bad);border-color:var(--bad)}
+.tile.exc .excl-btn{color:var(--bad)}
+
+/* drag selection box */
+#dragbox{position:absolute;border:1px dashed var(--accent);background:rgba(76,141,255,.1);
+  pointer-events:none;z-index:5;display:none}
+
+/* bulk action bar (appears when selection > 1) */
+#bulkbar{position:sticky;top:0;left:0;right:0;background:linear-gradient(to bottom, #1a1d24f0, #11141af0);
+  border-bottom:1px solid var(--accent);padding:7px 14px;display:flex;align-items:center;gap:10px;
+  font-size:12px;color:var(--ink);z-index:8;backdrop-filter:blur(4px)}
+#bulkbar.hide{display:none}
+#bulkbar .ct{color:var(--accent);font-weight:700}
+#bulkbar button{background:#2d3036;color:var(--ink);border:1px solid var(--line);padding:4px 9px;
+  border-radius:4px;cursor:pointer;font-size:11px}
+#bulkbar button:hover{background:#343841}
+#bulkbar .tag-chip{cursor:pointer;font-size:10px}
+
+/* === STEP 2 floor strip === */
+#tab-floors{padding:16px 22px}
+#tab-floors .seq-bar{display:flex;align-items:center;gap:10px;background:#1a1d24;padding:10px 14px;
+  border-radius:6px;margin-bottom:12px;border:1px solid var(--line)}
+#tab-floors .seq-bar label{font-size:11px;color:var(--muted)}
+#tab-floors .seq-bar input{background:#0c0f14;color:var(--ink);border:1px solid var(--line);padding:4px 8px;
+  width:60px;text-align:center;border-radius:3px;font-size:12px}
+#tab-floors .seq-bar button{background:var(--accent);color:#fff;border:0;padding:6px 14px;border-radius:4px;
+  cursor:pointer;font-size:11px;font-weight:600}
+#tab-floors .seq-bar button:hover{background:#3a7fe8}
+#tab-floors .seq-bar button.sec{background:#2d3036;color:var(--ink);border:1px solid var(--line);font-weight:400}
+#tab-floors .seq-bar button.sec:hover{background:#343841}
+
+#floor-strip{display:flex;gap:10px;flex-wrap:wrap;padding:14px;background:#1a1d24;border:1px solid var(--line);
+  border-radius:6px;min-height:140px;align-items:flex-start}
+.fchip{background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;
+  flex-direction:column;align-items:center;gap:4px;cursor:grab;min-width:100px;position:relative}
+.fchip:active{cursor:grabbing}
+.fchip.drg{opacity:.35}
+.fchip.over{border-color:var(--accent);background:#16263d}
+.fchip .num{font-size:20px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.fchip.spec .num{color:var(--warn);font-size:14px}
+.fchip .pg{font-size:10px;color:var(--muted)}
+.fchip .lb{font-size:10px;color:var(--ink);max-width:90px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip .clr{position:absolute;top:3px;right:5px;font-size:10px;color:var(--muted);cursor:pointer;background:transparent;border:0;padding:0;line-height:1}
+.fchip .clr:hover{color:var(--bad)}
+.fchip.empty .num{color:var(--muted);font-size:14px}
+
+.fhint{padding:10px 14px;background:#1a1d24;border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:6px;margin-bottom:10px;font-size:11px;color:var(--muted);line-height:1.5}
+.fhint b{color:var(--ink)}
+.fhint code{background:#0c0f14;padding:1px 5px;border-radius:3px;color:var(--accent);font-size:11px}
+
+/* === STEP 3 report === */
+#tab-review{padding:16px 22px}
+.report{background:#fff;color:#222;border-radius:6px;padding:28px 36px;max-width:820px;margin:0 auto;
+  font-family:"Sarabun","Tahoma",sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.report h1{font-size:18px;margin:0 0 4px;color:#0c2b3a}
+.report h2{font-size:14px;border-bottom:2px solid #0c2b3a;padding-bottom:3px;color:#0c2b3a;margin:16px 0 6px;font-weight:600}
+.report .sub{color:#666;font-size:11px;margin-bottom:12px}
+.report table{width:100%;border-collapse:collapse;font-size:11px;margin:5px 0}
+.report th,.report td{border:1px solid #ccc;padding:4px 7px;text-align:left}
+.report th{background:#eef2f5;font-weight:600}
+.report td.num{text-align:right;font-variant-numeric:tabular-nums}
+.report .tot{font-weight:700;background:#f8f8f8}
+.report .pl{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 8px}
+.report .pl span{background:#eef2f5;padding:1px 6px;border-radius:8px;font-size:10px;color:#345}
+.report .pl span.exc{background:#f8e0e0;color:#722}
+.report .calc{background:#fffaef;border:1px solid #f0d59c;padding:10px 14px;margin:8px 0;font-size:11px;border-radius:4px}
+.report .calc .row{display:flex;justify-content:space-between;padding:2px 0}
+.report .calc .row.tot{border-top:1px solid #d4b870;padding-top:5px;margin-top:4px;font-weight:700}
+.report .warn{color:#a04;padding:6px 10px;background:#fde;border:1px solid #f9c;border-radius:4px;
+  margin:8px 0;font-size:11px}
+
+/* nav (prev/next) */
+#ov-nav{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line);background:#11141a;
+  align-items:center}
+#ov-nav .sp{flex:1}
+#ov-nav button{background:#2d3036;color:var(--ink);border:1px solid var(--line);padding:7px 16px;
+  border-radius:5px;cursor:pointer;font-size:12px}
+#ov-nav button:hover{background:#343841}
+#ov-nav button.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+#ov-nav button.pri:hover{background:#3a7fe8}
+#ov-nav button:disabled{opacity:.4;cursor:not-allowed}
+#ov-nav .prog{color:var(--muted);font-size:11px;tabular-nums}
+
+/* context menu */
+#ctxmenu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:4px;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.6);min-width:170px;display:none}
+#ctxmenu .it{padding:5px 9px;border-radius:4px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;gap:10px}
+#ctxmenu .it:hover{background:#343841}
+#ctxmenu .it .k{color:var(--muted);font-size:10px;font-family:ui-monospace,monospace}
+#ctxmenu .sep{height:1px;background:var(--line);margin:3px 2px}
+
+/* workbench */
+#wb{position:absolute;top:54px;right:10px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;padding:0;z-index:25;width:240px;display:flex;flex-direction:column;
+  max-height:calc(100vh - 64px - 50px)}
+#wb .h{padding:8px 10px;font-size:12px;color:var(--ink);border-bottom:1px solid var(--line);font-weight:600}
+#wb .body{padding:8px 10px;overflow:auto;font-size:11px;color:var(--muted);line-height:1.5}
+#wb .body button{display:block;width:100%;text-align:left;background:#1f2128;border:1px solid var(--line);
+  color:var(--ink);padding:5px 8px;border-radius:4px;margin:3px 0;cursor:pointer;font-size:11px}
+#wb .body button:hover{background:#343841}
+#wb .sec{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line);color:var(--ink);font-weight:600;font-size:11px}
+#wb .kv{display:flex;justify-content:space-between;padding:1px 0;font-family:ui-monospace,monospace}
+#wb .kv .k{color:var(--muted)} #wb .kv .v{color:var(--ink)}
+#wb .kv .v.ok{color:var(--good)}
+
+#statusbar{height:32px;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--panel);
+  border-top:1px solid var(--line);font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden}
+#statusbar .it{display:flex;gap:4px;align-items:center}
+#statusbar .it .k{color:var(--muted)} #statusbar .it .v{color:var(--ink)} #statusbar .it .v.acc{color:var(--accent)} #statusbar .it .v.ok{color:var(--good)}
+#statusbar .sp{flex:1}
+
+#log{position:absolute;bottom:42px;left:10px;background:rgba(0,0,0,.65);color:#9fd;padding:6px 10px;
+  border-radius:4px;font:11px/1.45 ui-monospace,monospace;max-width:60vw;max-height:120px;
+  overflow:auto;white-space:pre-wrap;z-index:30;pointer-events:auto}
+</style>
+</head>
+<body class="lt-v2">
+
+<!-- ===== STUB GLOBALS ===== -->
+<script>
+  var PAGE_TAGS = {"":"— ไม่ระบุ —", site:"ผังบริเวณ", floor:"แปลนชั้น",
+                   plan:"ผัง", parking:"ที่จอดรถ", amenity:"ส่วนกลาง", detail:"รายละเอียด/รูปด้าน"};
+  var FLOOR_KIND_LABELS = {basement:"ชั้นใต้ดิน", normal:"ชั้น", mechanical:"ชั้นห้องเครื่อง",
+                           rooftop:"ชั้นดาดฟ้า", custom:"(ตั้งเอง)"};
+  var TAG_CYCLE = ['', 'site', 'floor', 'plan', 'parking', 'amenity', 'detail'];
+  var TAG_KEYS  = {'1':'site', '2':'floor', '3':'plan', '4':'parking', '5':'amenity', '6':'detail', '0':''};
+
+  var state = {catVis:{}, catLock:{}, folderCollapsed:{}, dirty:false, activeCat:null, pageFolderMode:false};
+  var PS = {};
+  var pageTags = {};
+  var pageFloorNum = {};
+  var pageFloorKind = {};
+  var pageNames = {};
+  var pageCount = 0;
+  var curPage = 1;
+  var excluded = {};
+
+  function draw(){}
+  function polyMetrics(){return {area:0};}
+  function flattenPathToPoints(){return [];}
+  function loadProto(){}
+  function buildPicker(){}
+
+  function liteSetTag(n, val){
+    pageTags[n] = val;
+    if (val !== 'floor'){ delete pageFloorKind[n]; delete pageFloorNum[n]; }
+    state.dirty = true;
+  }
+  function liteSetFloorNum(n, num){
+    if (num === '' || num == null){ delete pageFloorNum[n]; return; }
+    if (num === 'roof' || num === 'ROOF'){ pageFloorNum[n] = 'roof'; pageFloorKind[n] = 'rooftop'; return; }
+    var v = parseInt(num, 10);
+    if (!isFinite(v)){ delete pageFloorNum[n]; return; }
+    pageFloorNum[n] = v;
+    if (!pageFloorKind[n] || pageFloorKind[n] === 'rooftop') pageFloorKind[n] = 'normal';
+  }
+</script>
+
+<!-- ===== LIVE MODULES ===== -->
+<script src="../static/js/layer-system.js"></script>
+<script src="../static/js/page-folder-layers.js"></script>
+
+<div id="app">
+
+  <div id="topbar">
+    <span class="logo">◯ BMA-Plan</span><span class="tag">LITE</span>
+    <span class="spike-pill">SPIKE v2 · Overview wizard · multi-select</span>
+    <span class="dataset-pill" id="ds-permit">📄 45-page permit</span>
+    <span class="dataset-pill" id="ds-small">📄 small (8 หน้า)</span>
+    <span class="dataset-pill" id="ds-untagged">📄 untagged (15)</span>
+    <div class="spacer"></div>
+    <button class="rbtn" id="open-ov-btn">🐦 Overview F12</button>
+    <button class="rbtn" id="toggle-pfl">📂 page-folder mode</button>
+  </div>
+
+  <div id="stage">
+    <div class="empty">
+      <div class="big">SANDBOX — overview wizard</div>
+      <div>เลือก dataset แล้วกด <b>🐦 Overview F12</b> · 3 tabs: Classify → Number Floors → Review · multi-select bulk action</div>
+      <button id="open-ov-big">เปิด Overview</button>
+    </div>
+
+    <div id="wb">
+      <div class="h">🔧 Workbench</div>
+      <div class="body">
+        <div class="kv"><span class="k">dataset</span><span class="v" id="kv-ds">—</span></div>
+        <div class="kv"><span class="k">pages</span><span class="v" id="kv-pages">0</span></div>
+        <div class="kv"><span class="k">tagged</span><span class="v" id="kv-tagged">0</span></div>
+        <div class="kv"><span class="k">floor pages</span><span class="v" id="kv-floors">0</span></div>
+        <div class="kv"><span class="k">numbered</span><span class="v" id="kv-numbered">0</span></div>
+        <div class="kv"><span class="k">selected</span><span class="v" id="kv-sel">0</span></div>
+
+        <div class="sec">LPFL link</div>
+        <div class="kv"><span class="k">pageFolderMode</span><span class="v" id="kv-mode">false</span></div>
+        <div class="kv"><span class="k">PF folders</span><span class="v" id="kv-pff">0</span></div>
+        <div class="kv"><span class="k">PF layers</span><span class="v" id="kv-pfl">0</span></div>
+        <button id="wb-reseed">↻ reseed PF</button>
+
+        <div class="sec">Quick</div>
+        <button id="wb-open-ov">🐦 เปิด Overview</button>
+        <button id="wb-clear">🧹 ล้าง tag ทุกหน้า</button>
+        <button id="wb-preset">📝 reset permit preset</button>
+      </div>
+    </div>
+
+    <div id="log"></div>
+
+    <!-- ===== OVERLAY WIZARD ===== -->
+    <div class="overlay" id="ov">
+      <div id="ov-panel">
+
+        <div id="ov-head">
+          <h3>🐦 Overview · Page Setup Wizard</h3>
+          <span class="meta" id="ov-meta">—</span>
+          <div class="kv">tagged <b id="ovh-tagged" class="acc">0/0</b></div>
+          <div class="kv">floors <b id="ovh-floors">0</b></div>
+          <div class="kv">numbered <b id="ovh-num">0</b></div>
+          <span class="sp"></span>
+          <button id="ov-close">✕ ปิด (Esc)</button>
+        </div>
+
+        <div id="ov-steps">
+          <div class="step act" data-step="1">
+            <span class="num">1</span>
+            <span class="lbl"><b>Classify</b><span>ติด tag ทุกหน้า</span></span>
+          </div>
+          <div class="step" data-step="2">
+            <span class="num">2</span>
+            <span class="lbl"><b>Number Floors</b><span>ลำดับชั้น</span></span>
+          </div>
+          <div class="step" data-step="3">
+            <span class="num">3</span>
+            <span class="lbl"><b>Review</b><span>ตรวจรายงาน</span></span>
+          </div>
+        </div>
+
+        <!-- ============ TAB 1: CLASSIFY ============ -->
+        <div class="tab-body act" data-tab="1">
+          <div class="hint">
+            <span>คลิก = เลือก · <kbd>Shift</kbd>+คลิก = ช่วง · <kbd>Ctrl</kbd>+คลิก = toggle · ลากบนพื้นที่ว่าง = กรอบเลือก</span>
+            <span>คลิก chip = วนแท็ก · คลิกขวา chip = เมนู</span>
+            <span class="legend">
+              <kbd>1</kbd><span class="tag-chip tag-site">site</span>
+              <kbd>2</kbd><span class="tag-chip tag-floor">floor</span>
+              <kbd>3</kbd><span class="tag-chip tag-plan">plan</span>
+              <kbd>4</kbd><span class="tag-chip tag-parking">parking</span>
+              <kbd>5</kbd><span class="tag-chip tag-amenity">amenity</span>
+              <kbd>6</kbd><span class="tag-chip tag-detail">detail</span>
+              <kbd>0</kbd><span style="color:var(--muted);font-size:10px">ล้าง</span>
+              <kbd>X</kbd><span style="color:var(--muted);font-size:10px">exclude</span>
+              <kbd>Ctrl+A</kbd><span style="color:var(--muted);font-size:10px">เลือกทั้งหมด</span>
+            </span>
+          </div>
+          <div id="grid-classify"></div>
+          <div id="dragbox"></div>
+        </div>
+
+        <!-- ============ TAB 2: NUMBER FLOORS ============ -->
+        <div class="tab-body" data-tab="2" id="tab-floors">
+          <div class="fhint">
+            <b>Number Floors</b> — แสดงเฉพาะหน้า <code>tag=floor</code> จาก Step 1.
+            <b>ลากเรียง</b> จากซ้าย=ชั้นล่าง → ขวา=ชั้นบน. กดปุ่ม <b>⚡ Sequential</b> เพื่อ auto-assign 1→N ตามลำดับ
+            (ตัวสุดท้ายเป็น <code>roof</code> ถ้ามี ≥4 ชั้น)
+          </div>
+          <div class="seq-bar">
+            <label>เริ่มที่ชั้น <input type="number" id="seq-start" value="1" min="-5" max="50"></label>
+            <button id="ov-seq">⚡ Sequential จากลำดับซ้าย-ขวา</button>
+            <button id="ov-clear-floor" class="sec">↺ ล้างเลขชั้น</button>
+            <span style="flex:1"></span>
+            <label>หน้า tag=floor: <span id="fcount" style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums">—</span></label>
+          </div>
+          <div id="floor-strip"></div>
+        </div>
+
+        <!-- ============ TAB 3: REVIEW ============ -->
+        <div class="tab-body" data-tab="3" id="tab-review">
+          <div class="report" id="report"></div>
+        </div>
+
+        <div id="ov-nav">
+          <button id="ov-prev">← ย้อน</button>
+          <span class="prog" id="ov-prog">Step 1 of 3</span>
+          <span class="sp"></span>
+          <span class="prog" id="ov-step-prog"></span>
+          <button id="ov-next" class="pri">ถัดไป →</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ctxmenu"></div>
+  </div>
+
+  <div id="statusbar">
+    <div class="it"><span class="k">SANDBOX</span><span class="v acc">Overview wizard v2</span></div>
+    <div class="it"><span class="k">layer-system.js</span><span class="v ok">loaded</span></div>
+    <div class="it"><span class="k">page-folder-layers.js</span><span class="v ok">loaded</span></div>
+    <div class="it"><span class="k">step</span><span class="v" id="sb-step">1</span></div>
+    <div class="it"><span class="k">selected</span><span class="v" id="sb-sel">0</span></div>
+    <div class="sp"></div>
+    <div class="it"><span class="k">spike</span><span class="v">2026-05-25 · v2 wizard</span></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATASETS
+   ============================================================ */
+const DATASETS = {
+  permit: {
+    name: '45-page permit (RAMA4)', pageCount: 45,
+    tags: {
+      1:'',  2:'site',  3:'',     4:'',     5:'site', 6:'',       7:'site', 8:'site', 9:'', 10:'',
+      11:'floor', 12:'floor', 13:'floor', 14:'floor', 15:'floor', 16:'floor',
+      17:'detail', 18:'', 19:'', 20:'', 21:'',
+      22:'amenity', 23:'amenity', 24:'amenity', 25:'amenity', 26:'amenity',
+      27:'plan', 28:'plan', 29:'plan',
+      30:'detail', 31:'detail', 32:'detail', 33:'detail', 34:'detail',
+      35:'', 36:'', 37:'', 38:'',
+      39:'detail', 40:'detail', 41:'detail', 42:'detail', 43:'detail', 44:'detail', 45:'detail'
+    },
+    floors: {11:1, 12:2, 13:3, 14:4, 15:5, 16:'roof'}, excluded: [2],
+    objcounts: {7:4, 11:6, 12:6, 13:5, 14:5, 15:6, 16:3}
+  },
+  small: {
+    name: 'small (8 หน้า)', pageCount: 8,
+    tags: {1:'', 2:'site', 3:'site', 4:'floor', 5:'floor', 6:'floor', 7:'plan', 8:'detail'},
+    floors: {4:1, 5:2, 6:'roof'}, excluded: [], objcounts: {2:2, 4:5, 5:5, 6:2}
+  },
+  untagged: {
+    name: 'untagged (15)', pageCount: 15, tags: {}, floors: {}, excluded: [], objcounts: {}
+  }
+};
+let curDS = null;
+let focusPage = 1;
+let selected = new Set();       // page numbers currently selected
+let selAnchor = null;            // anchor page for shift+click range
+let curStep = 1;
+
+function loadDataset(key){
+  const ds = DATASETS[key]; if(!ds) return;
+  curDS = ds;
+  for (const k in pageTags) delete pageTags[k];
+  for (const k in pageFloorNum) delete pageFloorNum[k];
+  for (const k in pageFloorKind) delete pageFloorKind[k];
+  for (const k in PS) delete PS[k];
+  for (const k in excluded) delete excluded[k];
+  Object.assign(pageTags, ds.tags);
+  Object.entries(ds.floors).forEach(([n,v])=>{ liteSetFloorNum(+n, v); });
+  ds.excluded.forEach(n => excluded[n] = true);
+  pageCount = ds.pageCount;
+  for (let n=1; n<=ds.pageCount; n++) PS[n] = {objects: Array(ds.objcounts[n]||0).fill({}), scale:null, annotations:[]};
+  focusPage = 1;
+  selected.clear(); selAnchor = null;
+  if (typeof resetPageFolders === 'function') resetPageFolders();
+  LAYERS.length = 0; FOLDERS.length = 0; initLayers();
+  if (state.pageFolderMode && typeof reseedActivePageFolders === 'function') reseedActivePageFolders();
+  log('dataset loaded: ' + ds.name + ' (' + ds.pageCount + ' หน้า)');
+  _updateWB();
+  if (document.getElementById('ov').classList.contains('show')) renderCurStep();
+}
+function log(m){ const el=document.getElementById('log'); el.textContent='• '+m+'\n'+el.textContent.split('\n').slice(0,9).join('\n'); }
+
+/* ============================================================
+   OVERLAY + STEP NAV
+   ============================================================ */
+function openOv(){ if (!curDS){ log('⚠ เลือก dataset ก่อน'); return; }
+  document.getElementById('ov').classList.add('show');
+  goStep(1); }
+function closeOv(){ document.getElementById('ov').classList.remove('show'); hideCtx(); }
+
+function goStep(s){
+  if (s < 1 || s > 3) return;
+  curStep = s;
+  document.querySelectorAll('#ov-steps .step').forEach((el,i)=>{
+    el.classList.toggle('act', i+1===s);
+    el.classList.toggle('done', i+1<s);
+  });
+  document.querySelectorAll('.tab-body').forEach(el => el.classList.toggle('act', +el.dataset.tab===s));
+  document.getElementById('ov-prog').textContent = `Step ${s} of 3`;
+  document.getElementById('ov-prev').disabled = s===1;
+  document.getElementById('ov-next').disabled = s===3;
+  document.getElementById('ov-next').textContent = s===2?'ถัดไป → Review':(s===3?'เสร็จ ✓':'ถัดไป →');
+  document.getElementById('sb-step').textContent = s;
+  renderCurStep();
+}
+function renderCurStep(){
+  if (curStep === 1) renderClassify();
+  else if (curStep === 2) renderFloors();
+  else if (curStep === 3) renderReview();
+  _updateHeader();
+}
+function _updateHeader(){
+  const tagged = Object.values(pageTags).filter(t => t).length;
+  const floors = Object.entries(pageTags).filter(([n,t]) => t === 'floor').length;
+  const numbered = Object.entries(pageTags).filter(([n,t]) => t === 'floor' && pageFloorNum[+n] !== undefined).length;
+  document.getElementById('ov-meta').textContent = curDS ? curDS.name : '';
+  document.getElementById('ovh-tagged').textContent = tagged + '/' + (curDS?curDS.pageCount:0);
+  document.getElementById('ovh-floors').textContent = floors;
+  document.getElementById('ovh-num').textContent = numbered + '/' + floors;
+  document.getElementById('ov-step-prog').textContent =
+    curStep===1 ? `tagged ${tagged}/${curDS.pageCount}` :
+    curStep===2 ? `numbered ${numbered}/${floors}` : '';
+  _updateWB();
+}
+
+/* ============================================================
+   STEP 1 — CLASSIFY (with multi-select)
+   ============================================================ */
+function renderClassify(){
+  const g = document.getElementById('grid-classify');
+  let h = '';
+  // bulk action bar
+  if (selected.size >= 2){
+    h += `<div id="bulkbar">
+      <span>เลือก <span class="ct">${selected.size}</span> หน้า</span>
+      <button id="bulk-clearsel">ล้าง selection (Esc)</button>
+      <span style="opacity:.5">|</span>
+      <span style="color:var(--muted);font-size:11px">ตั้ง tag →</span>
+      ${TAG_CYCLE.filter(t=>t).map(t => `<span class="tag-chip tag-${t}" data-bulk-tag="${t}" title="ตั้ง tag = ${t}">${t}</span>`).join('')}
+      <span class="tag-chip tag-untagged" data-bulk-tag="" title="ล้าง tag">ล้าง</span>
+      <span style="opacity:.5">|</span>
+      <button id="bulk-excl">⛔ toggle exclude</button>
+    </div>`;
+  }
+  for (let n=1; n<=curDS.pageCount; n++){
+    const tag = pageTags[n] || '';
+    const tagCls = tag ? ('tag-'+tag) : 'tag-untagged';
+    const tagLbl = tag ? (PAGE_TAGS[tag] || tag) : '— ไม่ระบุ —';
+    const fl = pageFloorNum[n];
+    const flStr = fl === undefined ? '' : (fl === 'roof' ? 'roof' : fl);
+    const objc = (PS[n] && PS[n].objects && PS[n].objects.length) ? PS[n].objects.length : 0;
+    h += `
+      <div class="tile ${n===curPage?'cur':''} ${n===focusPage?'foc':''} ${excluded[n]?'exc':''} ${selected.has(n)?'sel':''}" data-pg="${n}">
+        <div class="thumb">
+          <span class="pn">p${n}</span>
+          ${objc ? `<span class="objc">${objc}</span>` : ''}
+          <span class="selchk">✓</span>
+          📄
+        </div>
+        <div class="info">
+          <div class="nm">หน้า ${n}${pageNames[n]?(' · '+pageNames[n]):''}</div>
+          <div class="row">
+            <span class="tag-chip ${tagCls}" data-tag="${tag}">${tagLbl}</span>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            ${tag === 'floor' ? `<span class="floor-lab">ชั้น</span><input class="floor-input" type="text" value="${flStr}" placeholder="—" data-floor="${n}">`
+              : `<span style="flex:1"></span>`}
+            <button class="excl-btn" data-excl="${n}" title="${excluded[n]?'un-exclude':'exclude'}">${excluded[n]?'⛔':'·'}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  g.innerHTML = h;
+  _wireClassify();
+}
+
+function _wireClassify(){
+  const g = document.getElementById('grid-classify');
+
+  // tile click — selection model
+  g.querySelectorAll('.tile').forEach(tile => {
+    const pn = +tile.dataset.pg;
+    tile.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.tag-chip')) return;
+      if (e.target.closest('.floor-input')) return;
+      if (e.target.closest('.excl-btn')) return;
+      // mark as click-source so drag-box doesn't start
+      e.stopPropagation();
+    });
+    tile.addEventListener('click', e => {
+      if (e.target.closest('.tag-chip')) return;
+      if (e.target.closest('.floor-input')) return;
+      if (e.target.closest('.excl-btn')) return;
+
+      if (e.shiftKey && selAnchor != null){
+        const lo = Math.min(selAnchor, pn), hi = Math.max(selAnchor, pn);
+        selected.clear();
+        for (let i=lo; i<=hi; i++) selected.add(i);
+        focusPage = pn;
+      } else if (e.ctrlKey || e.metaKey){
+        if (selected.has(pn)) selected.delete(pn);
+        else selected.add(pn);
+        selAnchor = pn; focusPage = pn;
+      } else {
+        selected.clear();
+        selected.add(pn);
+        selAnchor = pn; focusPage = pn;
+      }
+      renderClassify();
+    });
+    tile.addEventListener('dblclick', e => {
+      if (e.target.closest('.floor-input')) return;
+      curPage = pn; log('→ navigate to p'+pn); closeOv();
+    });
+
+    // tag chip
+    const chip = tile.querySelector('.tag-chip');
+    if (chip){
+      chip.addEventListener('click', e => { e.stopPropagation(); cycleTag(pn); });
+      chip.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtxMenu(e, pn); });
+    }
+    // floor input
+    const fi = tile.querySelector('.floor-input');
+    if (fi){
+      fi.addEventListener('mousedown', e => e.stopPropagation());
+      fi.addEventListener('click', e => e.stopPropagation());
+      fi.addEventListener('change', e => { liteSetFloorNum(pn, fi.value.trim()); log('p'+pn+' floor → '+fi.value); renderClassify(); });
+      fi.addEventListener('keydown', e => { if(e.key==='Enter'){ fi.blur(); }});
+    }
+    const eb = tile.querySelector('.excl-btn');
+    if (eb) eb.addEventListener('click', e => { e.stopPropagation();
+      excluded[pn] = !excluded[pn]; log('p'+pn+(excluded[pn]?' excluded':' un-excluded')); renderClassify(); });
+  });
+
+  // bulk action wiring
+  const bb = document.getElementById('bulkbar');
+  if (bb){
+    bb.querySelectorAll('[data-bulk-tag]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const t = chip.dataset.bulkTag;
+        selected.forEach(n => liteSetTag(n, t));
+        log(`bulk: ${selected.size} หน้า → tag=${t||'(ว่าง)'}`);
+        renderClassify();
+      });
+    });
+    document.getElementById('bulk-clearsel').addEventListener('click', () => { selected.clear(); renderClassify(); });
+    document.getElementById('bulk-excl').addEventListener('click', () => {
+      // toggle: if any selected is excluded, un-exclude all; else exclude all
+      const anyExcluded = [...selected].some(n => excluded[n]);
+      selected.forEach(n => excluded[n] = !anyExcluded);
+      log(`bulk: ${selected.size} หน้า → ${anyExcluded?'un-excluded':'excluded'}`);
+      renderClassify();
+    });
+  }
+
+  // drag-box selection (on grid empty area)
+  _wireDragBox();
+}
+
+/* drag-rectangle selection */
+function _wireDragBox(){
+  const g = document.getElementById('grid-classify');
+  const box = document.getElementById('dragbox');
+  let dragStart = null, isDragging = false, addMode = false;
+  g.addEventListener('mousedown', e => {
+    // only when click on empty area
+    if (e.target !== g) return;
+    if (e.button !== 0) return;
+    addMode = e.ctrlKey || e.metaKey;
+    if (!addMode){ selected.clear(); }
+    const gr = g.getBoundingClientRect();
+    dragStart = {x: e.clientX - gr.left + g.scrollLeft, y: e.clientY - gr.top + g.scrollTop};
+    isDragging = false;
+  });
+  g.addEventListener('mousemove', e => {
+    if (!dragStart) return;
+    const gr = g.getBoundingClientRect();
+    const x = e.clientX - gr.left + g.scrollLeft;
+    const y = e.clientY - gr.top + g.scrollTop;
+    if (!isDragging && (Math.abs(x-dragStart.x) > 4 || Math.abs(y-dragStart.y) > 4)) isDragging = true;
+    if (isDragging){
+      const lx = Math.min(x, dragStart.x), ly = Math.min(y, dragStart.y);
+      const w = Math.abs(x - dragStart.x), h = Math.abs(y - dragStart.y);
+      box.style.display = 'block';
+      box.style.left = lx + 'px';
+      box.style.top = ly + 'px';
+      box.style.width = w + 'px';
+      box.style.height = h + 'px';
+      // hit-test tiles
+      const sel = addMode ? new Set(selected) : new Set();
+      g.querySelectorAll('.tile').forEach(tile => {
+        const tr = tile.getBoundingClientRect();
+        const tx = tr.left - gr.left + g.scrollLeft;
+        const ty = tr.top - gr.top + g.scrollTop;
+        const tw = tr.width, th = tr.height;
+        if (tx + tw > lx && tx < lx + w && ty + th > ly && ty < ly + h){
+          sel.add(+tile.dataset.pg);
+        }
+      });
+      // diff & repaint without full re-render for perf
+      g.querySelectorAll('.tile').forEach(tile => {
+        const pn = +tile.dataset.pg;
+        tile.classList.toggle('sel', sel.has(pn));
+      });
+      selected = sel;
+    }
+  });
+  g.addEventListener('mouseup', e => {
+    box.style.display = 'none';
+    if (dragStart && isDragging){
+      if (selected.size > 0) selAnchor = Math.min(...selected);
+      log(`box-select → ${selected.size} หน้า`);
+      renderClassify();
+    } else if (dragStart && !isDragging && e.target === g){
+      // empty click without drag = clear selection
+      selected.clear(); selAnchor = null;
+      renderClassify();
+    }
+    dragStart = null;
+    isDragging = false;
+  });
+}
+
+function cycleTag(pn){
+  const cur = pageTags[pn] || '';
+  const i = TAG_CYCLE.indexOf(cur);
+  const next = TAG_CYCLE[(i+1) % TAG_CYCLE.length];
+  liteSetTag(pn, next);
+  log('p'+pn+' tag → '+(next||'(ว่าง)'));
+  focusPage = pn;
+  renderClassify();
+}
+
+function setTagViaKey(k){
+  if (!(k in TAG_KEYS)) return false;
+  const t = TAG_KEYS[k];
+  // if multi-selected: bulk apply
+  if (selected.size > 1){
+    selected.forEach(n => liteSetTag(n, t));
+    log(`bulk(key ${k}): ${selected.size} หน้า → ${t||'(ว่าง)'}`);
+    renderClassify();
+    return true;
+  }
+  if (!focusPage) return false;
+  liteSetTag(focusPage, t);
+  log('p'+focusPage+' → tag='+(t||'(ว่าง)')+' [key '+k+']');
+  if (focusPage < curDS.pageCount) focusPage++;
+  selected.clear(); selected.add(focusPage); selAnchor = focusPage;
+  renderClassify();
+  const el = document.querySelector(`#grid-classify .tile[data-pg="${focusPage}"]`);
+  if (el) el.scrollIntoView({block:'nearest'});
+  return true;
+}
+
+/* ============================================================
+   CONTEXT MENU
+   ============================================================ */
+function showCtxMenu(e, pn){
+  const m = document.getElementById('ctxmenu');
+  // if pn is in selection, use the full selection; else single
+  const targets = selected.has(pn) ? [...selected] : [pn];
+  let h = '';
+  if (targets.length > 1) h += `<div style="padding:4px 9px;font-size:10px;color:var(--muted)">ทำกับ ${targets.length} หน้า</div><div class="sep"></div>`;
+  for (const k of TAG_CYCLE){
+    const lbl = k ? PAGE_TAGS[k] : '— ล้าง tag —';
+    const cur = (targets.length===1 && (pageTags[targets[0]]||'') === k) ? ' ✓' : '';
+    const key = k ? Object.entries(TAG_KEYS).find(([kk,vv])=>vv===k)?.[0] : '0';
+    h += `<div class="it" data-tag="${k}"><span>${lbl}${cur}</span><span class="k">${key||''}</span></div>`;
+  }
+  h += `<div class="sep"></div>`;
+  h += `<div class="it" data-act="excl"><span>toggle exclude</span><span class="k">X</span></div>`;
+  if (targets.length === 1) h += `<div class="it" data-act="goto"><span>ไปหน้านี้</span><span class="k">Enter</span></div>`;
+  m.innerHTML = h;
+  m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; m.style.display = 'block';
+  m.querySelectorAll('.it').forEach(it => {
+    it.addEventListener('click', () => {
+      if (it.dataset.act === 'excl'){
+        const anyExc = targets.some(t => excluded[t]);
+        targets.forEach(t => excluded[t] = !anyExc);
+        log(`${targets.length} หน้า → ${anyExc?'un-excluded':'excluded'}`);
+      } else if (it.dataset.act === 'goto'){
+        curPage = targets[0]; closeOv(); log('→ p'+curPage);
+      } else {
+        targets.forEach(t => liteSetTag(t, it.dataset.tag));
+        log(`${targets.length} หน้า → tag=${it.dataset.tag||'(ว่าง)'}`);
+      }
+      renderClassify();
+      hideCtx();
+    });
+  });
+}
+function hideCtx(){ document.getElementById('ctxmenu').style.display='none'; }
+document.addEventListener('click', e => { if (!e.target.closest('#ctxmenu')) hideCtx(); });
+
+/* ============================================================
+   STEP 2 — NUMBER FLOORS (drag-reorder + sequential)
+   ============================================================ */
+function renderFloors(){
+  const strip = document.getElementById('floor-strip');
+  const floors = [];
+  for (let n=1; n<=curDS.pageCount; n++){
+    if (pageTags[n] === 'floor') floors.push({p:n, floor: pageFloorNum[n]});
+  }
+  document.getElementById('fcount').textContent = floors.length;
+  // sort by floor#, roof last, unassigned by page#
+  floors.sort((a,b) => {
+    const fa = a.floor === 'roof' ? 9999 : (a.floor != null ? +a.floor : 10000 + a.p);
+    const fb = b.floor === 'roof' ? 9999 : (b.floor != null ? +b.floor : 10000 + b.p);
+    return fa - fb;
+  });
+  if (floors.length === 0){
+    strip.innerHTML = `<div style="color:var(--muted);padding:20px;text-align:center;width:100%">
+      ⚠ ยังไม่มีหน้า <code style="color:#4cc9f0">tag=floor</code> — กลับไป Step 1 แล้วตั้ง tag=floor ก่อน</div>`;
+    return;
+  }
+  let h = '';
+  for (const f of floors){
+    const isRoof = f.floor === 'roof';
+    const isSpec = isRoof;
+    const isEmpty = f.floor == null;
+    const numStr = isRoof ? '⛅ROOF' : (isEmpty ? '–' : f.floor);
+    h += `<div class="fchip ${isSpec?'spec':''} ${isEmpty?'empty':''}" draggable="true" data-p="${f.p}">
+      <button class="clr" title="ล้างเลขชั้น">✕</button>
+      <div class="num">${numStr}</div>
+      <div class="pg">p${f.p}</div>
+      <div class="lb">${pageNames[f.p] || ('หน้า '+f.p)}</div>
+    </div>`;
+  }
+  strip.innerHTML = h;
+  _wireFloorDnd();
+}
+
+function _wireFloorDnd(){
+  const strip = document.getElementById('floor-strip');
+  let dragP = null;
+  strip.querySelectorAll('.fchip').forEach(c => {
+    c.querySelector('.clr').addEventListener('click', e => {
+      e.stopPropagation();
+      const p = +c.dataset.p;
+      delete pageFloorNum[p]; delete pageFloorKind[p];
+      log('p'+p+' clear floor#'); renderFloors(); _updateHeader();
+    });
+    c.addEventListener('dragstart', e => { dragP = +c.dataset.p; c.classList.add('drg'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragP); });
+    c.addEventListener('dragend',   e => { c.classList.remove('drg'); strip.querySelectorAll('.fchip.over').forEach(x=>x.classList.remove('over')); });
+    c.addEventListener('dragover',  e => { e.preventDefault(); c.classList.add('over'); });
+    c.addEventListener('dragleave', e => { c.classList.remove('over'); });
+    c.addEventListener('drop', e => {
+      e.preventDefault(); c.classList.remove('over');
+      const dropP = +c.dataset.p;
+      if (dragP === dropP) return;
+      // simple swap of floor#
+      const a = pageFloorNum[dragP], b = pageFloorNum[dropP];
+      const ka = pageFloorKind[dragP], kb = pageFloorKind[dropP];
+      if (b !== undefined) pageFloorNum[dragP] = b; else delete pageFloorNum[dragP];
+      if (a !== undefined) pageFloorNum[dropP] = a; else delete pageFloorNum[dropP];
+      if (kb !== undefined) pageFloorKind[dragP] = kb; else delete pageFloorKind[dragP];
+      if (ka !== undefined) pageFloorKind[dropP] = ka; else delete pageFloorKind[dropP];
+      log(`swap floor#: p${dragP}↔p${dropP}`);
+      if (state.pageFolderMode && typeof reseedActivePageFolders === 'function') reseedActivePageFolders();
+      renderFloors(); _updateHeader();
+    });
+  });
+}
+
+function sequentialFloor(){
+  const start = +document.getElementById('seq-start').value || 1;
+  // include all tag=floor pages, in their CURRENT VISUAL ORDER from renderFloors sort
+  const orderedPN = [];
+  document.querySelectorAll('#floor-strip .fchip').forEach(c => orderedPN.push(+c.dataset.p));
+  if (orderedPN.length === 0){ log('⚠ ไม่มี floor page'); return; }
+  let n = start;
+  for (let i=0; i<orderedPN.length; i++){
+    const setRoof = (i === orderedPN.length - 1) && orderedPN.length >= 4;
+    if (setRoof) liteSetFloorNum(orderedPN[i], 'roof');
+    else { liteSetFloorNum(orderedPN[i], n); n++; }
+  }
+  log(`sequential → ${orderedPN.length} floors assigned (start=${start})`);
+  if (state.pageFolderMode && typeof reseedActivePageFolders === 'function') reseedActivePageFolders();
+  renderFloors(); _updateHeader();
+}
+function clearFloors(){
+  for (let n=1; n<=curDS.pageCount; n++){
+    if (pageFloorNum[n] !== undefined){ delete pageFloorNum[n]; delete pageFloorKind[n]; }
+  }
+  log('cleared all floor#'); renderFloors(); _updateHeader();
+}
+
+/* ============================================================
+   STEP 3 — REVIEW (BCR/OSR/FAR mock)
+   ============================================================ */
+function renderReview(){
+  const floorPages = [];
+  for (let n=1; n<=curDS.pageCount; n++){ if (pageTags[n]==='floor') floorPages.push(n); }
+  const sitePages = [];
+  for (let n=1; n<=curDS.pageCount; n++){ if (pageTags[n]==='site' && !excluded[n]) sitePages.push(n); }
+  floorPages.sort((a,b) => {
+    const fa = pageFloorNum[a]==='roof'?9999:(pageFloorNum[a]||0);
+    const fb = pageFloorNum[b]==='roof'?9999:(pageFloorNum[b]||0);
+    return fa - fb;
+  });
+  const PER = 650, ROOF_G = 298, DED = 38;
+  const gfaRows = floorPages.map(p => {
+    const fl = pageFloorNum[p];
+    const label = fl === 'roof' ? 'ดาดฟ้า' : (fl != null ? ('ชั้น '+fl) : '— ยังไม่ได้ใส่เลข —');
+    const gross = fl === 'roof' ? ROOF_G : PER;
+    return {p, label, gross, ded: DED, net: gross - DED, hasFloor: fl != null};
+  });
+  const totG = gfaRows.reduce((s,r)=>s+r.gross,0);
+  const totD = gfaRows.reduce((s,r)=>s+r.ded,0);
+  const totN = totG - totD;
+  const LAND = 1919.20, COVER = 839.10;
+  const FAR = LAND > 0 ? totN/LAND : 0;
+  const COV = LAND > 0 ? COVER/LAND*100 : 0;
+  const OSR = totN > 0 ? (LAND-COVER)/totN*100 : 0;
+  const fmt = n => n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const tagged = Object.values(pageTags).filter(t=>t).length;
+  const excPages = []; for (let n=1; n<=curDS.pageCount; n++){ if (excluded[n] || !pageTags[n] || pageTags[n]==='detail' || pageTags[n]==='plan' || pageTags[n]==='parking' || pageTags[n]==='amenity') excPages.push(n); }
+  const measPages = []; for (let n=1; n<=curDS.pageCount; n++){ if (!excluded[n] && (pageTags[n]==='site' || pageTags[n]==='floor')) measPages.push(n); }
+  const missingFloor = gfaRows.filter(r=>!r.hasFloor).length;
+
+  const r = document.getElementById('report');
+  r.innerHTML = `
+    <h1>รายงานสรุป — Page Setup Wizard</h1>
+    <div class="sub">dataset: <b>${curDS.name}</b> · ${tagged}/${curDS.pageCount} tagged · ${floorPages.length} floor pages</div>
+
+    ${missingFloor > 0 ? `<div class="warn">⚠ มี ${missingFloor} หน้า tag=floor ที่ยังไม่ได้ใส่เลขชั้น — กลับ Step 2 หรือกด ⚡ Sequential</div>` : ''}
+    ${sitePages.length === 0 ? `<div class="warn">⚠ ยังไม่มีหน้า tag=site — ค่าที่ดิน/coverage จะใช้ mock 1,919.20 m²</div>` : ''}
+
+    <h2>1. สรุป Page Setup</h2>
+    <table>
+      <tr><th>รายการ</th><th class="num">จำนวน</th><th>หมายเหตุ</th></tr>
+      <tr><td>หน้าทั้งหมด</td><td class="num">${curDS.pageCount}</td><td></td></tr>
+      <tr><td>ติด tag แล้ว</td><td class="num">${tagged}</td><td>${(tagged/curDS.pageCount*100).toFixed(0)}%</td></tr>
+      <tr><td>site (ผังบริเวณ)</td><td class="num">${sitePages.length}</td><td>${sitePages.map(p=>'p'+p).join(', ')||'—'}</td></tr>
+      <tr><td>floor (แปลนชั้น)</td><td class="num">${floorPages.length}</td><td>${gfaRows.filter(r=>r.hasFloor).length}/${floorPages.length} numbered</td></tr>
+      <tr><td>excluded</td><td class="num">${Object.values(excluded).filter(Boolean).length}</td><td></td></tr>
+    </table>
+
+    <h2>2. ผังบริเวณ — Site Coverage (mock)</h2>
+    <table>
+      <tr><th>รายการ</th><th class="num" style="width:120px">พื้นที่ (m²)</th><th>ที่มา</th></tr>
+      <tr><td>ที่ดิน (รวม)</td><td class="num">${fmt(LAND)}</td><td>${sitePages.map(p=>'p'+p).join(', ')||'mock'}</td></tr>
+      <tr><td>อาคารปกคลุม</td><td class="num">${fmt(COVER)}</td><td>mock</td></tr>
+      <tr><td>ที่ว่าง (Open Space)</td><td class="num">${fmt(LAND-COVER)}</td><td>derived</td></tr>
+      <tr class="tot"><td>Coverage</td><td class="num">${COV.toFixed(2)} %</td><td></td></tr>
+    </table>
+
+    <h2>3. GFA Breakdown ต่อชั้น</h2>
+    <table>
+      <tr><th>ชั้น</th><th>หน้า</th><th class="num">Gross (m²)</th><th class="num">หัก (m²)</th><th class="num">Net (m²)</th></tr>
+      ${gfaRows.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:#a04">ไม่มี floor page</td></tr>' : ''}
+      ${gfaRows.map(r=>`<tr ${r.hasFloor?'':'style="color:#a04"'}>
+        <td>${r.label}</td><td>p${r.p}</td>
+        <td class="num">${fmt(r.gross)}</td>
+        <td class="num">−${fmt(r.ded)}</td>
+        <td class="num"><b>${fmt(r.net)}</b></td>
+      </tr>`).join('')}
+      <tr class="tot">
+        <td colspan="2">รวม</td>
+        <td class="num">${fmt(totG)}</td><td class="num">−${fmt(totD)}</td><td class="num">${fmt(totN)}</td>
+      </tr>
+    </table>
+
+    <h2>4. ตัวเลขควบคุม (Derived)</h2>
+    <div class="calc">
+      <div class="row"><span>FAR = GFA / ที่ดิน</span><b>${FAR.toFixed(2)}</b></div>
+      <div class="row"><span>Coverage = อาคารปกคลุม / ที่ดิน × 100</span><b>${COV.toFixed(2)} %</b></div>
+      <div class="row"><span>OSR = (ที่ว่าง / GFA) × 100</span><b>${OSR.toFixed(2)} %</b></div>
+      <div class="row tot"><span>หมายเหตุ</span><span style="font-weight:400;font-size:11px">ตัวเลข mock — production จะดึงจาก polyMetrics + LRV registry</span></div>
+    </div>
+
+    <h2>5. Traceability</h2>
+    <div style="font-size:11px;color:#555">หน้าที่ใช้คำนวณ (${measPages.length})</div>
+    <div class="pl">${measPages.map(p => `<span>p${p} ${pageTags[p]}${pageFloorNum[p]!=null?(' '+pageFloorNum[p]):''}</span>`).join('') || '—'}</div>
+    <div style="font-size:11px;color:#555;margin-top:6px">หน้าที่ไม่ใช้ (${excPages.length})</div>
+    <div class="pl">${excPages.map(p => `<span class="exc">p${p} ${pageTags[p]||'ว่าง'}</span>`).join('') || '—'}</div>
+  `;
+}
+
+/* ============================================================
+   WORKBENCH
+   ============================================================ */
+function _updateWB(){
+  const tagged = Object.values(pageTags).filter(t => t).length;
+  const floors = Object.entries(pageTags).filter(([n,t]) => t === 'floor').length;
+  const numbered = Object.entries(pageTags).filter(([n,t]) => t === 'floor' && pageFloorNum[+n] !== undefined).length;
+  const pff = FOLDERS.filter(f => f.kind === 'page-folder').length;
+  const pfl = LAYERS.filter(l => l.parentId && typeof l.parentId === 'string' && l.parentId.indexOf('PF_') === 0).length;
+  document.getElementById('kv-ds').textContent = curDS ? curDS.name : '—';
+  document.getElementById('kv-pages').textContent = curDS ? curDS.pageCount : 0;
+  document.getElementById('kv-tagged').textContent = tagged;
+  document.getElementById('kv-floors').textContent = floors;
+  document.getElementById('kv-numbered').textContent = numbered + '/' + floors;
+  document.getElementById('kv-sel').textContent = selected.size;
+  document.getElementById('kv-mode').textContent = state.pageFolderMode;
+  document.getElementById('kv-pff').textContent = pff;
+  document.getElementById('kv-pfl').textContent = pfl;
+  document.getElementById('sb-sel').textContent = selected.size;
+}
+
+/* ============================================================
+   WIRE
+   ============================================================ */
+document.getElementById('ds-permit').addEventListener('click', () => loadDataset('permit'));
+document.getElementById('ds-small').addEventListener('click', () => loadDataset('small'));
+document.getElementById('ds-untagged').addEventListener('click', () => loadDataset('untagged'));
+document.getElementById('open-ov-btn').addEventListener('click', openOv);
+document.getElementById('open-ov-big').addEventListener('click', openOv);
+document.getElementById('wb-open-ov').addEventListener('click', openOv);
+document.getElementById('ov-close').addEventListener('click', closeOv);
+document.getElementById('ov-prev').addEventListener('click', () => goStep(curStep-1));
+document.getElementById('ov-next').addEventListener('click', () => { if(curStep<3) goStep(curStep+1); else closeOv(); });
+document.querySelectorAll('#ov-steps .step').forEach(el => el.addEventListener('click', () => goStep(+el.dataset.step)));
+
+document.getElementById('ov-seq').addEventListener('click', sequentialFloor);
+document.getElementById('ov-clear-floor').addEventListener('click', clearFloors);
+
+document.getElementById('toggle-pfl').addEventListener('click', () => {
+  if (typeof togglePageFolderMode === 'function'){
+    togglePageFolderMode();
+    log('pageFolderMode → '+state.pageFolderMode);
+    _updateWB();
+  }
+});
+document.getElementById('wb-reseed').addEventListener('click', () => {
+  if (typeof reseedActivePageFolders === 'function'){ reseedActivePageFolders(); log('reseed PF'); _updateWB(); }
+});
+document.getElementById('wb-clear').addEventListener('click', () => {
+  for (let n=1; n<=curDS.pageCount; n++) liteSetTag(n, '');
+  log('cleared all tags'); selected.clear(); renderCurStep();
+});
+document.getElementById('wb-preset').addEventListener('click', () => loadDataset('permit'));
+
+document.addEventListener('keydown', e => {
+  const ovOpen = document.getElementById('ov').classList.contains('show');
+  if (!ovOpen) return;
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  if (e.key === 'Escape'){
+    if (selected.size > 0){ selected.clear(); renderClassify(); e.preventDefault(); return; }
+    closeOv(); e.preventDefault(); return;
+  }
+  if (curStep === 1){
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a'){
+      selected.clear(); for (let n=1; n<=curDS.pageCount; n++) selected.add(n);
+      selAnchor = 1; log(`select all (${selected.size})`); renderClassify(); e.preventDefault(); return;
+    }
+    if (e.key === 'ArrowRight'){ focusPage = Math.min(curDS.pageCount, focusPage+1);
+      if (!e.shiftKey){ selected.clear(); selected.add(focusPage); selAnchor = focusPage; }
+      else if (selAnchor != null){ const lo=Math.min(selAnchor,focusPage), hi=Math.max(selAnchor,focusPage); selected.clear(); for(let i=lo;i<=hi;i++)selected.add(i); }
+      renderClassify();
+      const el = document.querySelector(`#grid-classify .tile[data-pg="${focusPage}"]`); if (el) el.scrollIntoView({block:'nearest'}); e.preventDefault(); return;
+    }
+    if (e.key === 'ArrowLeft'){ focusPage = Math.max(1, focusPage-1);
+      if (!e.shiftKey){ selected.clear(); selected.add(focusPage); selAnchor = focusPage; }
+      else if (selAnchor != null){ const lo=Math.min(selAnchor,focusPage), hi=Math.max(selAnchor,focusPage); selected.clear(); for(let i=lo;i<=hi;i++)selected.add(i); }
+      renderClassify();
+      const el = document.querySelector(`#grid-classify .tile[data-pg="${focusPage}"]`); if (el) el.scrollIntoView({block:'nearest'}); e.preventDefault(); return;
+    }
+    if (e.key === 'Enter'){ curPage = focusPage; closeOv(); log('→ p'+curPage); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 'x'){
+      const targets = selected.size>0 ? [...selected] : [focusPage];
+      const anyExc = targets.some(t => excluded[t]);
+      targets.forEach(t => excluded[t] = !anyExc);
+      log(`${targets.length} หน้า → ${anyExc?'un-excluded':'excluded'}`);
+      renderClassify(); e.preventDefault(); return;
+    }
+    if (setTagViaKey(e.key)) e.preventDefault();
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => setTimeout(() => {
+  loadDataset('permit');
+  log('sandbox v2 ready · multi-select + 3-tab wizard');
+}, 50));
+</script>
+</body>
+</html>
