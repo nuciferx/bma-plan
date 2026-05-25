@@ -34,6 +34,15 @@
   document.head.appendChild(s);
 })();
 
+/* CFSS-1: dynamically load cross-floor-shapes.js (avoids editing ui-lite.html which is at cap) */
+(function() {
+  if (document.getElementById("__cfss_script__")) return;
+  var s = document.createElement("script");
+  s.id = "__cfss_script__";
+  s.src = "static/js/cross-floor-shapes.js";
+  document.head.appendChild(s);
+})();
+
 var PAGE_FOLDER_PREFIX = "PF_";
 
 /* Return deterministic PF_* id for a page.
