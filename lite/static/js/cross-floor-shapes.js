@@ -270,4 +270,152 @@ function freezeOrphansForMaster(masterId, allPages) {
   return count;
 }
 
+/* ================================================================== */
+/* CFSS-2: Persist — save/load monkey-patches                         */
+/* ================================================================== */
+
+/**
+ * cfssWrapSave()
+ * Wraps the #mi-save onclick to:
+ *   1. Strip instance objects from PS before buildPageStore() serialises them
+ *      (instances have no .pts and would produce broken poly entries).
+ *   2. Temporarily wrap JSON.stringify to inject masters + instances into the
+ *      emitted doc. The wrap is scoped — restored in finally even on throw.
+ */
+function cfssWrapSave() {
+  var btn = document.getElementById('mi-save');
+  if (!btn || btn.__cfssSaveWrapped) return;
+  var origHandler = btn.onclick;
+  if (typeof origHandler !== 'function') return; // not yet bound; bootstrap retries via DOMContentLoaded
+  btn.__cfssSaveWrapped = true;
+  btn.onclick = function(e) {
+    // 1. Strip instances out of PS so buildPageStore doesn't see them.
+    //    Collect their descriptors into dump[] for the new top-level key.
+    var stash = {}; // { pageKey: original objects array }
+    var dump  = []; // [{page, masterId, offsetPt:{x,y}}]
+    Object.keys(window.PS || {}).forEach(function(k) {
+      var objs = window.PS[k] && window.PS[k].objects;
+      if (!objs || !objs.some(isInstance)) return;
+      stash[k] = objs.slice();
+      window.PS[k].objects = objs.filter(function(o) {
+        if (!isInstance(o)) return true;
+        dump.push({
+          page: +k,
+          masterId: o.masterId,
+          offsetPt: {x: o.offsetPt.x, y: o.offsetPt.y}
+        });
+        return false;
+      });
+    });
+
+    // 2. Temporarily wrap JSON.stringify to inject masters + instances.
+    //    Guard: only mutates the actual doc object (app + version + !masters).
+    var origStringify = JSON.stringify;
+    JSON.stringify = function(value, replacer, indent) {
+      if (value &&
+          value.app === 'bma-plan-lite' &&
+          value.version === 1 &&
+          !value.masters) {
+        value = Object.assign({}, value, {
+          masters: window.MASTERS || {},
+          instances: dump
+        });
+      }
+      return origStringify.call(JSON, value, replacer, indent);
+    };
+
+    try {
+      origHandler.call(btn, e);
+    } finally {
+      JSON.stringify = origStringify;
+      // Restore stripped instance objects back into PS
+      Object.keys(stash).forEach(function(k) {
+        window.PS[k].objects = stash[k];
+      });
+    }
+  };
+}
+
+/**
+ * cfssWrapLoad()
+ * Wraps window.loadProto to restore masters + instances after the standard
+ * loadProto finishes. Handles:
+ *   - Legacy files (no masters/instances keys): MASTERS = {}, no instances.
+ *   - Forward-compat: unknown extra keys on master entries are carried through.
+ *   - Counter resume: __cfss_nextMasterIdN set to max(existing N) + 1.
+ */
+function cfssWrapLoad() {
+  if (typeof window.loadProto !== 'function' || window.loadProto.__cfssWrapped) return;
+  var origLoad = window.loadProto;
+  window.loadProto = function(doc) {
+    origLoad(doc);
+
+    // Reset MASTERS then restore from saved doc
+    window.MASTERS = {};
+    if (doc.masters && typeof doc.masters === 'object') {
+      Object.keys(doc.masters).forEach(function(id) {
+        var m = doc.masters[id];
+        if (!m || !Array.isArray(m.metricPts)) return;
+        var entry = {
+          id: id,
+          name: m.name || '',
+          metricPts: m.metricPts.map(function(p) {
+            return {x_m: Number(p.x_m), y_m: Number(p.y_m)};
+          }),
+          color: m.color || '#888',
+          createdAt: m.createdAt || Date.now()
+        };
+        // Carry forward any extra additive fields (e.g. catId)
+        Object.keys(m).forEach(function(k) {
+          if (['id', 'name', 'metricPts', 'color', 'createdAt'].indexOf(k) === -1) {
+            entry[k] = m[k];
+          }
+        });
+        window.MASTERS[id] = entry;
+      });
+    }
+
+    // Resume id counter to max(existing) + 1
+    var maxN = 0;
+    Object.keys(window.MASTERS).forEach(function(id) {
+      var m = /^m(\d+)$/.exec(id);
+      if (m) {
+        var n = parseInt(m[1], 10);
+        if (n > maxN) maxN = n;
+      }
+    });
+    window.__cfss_nextMasterIdN = maxN + 1;
+
+    // Re-inject instances into PS[pg].objects[]
+    var insts = Array.isArray(doc.instances) ? doc.instances : [];
+    insts.forEach(function(rec) {
+      if (!rec || typeof rec.page !== 'number' || !rec.masterId) return;
+      var pg = rec.page;
+      if (!window.PS[pg]) return; // page not in PS — drop silently
+      window.PS[pg].objects.push(
+        makeInstance(rec.masterId, rec.offsetPt || {x: 0, y: 0})
+      );
+    });
+  };
+  window.loadProto.__cfssWrapped = true;
+}
+
+/**
+ * cfssBootstrap()
+ * Called once at DOMContentLoaded (or immediately if DOM already ready).
+ * Installs both wrappers. cfssWrapSave has its own guard in case onclick
+ * is not yet bound when this runs — should not happen since page-folder-layers.js
+ * loads synchronously, but the guard makes it safe.
+ */
+function cfssBootstrap() {
+  cfssWrapSave();
+  cfssWrapLoad();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', cfssBootstrap);
+} else {
+  cfssBootstrap();
+}
+
 /* end of idempotent guard */ }
