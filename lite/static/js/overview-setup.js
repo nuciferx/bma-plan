@@ -657,6 +657,13 @@ function _lovsBootstrap() {
     openOv = function() { _lovsOpenOv(); };
     openOv.__lovsWrapped = true;
   }
+  /* Rebind #btn-ov click — ui-lite.html L1087 captured the ORIGINAL openOv
+     reference at parse time (before our wrap). Without this, the button
+     still calls the old openOv → tries to write to #ov-grid which we
+     replaced → throws "Cannot set properties of null". F12 (L1159) is
+     fine because it calls global openOv() at event-fire-time. */
+  var _btnOv = document.getElementById("btn-ov");
+  if (_btnOv) _btnOv.onclick = function() { openOv(); };
 }
 
 // If DOMContentLoaded already fired (dynamic inject), run immediately via setTimeout(0).
