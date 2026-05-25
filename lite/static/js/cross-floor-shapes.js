@@ -431,7 +431,12 @@ function _cfssInjectCSS() {
     '#cfss-dlg .cfss-btn{padding:6px 14px;border-radius:7px;border:1px solid #2a3140;',
     '  background:#222a37;color:#e7ecf3;cursor:pointer;font-size:12px;}',
     '#cfss-dlg .cfss-btn.pri{background:#4c8dff;border-color:#4c8dff;color:#fff;}',
-    '#cfss-dlg .cfss-btn:hover{filter:brightness(1.15);}'
+    '#cfss-dlg .cfss-btn:hover{filter:brightness(1.15);}',
+    '#cfss-dlg .cfss-row{display:flex;gap:8px;margin-bottom:8px;}',
+    '#cfss-dlg .cfss-row > .cfss-field{flex:1;}',
+    '#cfss-dlg .cfss-field input[type=color]{padding:2px;height:28px;cursor:pointer;}',
+    '#cfss-dlg .cfss-field input:disabled{opacity:.4;cursor:not-allowed;}',
+    '#cfss-dlg .cfss-hint{color:#8b97a8;font-size:11px;margin-top:-4px;margin-bottom:8px;}'
   ].join('\n');
   document.head.appendChild(s);
 }
@@ -605,6 +610,20 @@ function cfssExtendObjMenu(obj) {
   var m = menus[menus.length - 1];
 
   if (isInstance(obj)) {
+    var master = masterById(obj.masterId);
+    if (master) {
+      // Edit row (before delete row)
+      var rEdit = document.createElement('div');
+      rEdit.className = 'objmenu-row';
+      rEdit.textContent = '✏️ แก้ไขมาสเตอร์';
+      rEdit.style.color = '#9cd4ff';
+      rEdit.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (typeof window.closeObjMenu === 'function') window.closeObjMenu();
+        cfssOpenEditDialog(obj.masterId);
+      });
+      m.appendChild(rEdit);
+    }
     // Instance: offer delete-master
     var r = document.createElement('div');
     r.className = 'objmenu-row';
@@ -648,6 +667,120 @@ function cfssDeleteMaster(masterId) {
   if (window.state) window.state.dirty = true;
   if (typeof window.draw === 'function') window.draw();
 }
+
+/* ================================================================== */
+/* CFSS-4: Edit master                                                */
+/* ================================================================== */
+
+/* _cfssIsRect — true iff 4 pts form an axis-aligned rect (tol 1e-6) */
+function _cfssIsRect(mp) {
+  if (!Array.isArray(mp) || mp.length !== 4) return false;
+  var xs = [], ys = [], tol = 1e-6;
+  for (var i = 0; i < 4; i++) {
+    if (typeof mp[i].x_m !== 'number' || typeof mp[i].y_m !== 'number') return false;
+    xs.push(mp[i].x_m); ys.push(mp[i].y_m);
+  }
+  xs.sort(function(a,b){return a-b;}); ys.sort(function(a,b){return a-b;});
+  return Math.abs(xs[0]-xs[1]) <= tol && Math.abs(xs[2]-xs[3]) <= tol &&
+         Math.abs(xs[1]-xs[2]) > tol &&
+         Math.abs(ys[0]-ys[1]) <= tol && Math.abs(ys[2]-ys[3]) <= tol &&
+         Math.abs(ys[1]-ys[2]) > tol;
+}
+window._cfssIsRect = _cfssIsRect;
+
+/* cfssCommitEdit(masterId, patch={name?,color?,widthM?,heightM?})
+   Routes through updateMaster. Returns updated master or null. */
+function cfssCommitEdit(masterId, patch) {
+  var master = masterById(masterId);
+  if (!master) return null;
+  if (!patch || typeof patch !== 'object') return master;
+  var computed = {};
+  if (typeof patch.name === 'string') computed.name = patch.name;
+  if (typeof patch.color === 'string') computed.color = patch.color;
+  if (typeof patch.widthM === 'number' && typeof patch.heightM === 'number' &&
+      patch.widthM > 0 && patch.heightM > 0 && _cfssIsRect(master.metricPts)) {
+    computed.metricPts = [{x_m:0,y_m:0},{x_m:patch.widthM,y_m:0},
+                          {x_m:patch.widthM,y_m:patch.heightM},{x_m:0,y_m:patch.heightM}];
+  }
+  var updated = updateMaster(masterId, computed);
+  if (updated && window.state) window.state.dirty = true;
+  return updated;
+}
+window.cfssCommitEdit = cfssCommitEdit;
+window.__cfssTestEdit = cfssCommitEdit;
+
+/* --- Edit dialog --- */
+var _cfssEditDlgEl = null;
+
+function cfssOpenEditDialog(masterId) {
+  _cfssInjectCSS();
+  if (_cfssEditDlgEl) { _cfssEditDlgEl.remove(); _cfssEditDlgEl = null; }
+  var master = masterById(masterId);
+  if (!master) return;
+
+  var isRect = _cfssIsRect(master.metricPts);
+  // Compute bbox W/H from metricPts
+  var wxMin = Infinity, wxMax = -Infinity, wyMin = Infinity, wyMax = -Infinity;
+  (master.metricPts || []).forEach(function(p) {
+    if (p.x_m < wxMin) wxMin = p.x_m; if (p.x_m > wxMax) wxMax = p.x_m;
+    if (p.y_m < wyMin) wyMin = p.y_m; if (p.y_m > wyMax) wyMax = p.y_m;
+  });
+  var wM = isRect ? (wxMax - wxMin).toFixed(3) : '';
+  var hM = isRect ? (wyMax - wyMin).toFixed(3) : '';
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cfss-overlay';
+  var dlg = document.createElement('div');
+  dlg.id = 'cfss-dlg';
+
+  var dimHint = isRect ? '' : '<div class="cfss-hint">ไม่ใช่สี่เหลี่ยมแกนตรง — ขนาด W/H ไม่สามารถแก้ได้</div>';
+  dlg.innerHTML = [
+    '<h4>✏️ แก้ไขมาสเตอร์</h4>',
+    '<div class="cfss-field"><label>ชื่อ</label>',
+    '<input id="cfss-edit-name" type="text" value="' + (master.name || '').replace(/"/g, '&quot;') + '"></div>',
+    '<div class="cfss-field"><label>สี</label>',
+    '<input id="cfss-edit-color" type="color" value="' + (master.color || '#888888') + '"></div>',
+    '<div class="cfss-row">',
+    '<div class="cfss-field"><label>กว้าง (m)</label>',
+    '<input id="cfss-edit-w" type="number" step="0.001" min="0.001"' + (!isRect ? ' disabled' : '') + ' value="' + wM + '"></div>',
+    '<div class="cfss-field"><label>สูง (m)</label>',
+    '<input id="cfss-edit-h" type="number" step="0.001" min="0.001"' + (!isRect ? ' disabled' : '') + ' value="' + hM + '"></div>',
+    '</div>',
+    dimHint,
+    '<div class="cfss-btns">',
+    '<button class="cfss-btn" id="cfss-edit-cancel">ยกเลิก</button>',
+    '<button class="cfss-btn pri" id="cfss-edit-save">บันทึก</button>',
+    '</div>'
+  ].join('');
+
+  overlay.appendChild(dlg);
+  document.body.appendChild(overlay);
+  _cfssEditDlgEl = overlay;
+
+  function closeEdit() { overlay.remove(); _cfssEditDlgEl = null; }
+
+  dlg.querySelector('#cfss-edit-cancel').addEventListener('click', closeEdit);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeEdit(); });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { closeEdit(); document.removeEventListener('keydown', esc); }
+  });
+
+  dlg.querySelector('#cfss-edit-save').addEventListener('click', function() {
+    var patch = {};
+    var nameVal = (dlg.querySelector('#cfss-edit-name').value || '').trim();
+    if (nameVal) patch.name = nameVal;
+    patch.color = dlg.querySelector('#cfss-edit-color').value;
+    if (isRect) {
+      var wv = parseFloat(dlg.querySelector('#cfss-edit-w').value);
+      var hv = parseFloat(dlg.querySelector('#cfss-edit-h').value);
+      if (wv > 0 && hv > 0) { patch.widthM = wv; patch.heightM = hv; }
+    }
+    cfssCommitEdit(masterId, patch);
+    closeEdit();
+    if (typeof window.draw === 'function') window.draw();
+  });
+}
+window.cfssOpenEditDialog = cfssOpenEditDialog;
 
 /* --- Promote: internal commit logic (testability hook) --- */
 function cfssCommitPromote(sourcePoly, name, targetPageNumbers) {
