@@ -68,7 +68,7 @@ function _lovsInjectCSS() {
   if (document.getElementById("__lovs_css__")) return;
   var s = document.createElement("style"); s.id = "__lovs_css__";
   s.textContent =
-    "#ov-panel{width:min(96vw,1280px);height:88vh;display:flex;flex-direction:column;background:var(--panel,#161a22);border:1px solid var(--line,#2a3140);border-radius:12px;overflow:hidden}" +
+    "#ov-panel{width:min(96vw,1280px);height:min(88vh,calc(100vh - 110px));display:flex;flex-direction:column;background:var(--panel,#161a22);border:1px solid var(--line,#2a3140);border-radius:12px;overflow:hidden}" +
     "#ov-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line,#2a3140);background:#1a1d24}" +
     "#ov-head h3{font-size:14px;font-weight:600;margin-right:8px}" +
     "#ov-head .ov-meta{color:var(--muted,#8b97a8);font-size:12px}" +
