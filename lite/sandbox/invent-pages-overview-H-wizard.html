@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike H — Pages Overview · Two-pass Wizard</title>
+<style>
+:root{
+  --bg:#0f1216; --pnl:#151a20; --pnl2:#1c232b; --br:#2a323c; --txt:#dbe1e8;
+  --mut:#7c8896; --acc:#4cc9f0; --ok:#2ec27e; --warn:#f6a609; --bad:#ef5350;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--br);background:var(--pnl)}
+header h1{margin:0;font-size:14px}
+header .meta{color:var(--mut);font-size:11px}
+header .pat{color:var(--acc);font-weight:600;margin-left:auto;font-size:11px}
+
+/* Wizard frame */
+.wiz{display:flex;flex-direction:column;height:calc(100vh - 41px)}
+.steps{display:flex;border-bottom:1px solid var(--br);background:var(--pnl)}
+.step{flex:1;padding:10px 14px;border-right:1px solid var(--br);display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--mut);font-size:12px}
+.step:last-child{border-right:0}
+.step.act{background:var(--pnl2);color:var(--txt)}
+.step.done{color:var(--ok)}
+.step .num{width:22px;height:22px;border-radius:50%;background:var(--pnl2);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.step.act .num{background:var(--acc);color:#001218;border-color:var(--acc)}
+.step.done .num{background:var(--ok);color:#011;border-color:var(--ok)}
+.body{flex:1;overflow:auto;padding:16px 22px}
+.nav{display:flex;gap:8px;padding:10px 18px;border-top:1px solid var(--br);background:var(--pnl);align-items:center}
+.nav .sp{flex:1}
+.nav button{background:var(--pnl2);color:var(--txt);border:1px solid var(--br);padding:7px 16px;border-radius:4px;cursor:pointer;font-size:12px}
+.nav button.pri{background:var(--acc);color:#001218;border-color:var(--acc);font-weight:600}
+.nav button:disabled{opacity:.4;cursor:not-allowed}
+.nav .prog{color:var(--mut);font-size:11px;tabular-nums}
+
+.tab{display:none} .tab.act{display:block}
+
+/* Step 1 — Classify */
+.legend{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--mut)}
+.legend span{padding:2px 7px;border-radius:9px;font-size:10px;color:#001218;font-weight:600}
+.legend kbd{background:var(--pnl2);padding:1px 5px;border-radius:3px;font-family:inherit;font-size:10px;color:var(--txt);border:1px solid var(--br)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.card{background:var(--pnl);border:2px solid var(--br);border-radius:6px;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:transform .08s,border-color .1s}
+.card:hover{transform:translateY(-1px)}
+.card.cur{border-color:var(--acc);box-shadow:0 0 0 2px rgba(76,201,240,.25)}
+.card .th{height:64px;background:#22282f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:20px;position:relative;border-bottom:1px solid var(--br)}
+.card .pn{position:absolute;top:3px;left:5px;background:rgba(0,0,0,.7);padding:1px 5px;border-radius:3px;font-size:9px}
+.card .bg{position:absolute;top:3px;right:5px;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;color:#001218}
+.card .lb{padding:5px 6px;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.t-cover{background:#5a6b7c;color:#fff} .t-site{background:#9ad14b} .t-floor{background:#4cc9f0}
+.t-roof{background:#7e8ed4} .t-section{background:#a385f0;color:#fff} .t-restroom{background:#c87cae;color:#fff}
+.t-stair{background:#d49a3b} .t-detail{background:#cf6f44;color:#fff} .t-schedule{background:#3e6985;color:#fff}
+.t-notes,.t-legend,.t-fixtures,.t-sanitary{background:#5a6b7c;color:#fff}
+.t-untagged{background:#333;color:var(--mut);border:1px dashed var(--mut)}
+
+/* Step 2 — Floor numbering */
+.floor-strip{display:flex;gap:8px;flex-wrap:wrap;padding:10px;background:var(--pnl);border-radius:6px;margin:12px 0;min-height:120px}
+.fchip{background:var(--pnl2);border:1px solid var(--br);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:grab;min-width:90px}
+.fchip:active{cursor:grabbing}
+.fchip.drg{opacity:.4}
+.fchip .num{font-size:16px;font-weight:700;color:var(--acc)}
+.fchip .pg{font-size:10px;color:var(--mut)}
+.fchip .lb{font-size:10px;color:var(--txt);max-width:80px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip.spec .num{color:var(--warn);font-size:12px}
+
+.seq-bar{display:flex;align-items:center;gap:10px;background:var(--pnl);padding:10px 14px;border-radius:6px;margin-bottom:10px}
+.seq-bar label{font-size:11px;color:var(--mut)}
+.seq-bar input{background:var(--pnl2);color:var(--txt);border:1px solid var(--br);padding:4px 8px;width:60px;text-align:center;border-radius:3px;font-size:12px}
+.seq-bar button{background:var(--acc);color:#001218;border:0;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600}
+
+/* Step 3 — Review */
+.report{background:#fff;color:#222;border-radius:6px;padding:24px 32px;max-width:780px;margin:0 auto;font-family:"Sarabun","Tahoma",sans-serif}
+.report h2{font-size:14px;border-bottom:2px solid #0c2b3a;padding-bottom:3px;color:#0c2b3a;margin:14px 0 6px}
+.report h2:first-of-type{margin-top:0}
+.report table{width:100%;border-collapse:collapse;font-size:11px;margin:5px 0}
+.report th,.report td{border:1px solid #ccc;padding:4px 7px;text-align:left}
+.report th{background:#eef2f5}
+.report td.num{text-align:right;font-variant-numeric:tabular-nums}
+.report .tot{font-weight:700;background:#f8f8f8}
+.report .pl{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 8px}
+.report .pl span{background:#eef2f5;padding:1px 6px;border-radius:8px;font-size:10px;color:#345}
+.report .pl span.exc{background:#f8e0e0;color:#722}
+.report .calc{background:#fffaef;border:1px solid #f0d59c;padding:8px 12px;margin:6px 0;font-size:11px;border-radius:4px}
+.report .calc .row{display:flex;justify-content:space-between;padding:1px 0}
+.report .calc .row.tot{border-top:1px solid #d4b870;padding-top:4px;margin-top:3px;font-weight:700}
+
+.hint{background:var(--pnl);border:1px solid var(--br);border-left:3px solid var(--acc);padding:8px 14px;border-radius:4px;margin-bottom:12px;font-size:11px;color:var(--mut)}
+.hint b{color:var(--txt)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧙 Spike H — Pages Overview · Two-pass Wizard</h1>
+  <span class="meta">RAMA4 APARTMENT PERMIT · 45 หน้า · invent-loop top-1 (score 27)</span>
+  <span class="pat">Pattern: Classify → Number → Review (3 steps, force-order)</span>
+</header>
+
+<div class="wiz">
+  <div class="steps">
+    <div class="step act" data-step="1"><span class="num">1</span><span>Classify · ติด tag ทุกหน้า</span></div>
+    <div class="step"     data-step="2"><span class="num">2</span><span>Number Floors · ลำดับชั้น</span></div>
+    <div class="step"     data-step="3"><span class="num">3</span><span>Review · ตรวจรายงาน</span></div>
+  </div>
+
+  <div class="body">
+
+    <!-- STEP 1 -->
+    <div class="tab act" data-tab="1">
+      <div class="hint">
+        <b>Step 1 · Classify</b> — คลิก card เพื่อ <b>วน tag</b> (cycle ผ่าน 9 ตัว: untagged→cover→site→floor→section→restroom→stair→detail→schedule→notes).
+        หรือกดปุ่ม <kbd>1</kbd>–<kbd>9</kbd> เพื่อ set tag ที่กำลัง focus.
+        <kbd>→</kbd>/<kbd>←</kbd> เลื่อน focus · <kbd>S</kbd> = skip pages ที่ tag แล้ว
+      </div>
+      <div class="legend">
+        <kbd>1</kbd><span class="t-cover">cover</span>
+        <kbd>2</kbd><span class="t-site">site</span>
+        <kbd>3</kbd><span class="t-floor">floor</span>
+        <kbd>4</kbd><span class="t-section">section</span>
+        <kbd>5</kbd><span class="t-restroom">restroom</span>
+        <kbd>6</kbd><span class="t-stair">stair</span>
+        <kbd>7</kbd><span class="t-detail">detail</span>
+        <kbd>8</kbd><span class="t-schedule">schedule</span>
+        <kbd>9</kbd><span class="t-notes">notes</span>
+      </div>
+      <div class="grid" id="grid1"></div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="tab" data-tab="2">
+      <div class="hint">
+        <b>Step 2 · Number Floors</b> — แสดงเฉพาะหน้าที่ <code style="color:#4cc9f0">tag=floor</code> (จาก Step 1).
+        <b>ลากเรียง</b> ตามลำดับชั้นจริง (ซ้าย=ชั้น 1, ขวา=ชั้นสูงสุด). กดปุ่ม <b>Sequential</b> เพื่อ auto-assign 1→N ตามลำดับซ้ายขวา.
+        ดาดฟ้า/basement ตั้งเป็น special chip
+      </div>
+      <div class="seq-bar">
+        <label>เริ่มที่ชั้น <input type="number" id="seq-start" value="1" min="1"></label>
+        <button onclick="seqApply()">⚡ Set sequential from order</button>
+        <span style="flex:1"></span>
+        <label>มีหน้า tag=floor: <span id="fcount" style="color:var(--acc);font-weight:600">—</span></label>
+      </div>
+      <div class="floor-strip" id="floor-strip"></div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="tab" data-tab="3">
+      <div class="hint">
+        <b>Step 3 · Review</b> — รายงานสรุปจาก Step 1+2. กลับไปแก้ใน step ก่อนได้ตลอด (กด step header).
+      </div>
+      <div class="report" id="report"></div>
+    </div>
+
+  </div>
+
+  <div class="nav">
+    <button id="prev" onclick="go(-1)">← ย้อน</button>
+    <span class="prog" id="prog">Step 1 of 3</span>
+    <span class="sp"></span>
+    <span class="prog" id="step1prog"></span>
+    <button id="next" class="pri" onclick="go(+1)">ถัดไป →</button>
+  </div>
+</div>
+
+<script>
+/* dataset (45 page) — เริ่มต้น untagged ทั้งหมด, ผู้ใช้ tag ใน Step 1 */
+const TAGS = ['untagged','cover','site','floor','section','restroom','stair','detail','schedule','notes'];
+const TAG_KEYS = {'1':'cover','2':'site','3':'floor','4':'section','5':'restroom','6':'stair','7':'detail','8':'schedule','9':'notes'};
+const PAGES = [];
+for(let p=1;p<=45;p++) PAGES.push({p, tag:'untagged', floor:null, label:'หน้า '+p});
+
+/* Auto-preset (เพื่อให้ผู้ใช้เห็น flow ทันที — กด R จะ reset) */
+const PRESET = {
+  1:'cover', 2:'site', 3:'notes', 4:'notes', 5:'site', 6:'detail', 7:'site', 8:'site',
+  9:'section', 10:'notes',
+  11:'floor', 12:'floor', 13:'floor', 14:'floor', 15:'floor', 16:'floor',
+  17:'detail', 18:'section', 19:'section', 20:'section', 21:'section',
+  22:'restroom', 23:'restroom', 24:'restroom', 25:'restroom', 26:'restroom',
+  27:'stair', 28:'stair', 29:'stair', 30:'detail', 31:'detail',
+  32:'schedule', 33:'schedule', 34:'schedule',
+  35:'section', 36:'section', 37:'section', 38:'notes',
+  39:'detail', 40:'detail', 41:'detail', 42:'detail', 43:'detail', 44:'detail', 45:'detail'
+};
+Object.keys(PRESET).forEach(k=>{ const p=PAGES.find(x=>x.p===+k); if(p)p.tag=PRESET[k]; });
+
+let step = 1, focus = 11;
+
+function renderStep1(){
+  const g = document.getElementById('grid1');
+  let h = '';
+  for(const p of PAGES){
+    const cls = `t-${p.tag}`;
+    const tag = p.tag==='untagged' ? '?' : p.tag.slice(0,3);
+    h += `<div class="card ${p.p===focus?'cur':''}" data-p="${p.p}" onclick="cycleTag(${p.p})">
+      <div class="th"><span class="pn">p${p.p}</span><span class="bg ${cls}">${tag}</span>📄</div>
+      <div class="lb">${p.label}</div>
+    </div>`;
+  }
+  g.innerHTML = h;
+  const tagged = PAGES.filter(p=>p.tag!=='untagged').length;
+  document.getElementById('step1prog').textContent = `${tagged}/45 tagged`;
+  // scroll focus into view
+  const el = g.querySelector(`[data-p="${focus}"]`); if(el)el.scrollIntoView({block:'nearest'});
+}
+
+function cycleTag(pn){
+  const p = PAGES.find(x=>x.p===pn); if(!p) return;
+  const i = TAGS.indexOf(p.tag);
+  p.tag = TAGS[(i+1)%TAGS.length];
+  if(p.tag!=='floor') p.floor=null;
+  focus = pn;
+  renderStep1();
+}
+
+function setTagViaKey(k){
+  const t = TAG_KEYS[k]; if(!t) return;
+  const p = PAGES.find(x=>x.p===focus); if(!p) return;
+  p.tag = t; if(t!=='floor') p.floor=null;
+  // auto-advance to next page
+  if(focus<45) focus++;
+  renderStep1();
+}
+
+function renderStep2(){
+  const strip = document.getElementById('floor-strip');
+  const floors = PAGES.filter(p=>p.tag==='floor');
+  document.getElementById('fcount').textContent = floors.length;
+  // keep order by current floor#, else page#
+  floors.sort((a,b)=>{
+    const fa = a.floor==='roof'?9999:(a.floor||a.p);
+    const fb = b.floor==='roof'?9999:(b.floor||b.p);
+    return fa - fb;
+  });
+  let h = '';
+  for(const p of floors){
+    const isSpec = p.floor==='roof' || p.floor==='basement';
+    h += `<div class="fchip ${isSpec?'spec':''}" draggable="true" data-p="${p.p}">
+      <div class="num">${p.floor==null?'–':(p.floor==='roof'?'⛅ROOF':p.floor)}</div>
+      <div class="pg">p${p.p}</div>
+      <div class="lb">${p.label}</div>
+    </div>`;
+  }
+  if(!h) h = `<div style="color:var(--mut);padding:14px;text-align:center;width:100%">⚠ ยังไม่มีหน้าที่ tag=floor — กลับไป Step 1 ก่อน</div>`;
+  strip.innerHTML = h;
+  wireDnd();
+}
+
+function wireDnd(){
+  const strip = document.getElementById('floor-strip');
+  let dragP = null;
+  strip.querySelectorAll('.fchip').forEach(c=>{
+    c.addEventListener('dragstart', e=>{ dragP = +c.dataset.p; c.classList.add('drg'); e.dataTransfer.effectAllowed='move'; });
+    c.addEventListener('dragend',   e=>{ c.classList.remove('drg'); });
+    c.addEventListener('dragover',  e=>{ e.preventDefault(); });
+    c.addEventListener('drop',      e=>{
+      e.preventDefault();
+      const dropP = +c.dataset.p;
+      if(dragP===dropP) return;
+      // reorder PAGES floor#: simple swap
+      const fa = PAGES.find(p=>p.p===dragP), fb = PAGES.find(p=>p.p===dropP);
+      [fa.floor, fb.floor] = [fb.floor, fa.floor];
+      renderStep2();
+    });
+  });
+}
+
+function seqApply(){
+  const start = +document.getElementById('seq-start').value || 1;
+  const floors = PAGES.filter(p=>p.tag==='floor');
+  floors.sort((a,b)=>a.p-b.p);
+  let n = start;
+  for(let i=0;i<floors.length;i++){
+    // last = roof (heuristic)
+    floors[i].floor = (i===floors.length-1 && floors.length>=4) ? 'roof' : n++;
+  }
+  // update labels
+  PAGES.forEach(p=>{
+    if(p.tag==='floor' && p.floor) p.label = p.floor==='roof' ? 'ดาดฟ้า' : ('ชั้น '+p.floor);
+  });
+  renderStep2();
+}
+
+function renderStep3(){
+  const meas = PAGES.filter(p=>p.tag==='site'||p.tag==='floor').length;
+  const exc  = 45 - meas;
+  const floors = PAGES.filter(p=>p.tag==='floor');
+  const sites  = PAGES.filter(p=>p.tag==='site');
+  // mock area
+  const PER_FLOOR_GROSS = 650, ROOF_GROSS = 298, DED_PER = 38;
+  const gfaRows = floors.sort((a,b)=>{
+    const fa=a.floor==='roof'?9999:(a.floor||0), fb=b.floor==='roof'?9999:(b.floor||0); return fa-fb;
+  }).map(p=>{
+    const gross = p.floor==='roof'?ROOF_GROSS:PER_FLOOR_GROSS;
+    return {p:p.p, label:p.label, gross, ded:DED_PER, net:gross-DED_PER};
+  });
+  const totG = gfaRows.reduce((s,r)=>s+r.gross,0);
+  const totD = gfaRows.reduce((s,r)=>s+r.ded,0);
+  const totN = totG - totD;
+  const LAND = 1919.20, COVER = 839.10;
+  const FAR = totN/LAND, COV = COVER/LAND*100, OSR = (LAND-COVER)/totN*100;
+  const fmt = n => n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  document.getElementById('report').innerHTML = `
+    <h2>1. สรุปจาก Wizard</h2>
+    <div style="font-size:11px;color:#555">
+      หน้าที่นับ <b>${meas}/45</b> · หน้าที่ excluded <b>${exc}/45</b> · ชั้นที่กำหนด <b>${floors.filter(p=>p.floor).length}</b> · site sheet <b>${sites.length}</b>
+    </div>
+
+    <h2>2. ผังบริเวณ — Site Coverage</h2>
+    <table>
+      <tr><th>รายการ</th><th class="num">พื้นที่ (m²)</th><th>ที่มา</th></tr>
+      <tr><td>ที่ดิน (รวม)</td><td class="num">${fmt(LAND)}</td><td>${sites.map(p=>'p'+p.p).join(', ')||'—'}</td></tr>
+      <tr><td>อาคารปกคลุม</td><td class="num">${fmt(COVER)}</td><td>p7</td></tr>
+      <tr class="tot"><td>Coverage</td><td class="num">${COV.toFixed(2)} %</td><td></td></tr>
+    </table>
+
+    <h2>3. GFA Breakdown ต่อชั้น</h2>
+    <table>
+      <tr><th>ชั้น</th><th>หน้า</th><th class="num">Gross</th><th class="num">หัก</th><th class="num">Net</th></tr>
+      ${gfaRows.map(r=>`<tr><td>${r.label}</td><td>p${r.p}</td><td class="num">${fmt(r.gross)}</td><td class="num">−${fmt(r.ded)}</td><td class="num"><b>${fmt(r.net)}</b></td></tr>`).join('')}
+      <tr class="tot"><td colspan="2">รวม</td><td class="num">${fmt(totG)}</td><td class="num">−${fmt(totD)}</td><td class="num">${fmt(totN)}</td></tr>
+    </table>
+
+    <h2>4. ตัวเลขควบคุม</h2>
+    <div class="calc">
+      <div class="row"><span>FAR = GFA / ที่ดิน</span><b>${FAR.toFixed(2)}</b></div>
+      <div class="row"><span>Coverage</span><b>${COV.toFixed(2)} %</b></div>
+      <div class="row tot"><span>OSR</span><b>${OSR.toFixed(2)} %</b></div>
+    </div>
+
+    <h2>5. Traceability</h2>
+    <div style="font-size:11px;color:#555">หน้าที่ใช้คำนวณ (${meas})</div>
+    <div class="pl">${PAGES.filter(p=>p.tag==='site'||p.tag==='floor').map(p=>`<span>p${p.p} ${p.tag==='floor'?(p.label):'site'}</span>`).join('')}</div>
+    <div style="font-size:11px;color:#555">หน้าที่ไม่ใช้ (${exc})</div>
+    <div class="pl">${PAGES.filter(p=>p.tag!=='site'&&p.tag!=='floor').map(p=>`<span class="exc">p${p.p} ${p.tag}</span>`).join('')}</div>
+  `;
+}
+
+function go(d){
+  const ns = Math.max(1, Math.min(3, step+d));
+  if(ns===step) return;
+  step = ns;
+  document.querySelectorAll('.step').forEach((el,i)=>{
+    el.classList.toggle('act', i+1===step);
+    el.classList.toggle('done', i+1<step);
+  });
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('act', +el.dataset.tab===step));
+  document.getElementById('prog').textContent = `Step ${step} of 3`;
+  document.getElementById('prev').disabled = step===1;
+  document.getElementById('next').disabled = step===3;
+  document.getElementById('next').textContent = step===2?'ถัดไป → Review':(step===3?'เสร็จ ✓':'ถัดไป →');
+  if(step===1) renderStep1();
+  if(step===2) renderStep2();
+  if(step===3) renderStep3();
+}
+
+document.querySelectorAll('.step').forEach(el=>{
+  el.addEventListener('click', ()=>{ step = +el.dataset.step - 1; go(+1); });
+});
+
+window.addEventListener('keydown', e=>{
+  if(step===1){
+    if(e.key in TAG_KEYS){ setTagViaKey(e.key); e.preventDefault(); }
+    else if(e.key==='ArrowRight'){ focus=Math.min(45,focus+1); renderStep1(); e.preventDefault(); }
+    else if(e.key==='ArrowLeft'){  focus=Math.max(1,focus-1);  renderStep1(); e.preventDefault(); }
+    else if(e.key==='r'||e.key==='R'){ PAGES.forEach(p=>{p.tag='untagged'; p.floor=null; p.label='หน้า '+p.p;}); renderStep1(); }
+  }
+});
+
+renderStep1();
+</script>
+</body>
+</html>
