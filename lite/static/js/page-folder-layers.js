@@ -40,6 +40,17 @@
   var s = document.createElement("script");
   s.id = "__cfss_script__";
   s.src = "static/js/cross-floor-shapes.js";
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
+/* CFSS-MOVE: dynamically load cfss-dialogs.js AFTER cross-floor-shapes.js */
+(function() {
+  if (document.getElementById("__cfss_dialogs_script__")) return;
+  var s = document.createElement("script");
+  s.id = "__cfss_dialogs_script__";
+  s.src = "static/js/cfss-dialogs.js";
+  s.async = false;
   document.head.appendChild(s);
 })();
 
@@ -283,14 +294,14 @@ function buildPagePicker() {
     _pflRenderPFFolder(pfRoots[pi].node, 0, el);
   }
 
-  // Render non-PF items using existing tree helpers
-  for (var oi = 0; oi < otherRoots.length; oi++) {
-    var other = otherRoots[oi];
-    if (other.kind === "folder") {
-      if (typeof _ltRenderFolder === "function") _ltRenderFolder(other.node, 0, el);
-    } else {
-      if (typeof _ltRenderLayer === "function") _ltRenderLayer(other.node, 0, el);
-    }
+  // Orphan items (non-PF roots) are hidden in folder-only mode.
+  // Show a single info banner so the user knows data exists but is suppressed.
+  if (otherRoots.length > 0) {
+    var hidden = document.createElement("div");
+    hidden.className = "cat lt-orphan-info";
+    hidden.style.cssText = "padding:6px 10px;color:var(--muted,#8b97a8);font-size:11px;font-style:italic;border-top:1px dashed var(--line,#2a3140);margin-top:4px";
+    hidden.textContent = "(ซ่อน " + otherRoots.length + " รายการที่อยู่นอก page-folder)";
+    el.appendChild(hidden);
   }
 }
 
