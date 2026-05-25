@@ -6,6 +6,49 @@
 
 ---
 
+## 2026-05-25 (LPFL-1) — Per-page-setup folder layer tree (lite) — DONE (3 slices) — branch: main
+
+**Trigger**: user idea 2026-05-25 — "ในแต่ละแผ่น = ชั้นที่ setup จะมีโฟลเดอร์แต่ละชั้นของ pagesetup ในแต่ละโฟลเดอร์จะมี layer พื้นฐาน และสามารถเพิ่มเลเยอร์ในแต่ละโฟลเดอร์ได้". Built spike `lite/sandbox/invent-page-folder-layers.html` (calibrated to live v2 skin) → user signed off (Copy-per-floor + 1-folder-per-site-group + ลุยเลย) → 3-slice `/bma-lite-dev` series.
+
+**Slices** (single atomic commit):
+- **LPFL-1a** — model + accessor in NEW `lite/static/js/page-folder-layers.js` (193 lines). 7 accessors (`pageFolderIdFor`, `seedPageFolders`, `pageFolderOfLayer`, `layersOfPage`, `isPageFolder`, `resetPageFolders`, `PAGE_FOLDER_PREFIX`). FOLDERS extended with additive `pages?:number[]` + `kind?:'page-folder'|'user'`. Invisible refactor. `LITE_PAGE_FOLDER_MODEL_OK` 12/12.
+- **LPFL-1b** — additive `.bmaplan` persist. 2 surgical edits in `ui-lite.html` (line 935 save, line 1027 load) appending `kind:f.kind,pages:f.pages` — zero net line change. `/bma-check-forbidden` = 🟢 OK (additive). JSON.stringify drops undefined → legacy files byte-identical; proto doesn't read `liteGroups` (already lite-isolated). `LITE_PAGE_FOLDER_PERSIST_OK` 6/6.
+- **LPFL-1c** — UI panel via DOM injection + monkey-patch from `page-folder-layers.js` (extended to 547/1000 lines). `ui-lite.html` UNTOUCHED — cap 1200/1200 exact, all UI wiring at runtime. `#pfl-toggle` button injected into existing `#picker .h`. `buildPagePicker` emits identical `.cat[data-catid][data-nodekind]` DOM → `layer-dnd.js` works unchanged. Auto-seed on tag change via wrapped `liteSetTag`. Default OFF (legacy users unaffected). `LITE_PAGE_FOLDER_UI_OK` 7/7.
+
+**Tests run** (all GREEN, Opus verified by running each):
+- `LITE_PAGE_FOLDER_MODEL_OK` 12/12 (new)
+- `LITE_PAGE_FOLDER_PERSIST_OK` 6/6 (new)
+- `LITE_PAGE_FOLDER_UI_OK` 7/7 (new)
+- `LITE_TREE_UI_OK` 9/9 (regression — legacy buildPicker untouched when mode OFF)
+- `LITE_LAYER_DND_OK` 4/4 (regression — DnD via same DOM contract)
+- `LITE_TREE_PERSIST_OK` 5/5 (regression — existing folder persist unaffected)
+- `LITE_LAYER_PERSIST_OK` 5/5 (regression — layer persist unaffected)
+- `MEASURE_PARITY_OK` (regression — no math touched)
+
+**Forbidden surfaces**: NONE touched (measure-engine.js, RS, pdfToC, cToPdf, area math, semanticTag-role-derived, snap, layer-system/tree/panel/dnd internals — all UNTOUCHED). `.bmaplan` schema additive only.
+
+**Size discipline**: `ui-lite.html` started 1199/1200 → 1200/1200 after LPFL-1a's 1 script tag. LPFL-1b net zero. LPFL-1c net zero (DOM injection from module). Cap held cleanly across all 3 slices — proved cap discipline forced better separation.
+
+**Files**:
+- NEW: `lite/static/js/page-folder-layers.js` (547 lines)
+- NEW: `lite/tests/test_page_folder_model.py` (326)
+- NEW: `lite/tests/test_page_folder_persist.py` (332)
+- NEW: `lite/tests/test_page_folder_ui.py` (386)
+- MODIFIED (surgical): `lite/ui-lite.html` (1199 → 1200 lines; 1 script tag + 2 in-line field additions)
+- NEW: `lite/sandbox/invent-page-folder-layers.html` (calibrated spike, kept for future reference)
+- NEW: `docs/invent/lite-page-folder-layers.md` (design note)
+- UPDATED: `docs/design/LITE_LAYER_ROADMAP.md` (LPFL section added with worker lessons + decision log)
+- UPDATED: `docs/status/PHASE_INDEX.md` (LPFL-1a/b/c marked ✅ done; ideas backlog updated)
+- UPDATED: `~/.claude/ideas/IDEAS.md` (status: invent-done-shipped)
+
+**Follow-on captured** (NOT shipped this round): **cross-floor shared shape** (lift / pipe / stair shaft) — recommended "metric master + per-floor instances" pattern that handles per-page scale mismatch cleanly. Captured to `IDEAS.md` + `PHASE_INDEX.md` Discovered backlog as `invent-queued`. Will run `/bma-invent` after this commit.
+
+**User flow**: default OFF → user clicks `📂` in #picker header → mode ON, page-folders appear, base layers per kind auto-seeded, "+ เพิ่ม layer ในชั้น X" inside each folder. Click `📂✓` → back to legacy tree. State NOT persisted (intentional — runtime UI preference).
+
+**Lesson reinforced**: Opus reviewed actual diff + test file content + ran every marker locally before accepting `LITE_BUILD_DONE` — followed the LST-1/L2c bug lessons. No surprises this round.
+
+---
+
 ## 2026-05-25 (later) — INV-2026-05-25-001 — centerline-snap field-reality iterate (lite only) — IN PROGRESS (branch: main)
 
 **What changed:** ทันทีหลัง `/bma-sprint-finalize` รัน, ผู้ใช้ทดสอบ lite บน `SCR_ผังต่อโฉนด.pdf` (ตัวเดิม) แล้วรายงาน "บางจุดถูก บางจุดผิด" → algorithm ทำงานแต่ไม่ robust กับเส้นปะจริงทุกเคส. Commit `3d4a53e` เพิ่ม 2 อย่างใน lite glue Section B (Section A algorithm ยังคง drift-locked กับ proto): (1) ROI retry ladder 140→200→280 — ถ้า ROI 140 bail (fgCount ตกขอบหรือ no-skeleton) ลอง 200 แล้ว 280; cost ladder 4ms/8ms/16ms ยังในกรอบ mousemove. ช่วยเคสที่ cursor ตกใน gap ของเส้นปะหรือ ROI captures dark pixels ไม่พอ. (2) Visual feedback flash dots — เขียวที่จุด snap สำเร็จ, แดงที่ cursor ตอน miss, fade 600ms. ผู้ใช้เห็นทันทีว่าคลิกไหน snap ได้/ไม่ได้ → workaround ได้เอง + ให้ diagnostic info สำหรับรอบหน้า. Pure DOM (position:fixed dot, ไม่แตะ canvas, ไม่เปลี่ยน algorithm).

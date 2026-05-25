@@ -220,6 +220,7 @@
 <script src="static/js/measure-engine.js"></script>
 <script src="static/js/draw-arc.js"></script>
 <script src="static/js/layer-system.js"></script>
+<script src="static/js/page-folder-layers.js"></script>
 <script src="static/js/layer-panel.js"></script>
 <script src="static/js/layer-tree.js"></script>
 <script src="static/js/layer-dnd.js"></script>
@@ -934,7 +935,7 @@ document.getElementById("mi-save").onclick=function(){
     pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
     excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,
     liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null)};}),
-    liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order};}),
+    liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order,kind:f.kind,pages:f.pages};}),
     reportVars:serializeReportVars()};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -1026,7 +1027,7 @@ function loadProto(doc){ PS={}; excluded={};
   /* LST-2: rebuild FOLDERS in-place from doc.liteGroups (additive — absent = old file) */
   FOLDERS.length=0;
   (doc.liteGroups||[]).forEach(function(g){ if(g&&g.id) FOLDERS.push({id:g.id,name:g.name,color:g.color,
-    parentId:(g.parentId!==undefined?g.parentId:null),order:(g.order!==undefined?g.order:FOLDERS.length)}); });
+    parentId:(g.parentId!==undefined?g.parentId:null),order:(g.order!==undefined?g.order:FOLDERS.length),kind:g.kind,pages:g.pages}); });
   /* L2c-2: rebuild LAYERS in-place from doc.liteLayers (additive — absent = old file) */
   if(doc.liteLayers&&doc.liteLayers.length){
     LAYERS.length=0;

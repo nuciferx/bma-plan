@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPIKE (calibrated) — per-page-setup folder layer tree</title>
+<!--
+  SPIKE 2026-05-25 (CALIBRATED to live lite UI on the same date)
+  Visual parity with live `lite/ui-lite.html` + v2 layer panel skin (body.lt-v2):
+    - identical topbar (BMA-Plan logo + LITE tag + File/Edit/Measure/Page/Annotate menus)
+    - identical HUD-tl (Scale/Tool), HUD-tr (Σ), HUD top hint, status bar
+    - identical #picker chrome (top:54px left:10px width:320px, v2 row chip pattern .cat)
+    - identical CSS variables (--bg/--panel/--line/--ink/--muted/--accent/--row/--row-*)
+  ONLY DIFFERENCE: #picker renders a per-page-setup folder tree (PF_site / PF_floor_<N> /
+  PF_excluded) instead of the global flat/grouped layer pool.
+
+  Logic carries through from the previous (uncalibrated) spike:
+    - DnD (Approach A) via grip ⠿, two-zone hit-test
+    - auto-group toggle (Approach D, parked - not seeded here for clarity)
+    - + add-layer button per page-folder
+    - click folder → highlight pages in the "page bar" mock above the canvas
+
+  Sandbox-only. No imports from lite/static/js/*. No app code touched.
+-->
+<style>
+/* ============================================================
+   Live v1 :root  — copied byte-for-byte from lite/ui-lite.html
+   Plus the 5 NEW tokens v2 adds (overridden under body.lt-v2)
+   ============================================================ */
+:root{
+  --bar-h:42px;
+  --bg:#0f1115; --panel:#161a22; --line:#2a3140;
+  --ink:#e7ecf3; --muted:#8b97a8;
+  --accent:#4c8dff; --good:#39d98a; --warn:#ffb454;
+}
+body.lt-v2{
+  --bg:#1e1f23; --panel:#26282d; --line:#3a3d44; --accent:#4aa3ff;
+  --ink:#e6e8ec; --muted:#8b909a;
+  --row:#2d3036; --row-hover:#343841; --row-active:#3a4150;
+  --nest:#3b5b3b; --group:#2f6b3f;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",system-ui,sans-serif}
+html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ───────── TOPBAR (mock of live) ───────── */
+#topbar{height:var(--bar-h);min-height:var(--bar-h);max-height:var(--bar-h);
+  display:flex;align-items:center;gap:4px;padding:0 8px;background:var(--panel);
+  border-bottom:1px solid var(--line);white-space:nowrap;overflow:visible;position:relative;z-index:60}
+#topbar .logo{font-weight:700;color:var(--accent);margin-right:4px;font-size:14px}
+#topbar .tag{font-size:10px;color:var(--muted);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;margin-right:8px}
+.menu>button,.rbtn{background:transparent;border:0;color:var(--ink);font-size:13px;
+  padding:6px 9px;border-radius:6px;cursor:pointer;height:30px}
+.menu>button:hover,.rbtn:hover{background:#222a37}
+body.lt-v2 .menu>button:hover,body.lt-v2 .rbtn:hover{background:#343841}
+.spacer{flex:1}
+.rbtn{border:1px solid var(--line);margin-left:4px;font-size:12px}
+.spike-pill{font-size:10px;color:#9cf;background:#143a5a;border:1px solid #1a4a6a;
+  padding:1px 8px;border-radius:10px;margin-left:6px}
+
+/* ───────── STAGE / canvas placeholder ───────── */
+#stage{position:relative;flex:1;overflow:hidden;background:#0a0c10}
+body.lt-v2 #stage{background:#16181c}
+#mock-canvas{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:14px;color:var(--muted);text-align:center;padding:30px}
+#mock-canvas .big{font-size:22px;color:var(--ink);font-weight:600}
+#mock-canvas .pg-label{font-size:36px;color:var(--accent);font-weight:700;margin-top:8px}
+#mock-canvas .pages-mock{display:flex;gap:6px;margin-top:18px;flex-wrap:wrap;justify-content:center;
+  max-width:600px}
+#mock-canvas .pages-mock .p{padding:4px 10px;border:1px solid var(--line);border-radius:4px;
+  font-size:11px;color:var(--muted);background:rgba(255,255,255,.02)}
+#mock-canvas .pages-mock .p.hl{background:var(--accent);color:#fff;border-color:var(--accent);
+  font-weight:700}
+
+/* ───────── HUDs (mock of live) ───────── */
+.hud{position:absolute;background:rgba(20,24,32,.82);border:1px solid var(--line);
+  border-radius:8px;padding:6px 10px;font-size:12px;color:var(--ink);
+  backdrop-filter:blur(3px);pointer-events:none;line-height:1.5}
+#hud-tl{top:10px;left:340px}      /* shifted right of the wider v2 picker */
+#hud-tr{top:10px;right:10px;text-align:right}
+#hud-bl{bottom:10px;left:10px;font-family:ui-monospace,monospace;font-size:11px;pointer-events:auto;
+  background:rgba(0,0,0,.6);color:#9fd;max-height:140px;overflow:auto;white-space:pre-wrap;
+  min-width:380px;max-width:60vw}
+.hud b{color:var(--accent)} .hud .ok{color:var(--good)} .hud .dot{color:var(--warn)}
+.hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted);
+  background:rgba(20,24,32,.8);padding:3px 10px;border-radius:6px;z-index:15}
+
+/* ───────── #picker (PARITY with live + v2 skin) ───────── */
+#picker{position:absolute;top:54px;left:10px;background:rgba(20,24,32,.92);border:1px solid var(--line);
+  border-radius:10px;padding:0;z-index:20;width:320px;display:flex;flex-direction:column;
+  max-height:calc(100vh - 64px - 50px)}
+body.lt-v2 #picker{background:var(--panel);border-radius:8px}
+#picker .h{padding:10px 12px 8px;margin:0;font-size:13px;color:var(--ink);
+  border-bottom:1px solid var(--line);font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.lp-add-btn{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:13px;
+  width:22px;height:22px;border-radius:4px;cursor:pointer;padding:0;line-height:1}
+.lp-add-btn:hover{background:#2a3140;color:var(--ink)}
+body.lt-v2 .lp-add-btn:hover{background:#343841}
+#picker .toolbar{display:flex;gap:8px;padding:5px 10px;border-bottom:1px solid var(--line);
+  font-size:11px;align-items:center;color:var(--muted);flex-wrap:wrap}
+#picker .toolbar label{display:flex;gap:4px;align-items:center;cursor:pointer}
+#catlist{padding:4px 6px 8px;overflow:auto;flex:1}
+
+/* row chip rhythm — v2 calibrated */
+.cat{display:flex;align-items:center;gap:5px;padding:0 6px;border-radius:5px;cursor:default;
+  font-size:13px;height:30px;margin:2px 0;position:relative;background:var(--row,#1c232b)}
+.cat:hover{background:var(--row-hover,#252d37)}
+.cat.active{background:var(--row-active,#2a3b48);outline:1px solid #4d5a72}
+.cat.dragging{opacity:.35}
+.cat .lt-grip{width:14px;color:var(--muted);font-size:14px;cursor:grab;text-align:center;
+  touch-action:none;flex:0 0 auto}
+.cat .lt-grip:active{cursor:grabbing}
+.cat .lt-collapse-toggle{font-size:11px;color:var(--muted);width:14px;text-align:center;cursor:pointer;flex:0 0 auto}
+.cat .ico{font-size:13px;width:18px;text-align:center;flex:0 0 auto}
+.cat .sw{width:14px;height:14px;border-radius:3px;border:1px solid #0006;flex:0 0 auto}
+.cat .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat .nm small{color:var(--muted);font-size:10px;margin-left:4px}
+.cat .lt-area{color:var(--muted);font-size:11px;tabular-nums;font-variant-numeric:tabular-nums;margin-left:auto;padding:0 4px}
+.cat .eye,.cat .lock{width:20px;font-size:13px;color:var(--muted);opacity:.85;cursor:pointer;text-align:center;flex:0 0 auto}
+.cat .eye:hover,.cat .lock:hover{opacity:1}
+.cat .eye.off{opacity:.35}
+.lp-del-btn{background:transparent;border:1px solid transparent;color:#ff6b6b;font-size:10px;
+  width:16px;height:16px;border-radius:3px;cursor:pointer;padding:0;line-height:1;flex:0 0 auto}
+.lp-del-btn:hover{background:#2a3140}
+
+.cat.lt-folder-row{background:var(--panel)}
+body.lt-v2 .cat.lt-folder-row{background:#1f2128}
+.cat.lt-folder-row .nm{font-weight:600;color:#cfe2ff}
+body.lt-v2 .cat.lt-folder-row .nm{color:#dfe6f2}
+.cat.lt-folder-row .nm small{font-weight:400;color:var(--muted)}
+.cat.lt-folder-row.active{outline:1px solid var(--accent)}
+
+.cat.lt-add{background:transparent;border:1px dashed var(--line);color:var(--muted);
+  cursor:pointer;height:24px;justify-content:center;font-size:11px}
+.cat.lt-add:hover{color:var(--accent);border-color:var(--accent)}
+.cat.lt-add .nm{flex:0;text-align:center;color:inherit}
+
+.cat.drop-into{box-shadow:inset 0 0 0 2px var(--nest,#3b5b3b);background:#1c3a2c}
+.cat.drop-group{box-shadow:inset 0 0 0 2px var(--group,#2f6b3f);background:#1c4634}
+#dropline{position:absolute;left:8px;right:8px;height:2px;background:var(--accent);border-radius:2px;
+  display:none;pointer-events:none;box-shadow:0 0 6px var(--accent)}
+#dropline::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;
+  border-radius:50%;background:var(--accent)}
+
+#ghost{position:fixed;z-index:9999;pointer-events:none;display:none;background:var(--row-active,#2a3b48);
+  border:1px solid var(--accent);border-radius:4px;padding:3px 9px;font-size:11px;
+  box-shadow:0 4px 14px #000a;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+
+/* ───────── status bar (mock) ───────── */
+#statusbar{height:32px;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--panel);
+  border-top:1px solid var(--line);font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden}
+#statusbar .it{display:flex;gap:4px;align-items:center}
+#statusbar .it .k{color:var(--muted)}
+#statusbar .it .v{color:var(--ink)} #statusbar .it .v.acc{color:var(--accent)} #statusbar .it .v.ok{color:var(--good)}
+#statusbar .sp{flex:1}
+
+/* ───────── add-layer dialog (live-styled) ───────── */
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;
+  padding:18px 20px;min-width:340px}
+dialog::backdrop{background:rgba(6,8,12,.7)}
+dialog h4{margin:0 0 12px;font-size:14px}
+dialog label{display:block;margin:8px 0 3px;font-size:12px;color:var(--muted)}
+dialog input,dialog select{width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);
+  color:var(--ink);border-radius:7px;font-size:13px}
+body.lt-v2 dialog input,body.lt-v2 dialog select{background:#1a1c20}
+dialog input[type=color]{height:36px;padding:0}
+dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+dialog button{padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:#222a37;
+  color:var(--ink);cursor:pointer;font-size:13px}
+body.lt-v2 dialog button{background:#343841}
+dialog button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
+</head>
+<body class="lt-v2">
+<div id="app">
+
+  <!-- ===== TOPBAR (mock of live) ===== -->
+  <div id="topbar">
+    <span class="logo">◯ BMA-Plan</span><span class="tag">LITE</span>
+    <span class="spike-pill">SPIKE · page-folder model</span>
+    <div class="menu"><button>File ▾</button></div>
+    <div class="menu"><button>Edit ▾</button></div>
+    <div class="menu"><button>Measure ▾</button></div>
+    <div class="menu"><button>Page ▾</button></div>
+    <div class="menu"><button>Annotate ▾</button></div>
+    <div class="spacer"></div>
+    <button class="rbtn">Σ สรุป</button>
+    <button class="rbtn">🔍 ค้นหาหน้า ⌘K</button>
+    <button class="rbtn">🐦 Overview F12</button>
+    <button class="rbtn">◯ Focus F</button>
+  </div>
+
+  <!-- ===== STAGE ===== -->
+  <div id="stage">
+    <div id="mock-canvas">
+      <div class="big">Mock canvas area</div>
+      <div style="font-size:13px;color:var(--muted)">spike เลียนแบบ live — เลือก folder ในแผง layer ทางซ้าย เพื่อดูว่า folder นี้ครอบคลุมหน้าไหน</div>
+      <div class="pg-label" id="mock-pglabel">— ยังไม่ได้เลือก —</div>
+      <div class="pages-mock" id="mock-pages"></div>
+    </div>
+
+    <div class="hud" id="hud-tl">Scale <b>ยังไม่ตั้ง</b> · Tool <b>Polygon</b></div>
+    <div class="hud" id="hud-tr">Σ สรุปการวัด</div>
+    <div class="hint">ลาก=pan · ลูกล้อ=zoom · เลือก folder ในแผง layer เพื่อดูหน้าที่ครอบคลุม</div>
+    <div class="hud" id="hud-bl"></div>
+
+    <!-- ===== PICKER (page-folder mode) — replaces live #picker innerHTML ===== -->
+    <div id="picker">
+      <div class="h">
+        <span>กำลังวัดอะไร (Page-folder)</span>
+        <span style="display:flex;gap:4px">
+          <button class="lp-add-btn" id="btnExpand" title="ขยายทั้งหมด">▾▾</button>
+          <button class="lp-add-btn" id="btnCollapse" title="ย่อทั้งหมด">▸▸</button>
+          <button class="lp-add-btn" id="btnReset" title="reset">↻</button>
+        </span>
+      </div>
+      <div class="toolbar">
+        <label><input type="checkbox" id="optKbd"> keyboard</label>
+        <label><input type="checkbox" id="optShowEmpty" checked> show empty</label>
+      </div>
+      <div id="catlist"></div>
+    </div>
+  </div>
+
+  <!-- ===== STATUS BAR (mock of live) ===== -->
+  <div id="statusbar">
+    <div class="it"><span class="k">วัด:</span><span class="v acc" id="sb-active">—</span></div>
+    <div class="it"><span class="k">obj</span><span class="v">0</span></div>
+    <div class="it"><span class="k">Save</span><span class="v ok">◯ บันทึกแล้ว</span></div>
+    <div class="it"><span class="k">zoom</span><span class="v">100%</span></div>
+    <div class="it"><span class="k">rot</span><span class="v">0°</span></div>
+    <div class="sp"></div>
+    <div class="it"><span class="k">SPIKE</span><span class="v">page-folder model · LPFL-1 series</span></div>
+  </div>
+
+</div>
+
+<div id="ghost"></div>
+
+<dialog id="dlg">
+  <h4 id="dlgTitle">เพิ่ม layer ใหม่</h4>
+  <label>ชื่อ layer</label>
+  <input id="dlgName" placeholder="เช่น พื้นที่ระเบียง">
+  <label>บทบาท (role)</label>
+  <select id="dlgRole">
+    <option value="gfa">gfa — พื้นที่อาคาร</option>
+    <option value="ded">ded — หัก (deduction)</option>
+    <option value="use">use — ประเภทใช้งาน</option>
+    <option value="site">site — ผังบริเวณ</option>
+    <option value="open">open — ที่ว่าง</option>
+    <option value="count">count — นับจำนวน</option>
+  </select>
+  <label>สี</label>
+  <input id="dlgColor" type="color" value="#4c8dff">
+  <div class="row">
+    <button id="dlgCancel">ยกเลิก</button>
+    <button id="dlgOk" class="pri">เพิ่ม</button>
+  </div>
+</dialog>
+
+<script>
+/* ============================================================
+   1. DATASET — 45-page permit, summarized (tag + floor)
+   ============================================================ */
+const PAGES = [
+  {p:1,tag:'cover'},{p:2,tag:'site',excluded:true},{p:3,tag:'legend'},{p:4,tag:'fixtures'},
+  {p:5,tag:'site'},{p:6,tag:'sanitary'},{p:7,tag:'site',primary:true},{p:8,tag:'site'},
+  {p:9,tag:'section'},{p:10,tag:'notes'},
+  {p:11,tag:'floor',floor:1},{p:12,tag:'floor',floor:2},{p:13,tag:'floor',floor:3},
+  {p:14,tag:'floor',floor:4},{p:15,tag:'floor',floor:5},{p:16,tag:'floor',floor:'roof'},
+  {p:17,tag:'roof'},{p:18,tag:'section'},{p:19,tag:'section'},{p:20,tag:'section'},{p:21,tag:'section'},
+  {p:22,tag:'restroom'},{p:23,tag:'restroom'},{p:24,tag:'restroom'},{p:25,tag:'restroom'},{p:26,tag:'restroom'},
+  {p:27,tag:'stair'},{p:28,tag:'stair'},{p:29,tag:'stair'},{p:30,tag:'detail'},{p:31,tag:'detail'},
+  {p:32,tag:'schedule'},{p:33,tag:'schedule'},{p:34,tag:'schedule'},
+  {p:35,tag:'section'},{p:36,tag:'section'},{p:37,tag:'section'},{p:38,tag:'notes'},
+  {p:39,tag:'detail'},{p:40,tag:'detail'},{p:41,tag:'detail'},{p:42,tag:'detail'},
+  {p:43,tag:'detail'},{p:44,tag:'detail'},{p:45,tag:'detail'},
+];
+
+/* ============================================================
+   2. MODEL — mirrors the LPFL-1a contract in page-folder-layers.js
+   (folder.kind = 'page-folder', folder.pages = [n…], folder.id = 'PF_…')
+   ============================================================ */
+let NODES = []; let gid = 1;
+const hidden = {}, locked = {}, collapsed = {};
+let activeId = null, kbdFocus = null;
+
+function mkF(id, name, pages, order){
+  const f = {id, kind:'folder', folderKind:'page-folder', name, color:'#4c8dff', pages, order, parentId:null};
+  NODES.push(f); return f;
+}
+function mkL(parentId, name, color, role, opts={}){
+  const order = childrenOf(parentId).length;
+  const l = {id:'L'+(gid++), kind:'layer', name, color, role, order, parentId, ...opts};
+  NODES.push(l); return l;
+}
+function childrenOf(pid){ return NODES.filter(n=>(n.parentId||null)===(pid||null)).sort((a,b)=>a.order-b.order); }
+function byId(id){ return NODES.find(n=>n.id===id) || null; }
+function descendants(id){ const out=[],st=childrenOf(id); while(st.length){const n=st.pop();out.push(n.id);st.push(...childrenOf(n.id));} return out; }
+function reindex(pid){ childrenOf(pid).forEach((n,i)=>n.order=i); }
+
+function seedPageFolders(){
+  NODES = []; gid = 1;
+  let order = 0;
+  // PF_site (rolls all site pages into one folder per default)
+  const sitePages = PAGES.filter(p=>p.tag==='site' && !p.excluded).map(p=>p.p);
+  const sf = mkF('PF_site', '📐 ผังบริเวณ', sitePages, order++);
+  mkL(sf.id, 'ที่ดิน', '#c084fc', 'site');
+  mkL(sf.id, 'พื้นที่อาคารปกคลุม', '#4c8dff', 'gfa');
+  mkL(sf.id, 'แนวร่น (Setback)', '#ffb454', 'use');
+  // PF_floor_<N>
+  const floorPages = PAGES.filter(p=>p.tag==='floor');
+  for(const fp of floorPages){
+    const n = fp.floor;
+    const isRoof = n==='roof';
+    const label = isRoof ? '🏗️ ดาดฟ้า' : `🏢 ชั้น ${n}`;
+    const f = mkF('PF_floor_'+n, label, [fp.p], order++);
+    mkL(f.id, `GFA ชั้น ${n}`, '#4c8dff', 'gfa');
+    mkL(f.id, 'หักช่องลิฟต์', '#ff6b6b', 'ded');
+    mkL(f.id, 'หักช่องบันได', '#ff6b6b', 'ded');
+  }
+  // PF_excluded
+  const excPages = PAGES.filter(p=>p.excluded || !['site','floor'].includes(p.tag)).map(p=>p.p);
+  const exF = mkF('PF_excluded', '🚫 ไม่นับเข้าคำนวณ', excPages, order++);
+  collapsed[exF.id] = true;
+}
+
+/* ============================================================
+   3. RENDER — mirrors live's _ltRenderFolder/_ltRenderLayer
+   ============================================================ */
+function fmt(n,d=2){ return typeof n==='number' ? n.toLocaleString('th-TH',{minimumFractionDigits:d,maximumFractionDigits:d}) : ''; }
+function log(m){ const el=document.getElementById('hud-bl'); el.textContent = '• '+m+'\n'+el.textContent; }
+
+function render(){
+  const list = document.getElementById('catlist');
+  list.innerHTML = '';
+  const dl = document.createElement('div'); dl.id='dropline'; list.appendChild(dl);
+  walk(null, 0, list);
+  document.getElementById('sb-active').textContent = activeId ? (byId(activeId)?.name || '—') : '—';
+  renderMockCanvas();
+}
+function walk(pid, depth, list){
+  for(const n of childrenOf(pid)){
+    if(n.kind==='folder' && !optShowEmpty.checked && childrenOf(n.id).length===0 && n.id!=='PF_excluded') continue;
+    list.appendChild(rowEl(n, depth));
+    if(n.kind==='folder' && !collapsed[n.id]){
+      walk(n.id, depth+1, list);
+      // + add layer row
+      const add = document.createElement('div');
+      add.className = 'cat lt-add';
+      add.style.marginLeft = ((depth+1)*16)+'px';
+      add.innerHTML = '<span class="nm">+ เพิ่ม layer</span>';
+      add.addEventListener('click', ()=>openAddDlg(n.id));
+      list.appendChild(add);
+    }
+  }
+}
+function rowEl(n, depth){
+  const d = document.createElement('div');
+  d.className = 'cat ' + (n.kind==='folder' ? 'lt-folder-row' : '') + (activeId===n.id ? ' active' : '');
+  d.dataset.id = n.id; d.dataset.kind = n.kind; d.dataset.depth = depth;
+  d.style.marginLeft = (depth*16)+'px';
+
+  // grip
+  const grip = el('span','lt-grip','⠿');
+  grip.title='ลากเพื่อย้าย/จัดกลุ่ม';
+  grip.addEventListener('pointerdown', e=>startDrag(e,n));
+
+  // collapse toggle (folder only)
+  let tog = null;
+  if(n.kind==='folder'){
+    tog = el('span','lt-collapse-toggle', collapsed[n.id]?'▸':'▾');
+    tog.addEventListener('click', e=>{e.stopPropagation(); collapsed[n.id]=!collapsed[n.id]; render();});
+  }
+
+  // icon (folder) or swatch (layer)
+  let icoOrSw;
+  if(n.kind==='folder'){
+    icoOrSw = el('span','ico', collapsed[n.id]?'📁':'📂');
+  } else {
+    icoOrSw = el('span','sw');
+    icoOrSw.style.background = n.color;
+  }
+
+  // name
+  const nm = el('span','nm');
+  if(n.kind==='folder' && n.folderKind==='page-folder'){
+    const pageInfo = n.pages.length>4 ? `${n.pages.length} หน้า` : `p${n.pages.join(',')}`;
+    nm.innerHTML = `${n.name} <small>${pageInfo}</small>`;
+  } else {
+    nm.textContent = n.name;
+  }
+
+  // eye
+  const eye = el('span','eye'+(hidden[n.id]?' off':''), hidden[n.id]?'🚫':'👁');
+  eye.title='ซ่อน/แสดง';
+  eye.addEventListener('click', e=>{e.stopPropagation(); hidden[n.id]=!hidden[n.id]; render();});
+
+  // lock
+  const lk = el('span','lock', locked[n.id]?'🔒':'🔓');
+  lk.title='ล็อก/ปลดล็อก';
+  lk.addEventListener('click', e=>{e.stopPropagation(); locked[n.id]=!locked[n.id]; render();});
+
+  // ✕ delete (custom layers only — skip default folders + base layers for simplicity in spike)
+  const del = el('button','lp-del-btn','✕');
+  del.title='ลบ';
+  del.addEventListener('click', e=>{e.stopPropagation(); delNode(n);});
+
+  d.appendChild(grip);
+  if(tog) d.appendChild(tog);
+  d.appendChild(icoOrSw);
+  d.appendChild(nm);
+  d.appendChild(eye); d.appendChild(lk); d.appendChild(del);
+
+  d.addEventListener('click', ()=>{ activeId=n.id; kbdFocus=n.id; render(); });
+  return d;
+}
+function el(tag, cls, text){ const e=document.createElement(tag); if(cls)e.className=cls; if(text!=null)e.textContent=text; return e; }
+
+function delNode(n){
+  if(n.id==='PF_site' || n.id==='PF_excluded') return log('⚠ folder พื้นฐานลบไม่ได้ใน spike');
+  const pid = n.parentId||null;
+  NODES.filter(x=>(x.parentId||null)===n.id).forEach(x=>x.parentId=pid);
+  NODES = NODES.filter(x=>x.id!==n.id);
+  reindex(pid);
+  log('delete '+n.kind+' '+n.name);
+  render();
+}
+
+/* ============================================================
+   4. DnD (Approach A, identical to live's layer-dnd.js pattern)
+   ============================================================ */
+let drag = null;
+function startDrag(e, node){
+  e.preventDefault();
+  drag = {id:node.id, name:node.name, x:e.clientX, y:e.clientY, moved:false, target:null};
+  document.getElementById('ghost').textContent = '⠿ '+node.name;
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp, {once:true});
+}
+function onMove(e){
+  if(!drag) return;
+  if(!drag.moved && Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<4) return;
+  drag.moved = true;
+  const g = document.getElementById('ghost');
+  g.style.display='block'; g.style.left=(e.clientX+12)+'px'; g.style.top=(e.clientY+8)+'px';
+  const list = document.getElementById('catlist');
+  const lr = list.getBoundingClientRect();
+  if(e.clientY<lr.top+20) list.scrollTop-=8;
+  else if(e.clientY>lr.bottom-20) list.scrollTop+=8;
+  clearDropViz();
+  const row = rowUnder(e.clientY);
+  drag.target = null;
+  if(!row){ drag.target={mode:'root-tail'}; showLineTail(); return; }
+  const tid = row.dataset.id, kind=row.dataset.kind;
+  if(tid===drag.id || descendants(drag.id).indexOf(tid)>=0) return;
+  const r = row.getBoundingClientRect();
+  const rel = (e.clientY - r.top)/r.height;
+  if(rel<0.30){      drag.target={mode:'before', id:tid}; lineAt(row, true); }
+  else if(rel>0.70){ drag.target={mode:'after',  id:tid}; lineAt(row, false); }
+  else {
+    if(kind==='folder'){ drag.target={mode:'nest', id:tid}; row.classList.add('drop-into'); }
+    else { drag.target={mode:'after', id:tid}; lineAt(row, false); }
+  }
+}
+function onUp(){
+  window.removeEventListener('pointermove', onMove);
+  document.getElementById('ghost').style.display='none';
+  clearDropViz();
+  if(drag && drag.moved && drag.target) commit(drag);
+  drag = null; render();
+}
+function commit(d){
+  const n = byId(d.id), t = d.target;
+  if(t.mode==='root-tail'){
+    const op = n.parentId||null; n.parentId=null; reindex(op);
+    n.order = childrenOf(null).length; reindex(null);
+    log('move '+n.name+' → root'); return;
+  }
+  const tn = byId(t.id);
+  if(t.mode==='nest'){
+    if(n.kind==='folder'){ log('⚠ nest folder→folder ปิดในสไปก์'); return; }
+    const op = n.parentId||null; n.parentId=t.id; reindex(op);
+    n.order = childrenOf(t.id).length; reindex(t.id);
+    log('nest '+n.name+' → 📂'+tn.name); return;
+  }
+  const pid = tn.parentId||null, op = n.parentId||null;
+  if(n.kind==='layer' && pid===null){ log('⚠ layer ต้องอยู่ใต้ folder'); return; }
+  n.parentId = pid;
+  const sibs = childrenOf(pid).filter(x=>x.id!==n.id);
+  let idx = sibs.indexOf(tn); if(t.mode==='after') idx++;
+  sibs.splice(idx, 0, n); sibs.forEach((x,i)=>x.order=i);
+  if(op!==pid) reindex(op);
+  log(t.mode+' '+n.name+' → 📂'+(byId(pid)?.name||'root'));
+}
+function rowUnder(y){
+  const rows = document.querySelectorAll('#catlist .cat:not(.lt-add)');
+  for(const r of rows){ const b=r.getBoundingClientRect(); if(y>=b.top && y<=b.bottom) return r; }
+  return null;
+}
+function clearDropViz(){
+  document.getElementById('dropline').style.display='none';
+  document.querySelectorAll('.drop-into,.drop-group').forEach(el=>{el.classList.remove('drop-into');el.classList.remove('drop-group');});
+}
+function lineAt(row, before){
+  const list=document.getElementById('catlist'), dl=document.getElementById('dropline');
+  const r=row.getBoundingClientRect(), lr=list.getBoundingClientRect();
+  dl.style.top=((before?r.top:r.bottom) - lr.top + list.scrollTop - 1)+'px';
+  dl.style.left=(parseFloat(row.style.marginLeft||0)+8)+'px';
+  dl.style.display='block';
+}
+function showLineTail(){
+  const list=document.getElementById('catlist'), dl=document.getElementById('dropline');
+  dl.style.top=(list.scrollHeight-8)+'px'; dl.style.left='8px'; dl.style.display='block';
+}
+
+/* ============================================================
+   5. Mock canvas — show pages this folder covers
+   ============================================================ */
+function renderMockCanvas(){
+  const f = activeId ? byId(activeId) : null;
+  const hl = new Set();
+  if(f){
+    if(f.kind==='folder' && f.pages) f.pages.forEach(p=>hl.add(p));
+    else if(f.kind==='layer'){ const par = byId(f.parentId); if(par && par.pages) par.pages.forEach(p=>hl.add(p)); }
+  }
+  const lbl = document.getElementById('mock-pglabel');
+  if(!f){ lbl.textContent='— ยังไม่ได้เลือก folder/layer —'; }
+  else if(hl.size===0){ lbl.textContent = f.name+' (ไม่มีหน้าผูก)'; }
+  else { lbl.textContent = `${f.name} · ${hl.size} หน้า`; }
+  let h='';
+  for(const p of PAGES){
+    const cls = hl.has(p.p) ? 'p hl' : 'p';
+    h += `<div class="${cls}">p${p.p}</div>`;
+  }
+  document.getElementById('mock-pages').innerHTML = h;
+}
+
+/* ============================================================
+   6. Add-layer dialog
+   ============================================================ */
+const dlg = document.getElementById('dlg');
+let addTargetFolder = null;
+function openAddDlg(fid){
+  addTargetFolder = fid;
+  document.getElementById('dlgTitle').textContent = 'เพิ่ม layer ใน 📂 '+(byId(fid)?.name||'');
+  document.getElementById('dlgName').value='';
+  document.getElementById('dlgRole').value='gfa';
+  document.getElementById('dlgColor').value='#4c8dff';
+  dlg.showModal();
+  setTimeout(()=>document.getElementById('dlgName').focus(),50);
+}
+document.getElementById('dlgCancel').addEventListener('click', ()=>dlg.close());
+document.getElementById('dlgOk').addEventListener('click', ()=>{
+  const name = document.getElementById('dlgName').value.trim();
+  if(!name){ document.getElementById('dlgName').focus(); return; }
+  const role = document.getElementById('dlgRole').value;
+  const color = document.getElementById('dlgColor').value;
+  mkL(addTargetFolder, name, color, role);
+  log('add layer "'+name+'" → 📂'+(byId(addTargetFolder)?.name||''));
+  dlg.close(); render();
+});
+
+/* ============================================================
+   7. Keyboard fallback
+   ============================================================ */
+document.addEventListener('keydown', e=>{
+  if(!optKbd.checked) return;
+  if(dlg.open) return;
+  if(!kbdFocus){ const first=childrenOf(null)[0]; if(first){kbdFocus=first.id; render();} return; }
+  const n = byId(kbdFocus); if(!n) return;
+  const flat=[]; (function fw(pid){ for(const x of childrenOf(pid)){ flat.push(x.id); if(!collapsed[x.id]) fw(x.id);} })(null);
+  const pos = flat.indexOf(kbdFocus);
+  if(e.key==='ArrowDown' && !e.shiftKey){ e.preventDefault(); if(pos<flat.length-1){ kbdFocus=flat[pos+1]; render(); } }
+  else if(e.key==='ArrowUp' && !e.shiftKey){ e.preventDefault(); if(pos>0){ kbdFocus=flat[pos-1]; render(); } }
+});
+
+/* ============================================================
+   8. Wiring
+   ============================================================ */
+const optKbd = document.getElementById('optKbd');
+const optShowEmpty = document.getElementById('optShowEmpty');
+optKbd.addEventListener('change', render);
+optShowEmpty.addEventListener('change', render);
+document.getElementById('btnExpand').addEventListener('click', ()=>{ NODES.filter(n=>n.kind==='folder').forEach(n=>collapsed[n.id]=false); render(); });
+document.getElementById('btnCollapse').addEventListener('click', ()=>{ NODES.filter(n=>n.kind==='folder').forEach(n=>collapsed[n.id]=true); render(); });
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  for(const k in collapsed) delete collapsed[k];
+  for(const k in hidden) delete hidden[k];
+  for(const k in locked) delete locked[k];
+  activeId=null; kbdFocus=null;
+  seedPageFolders(); log('reset'); render();
+});
+
+seedPageFolders();
+render();
+log('spike พร้อม — calibrated to live lite UI (v2 skin)');
+log('คลิก folder ดูหน้าที่ครอบคลุม · ลาก ⠿ ระหว่าง folder · ปุ่ม + เพิ่ม layer');
+</script>
+</body>
+</html>

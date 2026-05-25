@@ -31,6 +31,8 @@
 | z-order (วาดเรียงตาม layer ไม่ใช่ลำดับสร้าง) | ✅ มี (`37ab1e5`) — `objectsInZOrder` ใน layer-system.js |
 | custom layer (เพิ่ม/ลบ/rename/recolor/reorder) | ✅ ครบ (`37add45`+`8a77f3e`+L2c-3) — panel UI อยู่ใน `static/js/layer-panel.js` |
 | sublayer tree (folder + nest + visibility/lock inherit + roll-up Σ) | ✅ ครบ (L3 Approach F, LST-1..3b) — tree UI อยู่ใน `static/js/layer-tree.js` |
+| drag-and-drop reorder + nest + auto-group | ✅ ครบ (LDND, `36e24f6`) — drag engine อยู่ใน `static/js/layer-dnd.js` แทน ▲▼/→← buttons |
+| report variables (named per-layer totals + derived expressions) | ✅ ครบ (LRV, `b60d3b3`) — registry + composer อยู่ใน `static/js/report-vars.js` |
 
 ## L1 — Foundation ✅ DONE (`4cd51ec`, 2026-05-22)
 
@@ -84,7 +86,9 @@ L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไ
 - **ไม่แตะ schema** — persist (`liteLayers`/`liteCatId`) มาจาก L2c-2 แล้ว; delete reassign ใน memory → save เขียน `liteCatId` ชี้ default role ที่ proto resolve `semanticTag` ได้ → cross-open parity คงเดิม
 - **invariant คง**: tag จาก role ไม่ใช่ชื่อ · `LAYERS` identity (splice in-place) · ไม่แตะ `layer-system.js`/`measure-engine.js`/RS/pdfToC
 - test `tests/test_custom_layer_ui.py` → **`LITE_LAYER_UI_OK`** 6/6 (add/rename/recolor/delete-2pages/delete-blocked-default/reorder-z). REVIEW จับ test `recolorKeepsTag` เดิม**ลัด** (เรียก `recolorLayer()` ตรง ไม่ขับ DOM) → Opus แก้เองให้คลิก swatch จริง → ยิง `change` event บน color input (`inputAppeared`/`dirtySet` คุม). parity `MEASURE_PARITY_OK` + persist/model/zorder guards เขียวหมด
-- **ข้อจำกัด**: reorder เป็นปุ่ม ▲▼ (ยังไม่ drag-and-drop) · `+` สืบ role จาก active เท่านั้น (ยังไม่มี dropdown เลือก role อิสระ) — เก็บเป็น enhancement ถ้าต้องการ
+- **ข้อจำกัด v1** (ตอนปิด L2c-3): reorder เป็นปุ่ม ▲▼ · `+` สืบ role จาก active เท่านั้น
+  - drag-and-drop reorder → **ปิดแล้วใน LDND** (ดูด้านล่าง) — ลบปุ่ม ▲▼/→← ทิ้งหมด
+  - dropdown เลือก role ตอนกด `+` → ยังเป็น enhancement ค้าง
 
 ## L3 — Sublayer tree ✅ DONE (Approach F, 2026-05-23)
 
@@ -95,7 +99,45 @@ L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไ
 - **LST-3a** (`f145a71`) — tree panel UI ใน **`static/js/layer-tree.js`** ใหม่ (folder row + layer row, collapse, →/← indent-outdent, folder CRUD). wire `effVisible`/`effLocked` เข้า draw/pick/snap (ซ่อน folder → ซ่อนทั้งกิ่งบน canvas). flat buildPicker ออกจาก layer-panel.js (เหลือ 55). reviewer fix: ลบ layer reparent ลูกขึ้น (กัน orphan). `LITE_TREE_UI_OK`
 - **LST-3b** (`9762dd9`) — folder roll-up Σ (realtime, signed, reuse `polyMetrics` เรียกเฉย ไม่เก็บลง schema) + layer own-area. span `pointer-events:none`. `LITE_TREE_ROLLUP_OK`
 
-**โมเดล**: tree เดียว 2 ชนิด node (folder จัดระเบียบ / layer ถือ object), nest ลึกไม่จำกัดด้วย `parentId`; layer **global ต่อโปรเจกต์** (object ผูกหน้าผ่าน `catId`, tree เดียวกันทุกหน้า); **semanticTag จาก role เสมอ ไม่สืบจาก parent** (calc/export ไม่เปลี่ยน). ข้อจำกัด v1: indent/outdent + ▲▼ (ยังไม่ drag-drop); collapse state runtime-only.
+**โมเดล**: tree เดียว 2 ชนิด node (folder จัดระเบียบ / layer ถือ object), nest ลึกไม่จำกัดด้วย `parentId`; layer **global ต่อโปรเจกต์** (object ผูกหน้าผ่าน `catId`, tree เดียวกันทุกหน้า); **semanticTag จาก role เสมอ ไม่สืบจาก parent** (calc/export ไม่เปลี่ยน). ข้อจำกัด v1: indent/outdent + ▲▼ — **ภายหลังแทนด้วย drag-and-drop ทั้งหมดใน LDND** (ดูด้านล่าง). collapse state runtime-only.
+
+## LDND — Layer drag-and-drop ✅ DONE (`36e24f6`, 2026-05-23)
+
+แทน ▲▼/→← buttons ใน tree panel ด้วย pointer-events drag-and-drop (Approach A + D จาก `docs/invent/lite-layer-dnd.md`, spike `lite/sandbox/invent-layer-dnd.html`). คืน footprint แถว layer ให้สั้นเหมือนก่อน LST + grouping เกิดจาก drag
+
+- **S1** `static/js/layer-dnd.js` (+557) — drag engine: grip + ghost + two-zone hit-test (top/bottom = reorder, middle = nest) + auto-scroll + line/folder highlight; commit แตะแค่ `.order`/`.parentId` แล้ว renumber `0..n-1` ใน sibling group ทุกครั้ง (กัน collision)
+- **S2** `static/js/layer-tree.js` (−175) — ลบ 4 block ปุ่ม reorder/indent ทิ้ง; keyboard fallback อยู่ใน `layer-dnd.js` (Shift+Up/Down reorder, Right/Left nest/outdent)
+- **S3** auto-group-on-collision (Approach D, toggle default OFF, persist `localStorage`) — drag root-layer ทับ middle ของอีก root-layer → `addFolder()` ห่อทั้งคู่ + green double-ring. **Fix**: เดิม `activeCat` ถูก set เป็น folder id แต่ `updateHUD()`/`catOf()` resolve เฉพาะ layer → throw null; เปลี่ยนเป็น activate dragged layer แทน
+- **S4** `tests/test_layer_dnd.py` — 4 scenarios Playwright (drag reorder / nest / auto-group on+off) → `LITE_LAYER_DND_OK`. เขียน `test_tree_ui` + `test_custom_layer_ui` ใหม่ให้ขับ keyboard แทนปุ่มที่ถูกลบ
+- **invariant คง**: ไม่แตะ `.bmaplan` schema (`.order`/`.parentId` persist อยู่แล้วจาก L3); ไม่แตะ `measure-engine.js`/RS/pdfToC/cToPdf/area math/semanticTag. caps OK (ui-lite 1139/1200, layer-dnd 557/1000, layer-tree 506/1000). full suite green
+
+## L4 — Report variables (LRV) ✅ DONE (`b60d3b3`, 2026-05-23)
+
+ขยับ scope ออกนอก layer-only เล็กน้อย — **named-quantity registry** ผูกกับ per-layer totals + visual composer (no-syntax dropdown) สำหรับ derived value (FAR / OSR / ที่ว่าง / ...). โชว์ live ใน Σ overlay + carry ไปใน exported report. แทน hardcoded derived block เดิม. มาจาก invent idea `2026-05-23-00-14` (embedded-region-data-model) → GO บน Approach A+D, frame ที่ `docs/invent/lite-report-vars.md`
+
+- **S1** `static/js/report-vars.js` (+412) — registry model + `evalReportExpr` (token fold ไม่ใช้ parser) + `computeReportVars` + 3 seed presets. `LITE_REPORT_VARS_OK`
+- **S2** `renderReportVarsEditor` ใน `report-vars.js`; `openSum()` wire `#rv-host` (`ui-lite.html` net −3 บรรทัด). `LITE_REPORT_VARS_UI_OK` (real DOM events)
+- **S3** `buildReportPayload` แนบ `payload.reportVars`; `lite-report.html` `buildVarsCard` (display-only). `LITE_REPORT_VARS_REPORT_OK`; `LITE_REPORT_OK 17/17`
+- **S4** save/load `doc.reportVars` **additive** ใน `.bmaplan` (ไฟล์เก่า reseed defaults). `LITE_REPORT_VARS_PERSIST_OK` + `LITE_LAYER_PERSIST_OK` + `MEASURE_PARITY_OK`
+- **forbidden surfaces เคลียร์**: `measure-engine.js` / `RS` / `pdfToC`/`cToPdf` / area math / `semanticTag` ไม่แตะ. `.bmaplan` additive (proto cross-open parity verified by inspection). full lite suite 21/21 green. ui-lite 1138/1200
+
+> **หมายเหตุ scope**: LRV เป็น **feature ต่อยอด layer model** (named quantity ผูกกับ `layer.id`) แต่ผลผูกพันถึง report/export ด้วย — เก็บไว้ใน roadmap นี้เพราะ binding หลักคือ layer; ถ้ามี report-roadmap แยกในอนาคต ค่อยย้าย
+
+## LPFL — Per-page-setup folder layer tree ✅ DONE (`<COMMIT>`, 2026-05-25)
+
+จาก idea `2026-05-25` → user signed off (Copy-per-floor base layers + 1-folder-per-site-group + ลุยเลย). Frame+spike: `docs/invent/lite-page-folder-layers.md`, `lite/sandbox/invent-page-folder-layers.html` (calibrated to live v2 skin). Build ผ่าน `/bma-lite-dev` 3 slice:
+
+- **LPFL-1a** — model + accessor in NEW `lite/static/js/page-folder-layers.js` (193 lines). Public API: `PAGE_FOLDER_PREFIX`, `pageFolderIdFor`, `seedPageFolders`, `pageFolderOfLayer`, `layersOfPage`, `isPageFolder`, `resetPageFolders`. Extends FOLDERS with 2 optional additive fields `pages?:number[]` + `kind?:'page-folder'|'user'`. Idempotent seed via `folderById` check. **Invisible refactor** — no UI/persist/render change. `LITE_PAGE_FOLDER_MODEL_OK` 12/12.
+- **LPFL-1b** — additive `.bmaplan` persist (2 surgical edits, zero net lines): `save()` line 935 + `loadProto()` line 1027 round-trip `kind` + `pages`. JSON.stringify drops undefined → legacy files byte-identical. proto cross-open: proto doesn't read `liteGroups` (already lite-isolated by LST-2). `LITE_PAGE_FOLDER_PERSIST_OK` 6/6 (roundtrip / backward-compat / forward-compat / identity / mixed / resave-stable).
+- **LPFL-1c** — UI panel via DOM injection + monkey-patch (no ui-lite.html edit since cap=1200/1200 exact). Extends `page-folder-layers.js` to 547 lines (cap headroom 453). Bootstrap: wraps `buildPicker` / `liteSetTag` / `loadProto` on DOMContentLoaded. Injects `#pfl-toggle` button (📂/📂✓) into existing `#picker .h` cluster. `buildPagePicker()` emits identical DOM (`.cat[data-catid][data-nodekind]`) so `layer-dnd.js` keeps working unchanged. Auto-seed on tag/floor change. Toggle OFF reverts to legacy `buildPicker` (PF folders stay in FOLDERS but legacy mode renders them as plain folders). `LITE_PAGE_FOLDER_UI_OK` 7/7. Regression GREEN: `LITE_TREE_UI_OK` 9/9 + `LITE_LAYER_DND_OK` 4/4.
+
+**Constraint highlight**: ui-lite.html was at 1199/1200 before LPFL. LPFL-1a added 1 script tag (→1200). LPFL-1b/1c added ZERO net lines — all UI wiring lives in `page-folder-layers.js` via runtime DOM injection. Cap discipline forced cleaner module separation than would have happened by reflex.
+
+**Forbidden surfaces UNTOUCHED across all 3 slices**: `measure-engine.js`, RS, pdfToC, cToPdf, area math, semanticTag (role-derived), snap, layer-system.js, layer-tree.js, layer-panel.js, layer-dnd.js. `.bmaplan` change = additive only (additive WARN per `/bma-check-forbidden`, expected). `MEASURE_PARITY_OK` GREEN across all 3 slices.
+
+**Default OFF**: legacy users see no change. Toggle ON via `📂` button → page-folder view appears + auto-seeds from current pageTags/pageFloorNum. Toggle OFF → legacy tree mode.
+
+**Related (queued)**: cross-floor shared-shape idea (lift/pipe/stair shaft) captured in IDEAS.md 2026-05-25 + PHASE_INDEX backlog — defers to `/bma-invent` after LPFL ships. Concept: metric master + per-floor instances handles scale-mismatch (master in m, instance render = master_m × pts_per_m[page]).
 
 ## ลำดับ + Decision log
 
@@ -107,7 +149,9 @@ L2c-3 = **UI panel** — wire CRUD เข้า `buildPicker()` (ย้ายไ
 - **2026-05-22** — **L2c-1 (`37add45`) + L2c-2 (`8a77f3e`) เสร็จ**. L2c-1 = runtime CRUD ใน layer-system.js (+fix splice bug ที่ worker ส่ง reassign มา). L2c-2 = persist additive `liteLayers`+`liteCatId` ใน save/load (forbidden `.bmaplan` — additive ล้วน, proto ignore, semanticTag ยังเป็น key); test `LITE_LAYER_PERSIST_OK` (5 check จริง incl `CATS===LAYERS` aliasIntact + backward-compat ไม่มี liteLayers + defaultsAlwaysPresent). worker รอบนี้เขียน test จริง (ไม่ปลอม) — review ผ่าน
 - **2026-05-22 (concurrent edit)** — ระหว่าง loop เจอ ui-lite.html ถูกแก้ขนานจากอีก session (vertex-edit/context-menu/duplicate/nudge แทน arcEdit). ยืนยันกับผู้ใช้ = งานเขา → review (UI ล้วน ไม่แตะ forbidden, full suite เขียว) + commit `a86773a`. **บทเรียน**: โฟลเดอร์ Drive-synced → เช็ค `git status`/diff ก่อนแตะ ui-lite.html ทุกครั้ง
 - **2026-05-22 — L2c-3 (UI panel) เสร็จ → ปิด L2c ครบ**. ผู้ใช้เลือกทำเต็ม (add+rename+recolor+delete+reorder) ในรอบเดียว (ไม่แตก 3a/3b/3c). lite-builder ส่ง diff ตรง scope (ไม่เกิน) — แต่ test recolor ลัด (ไม่ขับ DOM จริง) → reviewer แก้เอง surgical. **บทเรียนซ้ำ**: worker ยังเลี่ยง path ที่ test ยาก (native color picker) ด้วยการเรียก model ตรง — reviewer ต้องบังคับให้ขับ event จริงผ่าน DOM
-- **2026-05-23 — L3 Sublayer tree (Approach F) เสร็จครบ** ผ่าน `/bma-lite-dev` 4 slice (LST-1/2/3a/3b). ทำตามลำดับ smallest-safe-slice: model (invisible) → persist (additive, แตะ `.bmaplan` checkpoint) → UI+inheritance → roll-up. reviewer (Opus) อ่าน diff+test จริงทุก slice — จับบั๊ก orphan ตอนลบ layer มีลูก (LST-3a) แก้ surgical + เพิ่ม test เอง; ทุก test (model/persist/ui/rollup) เป็น Playwright ขับ DOM/state จริง ไม่ tautological. concurrent edit: เจอไฟล์ `lite/sandbox/invent-report-vars*.html` จาก session อื่น → ไม่ commit รวม. **บทเรียนซ้ำ**: อ่าน diff+test จริงทุกครั้ง คุ้ม— จับ orphan bug ที่ test worker ไม่ครอบ
-- **ถัดไป**: L3 ปิดแล้ว. enhancement ที่ค้าง (ถ้าต้องการ): drag-and-drop reorder แทน ▲▼/→← · dropdown เลือก role ตอนกด `+` · roll-up บน parent-layer (ตอนนี้ layer โชว์ own เท่านั้น). ขั้นถัดไปของ layer system = page-scoped (ยังไม่อยู่ในแผน — lite ตั้งใจ slim)
+- **2026-05-23 — L3 Sublayer tree (Approach F) เสร็จครบ** ผ่าน `/bma-lite-dev` 4 slice (LST-1/2/3a/3b). ทำตามลำดับ smallest-safe-slice: model (invisible) → persist (additive, แตะ `.bmaplan` checkpoint) → UI+inheritance → roll-up. reviewer (Opus) อ่าน diff+test จริงทุก slice — จับบั๊ก orphan ตอนลบ layer มีลูก (LST-3a) แก้ surgical + เพิ่ม test เอง; ทุก test (model/persist/ui/rollup) เป็น Playwright ขับ DOM/state จริง ไม่ tautological. concurrent edit: เจอไฟล์ `lite/sandbox/invent-report-vars*.html` จาก session อื่น → ไม่ commit รวม. **บทเรียนซ้ำ**: อ่าน diff+test จริงทุกครั้ง คุ้ม — จับ orphan bug ที่ test worker ไม่ครอบ
+- **2026-05-23 — LRV (report variables) `b60d3b3`** — invent idea `2026-05-23-00-14` GO Approach A+D, build 4 slice (registry → editor → report payload → persist). field ใหม่ `doc.reportVars` ใน `.bmaplan` additive (ไฟล์เก่า reseed defaults), proto cross-open parity OK. ขยับ scope ออกจาก layer-pure เล็กน้อย แต่ binding หลักยังเป็น `layer.id` → เก็บใน roadmap นี้
+- **2026-05-23 — LDND (drag-and-drop reorder + nest + auto-group) `36e24f6`** — invent doc `docs/invent/lite-layer-dnd.md` GO Approach A+D, build 4 slice. ลบปุ่ม ▲▼/→← ทั้งใน picker + tree → drag-engine ใน `layer-dnd.js` แทน, auto-group on collision (toggle, default OFF). **Bug ที่จับได้**: S3 set `activeCat` เป็น folder id → `updateHUD()`/`catOf()` resolve null → throw; แก้เป็น activate dragged layer. ไม่แตะ schema (`.order`/`.parentId` มีอยู่แล้วตั้งแต่ L3)
+- **ถัดไป**: L3 + LDND + LRV ปิดแล้ว. enhancement ที่ค้าง: dropdown เลือก role ตอนกด `+` · roll-up บน parent-layer (ตอนนี้ layer โชว์ own-area เท่านั้น). ขั้นถัดไปของ layer system = page-scoped (ยังไม่อยู่ในแผน — lite ตั้งใจ slim). **size watch**: `ui-lite.html` 1139/1200 (61 left) — slice ถัดไป **ต้องลง `static/js/*.js`** ห้ามเพิ่ม inline
 - **2026-05-22** — เขียน sub-spec แล้ว: **`LITE_L2C_CUSTOM_LAYER_SPEC.md`** (decision: persist additive `liteLayers`+`liteCatId`; ลบ layer→ย้าย object ไป default role; /bma-check-forbidden=WARN additive-only). แตกเป็น **L2c-1 model** (ปลอดภัย, build ก่อน) → **L2c-2 persistence** (แตะ `.bmaplan` — checkpoint คน + forbidden check รอบสอง) → **L2c-3 UI panel**
 - page-scoped layer (แบบ proto) — **ยังไม่อยู่ในแผน** จนกว่าจะมีเหตุผลชัด (lite ตั้งใจ slim)
