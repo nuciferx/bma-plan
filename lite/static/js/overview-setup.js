@@ -32,6 +32,37 @@ function _lovsSetFloorNum(n, num) {
   if (typeof state !== "undefined") state.dirty = true;
 }
 
+/* -- floor kind writer (LOVS-2: basement/normal/mechanical/rooftop) --
+   rooftop → auto-set pageFloorNum='roof' (no number needed)
+   mechanical → clear pageFloorNum (no number needed)
+   normal/basement → keep existing pageFloorNum (user types number separately) */
+function _lovsSetFloorKind(n, kind) {
+  if (!kind) { delete pageFloorKind[n]; delete pageFloorNum[n]; if (typeof state !== "undefined") state.dirty = true; return; }
+  pageFloorKind[n] = kind;
+  if (kind === "rooftop") { pageFloorNum[n] = "roof"; }
+  else if (kind === "mechanical") { delete pageFloorNum[n]; }
+  else if (kind === "basement" || kind === "normal") {
+    // keep existing pageFloorNum if any; if it's 'roof', clear it (no longer a roof)
+    if (pageFloorNum[n] === "roof") delete pageFloorNum[n];
+  }
+  if (typeof reseedActivePageFolders === "function" && typeof state !== "undefined" && state.pageFolderMode) reseedActivePageFolders();
+  if (typeof state !== "undefined") state.dirty = true;
+}
+
+/* -- floor label resolver: kind + num → human label for chip/report -- */
+function _lovsFloorLabel(n) {
+  var kind = pageFloorKind[n];
+  var num  = pageFloorNum[n];
+  if (kind === "rooftop") return "ดาดฟ้า";
+  if (kind === "mechanical") return "ห้องเครื่อง";
+  if (kind === "basement") return "ใต้ดิน" + (num != null ? " " + num : "");
+  if (kind === "normal") return "ชั้น " + (num != null ? num : "—");
+  // legacy (no kind set, num='roof'): treat as rooftop
+  if (num === "roof") return "ดาดฟ้า";
+  if (num != null) return "ชั้น " + num;
+  return "— ยังไม่ได้ตั้ง —";
+}
+
 /* -- CSS inject (idempotent) -- */
 function _lovsInjectCSS() {
   if (document.getElementById("__lovs_css__")) return;
@@ -84,8 +115,10 @@ function _lovsInjectCSS() {
     ".ov-tag-untagged{background:#2a2f38;color:var(--muted,#8b97a8);border:1px dashed var(--muted,#8b97a8)}" +
     ".ov-tag-site{background:#9ad14b}.ov-tag-floor{background:#4cc9f0;color:#001218}.ov-tag-plan{background:#8da4be;color:#001218}" +
     ".ov-tag-parking{background:#c87cae;color:#fff}.ov-tag-amenity{background:#d49a3b}.ov-tag-detail{background:#cf6f44;color:#fff}" +
-    ".ov-floor-input{background:#1a1c20;border:1px solid var(--line,#2a3140);color:var(--ink,#e7ecf3);padding:2px 5px;border-radius:3px;font-size:11px;width:50px;text-align:center;font-variant-numeric:tabular-nums}" +
+    ".ov-floor-input{background:#1a1c20;border:1px solid var(--line,#2a3140);color:var(--ink,#e7ecf3);padding:2px 5px;border-radius:3px;font-size:11px;width:42px;text-align:center;font-variant-numeric:tabular-nums;flex:0 0 auto}" +
     ".ov-floor-input:focus{outline:1px solid var(--accent,#4c8dff);border-color:var(--accent,#4c8dff)}" +
+    ".ov-fkind-sel{background:#1a1c20;border:1px solid var(--line,#2a3140);color:var(--ink,#e7ecf3);padding:2px 4px;border-radius:3px;font-size:10px;flex:1 1 auto;min-width:0;max-width:100%;cursor:pointer}" +
+    ".ov-fkind-sel:focus{outline:1px solid var(--accent,#4c8dff);border-color:var(--accent,#4c8dff)}" +
     ".ov-floor-lab{font-size:10px;color:var(--muted,#8b97a8);margin-right:2px}" +
     ".ov-excl-btn{font-size:10px;color:var(--muted,#8b97a8);background:transparent;border:1px solid var(--line,#2a3140);border-radius:3px;padding:1px 5px;cursor:pointer}" +
     ".ov-excl-btn:hover{color:var(--bad,#ff6b6b);border-color:var(--bad,#ff6b6b)}" +
@@ -280,6 +313,10 @@ function _lovsRenderClassify() {
     var tagLbl = tag ? (pt[tag] || tag) : "— ไม่ระบุ —";
     var fl = pageFloorNum[n];
     var flStr = fl === undefined ? "" : (fl === "roof" ? "roof" : String(fl));
+    /* Default kind=normal for any tag=floor page that hasn't been classified yet — so the
+       floor-input always shows (existing test classifyRendersTiles expects hasFloorInput4). */
+    var fkind = pageFloorKind[n] || (fl === "roof" ? "rooftop" : "normal");
+    var fkindNeedsNum = (fkind === "normal" || fkind === "basement");
     var objc = (PS[n] && PS[n].objects && PS[n].objects.length) ? PS[n].objects.length : 0;
     var thumbUrl = (typeof api === "function") ? api("/thumb/" + n) : "";
     var cls = "ov-tile" + ((typeof curPage !== "undefined" && n === curPage) ? " cur" : "") +
@@ -293,7 +330,16 @@ function _lovsRenderClassify() {
         '<div class="nm">หน้า ' + n + (pageNames[n] ? ' · ' + pageNames[n] : '') + '</div>' +
         '<div class="row"><span class="ov-tag-chip ov-tag-' + (tag || "untagged") + '" data-tag="' + tag + '">' + tagLbl + '</span></div>' +
         '<div class="row" style="justify-content:space-between">' +
-          (tag === "floor" ? '<span class="ov-floor-lab">ชั้น</span><input class="ov-floor-input" type="text" value="' + flStr + '" placeholder="—" data-floor="' + n + '">'
+          (tag === "floor"
+            ? '<select class="ov-fkind-sel" data-fkind="' + n + '" title="ประเภทชั้น">' +
+                '<option value="normal"'     + (fkind === "normal"     ? " selected" : "") + '>🏢 ชั้น</option>' +
+                '<option value="basement"'   + (fkind === "basement"   ? " selected" : "") + '>⬇ ใต้ดิน</option>' +
+                '<option value="mechanical"' + (fkind === "mechanical" ? " selected" : "") + '>⚙ ห้องเครื่อง</option>' +
+                '<option value="rooftop"'    + (fkind === "rooftop"    ? " selected" : "") + '>⛅ ดาดฟ้า</option>' +
+              '</select>' +
+              (fkindNeedsNum
+                ? '<input class="ov-floor-input" type="text" value="' + (fl != null && fl !== "roof" ? flStr : "") + '" placeholder="N" data-floor="' + n + '" title="เลขชั้น">'
+                : '<span style="flex:0 0 50px;text-align:center;color:var(--muted,#8b97a8);font-size:10px">' + (fkind === "rooftop" ? "ROOF" : "MEC") + '</span>')
             : '<span style="flex:1"></span>') +
           '<button class="ov-excl-btn" data-excl="' + n + '">' + (excluded[n] ? "⛔" : "·") + '</button>' +
         '</div>' +
@@ -308,11 +354,11 @@ function _lovsWireClassify() {
   g.querySelectorAll(".ov-tile").forEach(function(tile) {
     var pn = +tile.dataset.pg;
     tile.addEventListener("mousedown", function(e) {
-      if (e.button !== 0 || e.target.closest(".ov-tag-chip") || e.target.closest(".ov-floor-input") || e.target.closest(".ov-excl-btn")) return;
+      if (e.button !== 0 || e.target.closest(".ov-tag-chip") || e.target.closest(".ov-floor-input") || e.target.closest(".ov-fkind-sel") || e.target.closest(".ov-excl-btn")) return;
       e.stopPropagation();
     });
     tile.addEventListener("click", function(e) {
-      if (e.target.closest(".ov-tag-chip") || e.target.closest(".ov-floor-input") || e.target.closest(".ov-excl-btn")) return;
+      if (e.target.closest(".ov-tag-chip") || e.target.closest(".ov-floor-input") || e.target.closest(".ov-fkind-sel") || e.target.closest(".ov-excl-btn")) return;
       if (e.shiftKey && _lovsSelAnchor != null) {
         var lo = Math.min(_lovsSelAnchor, pn), hi = Math.max(_lovsSelAnchor, pn);
         _lovsSelected.clear(); for (var i = lo; i <= hi; i++) _lovsSelected.add(i);
@@ -342,6 +388,12 @@ function _lovsWireClassify() {
       fi.addEventListener("click", function(e) { e.stopPropagation(); });
       fi.addEventListener("change", function() { _lovsSetFloorNum(pn, fi.value.trim()); _lovsRenderClassify(); });
       fi.addEventListener("keydown", function(e) { if (e.key === "Enter") fi.blur(); });
+    }
+    var fk = tile.querySelector(".ov-fkind-sel");
+    if (fk) {
+      fk.addEventListener("mousedown", function(e) { e.stopPropagation(); });
+      fk.addEventListener("click", function(e) { e.stopPropagation(); });
+      fk.addEventListener("change", function() { _lovsSetFloorKind(pn, fk.value); _lovsRenderClassify(); });
     }
     var eb = tile.querySelector(".ov-excl-btn");
     if (eb) eb.addEventListener("click", function(e) { e.stopPropagation(); excluded[pn] = !excluded[pn]; _lovsRenderClassify(); });
@@ -463,9 +515,16 @@ function _lovsRenderFloors() {
   if (!floors.length) { strip.innerHTML = '<div style="color:var(--muted,#8b97a8);padding:20px;text-align:center;width:100%">⚠ ยังไม่มีหน้า <code style="color:#4cc9f0">tag=floor</code> — กลับ Step 1</div>'; return; }
   var h = "";
   floors.forEach(function(f) {
-    var isRoof = f.floor === "roof", isEmpty = f.floor == null;
-    var numStr = isRoof ? "⛅ROOF" : isEmpty ? "–" : String(f.floor);
-    h += '<div class="fchip' + (isRoof ? " spec" : "") + (isEmpty ? " empty" : "") + '" draggable="true" data-p="' + f.p + '">' +
+    var kind = pageFloorKind[f.p] || (f.floor === "roof" ? "rooftop" : (f.floor != null ? "normal" : ""));
+    var isSpec = (kind === "rooftop" || kind === "mechanical");
+    var isEmpty = !kind;
+    var numStr;
+    if (kind === "rooftop") numStr = "⛅ROOF";
+    else if (kind === "mechanical") numStr = "⚙MEC";
+    else if (kind === "basement") numStr = "⬇B" + (f.floor != null ? f.floor : "?");
+    else if (kind === "normal") numStr = f.floor != null ? String(f.floor) : "–";
+    else numStr = "–";
+    h += '<div class="fchip' + (isSpec ? " spec" : "") + (isEmpty ? " empty" : "") + '" draggable="true" data-p="' + f.p + '">' +
       '<button class="clr">✕</button><div class="num">' + numStr + '</div>' +
       '<div class="pg">p' + f.p + '</div><div class="lb">' + (pageNames[f.p] || "หน้า " + f.p) + '</div></div>';
   });
@@ -532,12 +591,19 @@ function _lovsRenderReview() {
   floorPages.sort(function(a, b) {
     return ((pageFloorNum[a] === "roof" ? 9999 : pageFloorNum[a] || 0)) - ((pageFloorNum[b] === "roof" ? 9999 : pageFloorNum[b] || 0));
   });
-  var PER = 650, ROOF_G = 298, DED = 38;
+  var PER = 650, ROOF_G = 298, MEC_G = 120, BASEMENT_G = 700, DED = 38;
   var rows = floorPages.map(function(p) {
     var fl = pageFloorNum[p];
-    var label = fl === "roof" ? "ดาดฟ้า" : fl != null ? "ชั้น " + fl : "— ยังไม่ได้ใส่เลข —";
-    var gross = fl === "roof" ? ROOF_G : PER;
-    return {p: p, label: label, gross: gross, ded: DED, net: gross - DED, hasFloor: fl != null};
+    var kind = pageFloorKind[p] || (fl === "roof" ? "rooftop" : (fl != null ? "normal" : ""));
+    var label = _lovsFloorLabel(p);
+    var gross;
+    if (kind === "rooftop") gross = ROOF_G;
+    else if (kind === "mechanical") gross = MEC_G;
+    else if (kind === "basement") gross = BASEMENT_G;
+    else gross = PER;
+    // Has-floor logic: rooftop+mechanical don't need a number; normal+basement do.
+    var hasFloor = (kind === "rooftop" || kind === "mechanical") || (fl != null && fl !== "roof");
+    return {p: p, label: label, kind: kind, gross: gross, ded: DED, net: gross - DED, hasFloor: hasFloor};
   });
   var totG = 0, totD = 0; rows.forEach(function(rw) { totG += rw.gross; totD += rw.ded; });
   var totN = totG - totD, LAND = 1919.20, COVER = 839.10;

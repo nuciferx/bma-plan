@@ -393,6 +393,81 @@ async () => {
 }
 """
 
+CHECK_FLOOR_KIND_DROPDOWN = r"""
+async () => {
+  // Re-init clean state
+  for (var k in pageTags) delete pageTags[k];
+  for (var k in pageFloorNum) delete pageFloorNum[k];
+  for (var k in pageFloorKind) delete pageFloorKind[k];
+  pageTags[3] = 'floor';
+  pageTags[4] = 'floor';
+  pageTags[5] = 'floor';
+  pageTags[6] = 'floor';
+  pageFloorNum[3] = 1;  pageFloorKind[3] = 'normal';
+
+  // Force step 1 re-render
+  var step1 = document.querySelector('#ov-steps .step[data-step="1"]');
+  if (step1) { step1.click(); await new Promise(r => setTimeout(r, 80)); }
+
+  // Tile p3 must have an ov-fkind-sel with 4 options + 'normal' selected
+  var tile3 = document.querySelector('#grid-classify .ov-tile[data-pg="3"]');
+  var sel3 = tile3 && tile3.querySelector('.ov-fkind-sel');
+  var optionsOk = sel3 && sel3.options.length === 4;
+  var optionValues = sel3 ? Array.from(sel3.options).map(function(o){return o.value;}) : [];
+  var hasAllKinds = optionValues.indexOf('normal') >= 0 && optionValues.indexOf('basement') >= 0
+                 && optionValues.indexOf('mechanical') >= 0 && optionValues.indexOf('rooftop') >= 0;
+  var selectedNormal = sel3 && sel3.value === 'normal';
+
+  // Change p4 → mechanical (programmatic), trigger change event
+  var tile4 = document.querySelector('#grid-classify .ov-tile[data-pg="4"]');
+  var sel4 = tile4 && tile4.querySelector('.ov-fkind-sel');
+  if (sel4) { sel4.value = 'mechanical'; sel4.dispatchEvent(new Event('change', {bubbles:true})); }
+  await new Promise(r => setTimeout(r, 100));
+  var p4kind = pageFloorKind[4];
+  var p4numCleared = pageFloorNum[4] === undefined;
+
+  // After mechanical change, the floor-input should be HIDDEN/replaced by a span 'MEC'
+  // Re-query (renderClassify rebuilt the DOM)
+  tile4 = document.querySelector('#grid-classify .ov-tile[data-pg="4"]');
+  var input4 = tile4 && tile4.querySelector('.ov-floor-input');
+  var mecLabelOk = !input4;  // no input means we're in non-numeric kind
+
+  // Change p5 → rooftop, expect pageFloorNum[5]='roof'
+  var tile5 = document.querySelector('#grid-classify .ov-tile[data-pg="5"]');
+  var sel5 = tile5 && tile5.querySelector('.ov-fkind-sel');
+  if (sel5) { sel5.value = 'rooftop'; sel5.dispatchEvent(new Event('change', {bubbles:true})); }
+  await new Promise(r => setTimeout(r, 100));
+  var p5kind = pageFloorKind[5];
+  var p5num = pageFloorNum[5];
+
+  // Change p6 → basement, then set number to 2
+  var tile6 = document.querySelector('#grid-classify .ov-tile[data-pg="6"]');
+  var sel6 = tile6 && tile6.querySelector('.ov-fkind-sel');
+  if (sel6) { sel6.value = 'basement'; sel6.dispatchEvent(new Event('change', {bubbles:true})); }
+  await new Promise(r => setTimeout(r, 100));
+  // Re-query for the now-visible floor-input
+  tile6 = document.querySelector('#grid-classify .ov-tile[data-pg="6"]');
+  var inp6 = tile6 && tile6.querySelector('.ov-floor-input');
+  var inp6Visible = !!inp6;
+  if (inp6) { inp6.value = '2'; inp6.dispatchEvent(new Event('change', {bubbles:true})); }
+  await new Promise(r => setTimeout(r, 100));
+  var p6kind = pageFloorKind[6], p6num = pageFloorNum[6];
+
+  return {
+    optionsCount: sel3 ? sel3.options.length : 0,
+    hasAllKinds: hasAllKinds,
+    selectedNormal: selectedNormal,
+    p4kind: p4kind, p4numCleared: p4numCleared, mecLabelOk: mecLabelOk,
+    p5kind: p5kind, p5num: p5num,
+    p6kind: p6kind, p6num: p6num, inp6Visible: inp6Visible,
+    allOk: optionsOk && hasAllKinds && selectedNormal
+         && p4kind === 'mechanical' && p4numCleared && mecLabelOk
+         && p5kind === 'rooftop' && p5num === 'roof'
+         && p6kind === 'basement' && p6num === 2 && inp6Visible
+  };
+}
+"""
+
 CHECKS = [
     ("overrideInstalled",      CHECK_OVERRIDE_INSTALLED,      ["allOk"]),
     ("threeTabsRender",        CHECK_THREE_TABS_RENDER,        ["allOk"]),
@@ -402,6 +477,7 @@ CHECKS = [
     ("step2Sequential",        CHECK_STEP2_SEQUENTIAL,         ["allOk"]),
     ("step3ReportRenders",     CHECK_STEP3_REPORT_RENDERS,     ["allOk"]),
     ("closeOnEsc",             CHECK_CLOSE_ON_ESC,             ["allOk"]),
+    ("floorKindDropdown",      CHECK_FLOOR_KIND_DROPDOWN,      ["allOk"]),
 ]
 
 

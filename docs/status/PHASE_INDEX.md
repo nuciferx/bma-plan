@@ -171,6 +171,12 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### ideas 2026-05-25
 
+- [ ] **LOVS Step 3 Review — site/coverage calc model wrong** — `bug-queued` — from user 2026-05-25 (post-LOVS-2 ship)
+    - Source: user feedback after using F12 wizard — "ในส่วนของการคำนวนในผังบริเวณ พื้นที่จะไม่รวมกัน พื้นที่ที่ดิน จะแยกกับพื้นที่ปกคลุม และพื้นที่ว่าง คือที่ดิน-ปกคลุม ในรายงานยังผิด"
+    - Tags: lite, overview, report, calc, p-med
+    - Current behavior: LOVS Step 3 Review uses hardcoded mock `LAND=1919.20, COVER=839.10`. The formula `open = LAND - COVER` IS technically correct, BUT the table layout/labels may suggest summing (sequential rows in same table). User wants: ที่ดิน (land area) shown as INDEPENDENT root quantity (not summed with anything), พื้นที่ปกคลุม shown as DERIVED-FROM-MEASUREMENT, พื้นที่ว่าง shown as DERIVED `= ที่ดิน − ปกคลุม` (formula explicit).
+    - Bigger picture: Step 3 currently uses mock numbers. Production must pull from real polyMetrics + layer aggregation (which layer = ที่ดิน, which = ปกคลุม). Probably needs hookup to LRV registry (report-vars.js) for named-quantity binding.
+    - Next: small UI fix (relabel + separate sections) OR full /bma-invent for "site-coverage report binding" using LRV. User said "เก็บไว้ทำต่อ" — defer to next session.
 - [ ] **Cross-floor shared shape (lift / pipe / stair shaft)** — `invent-queued` — from /idea 2026-05-25 (during LPFL-1 work)
     - Source: user 2026-05-25, "แตกประเด็น จาก ช่องว่างในแต่ละชั้น เช่น ช่องท่อ ช่องลิฟ ปรกติ จะ เหมือนกันเกือบทุกชั้น ทำอย่างไรให้ไม่ต้องเขียนใหม่ในทุกๆหน้า ถ้ากรณี สเกล ไม่ตรงกันในแต่ละหน้าลองคิด"
     - Tags: lite, measure, p-high, schema
