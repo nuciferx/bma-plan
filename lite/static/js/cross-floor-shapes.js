@@ -823,6 +823,31 @@ window.__cfssTestDrag = function(masterId, dxPt, dyPt) {
           newOffset: {x: found.offsetPt.x, y: found.offsetPt.y}};
 };
 
+/* --- Capture-phase contextmenu listener for instances (CFSS-RCMENU) --- */
+/* Intercepts right-click on instances BEFORE ui-lite.html's handler, which
+   gates on curImg (no PDF loaded = no menu). Runs in capture phase so it
+   fires even when the original handler would return early. */
+function cfssOnContextMenuCapture(e) {
+  if (!_cfssCanvasOk()) return;
+  var sx = e.offsetX, sy = e.offsetY;
+  var hit = cfssPickInstance(sx, sy);
+  if (!hit) return; // not on an instance — let ui-lite.html's handler run
+  e.preventDefault();
+  e.stopPropagation();
+  if (window.state) { window.state.sel = hit; window.state.selSet = [hit]; }
+  if (typeof window.showObjMenu === 'function') {
+    window.showObjMenu(e.clientX, e.clientY, hit);
+  }
+  if (typeof window.draw === 'function') window.draw();
+}
+
+function cfssInstallContextMenuListener() {
+  var cv = document.getElementById('cv');
+  if (!cv || cv.__cfssCmListened) return;
+  cv.__cfssCmListened = true;
+  cv.addEventListener('contextmenu', cfssOnContextMenuCapture, true); // capture
+}
+
 /**
  * cfssBootstrap()
  * Called once at DOMContentLoaded (or immediately if DOM already ready).
@@ -835,7 +860,8 @@ function cfssBootstrap() {
   cfssWrapDraw();
   cfssWrapPick();
   cfssWrapShowObjMenu();
-  cfssInstallDragListeners();   // NEW: drag-to-reposition
+  cfssInstallDragListeners();        // drag-to-reposition
+  cfssInstallContextMenuListener();  // right-click on instances
   // NOTE: _cfssInjectCSS() call REMOVED — CSS now in cfss-dialogs.js
 }
 
