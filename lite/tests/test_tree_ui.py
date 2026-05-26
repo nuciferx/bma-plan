@@ -68,7 +68,10 @@ DEFAULT_LAYERS_FLAT = r"""
     layerRowCount: layerRows.length,
     folderRowCount: folderRows.length,
     foldersArrayEmpty: FOLDERS.length === 0,
-    sixLayerRows: layerRows.length === 6,
+    // LFOC-1g: in folder-only mode (LFOC-1b) root layers without a PF folder
+    // are orphaned and hidden. Use model-level check (LAYERS.length) instead
+    // of DOM row count. The invariant is: 6 default layers must exist in model.
+    sixLayerRows: LAYERS.length === 6,
     noFolderRows: folderRows.length === 0
   };
 }
@@ -97,14 +100,38 @@ async () => {
   await new Promise(r => setTimeout(r, 50));
 
   const foldersAfter = FOLDERS.length;
-  const folderRow = document.querySelector('#catlist [data-nodekind="folder"]');
+
+  // LFOC-1g: new user folder is at root → orphaned in folder-only mode (LFOC-1b/1f).
+  // Parent it under a PF folder so its row renders, then rebuild.
+  var __pfAFR = addFolder('Test PF', null, null);
+  __pfAFR.id = 'PF_test_afr';
+  __pfAFR.kind = 'page-folder';
+  __pfAFR.pages = [1];
+  state.catVis[__pfAFR.id] = true;
+  state.catLock[__pfAFR.id] = false;
+  // Find the most-recently added user folder (the one created by the click above)
+  var userFolders = FOLDERS.filter(function(f){ return f.kind !== 'page-folder' && f.id !== __pfAFR.id; });
+  if (userFolders.length > 0) {
+    userFolders[userFolders.length - 1].parentId = __pfAFR.id;
+  }
+  buildPicker();
+  await new Promise(r => setTimeout(r, 30));
+
+  const folderRow = document.querySelector('#catlist [data-nodekind="folder"]:not(.pf-folder-row)');
+  // A PF folder row is also nodekind="folder"; find the user folder row specifically
+  const allFolderRows = document.querySelectorAll('#catlist [data-nodekind="folder"]');
+  // The user folder row is the one whose data-catid is not the PF folder id
+  var userFolderRow = null;
+  allFolderRows.forEach(function(r) {
+    if (r.getAttribute('data-catid') !== __pfAFR.id) userFolderRow = r;
+  });
 
   return {
     foldersBefore,
-    foldersAfter,
+    foldersAfter: foldersAfter,  // captures BEFORE PF was added
     grewByOne: foldersAfter === foldersBefore + 1,
-    folderRowPresent: !!folderRow,
-    folderRowHasIcon: folderRow ? folderRow.textContent.includes('📁') : false
+    folderRowPresent: !!userFolderRow,
+    folderRowHasIcon: userFolderRow ? userFolderRow.textContent.includes('📁') : false
   };
 }
 """
@@ -136,14 +163,26 @@ async () => {
   // gfa is at order 0, so it is immediately after f in childrenOf(null)
   const gfa = layerById('gfa');
 
+  // Capture parentIdBefore while still null (from initLayers)
+  const parentIdBefore = gfa.parentId;  // null
+
+  // LFOC-1g: parent both f and gfa under a PF folder so their rows render
+  // in folder-only mode. gfa's preceding sibling within PF is still f (order -1 < 0).
+  var __pfNI = addFolder('Test PF', null, null);
+  __pfNI.id = 'PF_test_ni';
+  __pfNI.kind = 'page-folder';
+  __pfNI.pages = [1];
+  state.catVis[__pfNI.id] = true;
+  state.catLock[__pfNI.id] = false;
+  f.parentId = __pfNI.id;
+  gfa.parentId = __pfNI.id;
+
   state.activeCat = 'gfa';
   buildPicker();
 
   // find the gfa row and press ArrowRight (indent keyboard fallback)
   const gfaRow = document.querySelector('[data-catid="gfa"]');
   if (!gfaRow) return {no_gfa_row: true};
-
-  const parentIdBefore = gfa.parentId;  // should be null
 
   gfaRow.focus();
   gfaRow.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', shiftKey: false, bubbles: true}));
@@ -184,8 +223,17 @@ async () => {
     state.catLock[rd.id] = false;
   });
 
+  // LFOC-1g: create PF folder so user folder f renders in folder-only mode
+  var __pfCH = addFolder('Test PF', null, null);
+  __pfCH.id = 'PF_test_ch';
+  __pfCH.kind = 'page-folder';
+  __pfCH.pages = [1];
+  state.catVis[__pfCH.id] = true;
+  state.catLock[__pfCH.id] = false;
+
   const f = addFolder('CollapseFolder', '#00ff00', null);
-  f.order = -1;
+  f.order = 0;
+  f.parentId = __pfCH.id;  // nest under PF so f renders in folder-only mode
   state.catVis[f.id] = true;
   state.catLock[f.id] = false;
 
@@ -247,8 +295,17 @@ async () => {
     state.catLock[rd.id] = false;
   });
 
+  // LFOC-1g: create PF folder so user folder f renders in folder-only mode
+  var __pfFH = addFolder('Test PF', null, null);
+  __pfFH.id = 'PF_test_fh';
+  __pfFH.kind = 'page-folder';
+  __pfFH.pages = [1];
+  state.catVis[__pfFH.id] = true;
+  state.catLock[__pfFH.id] = false;
+
   const f = addFolder('HideFolder', '#0000ff', null);
-  f.order = -1;
+  f.order = 0;
+  f.parentId = __pfFH.id;  // nest under PF so f renders in folder-only mode
   state.catVis[f.id] = true;
   state.catLock[f.id] = false;
 
@@ -304,8 +361,17 @@ async () => {
     state.catLock[rd.id] = false;
   });
 
+  // LFOC-1g: create PF folder so user folder f renders in folder-only mode
+  var __pfOD = addFolder('Test PF', null, null);
+  __pfOD.id = 'PF_test_od';
+  __pfOD.kind = 'page-folder';
+  __pfOD.pages = [1];
+  state.catVis[__pfOD.id] = true;
+  state.catLock[__pfOD.id] = false;
+
   const f = addFolder('OutdentFolder', '#ff00ff', null);
-  f.order = -1;
+  f.order = 0;
+  f.parentId = __pfOD.id;  // nest under PF so f renders in folder-only mode
   state.catVis[f.id] = true;
   state.catLock[f.id] = false;
 
@@ -315,6 +381,8 @@ async () => {
   buildPicker();
 
   const parentIdBefore = gfa.parentId;  // f.id
+  // f's parent is pf.id; after outdent gfa moves up to f's parent = pf.id
+  const fParentId = (f.parentId !== undefined) ? f.parentId : null;
 
   // press ArrowLeft on gfa row (outdent keyboard fallback)
   const gfaRow = document.querySelector('[data-catid="gfa"]');
@@ -332,9 +400,11 @@ async () => {
   return {
     parentIdBefore,
     parentIdAfter,
+    fParentId,
     movedToRoot: parentIdAfter === null,
     depthZero: depth === 0,
-    outdentWorks: parentIdBefore !== null && parentIdAfter === null && depth === 0
+    // LFOC-1g: outdent moves gfa to f's parent (pf.id); depth should be 1 (inside PF)
+    outdentWorks: parentIdBefore !== null && parentIdAfter === fParentId
   };
 }
 """
@@ -355,8 +425,17 @@ async () => {
     state.catLock[rd.id] = false;
   });
 
+  // LFOC-1g: create a PF folder so user folder f renders in folder-only mode
+  var pf = addFolder('Test PF', null, null);
+  pf.id = 'PF_test_fdel';
+  pf.kind = 'page-folder';
+  pf.pages = [1];
+  state.catVis[pf.id] = true;
+  state.catLock[pf.id] = false;
+
   const f = addFolder('DelFolder', '#aaaaaa', null);
-  f.order = -1;
+  f.order = 0;
+  f.parentId = pf.id;  // nest under PF so f renders in folder-only mode
   state.catVis[f.id] = true;
   state.catLock[f.id] = false;
 
@@ -368,6 +447,8 @@ async () => {
   const folderId = f.id;
   const foldersBefore = FOLDERS.length;
   const layersBefore = LAYERS.length;
+  // capture f's parent for reparent assertion (f.parentId = pf.id)
+  const fParentId = f.parentId;
 
   // find and click ✕ on the folder row
   const folderRow = document.querySelector('[data-catid="' + folderId + '"]');
@@ -389,7 +470,7 @@ async () => {
   const gfaRow = document.querySelector('[data-catid="gfa"]');
   const gfaInDom = !!gfaRow;
 
-  // gfa should be reparented to folder's parent = null
+  // gfa should be reparented to folder's parent (= pf.id, since f was nested under pf)
   const gfaParentAfter = layerById('gfa') ? layerById('gfa').parentId : 'MISSING';
 
   return {
@@ -399,8 +480,9 @@ async () => {
     gfaStillPresent,
     gfaInDom,
     gfaParentAfter,
+    fParentId,
     reparentedToRoot: gfaParentAfter === null,
-    reparentsCorrectly: folderGone && gfaStillPresent && gfaInDom && gfaParentAfter === null
+    reparentsCorrectly: folderGone && gfaStillPresent && gfaInDom && gfaParentAfter === fParentId
   };
 }
 """
@@ -426,6 +508,21 @@ async () => {
   state.catVis[nl.id] = true;
   state.catLock[nl.id] = false;
   state.activeCat = nl.id;
+
+  // LFOC-1g: parent to a PF folder so layer renders in folder-only mode
+  (function() {
+    if (typeof FOLDERS === 'undefined') return;
+    var pf = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+    if (!pf && typeof addFolder === 'function') {
+      pf = addFolder('Test PF', null, null);
+      pf.id = 'PF_test_cdel';
+      pf.kind = 'page-folder';
+      pf.pages = [1];
+      state.catVis[pf.id] = true;
+      state.catLock[pf.id] = false;
+    }
+    if (pf) nl.parentId = pf.id;
+  }());
 
   const customId = nl.id;
   const lenBefore = LAYERS.length;
@@ -490,7 +587,20 @@ async () => {
   const C = addLayer('use', 'ChildCustom', '#00ff00');
   state.catVis[C.id] = true; state.catLock[C.id] = false;
   C.parentId = P.id;                 // nest C under P
-  const pParent = (P.parentId !== undefined) ? P.parentId : null;  // null (root)
+
+  // LFOC-1g: parent P to a PF folder so it renders in folder-only mode
+  var __pfCDR = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+  if (!__pfCDR && typeof addFolder === 'function') {
+    __pfCDR = addFolder('Test PF', null, null);
+    __pfCDR.id = 'PF_test_cdr';
+    __pfCDR.kind = 'page-folder';
+    __pfCDR.pages = [1];
+    state.catVis[__pfCDR.id] = true;
+    state.catLock[__pfCDR.id] = false;
+  }
+  if (__pfCDR) P.parentId = __pfCDR.id;
+
+  const pParent = (P.parentId !== undefined) ? P.parentId : null;  // pf.id (now under PF)
 
   state.activeCat = P.id;
   buildPicker();

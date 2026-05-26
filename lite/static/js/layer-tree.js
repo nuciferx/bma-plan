@@ -444,6 +444,13 @@ function _ltRenderLayer(layer, depth, el) {
     if (e.target.classList.contains("lt-collapse-toggle")) return;
     state.activeCat = layer.id;
     state.tool = layer.counting ? "count" : (state.tool === "count" ? "poly" : state.tool);
+    // LFOC-1e: warp to first page containing this layer's object
+    if (typeof _lpFirstPageOfLayer === "function" && typeof loadPage === "function") {
+      var firstPg = _lpFirstPageOfLayer(layer.id);
+      if (firstPg != null && typeof curPage !== "undefined" && firstPg !== curPage) {
+        loadPage(firstPg);
+      }
+    }
     buildPicker(); draw();
   });
 

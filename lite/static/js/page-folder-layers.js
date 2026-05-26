@@ -294,8 +294,8 @@ function buildPagePicker() {
     _pflRenderPFFolder(pfRoots[pi].node, 0, el);
   }
 
-  // Orphan items (non-PF roots) are hidden in folder-only mode.
-  // Show a single info banner so the user knows data exists but is suppressed.
+  // LFOC-1a + LFOC-1b reconciled: orphan items (non-PF roots) HIDDEN in folder-only mode.
+  // Show a single info banner so user knows data exists but is suppressed.
   if (otherRoots.length > 0) {
     var hidden = document.createElement("div");
     hidden.className = "cat lt-orphan-info";
@@ -473,29 +473,22 @@ function _pflRenderPFFolder(folder, depth, el) {
 
 /* ------------------------------------------------------------------
    togglePageFolderMode(forceState)
-   Toggle or set state.pageFolderMode. Auto-seeds on turn-on.
+   LFOC-1b: page-folder mode is permanent. Always forces ON.
+   forceState ignored (no flat mode). Kept for test/forward-compat.
    ------------------------------------------------------------------ */
 function togglePageFolderMode(forceState) {
-  var next = (typeof forceState === "boolean") ? forceState : !state.pageFolderMode;
-  state.pageFolderMode = next;
-
-  if (next) {
-    // Auto-seed from current page data
-    reseedActivePageFolders();
-  }
-  // Update toggle button visual
-  var btn = document.getElementById("pfl-toggle");
-  if (btn) btn.textContent = next ? "📂✓" : "📂";
-  // Re-render picker
+  // LFOC-1b: page-folder mode is permanent. Always force ON. forceState ignored.
+  state.pageFolderMode = true;
+  reseedActivePageFolders();
   buildPicker();
 }
 
 /* ------------------------------------------------------------------
    reseedActivePageFolders()
-   Idempotent reseed — no-op when mode is OFF.
+   Idempotent reseed — always active (LFOC-1b: mode is always ON).
    ------------------------------------------------------------------ */
 function reseedActivePageFolders() {
-  if (!state || !state.pageFolderMode) return;
+  if (!state) return;
   var pages = Object.keys(PS).map(Number).filter(function(n) { return !isNaN(n); });
   if (pages.length === 0 && typeof pageCount !== "undefined" && pageCount > 0) {
     for (var i = 1; i <= pageCount; i++) pages.push(i);
@@ -530,29 +523,39 @@ function _pflInjectToggleButton() {
 
 /* ------------------------------------------------------------------
    Bootstrap — runs after DOMContentLoaded (all scripts loaded).
-   1. Wrap buildPicker  → dispatch to buildPagePicker when mode ON.
-   2. Wrap liteSetTag   → reseed after tag change.
-   3. Wrap loadProto    → reseed after .bmaplan load.
-   4. Inject toggle button.
-   5. Initialize state.pageFolderMode = false (default OFF).
+   LFOC-1b: page-folder mode is now ALWAYS ON (no toggle).
+   1. Force state.pageFolderMode = true (backward compat: old .bmaplan
+      with pageFolderMode=false is upgraded silently here).
+   2. Wrap buildPicker → always returns page-folder render.
+   3. Wrap liteSetTag  → reseed after tag change.
+   4. Wrap loadProto   → reseed after .bmaplan load (always).
+   5. Auto-seed on init (defer one tick for DOM settle).
+   Note: no toggle button injection. Mode is permanent.
    ------------------------------------------------------------------ */
 window.addEventListener("DOMContentLoaded", function() {
-  // Initialize mode state
-  if (state && state.pageFolderMode === undefined) {
-    state.pageFolderMode = false;
-  }
+  // LFOC-1b: page-folder mode is now ALWAYS ON (no toggle). Default true on init.
+  // For backward compat (loading old .bmaplan with state.pageFolderMode=false),
+  // we still force true here — there is no flat mode anymore.
+  if (state) state.pageFolderMode = true;
 
-  // 1. Wrap buildPicker
+  // 1. Wrap buildPicker — now always returns page-folder render.
+  // IMPORTANT: at DOMContentLoaded time, buildPicker has already been wrapped by
+  // layer-dnd.js at module load time (DND wraps = _origBP() + ltDndDecorate()).
+  // We must preserve ltDndDecorate() post-processing by calling it explicitly
+  // after buildPagePicker() — this keeps tabIndex + keyboard reorder working.
   if (typeof buildPicker === "function" && !buildPicker.__pflWrapped) {
     var _pflOrigBuildPicker = buildPicker;
     buildPicker = function() {
-      if (state && state.pageFolderMode) return buildPagePicker();
-      return _pflOrigBuildPicker.apply(this, arguments);
+      // LFOC-1b: always page-folder render. After buildPagePicker() runs,
+      // call ltDndDecorate() to restore DND post-processing (tabIndex + keydown).
+      try { buildPagePicker(); }
+      catch (_e) { _pflOrigBuildPicker.apply(this, arguments); return; }
+      if (typeof ltDndDecorate === "function") ltDndDecorate();
     };
     buildPicker.__pflWrapped = true;
   }
 
-  // 2. Wrap liteSetTag
+  // 2. Wrap liteSetTag — reseed always (mode is always on)
   if (typeof liteSetTag === "function" && !liteSetTag.__pflWrapped) {
     var _pflOrigSetTag = liteSetTag;
     liteSetTag = function(n, val) {
@@ -562,16 +565,18 @@ window.addEventListener("DOMContentLoaded", function() {
     liteSetTag.__pflWrapped = true;
   }
 
-  // 3. Wrap loadProto
+  // 3. Wrap loadProto — reseed after load (mode always on)
   if (typeof loadProto === "function" && !loadProto.__pflWrapped) {
     var _pflOrigLoad = loadProto;
     loadProto = function(doc) {
       _pflOrigLoad(doc);
-      if (state && state.pageFolderMode) reseedActivePageFolders();
+      reseedActivePageFolders();
     };
     loadProto.__pflWrapped = true;
   }
 
-  // 4. Inject toggle button (defer one tick to ensure DOM is settled)
-  setTimeout(_pflInjectToggleButton, 0);
+  // 4. Auto-seed on init (don't wait for first action)
+  setTimeout(function() { reseedActivePageFolders(); }, 0);
+
+  // 5. LFOC-1b: no toggle button injection. Mode is permanent.
 });

@@ -303,6 +303,15 @@ function _lovsRenderClassify() {
   var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
   var pt = (typeof PAGE_TAGS !== "undefined") ? PAGE_TAGS : {};
   var h = "";
+  /* LFLOOR-1c: pre-compute per-tag sequence (excl floor + excluded pages).
+     _tagSeq[n] = 1-based position within its tag; _tagTot[tag] = total */
+  var _tagSeq = {}, _tagTot = {};
+  for (var ti = 1; ti <= pc; ti++) {
+    var ttag = pageTags[ti];
+    if (!ttag || ttag === "floor" || excluded[ti]) continue;
+    _tagTot[ttag] = (_tagTot[ttag] || 0) + 1;
+    _tagSeq[ti] = _tagTot[ttag];
+  }
   if (_lovsSelected.size >= 2) {
     h += '<div id="bulkbar"><span>เลือก <span class="ct">' + _lovsSelected.size + '</span> หน้า</span>' +
       '<button id="bulk-clearsel">ล้าง (Esc)</button><span style="opacity:.5">|</span>';
@@ -344,8 +353,10 @@ function _lovsRenderClassify() {
               '</select>' +
               (fkindNeedsNum
                 ? '<input class="ov-floor-input" type="text" value="' + (fl != null && fl !== "roof" ? flStr : "") + '" placeholder="N" data-floor="' + n + '" title="เลขชั้น">'
-                : '<span style="flex:0 0 50px;text-align:center;color:var(--muted,#8b97a8);font-size:10px">' + (fkind === "rooftop" ? "ROOF" : "MEC") + '</span>')
-            : '<span style="flex:1"></span>') +
+                : '<span style="flex:0 0 50px;text-align:center;color:var(--muted,#8b97a8);font-size:10px">' + (fkind === "rooftop" ? "ROOF" : fkind === "mezzanine" ? "MEZ" : "MEC") + '</span>')
+            : (tag && _tagSeq[n]
+                ? '<span style="flex:1;text-align:center;color:var(--accent,#4c8dff);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums" title="ลำดับใน tag ' + tag + '">#' + _tagSeq[n] + '/' + _tagTot[tag] + '</span>'
+                : '<span style="flex:1"></span>')) +
           '<button class="ov-excl-btn" data-excl="' + n + '">' + (excluded[n] ? "⛔" : "·") + '</button>' +
         '</div>' +
       '</div></div>';
@@ -569,6 +580,12 @@ function _lovsSequentialFloor() {
   var sEl = document.getElementById("seq-start"), start = sEl ? (+sEl.value || 1) : 1;
   var pns = []; document.querySelectorAll("#floor-strip .fchip").forEach(function(c) { pns.push(+c.dataset.p); });
   if (!pns.length) return;
+  // Pre-count basement total so we can number descending (leftmost=deepest=largest)
+  var basementTotal = 0;
+  for (var bi = 0; bi < pns.length; bi++) {
+    if ((pageFloorKind[pns[bi]] || "normal") === "basement") basementTotal++;
+  }
+  var basementSeen = 0;
   var n = start;
   for (var i = 0; i < pns.length; i++) {
     var pi = pns[i];
@@ -576,6 +593,12 @@ function _lovsSequentialFloor() {
     // Skip non-counted kinds: mezzanine/mechanical/rooftop are inserted but don't consume a number
     if (kind === "mezzanine" || kind === "mechanical" || kind === "rooftop") {
       delete pageFloorNum[pi];
+      continue;
+    }
+    // Basement: descending. Leftmost basement = basementTotal, rightmost = 1
+    if (kind === "basement") {
+      _lovsSetFloorNum(pi, basementTotal - basementSeen);
+      basementSeen++;
       continue;
     }
     if (i === pns.length - 1 && pns.length >= 4 && kind === "normal") _lovsSetFloorNum(pi, "roof");

@@ -412,9 +412,10 @@ async () => {
   // Tile p3 must have an ov-fkind-sel with 4 options + 'normal' selected
   var tile3 = document.querySelector('#grid-classify .ov-tile[data-pg="3"]');
   var sel3 = tile3 && tile3.querySelector('.ov-fkind-sel');
-  var optionsOk = sel3 && sel3.options.length === 4;
+  var optionsOk = sel3 && sel3.options.length === 5;
   var optionValues = sel3 ? Array.from(sel3.options).map(function(o){return o.value;}) : [];
   var hasAllKinds = optionValues.indexOf('normal') >= 0 && optionValues.indexOf('basement') >= 0
+                 && optionValues.indexOf('mezzanine') >= 0
                  && optionValues.indexOf('mechanical') >= 0 && optionValues.indexOf('rooftop') >= 0;
   var selectedNormal = sel3 && sel3.value === 'normal';
 

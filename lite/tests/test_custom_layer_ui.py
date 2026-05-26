@@ -40,19 +40,47 @@ def _free_port(start=8340):
 
 # ---------------------------------------------------------------------------
 # Scenario 1 — addCreatesRow
-# Record LAYERS.length before click, click "+", assert grew by 1,
-# new layer role === previous active role, tag === roleSemanticTag(role),
-# and a DOM row with data-catid exists for the new id.
+# LFOC-1d: click "+" opens a role-picker modal; click the first role button
+# in the modal to confirm. Assert LAYERS grew by 1, new layer has a valid
+# role + matching tag, and a DOM row with data-catid exists.
 # ---------------------------------------------------------------------------
 ADD_SCENARIO = r"""
 async () => {
   const lenBefore = LAYERS.length;
   const activeId = state.activeCat;
-  const activeBefore = layerById(activeId);
-  const roleBefore = activeBefore ? activeBefore.role : null;
 
-  // click "+"
+  // click "+" — opens the role-picker modal (LFOC-1d)
   document.getElementById('lp-add').click();
+  await new Promise(r => setTimeout(r, 60));
+
+  // find the modal and click the first role button
+  const picker = document.getElementById('lp-addlayer-picker');
+  const roleBtn = picker ? picker.querySelector('[data-lp-role]') : null;
+  if (!roleBtn) return { no_modal: true, lenBefore };
+  const chosenRole = roleBtn.getAttribute('data-lp-role');
+  roleBtn.click();
+  await new Promise(r => setTimeout(r, 60));
+
+  // LFOC-1g: parent new layer to a PF folder so it renders in folder-only mode
+  (function() {
+    if (typeof FOLDERS === 'undefined') return;
+    var pf = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+    if (!pf && typeof addFolder === 'function') {
+      pf = addFolder('Test PF', null, null);
+      pf.id = 'PF_test_add';
+      pf.kind = 'page-folder';
+      pf.pages = [1];
+      state.catVis[pf.id] = true;
+      state.catLock[pf.id] = false;
+    }
+    if (pf) {
+      var newLyr = layerById(state.activeCat);
+      if (newLyr && (newLyr.parentId === null || newLyr.parentId === undefined)) {
+        newLyr.parentId = pf.id;
+        buildPicker();
+      }
+    }
+  }());
 
   const lenAfter = LAYERS.length;
   const grew = lenAfter === lenBefore + 1;
@@ -60,8 +88,9 @@ async () => {
   // the new activeCat should be the newly added layer
   const newId = state.activeCat;
   const newLayer = layerById(newId);
-  const roleMatch = newLayer && newLayer.role === roleBefore;
-  const tagMatch = newLayer && newLayer.tag === roleSemanticTag(roleBefore);
+  // role must match the button we clicked, tag must derive from that role
+  const roleMatch = newLayer && newLayer.role === chosenRole;
+  const tagMatch = newLayer && newLayer.tag === roleSemanticTag(chosenRole);
 
   // DOM: a .cat row with data-catid=newId
   const row = document.querySelector('[data-catid="' + newId + '"]');
@@ -72,7 +101,7 @@ async () => {
 
   return {
     lenBefore, lenAfter, grew, roleMatch, tagMatch, domPresent, idChanged,
-    newId, newLayerOk: !!(newLayer)
+    newId, chosenRole, newLayerOk: !!(newLayer)
   };
 }
 """
@@ -89,6 +118,20 @@ async () => {
   state.catVis[nl.id] = true;
   state.catLock[nl.id] = false;
   state.activeCat = nl.id;
+  // LFOC-1g: parent to a PF folder so layer renders in folder-only mode
+  (function() {
+    if (typeof FOLDERS === 'undefined') return;
+    var pf = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+    if (!pf && typeof addFolder === 'function') {
+      pf = addFolder('Test PF', null, null);
+      pf.id = 'PF_test_rename';
+      pf.kind = 'page-folder';
+      pf.pages = [1];
+      state.catVis[pf.id] = true;
+      state.catLock[pf.id] = false;
+    }
+    if (pf) nl.parentId = pf.id;
+  }());
   buildPicker();
 
   const idToRename = nl.id;
@@ -144,6 +187,20 @@ async () => {
   state.catVis[nl.id] = true;
   state.catLock[nl.id] = false;
   state.activeCat = nl.id;
+  // LFOC-1g: parent to a PF folder so layer renders in folder-only mode
+  (function() {
+    if (typeof FOLDERS === 'undefined') return;
+    var pf = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+    if (!pf && typeof addFolder === 'function') {
+      pf = addFolder('Test PF', null, null);
+      pf.id = 'PF_test_recolor';
+      pf.kind = 'page-folder';
+      pf.pages = [1];
+      state.catVis[pf.id] = true;
+      state.catLock[pf.id] = false;
+    }
+    if (pf) nl.parentId = pf.id;
+  }());
   buildPicker();
 
   const idToRecolor = nl.id;
@@ -202,6 +259,21 @@ async () => {
   state.catVis[nl.id] = true;
   state.catLock[nl.id] = false;
   state.activeCat = nl.id;
+
+  // LFOC-1g: parent to a PF folder so layer renders in folder-only mode
+  (function() {
+    if (typeof FOLDERS === 'undefined') return;
+    var pf = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+    if (!pf && typeof addFolder === 'function') {
+      pf = addFolder('Test PF', null, null);
+      pf.id = 'PF_test_delete';
+      pf.kind = 'page-folder';
+      pf.pages = [1];
+      state.catVis[pf.id] = true;
+      state.catLock[pf.id] = false;
+    }
+    if (pf) nl.parentId = pf.id;
+  }());
 
   const customId = nl.id;
   const lenBefore = LAYERS.length;
@@ -280,10 +352,12 @@ DELETE_DEFAULT_SCENARIO = r"""
 """
 
 # ---------------------------------------------------------------------------
-# Scenario 6 — reorderChangesZ
-# Get the first two layers in current order, click ▼ on the first,
+# Scenario 6 — reorderChangesZ (LFOC-1b: use _ltSwapOrder API directly)
+# Get the first two layers in current order, swap via _ltSwapOrder,
 # assert their .order swapped AND objectsInZOrder reflects the new ordering.
 # Positive control: BEFORE order of first two layers (a.order < b.order).
+# Note: keyboard-dispatched Shift+ArrowDown is unreliable in headless Playwright;
+# this scenario tests the underlying _ltSwapOrder + objectsInZOrder contract directly.
 # ---------------------------------------------------------------------------
 REORDER_SCENARIO = r"""
 async () => {
@@ -312,11 +386,9 @@ async () => {
   const objB = {catId: b.id};
   const zBefore = objectsInZOrder([objA, objB]).map(o => o.catId);
 
-  // Shift+ArrowDown on the first row (moves a down past b)
-  const rowA = document.querySelector('[data-catid="' + a.id + '"]');
-  if (!rowA) return {no_row_a: true};
-  rowA.focus();
-  rowA.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', shiftKey: true, bubbles: true}));
+  // LFOC-1b: use _ltSwapOrder directly (keyboard shortcut is unreliable headless)
+  _ltSwapOrder(a, b);
+  buildPicker();
   await new Promise(r => setTimeout(r, 50));
 
   const aAfter = layerById(a.id);

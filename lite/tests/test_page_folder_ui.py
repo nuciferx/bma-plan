@@ -1,18 +1,20 @@
 """
-LPFL-1c: page-folder-layers UI regression guard.
+LPFL-1c / LFOC-1b: page-folder-layers UI regression guard.
 
-Verifies the page-folder mode toggle, auto-seed, panel render, add-layer
-row, toggle-off revert, and tag-change auto-reseed. All checks run in a
-single browser session. No real PDF needed — PS is seeded via evaluate.
+Verifies page-folder mode (always ON after LFOC-1b), auto-seed, panel
+render, add-layer row, togglePageFolderMode no-op for OFF, and tag-change
+auto-reseed. All checks run in a single browser session.
+No real PDF needed — PS is seeded via evaluate.
 
 7 sub-checks:
-  toggleButtonExists    #pfl-toggle injected, initial text is "📂"
-  toggleOnSeeds         click → mode ON, PF_site + PF_floor_2 seeded
+  modeAlwaysOn          state.pageFolderMode===true on load; no #pfl-toggle button
+  modeOnSeeds           seed PS/pageTags/pageFloorNum + reseedActivePageFolders()
+                        → PF_site + PF_floor_2 seeded (no button click needed)
   panelRendersPFFolders lt-folder-row with data-catid="PF_site" in DOM,
                         text contains "ผังบริเวณ" and "(p5)"
-  panelRendersBaseLayers 3 child layer rows under PF_site with correct names
+  panelRendersBaseLayers 3 child layer rows under PF_site (LFOC-1c reverted: seeded default)
   addLayerRowWorks      .lt-add row click → new layer under PF_floor_2
-  toggleOffReverts      click again → mode OFF, name has no "หน้า)" suffix
+  toggleOffIgnored      togglePageFolderMode(false) → mode stays ON (no revert)
   autoSeedOnTagChange   liteSetTag(8,'floor') + pageFloorNum[8]=3 →
                         PF_floor_3 seeded with page 8
 
@@ -38,27 +40,30 @@ def _free_port(start=8380):
 
 
 # ---------------------------------------------------------------------------
-# Sub-check 1 — toggleButtonExists
+# Sub-check 1 — modeAlwaysOn (LFOC-1b)
+# After DOMContentLoaded, state.pageFolderMode must be true.
+# No #pfl-toggle button should exist (removed in LFOC-1b).
 # ---------------------------------------------------------------------------
 CHECK_TOGGLE_EXISTS = r"""
 () => {
   var btn = document.getElementById('pfl-toggle');
   return {
     buttonExists: !!btn,
-    initialText: btn ? btn.textContent : null,
-    isOff: btn ? (btn.textContent === '📂') : false
+    modeIsTrue: state.pageFolderMode === true,
+    noToggleBtn: !btn
   };
 }
 """
 
 # ---------------------------------------------------------------------------
-# Sub-check 2 — toggleOnSeeds
-# Set up PS, pageTags, pageFloorNum, then click toggle.
-# After click: mode ON, PF_site and PF_floor_2 seeded.
+# Sub-check 2 — modeOnSeeds (LFOC-1b)
+# Set up PS, pageTags, pageFloorNum, then call reseedActivePageFolders().
+# Mode is already ON (no button click needed).
+# After seed: PF_site and PF_floor_2 exist.
 # ---------------------------------------------------------------------------
 CHECK_TOGGLE_ON_SEEDS = r"""
 async () => {
-  // Reset to clean default layers
+  // Reset to clean default layers (do NOT reset pageFolderMode — it stays true)
   LAYERS.length = 0;
   FOLDERS.length = 0;
   initLayers();
@@ -66,7 +71,6 @@ async () => {
     state.catVis[rd.id] = true;
     state.catLock[rd.id] = false;
   });
-  state.pageFolderMode = false;
 
   // Seed pageTags + pageFloorNum + PS
   pageTags = {5: 'site', 12: 'floor'};
@@ -76,32 +80,27 @@ async () => {
     '12': {objects: [], scale: null, annotations: []}
   };
 
-  // Update button state (mode was reset)
-  var btn = document.getElementById('pfl-toggle');
-  if (btn) btn.textContent = '📂';
-
-  // Click the toggle
-  if (btn) btn.click();
+  // LFOC-1b: mode is already ON — just reseed directly
+  reseedActivePageFolders();
+  buildPicker();
   await new Promise(r => setTimeout(r, 80));
 
   var modeOn = state.pageFolderMode === true;
   var pfSite  = folderById('PF_site');
   var pfFloor = folderById('PF_floor_2');
-  var btnText = btn ? btn.textContent : null;
 
   return {
     modeOn: modeOn,
     pfSiteExists: !!pfSite,
     pfFloor2Exists: !!pfFloor,
-    btnTextChanged: btnText === '📂✓',
-    allOk: modeOn && !!pfSite && !!pfFloor && btnText === '📂✓'
+    allOk: modeOn && !!pfSite && !!pfFloor
   };
 }
 """
 
 # ---------------------------------------------------------------------------
 # Sub-check 3 — panelRendersPFFolders
-# After toggle ON, #catlist must have a lt-folder-row for PF_site,
+# After mode ON, #catlist must have a lt-folder-row for PF_site,
 # with text containing "ผังบริเวณ" and "(p5)".
 # ---------------------------------------------------------------------------
 CHECK_PANEL_RENDERS_PF = r"""
@@ -127,12 +126,11 @@ CHECK_PANEL_RENDERS_PF = r"""
 
 # ---------------------------------------------------------------------------
 # Sub-check 4 — panelRendersBaseLayers
-# Under PF_site there should be 3 child layer rows:
-# "ที่ดิน", "พื้นที่อาคารปกคลุม", "แนวร่น"
+# LFOC-1c reverted: PF_site has 3 seeded child layers.
+# Verify PF_site exists in DOM and childrenOf() returns 3 layer children.
 # ---------------------------------------------------------------------------
 CHECK_BASE_LAYERS = r"""
 () => {
-  // Collect all layer-row elements
   var allRows = document.querySelectorAll('#catlist .cat');
   // Find PF_site row position
   var pfSiteIdx = -1;
@@ -142,41 +140,24 @@ CHECK_BASE_LAYERS = r"""
       break;
     }
   }
-  if (pfSiteIdx < 0) return {pfSiteNotFound: true};
+  if (pfSiteIdx < 0) return {pfSiteNotFound: true, allOk: false};
 
-  // Collect subsequent rows that are children of PF_site
-  // (not folders, not lt-folder-row for another PF, not lt-add)
-  var childLayers = [];
-  var pfSiteFolder = folderById('PF_site');
+  // LFOC-1c reverted: 3 base layers seeded — childrenOf PF_site returns 3 layer children
   var siteChildren = childrenOf('PF_site');
   var layerChildren = siteChildren.filter(function(c) { return c.kind === 'layer'; });
-
-  var names = layerChildren.map(function(c) { return c.node.name; });
-  var hasTiDin      = names.some(function(n) { return n.indexOf('ที่ดิน') >= 0; });
-  var hasPaenTi     = names.some(function(n) { return n.indexOf('พื้นที่อาคารปกคลุม') >= 0; });
-  var hasNaewRon    = names.some(function(n) { return n.indexOf('แนวร่น') >= 0; });
   var threeChildren = layerChildren.length === 3;
 
-  // Also check DOM rows
-  var domRows = [];
-  for (var j = pfSiteIdx + 1; j < allRows.length; j++) {
-    var r = allRows[j];
-    if (r.classList.contains('lt-folder-row')) break;
-    if (r.getAttribute('data-catid') && r.getAttribute('data-catid').indexOf('PF_') === 0) break;
-    if (!r.classList.contains('lt-add')) {
-      var catId = r.getAttribute('data-catid');
-      if (catId) domRows.push(catId);
-    }
-  }
+  var names = layerChildren.map(function(c) { return c.node.name; });
+  var hasTiDin   = names.some(function(n) { return n.indexOf('ที่ดิน') >= 0; });
+  var hasPaenTi  = names.some(function(n) { return n.indexOf('พื้นที่อาคารปกคลุม') >= 0; });
+  var hasNaewRon = names.some(function(n) { return n.indexOf('แนวร่น') >= 0; });
 
   return {
     layerCount: layerChildren.length,
-    names: names,
+    threeChildren: threeChildren,
     hasTiDin: hasTiDin,
     hasPaenTi: hasPaenTi,
     hasNaewRon: hasNaewRon,
-    threeChildren: threeChildren,
-    domRowCount: domRows.length,
     allOk: threeChildren && hasTiDin && hasPaenTi && hasNaewRon
   };
 }
@@ -236,65 +217,57 @@ async () => {
 """
 
 # ---------------------------------------------------------------------------
-# Sub-check 6 — toggleOffReverts
-# Click toggle again → mode OFF. The picker re-renders in legacy mode.
-# PF folders still exist in FOLDERS (data preserved), but the rendered
-# folder rows should NOT contain "หน้า)" in their text.
+# Sub-check 6 — toggleOffIgnored (LFOC-1b)
+# LFOC-1b: calling togglePageFolderMode(false) must keep mode ON (no flat mode).
+# PF folders still exist in model. Picker still renders PF decoration.
+# No toggle button expected.
 # ---------------------------------------------------------------------------
 CHECK_TOGGLE_OFF = r"""
 async () => {
-  var btn = document.getElementById('pfl-toggle');
-  if (!btn) return {noBtnFound: true};
-
-  // Mode should be ON; click to turn off
-  btn.click();
+  // Attempt to force OFF via togglePageFolderMode — must be ignored
+  togglePageFolderMode(false);
   await new Promise(r => setTimeout(r, 80));
 
-  var modeOff = state.pageFolderMode === false;
-  var btnText = btn.textContent;
-  var btnIsOff = btnText === '📂';
+  var modeStillOn = state.pageFolderMode === true;
 
   // PF folders should still exist in model
   var pfSiteStillInModel = !!folderById('PF_site');
 
-  // In legacy mode, folder rows render via _ltRenderFolder which does NOT
-  // add the "(pN)" decoration. Verify the PF_site row text has no "หน้า)".
+  // In PF mode, the picker renders page decoration "(pN)" — verify it is still there
   buildPicker();
   var pfSiteRow = document.querySelector('#catlist .cat.lt-folder-row[data-catid="PF_site"]');
   var rowText = pfSiteRow ? pfSiteRow.textContent : '';
-  var noPageSuffix = rowText.indexOf('หน้า)') < 0;
+  // "(p5)" should still be present (PF mode active)
+  var hasPageDecoration = rowText.indexOf('p5') >= 0;
+
+  // No toggle button exists
+  var noBtn = !document.getElementById('pfl-toggle');
 
   return {
-    modeOff: modeOff,
-    btnIsOff: btnIsOff,
+    modeStillOn: modeStillOn,
     pfSiteStillInModel: pfSiteStillInModel,
-    noPageSuffix: noPageSuffix,
-    allOk: modeOff && btnIsOff && pfSiteStillInModel && noPageSuffix
+    hasPageDecoration: hasPageDecoration,
+    noBtn: noBtn,
+    allOk: modeStillOn && pfSiteStillInModel && hasPageDecoration && noBtn
   };
 }
 """
 
 # ---------------------------------------------------------------------------
 # Sub-check 7 — autoSeedOnTagChange
-# Turn mode back on. Call liteSetTag(8,'floor') then set pageFloorNum[8]=3.
+# LFOC-1b: mode is always ON. No button click needed.
+# Call liteSetTag(8,'floor') then set pageFloorNum[8]=3.
 # After liteSetTag, reseed should fire. PF_floor_3 should exist with page 8.
 # Note: liteSetTag clears pageFloorNum for floor tags (sets autoNamePage),
 # so we set pageFloorNum[8] AFTER the liteSetTag call and re-trigger reseed.
 # ---------------------------------------------------------------------------
 CHECK_AUTO_RESEED = r"""
 async () => {
-  // Turn mode back on
-  var btn = document.getElementById('pfl-toggle');
-  if (btn && !state.pageFolderMode) {
-    btn.click();
-    await new Promise(r => setTimeout(r, 60));
-  }
-
+  // LFOC-1b: mode is always ON, no button click needed
   // Ensure page 8 is in PS
   PS['8'] = PS['8'] || {objects: [], scale: null, annotations: []};
 
-  // Call liteSetTag — this clears pageFloorNum[8] because val='floor'
-  // and the wrapped version will call reseedActivePageFolders after
+  // Call liteSetTag — the wrapped version calls reseedActivePageFolders after
   liteSetTag(8, 'floor');
   await new Promise(r => setTimeout(r, 60));
 
@@ -319,12 +292,12 @@ async () => {
 """
 
 CHECKS = [
-    ("toggleButtonExists",      CHECK_TOGGLE_EXISTS,    ["buttonExists", "isOff"]),
-    ("toggleOnSeeds",           CHECK_TOGGLE_ON_SEEDS,  ["allOk"]),
+    ("modeAlwaysOn",            CHECK_TOGGLE_EXISTS,    ["modeIsTrue", "noToggleBtn"]),
+    ("modeOnSeeds",             CHECK_TOGGLE_ON_SEEDS,  ["allOk"]),
     ("panelRendersPFFolders",   CHECK_PANEL_RENDERS_PF, ["allOk"]),
     ("panelRendersBaseLayers",  CHECK_BASE_LAYERS,      ["allOk"]),
     ("addLayerRowWorks",        CHECK_ADD_LAYER_ROW,    ["allOk"]),
-    ("toggleOffReverts",        CHECK_TOGGLE_OFF,       ["allOk"]),
+    ("toggleOffIgnored",        CHECK_TOGGLE_OFF,       ["allOk"]),
     ("autoSeedOnTagChange",     CHECK_AUTO_RESEED,      ["allOk"]),
 ]
 

@@ -163,8 +163,17 @@ ROLLUP_SHOWN_ON_FOLDER_ROW = r"""
 
   PS['1'] = { scale: { pts_per_m: 10 }, objects: [], annotations: [] };
 
+  // LFOC-1g: create PF folder so user folder F renders in folder-only mode
+  var __pfRS = addFolder('Test PF', null, null);
+  __pfRS.id = 'PF_test_rs';
+  __pfRS.kind = 'page-folder';
+  __pfRS.pages = [1];
+  state.catVis[__pfRS.id] = true;
+  state.catLock[__pfRS.id] = false;
+
   const F = addFolder('ShowFolder', '#aabbcc', null);
-  F.order = -1;
+  F.order = 0;
+  F.parentId = __pfRS.id;  // nest under PF so F renders in folder-only mode
   state.catVis[F.id] = true;
   state.catLock[F.id] = false;
 
@@ -218,6 +227,19 @@ LAYER_ROW_SHOWS_OWN_NOT_ROLLUP = r"""
   C.parentId = P.id;
   state.catVis[C.id] = true;
   state.catLock[C.id] = false;
+
+  // LFOC-1g: parent P to a PF folder so it renders in folder-only mode
+  // (C is child of P, renders transitively)
+  var __pf4 = FOLDERS.find(function(f){ return f.kind === 'page-folder'; });
+  if (!__pf4 && typeof addFolder === 'function') {
+    __pf4 = addFolder('Test PF', null, null);
+    __pf4.id = 'PF_test_lrow';
+    __pf4.kind = 'page-folder';
+    __pf4.pages = [1];
+    state.catVis[__pf4.id] = true;
+    state.catLock[__pf4.id] = false;
+  }
+  if (__pf4) P.parentId = __pf4.id;
 
   const sq = [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}];
   PS['1'].objects.push({id:4001, catId:P.id, kind:'poly', pts:sq, dimVisible:true, counting:false, semanticTag:'gross_floor_area'});
@@ -369,8 +391,18 @@ async () => {
 
   PS['1'] = { scale: { pts_per_m: 10 }, objects: [], annotations: [] };
 
+  // LFOC-1g: create a PF folder and parent user folder F under it
+  // so F renders in folder-only mode (root non-PF folders are hidden)
+  var __pf7 = addFolder('Test PF', null, null);
+  __pf7.id = 'PF_test_click';
+  __pf7.kind = 'page-folder';
+  __pf7.pages = [1];
+  state.catVis[__pf7.id] = true;
+  state.catLock[__pf7.id] = false;
+
   const F = addFolder('ClickFolder', '#aabbcc', null);
-  F.order = -1;
+  F.order = 0;
+  F.parentId = __pf7.id;  // nest under PF so F renders in folder-only mode
   state.catVis[F.id] = true;
   state.catLock[F.id] = false;
 
