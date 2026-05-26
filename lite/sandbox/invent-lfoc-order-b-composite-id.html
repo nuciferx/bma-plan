@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>LFOC-ORDER-B Spike — kind-aware PF folder IDs + ordering</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font: 13px/1.5 -apple-system, "Segoe UI", "Sarabun", sans-serif; background: #0b0e14; color: #e7ecf3; padding: 20px; margin: 0; }
+  h1 { margin: 0 0 4px; font-size: 18px; color: #4c8dff; }
+  h2 { margin: 24px 0 8px; font-size: 14px; color: #ffb454; border-bottom: 1px solid #2a3140; padding-bottom: 4px; }
+  .meta { color: #8b97a8; font-size: 11px; margin-bottom: 16px; }
+  code { font: 12px ui-monospace, "Consolas", monospace; background: #1a1d24; padding: 1px 5px; border-radius: 3px; color: #ffd75f; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .col { background: #161a22; border: 1px solid #2a3140; border-radius: 8px; padding: 14px; }
+  .col h3 { margin: 0 0 10px; font-size: 13px; color: #c084fc; }
+  .verdict { margin: 16px 0; padding: 10px 14px; border-radius: 6px; font-weight: 600; }
+  .verdict.bad  { background: #3b1216; border-left: 4px solid #ff6b6b; color: #ff9b9b; }
+  .verdict.good { background: #0f2a18; border-left: 4px solid #5ce17b; color: #9be4a8; }
+
+  .panel { background: #1a1d24; border-radius: 6px; padding: 6px 0; max-height: 460px; overflow: auto; }
+  .row { padding: 5px 12px; border-bottom: 1px solid #1f242c; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .row:last-child { border-bottom: none; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: 0 0 auto; }
+  .lbl { flex: 1; }
+  .id { color: #5d6b7d; font: 10px ui-monospace, monospace; }
+  .order { color: #ffd75f; font: 10px ui-monospace, monospace; min-width: 36px; text-align: right; }
+  .folder { font-weight: 600; }
+  .folder.basement { color: #ff6b6b; }
+  .folder.normal   { color: #4c8dff; }
+  .folder.mezz     { color: #c084fc; }
+  .folder.mech     { color: #f59e0b; }
+  .folder.rooftop  { color: #5ce17b; }
+  .folder.site     { color: #ffb454; }
+  .folder.excluded { color: #8b97a8; }
+  .layer { padding-left: 22px; font-size: 11px; color: #c0cad9; }
+
+  .dataset { background: #0d1117; border: 1px solid #2a3140; border-radius: 4px; padding: 8px 10px; font: 11px ui-monospace, monospace; max-height: 200px; overflow: auto; }
+  .dataset div { padding: 2px 0; }
+  .tag-floor    { color: #4c8dff; }
+  .tag-site     { color: #ffb454; }
+  .tag-excluded { color: #5d6b7d; }
+  .k-basement   { color: #ff6b6b; }
+  .k-mezz       { color: #c084fc; }
+  .k-mech       { color: #f59e0b; }
+  .k-rooftop    { color: #5ce17b; }
+
+  .tests { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+  .test { background: #1a1d24; padding: 8px 10px; border-radius: 4px; border-left: 3px solid #2a3140; font-size: 11px; }
+  .test.pass { border-left-color: #5ce17b; }
+  .test.fail { border-left-color: #ff6b6b; }
+  .test b { color: #e7ecf3; }
+  .test .got { color: #ffd75f; font-family: ui-monospace, monospace; font-size: 10px; }
+</style>
+</head>
+<body>
+
+<h1>LFOC-ORDER-B Spike — kind-aware PF folder IDs + deterministic ordering</h1>
+<div class="meta">
+  Invent phase 6 SPIKE. Approach: composite-string PF folder IDs that fold <code>pageFloorKind</code> into the identity, with a kind-aware ordering rule.
+  Demonstrates: (1) basement / normal-floor / mezzanine no longer collapse; (2) panel renders site → basement-desc → floor-asc → mezz-interleaved → roof → excluded; (3) backward compat: old saves with no <code>kind</code> field still work.
+  Pure HTML + inline JS. No server.
+</div>
+
+<h2>1. Fake dataset — mixed kinds, scrambled tag order</h2>
+<div class="dataset" id="dataset"></div>
+
+<h2>2. Folder tree side-by-side: current code vs proposed (Approach A)</h2>
+<div class="grid">
+  <div class="col">
+    <h3>CURRENT — bug: kind ignored</h3>
+    <div class="panel" id="panel-current"></div>
+  </div>
+  <div class="col">
+    <h3>PROPOSED — kind in folder ID + rank</h3>
+    <div class="panel" id="panel-proposed"></div>
+  </div>
+</div>
+
+<h2>3. Acceptance assertions</h2>
+<div class="tests" id="tests"></div>
+
+<h2>4. ID generation rule (proposed)</h2>
+<div class="dataset" style="white-space: pre-wrap">function pageFolderIdFor(page, tag, floorNum, kind) {
+  if (!tag) return null;
+  if (tag === "excluded") return "PF_excluded";
+  if (tag === "site")     return "PF_site";
+  if (tag !== "floor")    return null;
+
+  kind = kind || "normal";  // LEGACY default — old saves with no kind field
+
+  // Rooftop: BOTH floor#=roof and kind=rooftop collapse to legacy PF_floor_roof
+  // This preserves backward compat with existing .bmaplan files
+  if (floorNum === "roof" || kind === "rooftop") return "PF_floor_roof";
+
+  switch (kind) {
+    case "basement":   return "PF_basement_" + floorNum;
+    case "mezzanine":  return "PF_mezz_"     + floorNum;
+    case "mechanical": return "PF_mech_"     + floorNum;
+    case "normal":
+    default:           return "PF_floor_"    + floorNum;
+  }
+}</div>
+
+<h2>5. Rank function (proposed)</h2>
+<div class="dataset" style="white-space: pre-wrap">function _rankPFFolder(folderId) {
+  if (folderId === "PF_site")       return 0;
+  if (folderId === "PF_excluded")   return 9999;
+  if (folderId === "PF_floor_roof") return 9000;
+
+  // PF_basement_N → 100 - N*5  (B3=85, B2=90, B1=95 — ascending = B3 first ✅)
+  var mb = /^PF_basement_(\d+)$/.exec(folderId);
+  if (mb) return 100 - parseInt(mb[1], 10) * 5;
+
+  // PF_floor_N → 100 + N*10
+  var mf = /^PF_floor_(\d+)$/.exec(folderId);
+  if (mf) return 100 + parseInt(mf[1], 10) * 10;
+
+  // PF_mezz_N → 100 + N*10 + 5  (interleaved between floor N and N+1)
+  var mm = /^PF_mezz_(\d+)$/.exec(folderId);
+  if (mm) return 100 + parseInt(mm[1], 10) * 10 + 5;
+
+  // PF_mech_N → 100 + N*10 + 7  (after mezz, before next floor)
+  var me = /^PF_mech_(\d+)$/.exec(folderId);
+  if (me) return 100 + parseInt(me[1], 10) * 10 + 7;
+
+  return 5000;  // unknown PF
+}</div>
+
+<h2>6. Verdict</h2>
+<div id="verdict"></div>
+
+<script>
+/* ============================================================================
+   LFOC-ORDER-B SPIKE — pure-data simulation
+   ============================================================================ */
+
+/* --------- Fake page-setup dataset (intentionally scrambled) ------------- */
+const PAGES = [
+  { page:  1, tag: "excluded", floorNum: null,  kind: null         },
+  { page:  2, tag: "excluded", floorNum: null,  kind: null         },
+  { page:  3, tag: "site",     floorNum: null,  kind: null         },
+  { page: 10, tag: "floor",    floorNum: 3,     kind: "normal"     },
+  { page: 11, tag: "floor",    floorNum: 1,     kind: "normal"     },
+  { page: 12, tag: "floor",    floorNum: 2,     kind: "normal"     },
+  { page: 13, tag: "floor",    floorNum: "roof",kind: "rooftop"    },
+  { page: 14, tag: "floor",    floorNum: 2,     kind: "mezzanine"  },
+  { page: 15, tag: "floor",    floorNum: 1,     kind: "basement"   },
+  { page: 16, tag: "floor",    floorNum: 2,     kind: "basement"   },
+  { page: 17, tag: "floor",    floorNum: 3,     kind: "basement"   },
+  { page: 18, tag: "floor",    floorNum: 5,     kind: "mechanical" },
+  // legacy-style data (no kind field) — emulate old .bmaplan format
+  { page: 20, tag: "floor",    floorNum: 4,     kind: undefined    },
+];
+
+/* --------- CURRENT (buggy) behavior — kind ignored ----------------------- */
+function pageFolderIdFor_current(page, tag, floorNum) {
+  if (!tag) return null;
+  if (tag === "excluded") return "PF_excluded";
+  if (tag === "site")     return "PF_site";
+  if (tag !== "floor")    return null;
+  if (floorNum === "roof") return "PF_floor_roof";
+  return "PF_floor_" + floorNum;
+}
+
+/* --------- PROPOSED behavior (Approach A) ------------------------------- */
+function pageFolderIdFor_proposed(page, tag, floorNum, kind) {
+  if (!tag) return null;
+  if (tag === "excluded") return "PF_excluded";
+  if (tag === "site")     return "PF_site";
+  if (tag !== "floor")    return null;
+
+  kind = kind || "normal";
+
+  if (floorNum === "roof" || kind === "rooftop") return "PF_floor_roof";
+
+  switch (kind) {
+    case "basement":   return "PF_basement_" + floorNum;
+    case "mezzanine":  return "PF_mezz_"     + floorNum;
+    case "mechanical": return "PF_mech_"     + floorNum;
+    case "normal":
+    default:           return "PF_floor_"    + floorNum;
+  }
+}
+
+function _rankPFFolder(folderId) {
+  if (folderId === "PF_site")       return 0;
+  if (folderId === "PF_excluded")   return 9999;
+  if (folderId === "PF_floor_roof") return 9000;
+  var mb = /^PF_basement_(\d+)$/.exec(folderId);
+  if (mb) return 100 - parseInt(mb[1], 10) * 5;
+  var mf = /^PF_floor_(\d+)$/.exec(folderId);
+  if (mf) return 100 + parseInt(mf[1], 10) * 10;
+  var mm = /^PF_mezz_(\d+)$/.exec(folderId);
+  if (mm) return 100 + parseInt(mm[1], 10) * 10 + 5;
+  var me = /^PF_mech_(\d+)$/.exec(folderId);
+  if (me) return 100 + parseInt(me[1], 10) * 10 + 7;
+  return 5000;
+}
+
+/* --------- Simulated seedPageFolders ------------------------------------- */
+function seedFolders(pages, idFn) {
+  const folders = {};
+  for (const p of pages) {
+    const args = idFn.length === 4
+      ? [p.page, p.tag, p.floorNum, p.kind]
+      : [p.page, p.tag, p.floorNum];
+    const id = idFn.apply(null, args);
+    if (!id) continue;
+    if (!folders[id]) {
+      folders[id] = {
+        id, pages: [], _kind: p.kind || (id === "PF_floor_roof" ? "rooftop" : "normal"),
+        _floorNum: p.floorNum
+      };
+    }
+    folders[id].pages.push(p.page);
+  }
+  return Object.values(folders);
+}
+
+/* --------- Render helpers ----------------------------------------------- */
+function folderDisplayName(f) {
+  const id = f.id;
+  if (id === "PF_site")       return "📐 ที่ดิน + ผังบริเวณ";
+  if (id === "PF_excluded")   return "🚫 ไม่ใช้คำนวณ";
+  if (id === "PF_floor_roof") return "🏠 หลังคา (Rooftop)";
+
+  const mb = /^PF_basement_(\d+)$/.exec(id);
+  if (mb) return "🅑 ชั้นใต้ดิน B" + mb[1];
+
+  const mf = /^PF_floor_(\d+)$/.exec(id);
+  if (mf) return "🏢 ชั้น " + mf[1];
+
+  const mm = /^PF_mezz_(\d+)$/.exec(id);
+  if (mm) return "🅜 ชั้นลอย (Mezz " + mm[1] + ")";
+
+  const me = /^PF_mech_(\d+)$/.exec(id);
+  if (me) return "⚙️ ชั้นเครื่อง M" + me[1];
+
+  return id;
+}
+
+function folderKindClass(f) {
+  const id = f.id;
+  if (id === "PF_site")       return "site";
+  if (id === "PF_excluded")   return "excluded";
+  if (id === "PF_floor_roof") return "rooftop";
+  if (/^PF_basement_/.test(id)) return "basement";
+  if (/^PF_mezz_/.test(id))     return "mezz";
+  if (/^PF_mech_/.test(id))     return "mech";
+  return "normal";
+}
+
+function baseLayersFor(f) {
+  // What auto-seeded base layers go under each folder (for current vs new)
+  const id = f.id;
+  if (id === "PF_site")     return ["🟪 ที่ดิน (site)", "🟦 พื้นที่อาคารปกคลุม (gfa)", "🟧 แนวร่น (use)"];
+  if (id === "PF_excluded") return [];
+  if (id === "PF_floor_roof") return ["🟦 GFA หลังคา (gfa)"];
+
+  const mb = /^PF_basement_(\d+)$/.exec(id);
+  if (mb) return [
+    "🟦 GFA ชั้น B" + mb[1] + " (gfa)",
+    "🟥 หักช่องลิฟต์ (ded)",
+    "🟥 หักช่องบันได (ded)"
+  ];
+
+  const mf = /^PF_floor_(\d+)$/.exec(id);
+  if (mf) return [
+    "🟦 GFA ชั้น " + mf[1] + " (gfa)",
+    "🟥 หักช่องลิฟต์ (ded)",
+    "🟥 หักช่องบันได (ded)"
+  ];
+
+  const mm = /^PF_mezz_(\d+)$/.exec(id);
+  if (mm) return [
+    "🟦 GFA Mezz " + mm[1] + " (gfa)",
+    "🟥 หักช่องลิฟต์ (ded)"
+  ];
+
+  const me = /^PF_mech_(\d+)$/.exec(id);
+  if (me) return ["🟦 พื้นที่ชั้นเครื่อง (gfa)"];
+
+  return [];
+}
+
+function renderPanel(folders, hostId, withRank) {
+  // Sort by rank (proposed) or creation order (current)
+  const sorted = withRank
+    ? folders.slice().sort((a, b) => _rankPFFolder(a.id) - _rankPFFolder(b.id))
+    : folders;
+  const host = document.getElementById(hostId);
+  host.innerHTML = "";
+  for (const f of sorted) {
+    const r = document.createElement("div");
+    r.className = "row folder " + folderKindClass(f);
+    const rank = withRank ? _rankPFFolder(f.id) : "—";
+    r.innerHTML =
+      `<span class="swatch" style="background:${swatchColor(f)}"></span>` +
+      `<span class="lbl">${folderDisplayName(f)}</span>` +
+      `<span class="id">${f.id}</span>` +
+      `<span class="order">${rank}</span>`;
+    host.appendChild(r);
+    // child layers
+    for (const ly of baseLayersFor(f)) {
+      const lr = document.createElement("div");
+      lr.className = "row layer";
+      lr.innerHTML = `<span class="lbl">└ ${ly}</span>`;
+      host.appendChild(lr);
+    }
+  }
+}
+
+function swatchColor(f) {
+  const k = folderKindClass(f);
+  return ({
+    site: "#ffb454", excluded: "#5d6b7d", rooftop: "#5ce17b",
+    basement: "#ff6b6b", normal: "#4c8dff", mezz: "#c084fc", mech: "#f59e0b"
+  })[k] || "#8b97a8";
+}
+
+/* --------- Dataset listing ---------------------------------------------- */
+function renderDataset() {
+  const host = document.getElementById("dataset");
+  host.innerHTML = "";
+  for (const p of PAGES) {
+    const d = document.createElement("div");
+    const tagCls = "tag-" + p.tag;
+    const kCls = p.kind ? "k-" + p.kind.replace("anine","").substring(0,5) : "";
+    d.innerHTML =
+      `p${String(p.page).padStart(2,"0")}  ` +
+      `<span class="${tagCls}">tag=${p.tag.padEnd(8)}</span>  ` +
+      `floor#=${String(p.floorNum || "—").padEnd(5)}  ` +
+      `kind=<span class="${kCls}">${p.kind || "(undefined)"}</span>`;
+    host.appendChild(d);
+  }
+}
+
+/* --------- Tests --------------------------------------------------------- */
+function runTests(currentFolders, proposedFolders) {
+  const sortedProposed = proposedFolders.slice().sort((a, b) => _rankPFFolder(a.id) - _rankPFFolder(b.id));
+  const ids = sortedProposed.map(f => f.id);
+
+  const tests = [
+    {
+      name: "Bug fix: basement-1 separate from floor-1",
+      check: () => {
+        const f1 = currentFolders.find(f => f.id === "PF_floor_1");
+        return {
+          pass: f1 && f1.pages.length === 2,
+          got: f1 ? "CURRENT collapses pages " + JSON.stringify(f1.pages) + " into PF_floor_1" : "n/a"
+        };
+      },
+      desc: "Current code collapses p11 (normal-1) + p15 (basement-1) into 1 folder — bug confirmed"
+    },
+    {
+      name: "Fix: basement-1 is PF_basement_1, separate from floor-1",
+      check: () => {
+        const fb = proposedFolders.find(f => f.id === "PF_basement_1");
+        const ff = proposedFolders.find(f => f.id === "PF_floor_1");
+        return {
+          pass: !!fb && !!ff && fb !== ff,
+          got: `PF_basement_1 pages=${fb ? JSON.stringify(fb.pages) : "MISSING"}, PF_floor_1 pages=${ff ? JSON.stringify(ff.pages) : "MISSING"}`
+        };
+      },
+      desc: "Proposed: separate folders, no semantic collapse"
+    },
+    {
+      name: "Order: PF_site comes first",
+      check: () => ({ pass: ids[0] === "PF_site", got: "first=" + ids[0] }),
+      desc: "site always at top of panel"
+    },
+    {
+      name: "Order: basements descend (B3 → B2 → B1)",
+      check: () => {
+        const bIdx = ids.findIndex(i => i === "PF_basement_3");
+        const expected = ["PF_basement_3", "PF_basement_2", "PF_basement_1"];
+        const actual = ids.slice(bIdx, bIdx + 3);
+        return { pass: JSON.stringify(actual) === JSON.stringify(expected), got: actual.join(" → ") };
+      },
+      desc: "Deepest basement first (matches Sequential numbering convention)"
+    },
+    {
+      name: "Order: floors ascend (1 → 2 → 3)",
+      check: () => {
+        const fids = ids.filter(i => /^PF_floor_\d+$/.test(i));
+        const nums = fids.map(i => +i.replace("PF_floor_",""));
+        return { pass: nums.every((n,i) => i === 0 || n > nums[i-1]), got: nums.join(",") };
+      },
+      desc: "Normal floors ascending"
+    },
+    {
+      name: "Order: mezz#2 sits between floor#2 and floor#3",
+      check: () => {
+        const f2 = ids.indexOf("PF_floor_2");
+        const mz = ids.indexOf("PF_mezz_2");
+        const f3 = ids.indexOf("PF_floor_3");
+        return { pass: f2 < mz && mz < f3, got: `floor#2 @ ${f2}, mezz#2 @ ${mz}, floor#3 @ ${f3}` };
+      },
+      desc: "Mezzanine interleaved (user UX request)"
+    },
+    {
+      name: "Order: PF_floor_roof after all numbered floors",
+      check: () => {
+        const roofIdx = ids.indexOf("PF_floor_roof");
+        const lastFloor = Math.max(...ids.map((i, idx) => /^PF_floor_\d+$/.test(i) ? idx : -1));
+        return { pass: roofIdx > lastFloor, got: `roof @ ${roofIdx}, last numbered floor @ ${lastFloor}` };
+      },
+      desc: "Rooftop after all numbered floors"
+    },
+    {
+      name: "Order: PF_excluded last",
+      check: () => ({ pass: ids[ids.length - 1] === "PF_excluded", got: "last=" + ids[ids.length - 1] }),
+      desc: "Excluded always at bottom"
+    },
+    {
+      name: "Backward compat: legacy page (no kind) → PF_floor_<N>",
+      check: () => {
+        const legacy = proposedFolders.find(f => f.pages.includes(20));
+        return { pass: legacy && legacy.id === "PF_floor_4", got: "p20 folder=" + (legacy?.id || "MISSING") };
+      },
+      desc: "Old .bmaplan files without pageFloorKind still work — p20 (no kind) defaults to PF_floor_4"
+    },
+    {
+      name: "Backward compat: legacy floor#=roof + new kind=rooftop both → PF_floor_roof",
+      check: () => {
+        const legacyId = pageFolderIdFor_proposed(13, "floor", "roof", undefined);
+        const newId    = pageFolderIdFor_proposed(13, "floor", "roof", "rooftop");
+        return { pass: legacyId === newId && legacyId === "PF_floor_roof", got: `legacy=${legacyId}, new=${newId}` };
+      },
+      desc: "Old + new rooftop encoding both produce same PF_floor_roof ID"
+    },
+    {
+      name: "Mechanical at floor#5 → PF_mech_5 (no collision with PF_floor_5)",
+      check: () => {
+        const mech = proposedFolders.find(f => f.id === "PF_mech_5");
+        return { pass: !!mech, got: "PF_mech_5 " + (mech ? "exists" : "MISSING") };
+      },
+      desc: "Mechanical kind gets its own folder"
+    }
+  ];
+
+  const host = document.getElementById("tests");
+  host.innerHTML = "";
+  let pass = 0, fail = 0;
+  for (const t of tests) {
+    const r = t.check();
+    const d = document.createElement("div");
+    d.className = "test " + (r.pass ? "pass" : "fail");
+    d.innerHTML = `<b>${r.pass ? "✓" : "✗"} ${t.name}</b><br><span class="got">${r.got}</span><br><span style="color:#8b97a8">${t.desc}</span>`;
+    host.appendChild(d);
+    if (r.pass) pass++; else fail++;
+  }
+  return { pass, fail };
+}
+
+/* --------- Run ---------------------------------------------------------- */
+renderDataset();
+const cur = seedFolders(PAGES, pageFolderIdFor_current);
+const pro = seedFolders(PAGES, pageFolderIdFor_proposed);
+renderPanel(cur, "panel-current",  false);
+renderPanel(pro, "panel-proposed", true);
+const result = runTests(cur, pro);
+
+const verdict = document.getElementById("verdict");
+verdict.className = "verdict " + (result.fail === 0 ? "good" : "bad");
+verdict.textContent = result.fail === 0
+  ? `✅ SPIKE PASS — ${result.pass}/${result.pass + result.fail} assertions green. Approach A (composite-string PF folder IDs + rank function) correctly separates kinds, orders deterministically, and preserves backward compat with zero migration code.`
+  : `⚠ SPIKE FAIL — ${result.fail}/${result.pass + result.fail} assertions failed. Re-design needed before sprint card.`;
+</script>
+
+</body>
+</html>
