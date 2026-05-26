@@ -4,7 +4,32 @@
 
 ---
 
-# Latest: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes) — PASS
+# Latest: BUG-20260526-lite-stale-pf-folder-cleanup — PASS
+
+**Date:** 2026-05-26
+**Branch:** main
+
+## Outcome
+
+PASS. The stale PF folder accumulation bug in lite is fixed. `seedPageFolders()` now prunes `PF_floor_N` folders (+ their 3 seed layers) when their source pages are re-tagged away from floor/basement. A safety guard preserves any folder that still contains user-drawn objects, so no measurement work is silently deleted. Discovery was via `/bma-simulate` run `basement-order-exclude-stale-20260526T173000` which confirmed BUG-HYP-2 (`stale_PF_floor_1_exists=true`, 3 lingering layers). All 4 test cases PASS + 5 regression markers GREEN. Proto untouched.
+
+## What was delivered
+
+- `lite/static/js/page-folder-layers.js` (+47/-2, 743→790 lines) — `_pflFolderHasUserDrawnObjects(folderId)` + `_pflPrunePF(activeFolderIds)` helpers + wiring into `seedPageFolders`; return shape adds `pruned` count (in-memory, not serialized)
+- `lite/tests/test_pf_cleanup_on_exclude.py` (NEW, 168 lines) — 4-case Playwright: basic cleanup / safety preservation / idempotency / PF_excluded never pruned; marker `PF_CLEANUP_OK`
+- `.claude/skills/bma-simulate/regression_probes.json` — setup_js for LITE-BUG-DBLCLICK-OVER-POP probe updated to handle wizard auto-open (partial workaround; full probe rewrite deferred)
+
+## What's next
+
+- **LITE-PROBE-DBLCLICK-REWRITE** (test-infra, medium priority): Rewrite `LITE-BUG-DBLCLICK-OVER-POP` probe from `mouse_sequence` to `evaluate`-only — directly inject `state.draft` points then dispatch synthetic dblclick event on `cv`. Makes probe robust against future UI workflow changes (wizard auto-open, modal overlays) that block real mouse events. Current setup_js workaround (dismissing lwiz lock) is partial.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic, page-folder-layers sub-system hardening. This bug existed since LPFL-1 (first ship of seedPageFolders, 2026-05-25) — the `removeFolder` function was imported but never called. Fix is surgical and additive; no forbidden surface touched; proto baseline unchanged. LITE-7 (PyInstaller .exe) remains the only deferred epic item.
+
+---
+
+# Previous: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes) — PASS
 
 **Date:** 2026-05-25
 **Branch:** main
@@ -39,31 +64,4 @@ Phase 1 — BMA-Plan Lite epic + proto geometry/snap track. The centerline snap 
 
 ---
 
-# Previous: SIM-2 — /bma-simulate regression-probe hardening — PASS
-
-**Date:** 2026-05-24
-**Branch:** main
-
-## Outcome
-
-PASS. `/bma-simulate` (Pack J) gains a permanent hard-probe channel: `.claude/skills/bma-simulate/regression_probes.json` (tracked, curated per sprint) holds mandatory probe steps prepended to every SCENARIO_PLAN. Two probes are registered — LITE-BUG-MODAL-NEST and LITE-BUG-DBLCLICK-OVER-POP (both closed by LITE-BUG-2-OPUS47-FINDINGS) — and both verify PASS against the current build (860 ms + 2919 ms). A false probe assertion returns a new REGRESSION severity tier (above CRASH), triggering the SIM_REGRESSION stop condition. Zero changes to `lite/` or `proto/` runtime code. Proto 21-marker baseline unchanged.
-
-## What was delivered
-
-- `.claude/skills/bma-simulate/regression_probes.json` — NEW: 2 active probes (evaluate-type: MODAL-NEST; mouse_sequence-type: DBLCLICK-OVER-POP) + `_schema` block (~50 lines, tracked)
-- `.claude/skills/bma-simulate/SKILL.md` — Phase A reads probes + prepends probe steps; REGRESSION severity (highest tier) added; SIM_REGRESSION + SIM_PROBES_MALFORMED stop conditions; soft/hard memory channel table
-- `.claude/agents/bma-sim-driver.md` — `regression_probe` step type + execution recipe sub-section
-- `sprints/active/SIM-2-REGRESSION-PROBES-2026-05-24.md` — sprint card (to move to completed/)
-
-## What's next
-
-- **(OPTION 2) Snap-to-walls polygon strategy** — replace synthetic 80%-quad placeholder with real wall-snap geometry (read PDF vector edges, snap to walls); new `lite/static/js/snap-walls.js`; run via `/bma-lite-dev`
-- **(OPTION 3) Lite PDF page classifier** — auto-tag floor/site/cover from title block OCR or layout hints; invention-level — run `/bma-invent` first
-
-## Position in Plan
-
-Phase 1 adjacent — BMA-Plan Lite epic, simulator tooling hardening sub-track. SIM-2 closes the "simulator reflection-loop" follow-up filed in LITE-BUG-2-OPUS47-FINDINGS. No Phase 2 scope boundary crossed. Proto/ and lite/ runtime untouched. LITE-7 (packaging) remains the only deferred epic item.
-
----
-
-<!-- LITE-BUG-2-OPUS47-FINDINGS and older reports archived to docs/archive/reports-2026-05-09.md -->
+<!-- SIM-2 (2026-05-24) and older reports archived to docs/archive/reports-2026-05-09.md -->

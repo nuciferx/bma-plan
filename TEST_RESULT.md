@@ -4,7 +4,67 @@
 
 ---
 
-# Latest: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
+# Latest: BUG-20260526-lite-stale-pf-folder-cleanup
+
+Branch: main
+Date: 2026-05-26
+
+## Result: PASS (lite tests only — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this sprint made zero changes to `proto/` source files. Lite-only sprint. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python -m py_compile lite/server_lite.py
+python lite/tests/test_pf_cleanup_on_exclude.py
+python lite/tests/test_page_folder_model.py
+python lite/tests/test_page_folder_persist.py
+python lite/tests/test_pf_kind_folders.py
+python lite/tests/test_custom_layer_persist.py
+python lite/tests/test_tree_persist.py
+# /bma-simulate verify re-run (manual)
+# verify_dblclick_manual.py (manual Playwright)
+```
+
+## Lite — PF_CLEANUP_OK (4/4 cases)
+
+| Case | Description | Result |
+|---|---|---|
+| A — basic cleanup | tag p1=B1, p2=floor1, p3=floor2 → seed → re-tag p2 excluded → re-seed → assert PF_floor_1 gone + layers gone + PF_excluded gained p2 | PASS |
+| B — safety preservation | same as A but push user-drawn object onto "GFA ชั้น 1" before re-tag → assert PF_floor_1 PRESERVED | PASS |
+| C — idempotency | 5x back-to-back seedPageFolders produces same FOLDERS state as 1x | PASS |
+| D — PF_excluded never pruned | PF_excluded is never pruned even when empty | PASS |
+
+## Lite — Regression Suite (5 markers GREEN)
+
+| Marker | Result |
+|---|---|
+| LITE_PAGE_FOLDER_MODEL_OK | PASS |
+| LITE_PAGE_FOLDER_PERSIST_OK | PASS |
+| LITE_PF_KIND_OK (11/11) | PASS |
+| LITE_LAYER_PERSIST_OK | PASS |
+| LITE_TREE_PERSIST_OK | PASS |
+
+## /bma-simulate Verify Re-run
+
+```
+stale_PF_floor_1_exists = false
+dom_render_order = [PF_basement_1, PF_floor_2, PF_excluded]
+Result: VERIFIED PASS
+```
+
+## Manual E2E
+
+```
+verify_dblclick_manual.py → DBLCLICK_OK (objects=1, pts=4)
+```
+
+---
+
+# Previous: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
 
 Branch: main
 Date: 2026-05-25
@@ -95,61 +155,4 @@ Per AGENTS.md: feature defaults OFF; user must opt-in via "⊙ CL" Helpers ribbo
 
 ---
 
-# Previous: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
-
-Branch: main
-Date: 2026-05-24
-
-## Result: PASS (no-test rationale for proto/lite — zero source changes; probe verifier is the relevant smoke test)
-
-## No-Test Rationale
-
-Per AGENTS.md §1, sprints that make ZERO changes to proto/ or lite/ source record a no-test rationale instead of running proto E2E. This sprint changed only files under `.claude/` (SKILL.md, bma-sim-driver.md, regression_probes.json) and added a sprint card under `sprints/`. The `regression_probes.json` mechanism is a READ-ONLY observer of the running lite app — it does not modify lite or proto code. Therefore proto `py_compile + smoke + full` and lite tests were not re-run (would only re-verify unchanged baseline). The probe verifier below IS the relevant smoke test for this sprint.
-
-## Tests Run
-
-```bash
-python -c "import json; json.load(open('.claude/skills/bma-simulate/regression_probes.json', encoding='utf-8'))"
-  → PASS (2 probes registered, both schema-valid)
-
-artifacts/sim/lite/regression-probes-verify-20260524T200000/probe_executor.py
-  (loads regression_probes.json; runs each probe against current lite build using
-   the exact bma-sim-driver recipe: setup_js → trigger → assertion_js → cleanup_js)
-
-  === LITE-BUG-MODAL-NEST ===
-    type: evaluate
-    result: PASS  (860ms)
-    assertion: #setupModal has non-zero rect, parent=#stage, select.offsetParent exists
-
-  === LITE-BUG-DBLCLICK-OVER-POP ===
-    type: mouse_sequence (4 clicks + 1 dblclick at last-click position)
-    result: PASS  (2919ms)
-    assertion: PS[1].objects[0].pts.length === 4
-
-  2 PASS · 0 FAIL
-```
-
-Evidence trail:
-- Probe JSON: `.claude/skills/bma-simulate/regression_probes.json`
-- Verifier results: `artifacts/sim/lite/regression-probes-verify-20260524T200000/verify_result.json`
-- Screenshots: `artifacts/sim/lite/regression-probes-verify-20260524T200000/screenshots/probe_*.png`
-- Closed bugs protected: commit `2dae5c0` (LITE-BUG-2-OPUS47-FINDINGS)
-
-## Reference Baseline (from previous sprint LITE-BUG-2-OPUS47-FINDINGS 2026-05-24)
-
-```
-python -c "open('lite/ui-lite.html', encoding='utf-8').read()"    → parseable PASS
-wc -l lite/ui-lite.html                                            → 1197 (≤1200 cap) PASS
-<div> vs </div> balance: delta=0 PASS
-cd lite && python -m py_compile server_lite.py                     → PASS
-cd lite && python tests/test_pan_controls.py                       → BUG_20260521_LITE_PAN_OK PASS
-
-proto baseline (unchanged):
-python3.11 -m py_compile proto/server.py proto/e2e_ui_test.py  → PASS
-python3.11 proto/e2e_ui_test.py smoke                          → PASS (18 baseline markers)
-python3.11 proto/e2e_ui_test.py full                           → PASS (21 markers)
-```
-
----
-
-<!-- LITE-BUG-2-OPUS47-FINDINGS and older test results archived to docs/archive/test-history-2026-05-09.md -->
+<!-- SIM-2 (2026-05-24) and older test results archived to docs/archive/test-history-2026-05-09.md -->

@@ -33,10 +33,10 @@
       "fixed_in_sprint": "LITE-BUG-2-OPUS47-FINDINGS",
       "fixed_in_commit": "2dae5c0",
       "description": "Polygon dblclick at the same screen position as the last click MUST preserve the intentional vertex (final polygon has 4 pts, not 3). Asserts the pop-loop cap of 2 from cv.dblclick handler.",
-      "preconditions": "PDF loaded; the probe sets PS[1].scale + active layer + poly tool itself in setup_js so it does not depend on prior scenario state.",
+      "preconditions": "PDF loaded; the probe sets PS[1].scale + active layer + poly tool itself in setup_js. Also dismisses any active LWIZ wizard hard-block (added 2026-05-26 by BUG-20260526-lite-force-setup) so the mouse_sequence reaches cv. Setup is self-contained — does not depend on prior scenario state.",
       "trigger": {
         "type": "mouse_sequence",
-        "setup_js": "() => { if(!PS[1])return; PS[1].objects=[]; PS[1].scale={pts_per_m:30.0}; setTool('poly'); state.draft=null; }",
+        "setup_js": "() => { try { if(typeof _lwizAutoLiftLock==='function') _lwizAutoLiftLock(); window.__lwizAutoLockActive=false; window.__lwizAutoFired=true; var ov=document.getElementById('ov'); if(ov && ov.classList.contains('show')) ov.classList.remove('show'); } catch(_){} if(!PS[1])return; PS[1].objects=[]; PS[1].scale={pts_per_m:30.0}; setTool('poly'); state.draft=null; }",
         "mouse_sequence": [
           { "action": "click",    "pdf_pt": { "x": 84.2,  "y": 119.1  } },
           { "action": "click",    "pdf_pt": { "x": 757.8, "y": 119.1  } },

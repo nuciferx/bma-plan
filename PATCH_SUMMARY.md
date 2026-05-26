@@ -4,7 +4,68 @@
 
 ---
 
-# Latest: Centerline Snap arc (invent 2026-05-24-22-14 → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
+# Latest: BUG-20260526-lite-stale-pf-folder-cleanup
+
+Branch: main
+
+Date: 2026-05-26
+
+## Outcome: PASS — Pruned stale PF_floor_N folders + seed layers in lite when their pages re-tagged (with user-object preservation guard). PF_CLEANUP_OK 4/4 + 5 regressions GREEN. Lite-only sprint; proto NOT TOUCHED.
+
+## Summary
+
+`seedPageFolders()` in `lite/static/js/page-folder-layers.js` never removed folders that disappeared from `folderPageMap`. `removeFolder` was imported at line 8 but never called anywhere in the file (grep-verified). Side effect: every time a user re-tagged a floor page to non-floor, the previous `PF_floor_N` folder + its 3 seed layers ("GFA ชั้น N", "หักช่องลิฟต์", "หักช่องบันได") lingered as ghost rows. Two internal helpers added: `_pflFolderHasUserDrawnObjects(folderId)` walks descendant layers and scans `PS[*].objects` for user-drawn objects; `_pflPrunePF(activeFolderIds)` reverse-walks FOLDERS of kind `page-folder`, skips `PF_excluded` and folders with user objects, then removes the rest. `PF_excluded` is never pruned even when empty. All changes are in the module only; `lite/ui-lite.html` untouched (cap 1200/1200).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/page-folder-layers.js` | +47/-2 (743→790 lines, ≤1000 cap) — added `_pflFolderHasUserDrawnObjects`, `_pflPrunePF`; wired into `seedPageFolders`; return shape adds `pruned` (in-memory only) |
+| `lite/tests/test_pf_cleanup_on_exclude.py` | NEW 168 lines — 4-case Playwright marker `PF_CLEANUP_OK`: case A basic cleanup / case B safety preservation / case C idempotency / case D PF_excluded never pruned |
+| `.claude/skills/bma-simulate/regression_probes.json` | setup_js for LITE-BUG-DBLCLICK-OVER-POP probe updated to call `_lwizAutoLiftLock()` + clear `ov.show` (partial workaround; full probe rewrite deferred to LITE-PROBE-DBLCLICK-REWRITE) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only sprint; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; `pruned` return field is in-memory only, not serialized
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+- `lite/ui-lite.html` — UNCHANGED (at 1200/1200 cap)
+
+## Tests Run
+
+```
+python -m py_compile lite/server_lite.py                   → OK
+python lite/tests/test_pf_cleanup_on_exclude.py            → PF_CLEANUP_OK 4/4
+python lite/tests/test_page_folder_model.py                → LITE_PAGE_FOLDER_MODEL_OK
+python lite/tests/test_page_folder_persist.py              → LITE_PAGE_FOLDER_PERSIST_OK
+python lite/tests/test_pf_kind_folders.py                  → LITE_PF_KIND_OK 11/11
+python lite/tests/test_custom_layer_persist.py             → LITE_LAYER_PERSIST_OK
+python lite/tests/test_tree_persist.py                     → LITE_TREE_PERSIST_OK
+/bma-simulate verify re-run                                → PF cleanup VERIFIED PASS
+                                                             (stale_PF_floor_1_exists=false;
+                                                              dom_render_order=[PF_basement_1, PF_floor_2, PF_excluded])
+Manual e2e verify_dblclick_manual.py                       → DBLCLICK_OK (objects=1, pts=4)
+
+Proto py_compile + smoke + full NOT re-run (proto untouched; lite-only sprint).
+Reference baseline: proto full E2E = 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10, unchanged).
+```
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `.bmaplan` schema additive only (return-value field `pruned` is in-memory, not serialized)
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ `lite/static/js/measure-engine.js` UNCHANGED (drift-locked vendored copy)
+- ✅ `lite/ui-lite.html` UNCHANGED (at 1200/1200 cap)
+
+---
+
+# Previous: Centerline Snap arc (invent 2026-05-24-22-14 → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
 
 Branch: main
 
@@ -74,61 +135,4 @@ Commit trail: 0208314 (invent spike GO) → 6db0461 (INV-002a proto)
 
 ---
 
-# Previous: SIM-2 — /bma-simulate regression-probe hardening (permanent regression probes)
-
-Branch: main
-
-Date: 2026-05-24
-
-## Outcome: PASS — /bma-simulate gains a permanent hard-probe channel: regression_probes.json (tracked, curated per sprint) holds mandatory steps prepended to every SCENARIO_PLAN. Two probes registered (LITE-BUG-MODAL-NEST + LITE-BUG-DBLCLICK-OVER-POP) and verified PASS against current build. False assertion = REGRESSION severity (above CRASH). Zero runtime changes to lite/ or proto/.
-
-## Summary
-
-Added a permanent regression-probe mechanism to Pack J `/bma-simulate`. Two memory channels now coexist: the existing soft channel (`artifacts/sim/lite/history.jsonl`, rolling, gitignored, few-shot context) and a new hard channel (`.claude/skills/bma-simulate/regression_probes.json`, tracked, permanent). Phase A reads the hard channel and prepends one `regression_probe` step per entry to the SCENARIO_PLAN right after `open_pdf`. `bma-sim-driver` supports the new step type with setup_js → trigger → assertion_js → cleanup_js recipe. A false assertion returns REGRESSION severity — a new tier above CRASH — and triggers the new `SIM_REGRESSION` stop condition. Two initial probes verify PASS against the current build: LITE-BUG-MODAL-NEST (evaluate-type, 860 ms) and LITE-BUG-DBLCLICK-OVER-POP (mouse_sequence-type, 2919 ms).
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `.claude/skills/bma-simulate/regression_probes.json` | NEW — 2 active probes + `_schema` docs block (~50 lines) |
-| `.claude/skills/bma-simulate/SKILL.md` | Phase A reads probes; prepends probe steps to SCENARIO_PLAN; REGRESSION severity added (highest); SIM_REGRESSION + SIM_PROBES_MALFORMED stop conditions; soft/hard memory table (~+30 lines) |
-| `.claude/agents/bma-sim-driver.md` | `regression_probe` step type added to step types table; "How to execute regression_probe" sub-section (~+45 lines) |
-| `sprints/active/SIM-2-REGRESSION-PROBES-2026-05-24.md` | NEW sprint card (to be moved to `sprints/completed/2026-05-24-sim-2-regression-probes/`) |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema version stays 1; untouched (probes read PS in-memory, ephemeral)
-- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
-- `lite/ui-lite.html` — NOT TOUCHED (zero lite/ runtime edits)
-
-## Tests Run
-
-```
-python -c "import json; json.load(open('.claude/skills/bma-simulate/regression_probes.json', encoding='utf-8'))"
-  → PASS (2 probes registered, both schema-valid)
-
-artifacts/sim/lite/regression-probes-verify-20260524T200000/probe_executor.py
-  → LITE-BUG-MODAL-NEST:        PASS (860ms)
-  → LITE-BUG-DBLCLICK-OVER-POP: PASS (2919ms)
-  → 2 PASS · 0 FAIL
-
-No proto/lite source changes → proto py_compile + E2E not re-run.
-Reference baseline: proto full E2E = 21 markers (HT-ACC 2026-05-20, unchanged).
-```
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` — UNCHANGED
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math — UNCHANGED
-- ✅ `proto/server.py` — NOT TOUCHED
-- ✅ `.bmaplan` schema — additive only (untouched; probes read in-memory PS only)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ Size cap honored (no lite/ runtime files touched)
-
----
-
-<!-- LITE-BUG-2-OPUS47-FINDINGS and older entries archived to docs/archive/patch-history-2026-05-09.md -->
+<!-- SIM-2 (2026-05-24) and older entries archived to docs/archive/patch-history-2026-05-09.md -->

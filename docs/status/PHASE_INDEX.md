@@ -173,6 +173,10 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
 
+### test-infra 2026-05-26
+
+- [ ] **LITE-PROBE-DBLCLICK-REWRITE** — `queued` — `p-med` — Rewrite `LITE-BUG-DBLCLICK-OVER-POP` probe in `.claude/skills/bma-simulate/regression_probes.json` from `mouse_sequence` to `evaluate`-only — directly inject `state.draft` points then dispatch synthetic dblclick event on `cv`. Makes probe robust against future UI workflow changes (wizard auto-open from BUG-20260526-lite-force-setup currently blocks real mouse events from reaching cv even after partial lock-lift workaround). Current setup_js workaround is partial — does not handle case where lock re-engages mid-probe. Source: BUG-20260526-lite-stale-pf-folder-cleanup sprint verify run (manual e2e `verify_dblclick_manual.py` confirms actual dblclick handler is intact — probe failure is false positive).
+
 ### housekeeping 2026-05-25
 
 - [ ] **HK-1** — `queued` — `.gitignore` ยังไม่ครอบ `*.gsheet` → Google Drive shortcuts (เช่น `menu BCO.gsheet`) โผล่ใน git status ทุกครั้ง. Action = `echo "*.gsheet" >> .gitignore` แล้ว commit. Source: /bma-housekeep audit 2026-05-25

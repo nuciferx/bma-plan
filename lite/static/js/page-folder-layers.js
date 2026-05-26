@@ -104,12 +104,18 @@ function pageFolderIdFor(page, tagOrMap, floorNumOrMap, kind) {
 
   if (floorNum === "roof" || kind === "rooftop") return "PF_floor_roof";
 
+  /* BUG-20260526-lite-reseed-all-pages: when tag=floor but floor# missing,
+     don't create the ugly PF_floor_? bucket. Treat as excluded until user
+     supplies a floor#. Prevents stale "ชั้น ?" folders from lingering when
+     wizard user types tag first, floor# after. */
+  if (floorNum === undefined || floorNum === null || floorNum === "") return "PF_excluded";
+
   switch (kind) {
     case "basement":   return "PF_basement_" + floorNum;
     case "mezzanine":  return "PF_mezz_"     + floorNum;
     case "mechanical": return "PF_mech_"     + floorNum;
     case "normal":
-    default:           return "PF_floor_" + (floorNum !== undefined && floorNum !== null ? floorNum : "?");
+    default:           return "PF_floor_" + floorNum;
   }
 }
 
@@ -258,11 +264,54 @@ function _pflFolderSeedName(fid) {
   return fid;
 }
 
+/* Internal: return true if any descendant layer of folderId owns ≥1 user-drawn
+   object across all pages of PS. Safe to call before PS is populated. */
+function _pflFolderHasUserDrawnObjects(folderId) {
+  if (typeof PS === "undefined" || !PS) return false;
+  var descLayers = _descendantLayers(folderId);
+  if (!descLayers.length) return false;
+  var lidSet = {};
+  for (var di = 0; di < descLayers.length; di++) lidSet[descLayers[di].id] = true;
+  var pgKeys = Object.keys(PS);
+  for (var pi = 0; pi < pgKeys.length; pi++) {
+    var pgData = PS[pgKeys[pi]];
+    if (!pgData || !pgData.objects) continue;
+    var objs = pgData.objects;
+    for (var oi = 0; oi < objs.length; oi++) {
+      if (lidSet[objs[oi].catId]) return true;
+    }
+  }
+  return false;
+}
+
+/* Internal: remove PF folders (and their descendant layers) that are no longer
+   in activeFolderIds. Never prunes PF_excluded. Never prunes folders whose
+   descendants still own user-drawn objects.
+   Returns count of folders pruned. */
+function _pflPrunePF(activeFolderIds) {
+  var activeSet = {};
+  for (var ai = 0; ai < activeFolderIds.length; ai++) activeSet[activeFolderIds[ai]] = true;
+  var pruned = 0;
+  for (var fi = FOLDERS.length - 1; fi >= 0; fi--) {
+    var folder = FOLDERS[fi];
+    if (!folder || folder.kind !== "page-folder") continue;
+    if (folder.id === "PF_excluded") continue;
+    if (activeSet[folder.id]) continue;
+    if (_pflFolderHasUserDrawnObjects(folder.id)) continue;
+    // Safe to prune: remove descendant layers then the folder itself
+    var descLayers = _descendantLayers(folder.id);
+    for (var li = 0; li < descLayers.length; li++) removeLayer(descLayers[li].id);
+    removeFolder(folder.id);
+    pruned++;
+  }
+  return pruned;
+}
+
 /* Idempotent seed. Creates PF_* folders for every distinct id derived
    from pageList. Existing folders: update .pages only (skip creation).
    New folders: create via addFolder → override .id with PF_* id →
    set .kind + .pages → seed base layers.
-   Returns {created:[{kind,folderId,baseLayerIds}], skipped:[folderId]} */
+   Returns {created:[{kind,folderId,baseLayerIds}], skipped:[folderId], pruned:N} */
 function seedPageFolders(pageList, pageTags, pageFloorNum, pageFloorKind) {
   var folderPageMap = _collectFolderPages(pageList, pageTags, pageFloorNum, pageFloorKind);
   var created = [], skipped = [];
@@ -292,6 +341,11 @@ function seedPageFolders(pageList, pageTags, pageFloorNum, pageFloorKind) {
       created.push({kind: fkind2, folderId: fid, baseLayerIds: baseLayerIds});
     }
   }
+  // BUG-20260526-stale-pf-cleanup: prune PF folders that disappeared from folderPageMap.
+  // Safety guard: preserve any folder whose descendants still own user-drawn objects.
+  var _activeFids = folderIds;  // captured from Object.keys(folderPageMap) above
+  var _prunedCount = _pflPrunePF(_activeFids);
+
   /* LFOC-ORDER-A: re-rank PF folder .order deterministically so they render
      in workflow order regardless of creation sequence. Idempotent — safe to
      call on every seed. Non-PF folders (kind !== 'page-folder') are untouched. */
@@ -302,7 +356,7 @@ function seedPageFolders(pageList, pageTags, pageFloorNum, pageFloorKind) {
     }
   }
 
-  return {created: created, skipped: skipped};
+  return {created: created, skipped: skipped, pruned: _prunedCount};
 }
 
 /* Walk parentId chain; return first ancestor folder with kind==='page-folder', else null. */
@@ -634,9 +688,17 @@ function togglePageFolderMode(forceState) {
    ------------------------------------------------------------------ */
 function reseedActivePageFolders() {
   if (!state) return;
-  var pages = Object.keys(PS).map(Number).filter(function(n) { return !isNaN(n); });
-  if (pages.length === 0 && typeof pageCount !== "undefined" && pageCount > 0) {
+  /* BUG-20260526-lite-reseed-all-pages: prefer 1..pageCount over Object.keys(PS).
+     Before this fix, reseed iterated only PS keys (= pages rendered/loaded). On a
+     fresh PDF upload, PS={1:...} → only p1 became a PF folder, so floor pages
+     2..N tagged in the wizard never produced PF_floor_<N> folders until the user
+     individually navigated to each page. Iterating 1..pageCount makes wizard
+     tagging behave intuitively. */
+  var pages = [];
+  if (typeof pageCount !== "undefined" && pageCount > 0) {
     for (var i = 1; i <= pageCount; i++) pages.push(i);
+  } else {
+    pages = Object.keys(PS).map(Number).filter(function(n) { return !isNaN(n); });
   }
   if (pages.length === 0) return;
   var _pfk = (typeof pageFloorKind !== "undefined") ? pageFloorKind : undefined;
