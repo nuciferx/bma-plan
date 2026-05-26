@@ -128,9 +128,10 @@ function _lpDoAddLayer(role) {
   } else if (typeof pageFolderIdFor === "function" && typeof curPage !== "undefined") {
     // LFOC-1f: fallback — in folder-only mode (LFOC-1b), a root-level layer is
     // contextually lost. Place new layer under the current page's PF folder if any.
-    var _tag = (typeof pageTags !== "undefined") ? pageTags[curPage] : null;
+    var _tag  = (typeof pageTags     !== "undefined") ? pageTags[curPage]     : null;
     var _fnum = (typeof pageFloorNum !== "undefined") ? pageFloorNum[curPage] : null;
-    var pfId = pageFolderIdFor(curPage, _tag, _fnum);
+    var _kind = (typeof pageFloorKind !== "undefined") ? pageFloorKind[curPage] : null;
+    var pfId = pageFolderIdFor(curPage, _tag, _fnum, _kind);
     if (pfId && typeof folderById === "function" && folderById(pfId)) {
       newLayer.parentId = pfId;
     }

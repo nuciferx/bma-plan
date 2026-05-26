@@ -67,23 +67,61 @@
 var PAGE_FOLDER_PREFIX = "PF_";
 
 /* Return deterministic PF_* id for a page.
-   site → PF_site | floor → PF_floor_<N> | else → PF_excluded */
-function pageFolderIdFor(page, pageTags, pageFloorNum) {
-  var tag = pageTags ? pageTags[page] : undefined;
-  if (tag === "site") return "PF_site";
-  if (tag === "floor") {
-    var n = pageFloorNum ? pageFloorNum[page] : undefined;
-    return "PF_floor_" + (n !== undefined && n !== null ? n : "?");
+   New calling convention (LFOC-ORDER-B):
+     pageFolderIdFor(page, tag, floorNum, kind)
+       tag/floorNum/kind are direct values (strings/undefined).
+   Legacy calling convention (LPFL-1a, maps):
+     pageFolderIdFor(page, pageTags, pageFloorNum)
+       auto-detected when 2nd arg is a plain object (map).
+   Both forms supported for backward compat with existing tests.
+
+   site → PF_site
+   floor+kind=normal  → PF_floor_<N>
+   floor+kind=basement→ PF_basement_<N>
+   floor+kind=mezzanine→PF_mezz_<N>
+   floor+kind=mechanical→PF_mech_<N>
+   floor+kind=rooftop  → PF_floor_roof
+   else → PF_excluded */
+function pageFolderIdFor(page, tagOrMap, floorNumOrMap, kind) {
+  var tag, floorNum;
+  // Backward-compat: detect old map-based calling convention
+  if (tagOrMap !== null && typeof tagOrMap === "object") {
+    tag      = tagOrMap[page];
+    floorNum = floorNumOrMap ? floorNumOrMap[page] : undefined;
+    kind     = undefined;  // legacy saves have no kind
+  } else {
+    tag      = tagOrMap;
+    floorNum = floorNumOrMap;
+    // kind already in 4th arg
   }
-  return "PF_excluded";
+
+  if (!tag) return "PF_excluded";
+  if (tag === "excluded") return "PF_excluded";
+  if (tag === "site")     return "PF_site";
+  if (tag !== "floor")    return "PF_excluded";
+
+  kind = kind || "normal";  // legacy default for old saves with no pageFloorKind
+
+  if (floorNum === "roof" || kind === "rooftop") return "PF_floor_roof";
+
+  switch (kind) {
+    case "basement":   return "PF_basement_" + floorNum;
+    case "mezzanine":  return "PF_mezz_"     + floorNum;
+    case "mechanical": return "PF_mech_"     + floorNum;
+    case "normal":
+    default:           return "PF_floor_" + (floorNum !== undefined && floorNum !== null ? floorNum : "?");
+  }
 }
 
 /* Internal: build {folderId → sorted unique page[]} map. */
-function _collectFolderPages(pageList, pageTags, pageFloorNum) {
+function _collectFolderPages(pageList, pageTags, pageFloorNum, pageFloorKind) {
   var map = {};
   for (var i = 0; i < pageList.length; i++) {
     var pg = pageList[i];
-    var fid = pageFolderIdFor(pg, pageTags, pageFloorNum);
+    var _tag    = pageTags    ? pageTags[pg]    : undefined;
+    var _fnum   = pageFloorNum ? pageFloorNum[pg] : undefined;
+    var _kind   = pageFloorKind ? pageFloorKind[pg] : undefined;
+    var fid = pageFolderIdFor(pg, _tag, _fnum, _kind);
     if (!map[fid]) map[fid] = [];
     map[fid].push(pg);
   }
@@ -101,30 +139,73 @@ function _collectFolderPages(pageList, pageTags, pageFloorNum) {
   return result;
 }
 
-/* Internal: extract floor label from PF_floor_<N>, else null. */
+/* Internal: extract floor label from PF_floor_<N>, else null.
+   Returns N (as string) for PF_floor_N, PF_basement_N, PF_mezz_N, PF_mech_N.
+   Returns "roof" for PF_floor_roof.
+   Returns null for PF_site, PF_excluded, unknown. */
 function _floorLabel(folderId) {
   var p = "PF_floor_";
-  return folderId.indexOf(p) === 0 ? folderId.slice(p.length) : null;
+  if (folderId.indexOf(p) === 0) return folderId.slice(p.length);
+  var mb = /^PF_basement_(\d+)$/.exec(folderId);
+  if (mb) return mb[1];
+  var mm = /^PF_mezz_(\d+)$/.exec(folderId);
+  if (mm) return mm[1];
+  var me = /^PF_mech_(\d+)$/.exec(folderId);
+  if (me) return me[1];
+  return null;
 }
 
-/* LFOC-ORDER-A: deterministic .order rank for a PF folder id.
-   PF_site=0, PF_floor_N=10+N*10 (floor#1→20, floor#2→30, …),
-   PF_floor_roof=900, unknown PF=5000, PF_excluded=9999.
-   Gap at order=10 reserved for a future PF_floor_0/mezzanine slot.
+/* Internal: return kind string for a PF folder id.
+   Returns one of: site | normal | basement | mezz | mech | rooftop | excluded */
+function _pfKindOf(folderId) {
+  if (folderId === "PF_site")       return "site";
+  if (folderId === "PF_excluded")   return "excluded";
+  if (folderId === "PF_floor_roof") return "rooftop";
+  if (/^PF_basement_/.test(folderId)) return "basement";
+  if (/^PF_mezz_/.test(folderId))     return "mezz";
+  if (/^PF_mech_/.test(folderId))     return "mech";
+  if (/^PF_floor_/.test(folderId))    return "normal";
+  return "unknown";
+}
+
+/* LFOC-ORDER-A/B: deterministic .order rank for a PF folder id.
+   PF_site=0
+   PF_basement_N = 100 - N*5  (B3=85, B2=90, B1=95; deeper basement sorts first)
+   PF_floor_N    = 100 + N*10 (floor1=110, floor2=120, …)
+   PF_mezz_N     = 100 + N*10 + 5 (interleaved between floor N and N+1)
+   PF_mech_N     = 100 + N*10 + 7 (after mezz, before next floor)
+   PF_floor_roof = 9000
+   PF_excluded   = 9999
+   unknown PF    = 5000
    Non-PF folders are never passed here. */
 function _rankPFFolder(folderId) {
   if (folderId === "PF_site")        return 0;
   if (folderId === "PF_excluded")    return 9999;
-  if (folderId === "PF_floor_roof")  return 900;
-  var m = /^PF_floor_(\d+)$/.exec(folderId);
-  if (m) return 10 + parseInt(m[1], 10) * 10;
+  if (folderId === "PF_floor_roof")  return 9000;
+
+  var mb = /^PF_basement_(\d+)$/.exec(folderId);
+  if (mb) return 100 - parseInt(mb[1], 10) * 5;
+
+  var mf = /^PF_floor_(\d+)$/.exec(folderId);
+  if (mf) return 100 + parseInt(mf[1], 10) * 10;
+
+  var mm = /^PF_mezz_(\d+)$/.exec(folderId);
+  if (mm) return 100 + parseInt(mm[1], 10) * 10 + 5;
+
+  var me = /^PF_mech_(\d+)$/.exec(folderId);
+  if (me) return 100 + parseInt(me[1], 10) * 10 + 7;
+
   return 5000;
 }
 
 /* Internal: seed base layers under a newly created PF folder.
-   site     → ที่ดิน(site) · พื้นที่อาคารปกคลุม(gfa) · แนวร่น(use)
-   floor_N  → GFA ชั้น N(gfa) · หักช่องลิฟต์(ded) · หักช่องบันได(ded)
-   excluded → none */
+   site          → ที่ดิน(site) · พื้นที่อาคารปกคลุม(gfa) · แนวร่น(use)
+   PF_floor_N    → GFA ชั้น N(gfa) · หักช่องลิฟต์(ded) · หักช่องบันได(ded)
+   PF_basement_N → GFA ชั้น BN(gfa) · หักช่องลิฟต์(ded) · หักช่องบันได(ded)
+   PF_mezz_N     → GFA Mezz N(gfa) · หักช่องลิฟต์(ded)
+   PF_mech_N     → พื้นที่ชั้นเครื่อง N(gfa)
+   PF_floor_roof → GFA หลังคา(gfa)
+   PF_excluded   → none */
 function _seedBaseLayers(folder) {
   var ids = [];
   function mk(role, name, color) {
@@ -132,20 +213,49 @@ function _seedBaseLayers(folder) {
     l.parentId = folder.id;
     ids.push(l.id);
   }
-  if (folder.id === "PF_site") {
+  var fkind = _pfKindOf(folder.id);
+  if (fkind === "site") {
     mk("site", "ที่ดิน", "#c084fc");
     mk("gfa",  "พื้นที่อาคารปกคลุม", "#4c8dff");
     mk("use",  "แนวร่น (Setback)", "#ffb454");
-  } else {
+  } else if (fkind === "rooftop") {
+    mk("gfa", "GFA ชั้น roof", "#4c8dff");  // "roof" in name: backward compat with existing test
+  } else if (fkind === "normal") {
     var n = _floorLabel(folder.id);
-    if (n !== null) {
-      mk("gfa", "GFA ชั้น " + n, "#4c8dff");
-      mk("ded", "หักช่องลิฟต์", "#ff6b6b");
-      mk("ded", "หักช่องบันได", "#ff6b6b");
-    }
-    // PF_excluded → no base layers
+    mk("gfa", "GFA ชั้น " + n, "#4c8dff");
+    mk("ded", "หักช่องลิฟต์", "#ff6b6b");
+    mk("ded", "หักช่องบันได", "#ff6b6b");
+  } else if (fkind === "basement") {
+    var nb = _floorLabel(folder.id);
+    mk("gfa", "GFA ชั้น B" + nb, "#4c8dff");
+    mk("ded", "หักช่องลิฟต์", "#ff6b6b");
+    mk("ded", "หักช่องบันได", "#ff6b6b");
+  } else if (fkind === "mezz") {
+    var nm = _floorLabel(folder.id);
+    mk("gfa", "GFA Mezz " + nm, "#4c8dff");
+    mk("ded", "หักช่องลิฟต์", "#ff6b6b");
+  } else if (fkind === "mech") {
+    var nme = _floorLabel(folder.id);
+    mk("gfa", "พื้นที่ชั้นเครื่อง " + nme, "#4c8dff");
   }
+  // PF_excluded → no base layers
   return ids;
+}
+
+/* Internal: Thai display name used when creating a new PF folder (seed time). */
+function _pflFolderSeedName(fid) {
+  if (fid === "PF_site")       return "ชั้นพื้นดิน / Site";
+  if (fid === "PF_excluded")   return "อื่น ๆ";
+  if (fid === "PF_floor_roof") return "หลังคา";
+  var mb = /^PF_basement_(\d+)$/.exec(fid);
+  if (mb) return "ชั้นใต้ดิน B" + mb[1];
+  var mf = /^PF_floor_(\d+)$/.exec(fid);
+  if (mf) return "ชั้น " + mf[1];
+  var mm = /^PF_mezz_(\d+)$/.exec(fid);
+  if (mm) return "ชั้นลอย " + mm[1];
+  var me = /^PF_mech_(\d+)$/.exec(fid);
+  if (me) return "ชั้นเครื่อง M" + me[1];
+  return fid;
 }
 
 /* Idempotent seed. Creates PF_* folders for every distinct id derived
@@ -153,23 +263,13 @@ function _seedBaseLayers(folder) {
    New folders: create via addFolder → override .id with PF_* id →
    set .kind + .pages → seed base layers.
    Returns {created:[{kind,folderId,baseLayerIds}], skipped:[folderId]} */
-function seedPageFolders(pageList, pageTags, pageFloorNum) {
-  var folderPageMap = _collectFolderPages(pageList, pageTags, pageFloorNum);
+function seedPageFolders(pageList, pageTags, pageFloorNum, pageFloorKind) {
+  var folderPageMap = _collectFolderPages(pageList, pageTags, pageFloorNum, pageFloorKind);
   var created = [], skipped = [];
 
-  // Stable order: PF_site(0) < PF_floor_*(1, numeric) < PF_excluded(2)
+  // Stable seed order using _rankPFFolder so creation order doesn't matter
   var folderIds = Object.keys(folderPageMap);
-  folderIds.sort(function(a, b) {
-    var rank = function(id) {
-      return id === "PF_site" ? 0 : id === "PF_excluded" ? 2 : 1;
-    };
-    var ra = rank(a), rb = rank(b);
-    if (ra !== rb) return ra - rb;
-    var na = _floorLabel(a), nb = _floorLabel(b);
-    var fa = parseFloat(na), fb = parseFloat(nb);
-    if (!isNaN(fa) && !isNaN(fb)) return fa - fb;
-    return na < nb ? -1 : na > nb ? 1 : 0;
-  });
+  folderIds.sort(function(a, b) { return _rankPFFolder(a) - _rankPFFolder(b); });
 
   for (var i = 0; i < folderIds.length; i++) {
     var fid = folderIds[i];
@@ -179,10 +279,7 @@ function seedPageFolders(pageList, pageTags, pageFloorNum) {
       existing.pages = pages;   // re-aggregate pages (only field updated on skip)
       skipped.push(fid);
     } else {
-      var n = _floorLabel(fid);
-      var displayName = fid === "PF_site" ? "ชั้นพื้นดิน / Site"
-                      : n !== null        ? "ชั้น " + n
-                      :                    "อื่น ๆ";
+      var displayName = _pflFolderSeedName(fid);
       var folder = addFolder(displayName, null, null);
       folder.id   = fid;          // override auto-id (F+n discarded for PF folders)
       folder.kind = "page-folder";
@@ -191,8 +288,8 @@ function seedPageFolders(pageList, pageTags, pageFloorNum) {
       if (!state.catVis[fid])  state.catVis[fid]  = true;
       if (state.catLock[fid] === undefined) state.catLock[fid] = false;
       var baseLayerIds = _seedBaseLayers(folder);
-      created.push({kind: fid === "PF_site" ? "site" : n !== null ? "floor" : "excluded",
-                    folderId: fid, baseLayerIds: baseLayerIds});
+      var fkind2 = _pfKindOf(fid);
+      created.push({kind: fkind2, folderId: fid, baseLayerIds: baseLayerIds});
     }
   }
   /* LFOC-ORDER-A: re-rank PF folder .order deterministically so they render
@@ -234,7 +331,9 @@ function _descendantLayers(nodeId) {
   return result;
 }
 
-/* Return all layers that are descendants of the PF folder for this page. */
+/* Return all layers that are descendants of the PF folder for this page.
+   Supports both old map-based calling (pageTags/pageFloorNum are objects)
+   and new direct-value calling (tag/floorNum/kind are strings). */
 function layersOfPage(page, pageTags, pageFloorNum) {
   var fid = pageFolderIdFor(page, pageTags, pageFloorNum);
   var folder = folderById(fid);
@@ -291,8 +390,15 @@ function _pflPageLabel(folder) {
    Human-readable header for a PF folder: icon + role label.
    ------------------------------------------------------------------ */
 function _pflFolderDisplayName(folder) {
-  if (folder.id === "PF_site") return "🏗 ผังบริเวณ";
-  if (folder.id === "PF_excluded") return "📦 อื่น ๆ";
+  if (folder.id === "PF_site")       return "🏗 ผังบริเวณ";
+  if (folder.id === "PF_excluded")   return "📦 อื่น ๆ";
+  if (folder.id === "PF_floor_roof") return "🏠 หลังคา";
+  var mb = /^PF_basement_(\d+)$/.exec(folder.id);
+  if (mb) return "🅱 ชั้นใต้ดิน B" + mb[1];
+  var mm = /^PF_mezz_(\d+)$/.exec(folder.id);
+  if (mm) return "🅜 ชั้นลอย " + mm[1];
+  var me = /^PF_mech_(\d+)$/.exec(folder.id);
+  if (me) return "⚙ ชั้นเครื่อง M" + me[1];
   var n = _floorLabel(folder.id);
   if (n !== null) return "🏢 ชั้น " + n;
   return folder.name;
@@ -477,9 +583,14 @@ function _pflRenderPFFolder(folder, depth, el) {
     addRow.style.marginLeft = ((depth + 1) * 16) + "px";
     addRow.style.color = "var(--muted)";
     addRow.style.fontSize = "12px";
-    var floorN = _floorLabel(folder.id);
-    var folderLabel = folder.id === "PF_site" ? "ผังบริเวณ"
-                    : floorN !== null ? "ชั้น " + floorN
+    var _fkindAdd = _pfKindOf(folder.id);
+    var _fnAdd = _floorLabel(folder.id);
+    var folderLabel = _fkindAdd === "site"     ? "ผังบริเวณ"
+                    : _fkindAdd === "rooftop"  ? "หลังคา"
+                    : _fkindAdd === "basement" ? "ชั้นใต้ดิน B" + _fnAdd
+                    : _fkindAdd === "mezz"     ? "ชั้นลอย " + _fnAdd
+                    : _fkindAdd === "mech"     ? "ชั้นเครื่อง M" + _fnAdd
+                    : _fnAdd !== null          ? "ชั้น " + _fnAdd
                     : "อื่น ๆ";
     var addNm = document.createElement("span");
     addNm.className = "nm";
@@ -528,7 +639,8 @@ function reseedActivePageFolders() {
     for (var i = 1; i <= pageCount; i++) pages.push(i);
   }
   if (pages.length === 0) return;
-  seedPageFolders(pages, pageTags, pageFloorNum);
+  var _pfk = (typeof pageFloorKind !== "undefined") ? pageFloorKind : undefined;
+  seedPageFolders(pages, pageTags, pageFloorNum, _pfk);
 }
 
 /* ------------------------------------------------------------------
