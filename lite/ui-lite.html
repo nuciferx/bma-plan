@@ -177,7 +177,7 @@
     <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,8,12,.62);z-index:95;backdrop-filter:blur(1px)">
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 22px;font-size:14px;color:var(--ink)"><span id="loading-txt">กำลังโหลด…</span></div></div>
     <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=เมนู</div>
-    <div id="picker"><div class="h" style="display:flex;align-items:center;justify-content:space-between;">กำลังวัดอะไร (= layer = semantic)<span style="display:flex;gap:2px;"><button class="lp-add-btn" id="lp-add" title="เพิ่ม layer ใหม่">+</button><button class="lp-add-btn" id="lp-add-folder" title="เพิ่มกลุ่ม">📁+</button><button class="lp-add-btn" id="lp-skin" title="สลับธีม layer panel (v1 ⇄ v2)">🎨</button></span></div><div id="catlist"></div></div>
+    <div id="picker"><div class="h" style="display:flex;align-items:center;justify-content:space-between;">กำลังวัดอะไร (= layer = semantic)<span style="display:flex;gap:2px;"><button class="lp-add-btn" id="lp-add" title="เพิ่ม layer ใหม่">+</button><button class="lp-add-btn" id="lp-add-folder" title="เพิ่มกลุ่ม">📁+</button></span></div><div id="catlist"></div></div>
     <div class="hud" id="hud-tl"></div>
     <div class="hud" id="hud-tr"></div>
     <div class="hud" id="hud-bl"></div>
@@ -1120,11 +1120,6 @@ document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("cl
 document.getElementById("btn-focus").onclick=function(){document.body.classList.toggle("focus");};
 document.getElementById("lp-add").onclick=lpHandleAddLayer;
 document.getElementById("lp-add-folder").onclick=function(){ var f=addFolder("กลุ่มใหม่","#ffb454",null); state.catVis[f.id]=true; state.catLock[f.id]=false; state.dirty=true; buildPicker(); draw(); };
-document.getElementById("lp-skin").onclick=function(){
-  document.body.classList.toggle("lt-v2");
-  localStorage.setItem("bmaPlan.lite.layerSkin", document.body.classList.contains("lt-v2") ? "v2" : "v1");
-  buildPicker();
-};
 
 /* keys */
 window.addEventListener("keydown",function(e){
@@ -1182,7 +1177,7 @@ window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=fal
 
 /* boot */
 seedReportVars();
-if(localStorage.getItem("bmaPlan.lite.layerSkin")==="v2") document.body.classList.add("lt-v2");
+document.body.classList.add("lt-v2");  /* LSKIN-DROP: v1 removed 2026-05-26 — v2 is the only skin now */
 buildPicker(); resize(); setCursor();
 console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
