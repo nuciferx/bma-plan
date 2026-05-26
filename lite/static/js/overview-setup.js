@@ -389,6 +389,12 @@ function _lovsWireClassify() {
     });
     tile.addEventListener("dblclick", function(e) {
       if (e.target.closest(".ov-floor-input")) return;
+      // BUG-20260526-lite-wizard-followup (A): block dblclick escape during initial setup.
+      // LWIZ lock active means user must finish Page Setup before navigating to any PDF page.
+      if (window.__lwizAutoLockActive) {
+        if (typeof _lwizShowBlockHint === "function") _lwizShowBlockHint();
+        return;
+      }
       if (typeof loadPage === "function") loadPage(pn);
       if (typeof closeOverlays === "function") closeOverlays();
       _lovsSelected.clear();
@@ -884,6 +890,10 @@ function _lovsForceFillMissingTags() {
 
   // Trigger reseed of PF folders so they pick up new pages
   if (typeof reseedActivePageFolders === "function") reseedActivePageFolders();
+  // BUG-20260526-lite-wizard-followup (B): refresh left panel so user sees the
+  // auto-seeded base layers immediately. Without this, FOLDERS+LAYERS are
+  // populated but the picker DOM still shows the pre-seed state.
+  if (typeof buildPicker === "function") buildPicker();
 }
 
 /* -- nav wiring -- */
@@ -897,6 +907,11 @@ function _lovsWireNav() {
     else {
       // Done (Step 3): force-fill any untagged pages before closing
       _lovsForceFillMissingTags();
+      // BUG-20260526-lite-wizard-followup: lift LWIZ lock unconditionally on Done.
+      // _lwizCheckLiftLock only lifts if ≥1 non-excluded tag exists — so if user
+      // clicked Done with 0 tags (force-fill defaulted everything to "excluded"),
+      // the lock would otherwise stay stuck and re-block on next wizard open.
+      if (typeof _lwizAutoLiftLock === "function") _lwizAutoLiftLock();
       var ov = document.getElementById("ov"); if (ov) ov.classList.remove("show"); _lovsSelected.clear();
     }
   });
