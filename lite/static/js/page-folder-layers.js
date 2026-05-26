@@ -54,6 +54,16 @@
   document.head.appendChild(s);
 })();
 
+/* LWIZ-AUTO: dynamically load wiz-auto.js (auto-open Overview wizard on first scale set) */
+(function() {
+  if (document.getElementById('__lwiz_auto_script__')) return;
+  var s = document.createElement('script');
+  s.id = '__lwiz_auto_script__';
+  s.src = 'static/js/wiz-auto.js';
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
 var PAGE_FOLDER_PREFIX = "PF_";
 
 /* Return deterministic PF_* id for a page.
