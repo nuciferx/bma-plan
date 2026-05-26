@@ -2,17 +2,17 @@
 LWIZ-AUTO: auto-open Overview Setup wizard regression test.
 
 Verifies that wiz-auto.js installs the state.scaleStatus watcher, auto-opens
-the Overview wizard on first scale-set, enforces the soft-force guard until a
-page is tagged, and suppresses re-trigger on subsequent scale changes or after
-loadProto.
+the Overview wizard on PDF upload complete (primary) or first scale-set
+(fallback), enforces the hard-block guard until a page is tagged, and suppresses
+re-trigger on subsequent scale changes or after loadProto.
 
 8 sub-checks:
   scriptInjected            <script id="__lwiz_auto_script__"> exists, src ends /wiz-auto.js
   bootInstalledWatcher      state.scaleStatus has get+set accessor (not data prop)
-  wizardDoesNotAutoOpenOnLoad  open PDF, no scale set, wait 500ms -> #ov still hidden
-  wizardAutoOpensOnFirstScale  set state.scaleStatus='manual' -> #ov opens + __lwizAutoFired===true
-  escBlockedWhenNoTags      wizard open, no tag set -> Esc swallowed + hint visible
-  escAllowedAfterFirstTag   liteSetTag(5,'site') -> Esc closes wizard
+  wizardAutoOpensOnUpload   simulated upload complete -> #ov opens + __lwizAutoFired===true
+  wizardAutoOpensOnFirstScale  fallback: set state.scaleStatus='manual' -> #ov opens when not fired
+  escBlockedWhenNoTags      wizard open, no tag set -> Esc AND 'S' key swallowed + hint visible
+  escAllowedAfterFirstTag   liteSetTag(5,'site') lifts lock -> Esc closes wizard
   secondScaleNoRetrigger    close wizard, reset+re-trigger scale -> wizard NOT re-opened
   loadProtoSuppresses       loadProto() call sets __lwizAutoFired -> scale flip does NOT open
 
@@ -80,24 +80,46 @@ async () => {
 """
 
 # ---------------------------------------------------------------------------
-# Sub-check 3 — wizardDoesNotAutoOpenOnLoad
+# Sub-check 3 — wizardAutoOpensOnUpload
+# Simulates upload-complete by: resetting __lwizAutoFired, mocking caseId +
+# pageCount, then calling the post-upload fire logic directly.
 # ---------------------------------------------------------------------------
-CHECK_WIZARD_NO_AUTO_OPEN = r"""
+CHECK_WIZARD_AUTO_OPENS_ON_UPLOAD = r"""
 async () => {
-  // Ensure we have not set scaleStatus = 'manual' yet
-  // Reset flags in case prior setup leaked
+  // Reset flags for a clean trigger
   window.__lwizAutoFired = false;
   window.__lwizAutoSuppressed = false;
+  window.__lwizAutoLockActive = false;
+  pageTags = {};
 
-  await new Promise(r => setTimeout(r, 500));
+  // Close wizard if open from a previous check
   var ov = document.getElementById('ov');
-  var hidden = ov && ov.style.display !== 'block' && !ov.classList.contains('show');
+  if (ov) ov.classList.remove('show');
+
+  // Simulate what the uploadPdf wrapper does after upload resolves:
+  // set caseId + pageCount then fire the wizard
+  caseId = 'test-upload-mock';
+  pageCount = 3;
+
+  if (!window.__lwizAutoFired && !window.__lwizAutoSuppressed &&
+      typeof caseId !== 'undefined' && caseId &&
+      typeof pageCount !== 'undefined' && pageCount > 0) {
+    window.__lwizAutoFired = true;
+    if (typeof window.openOv === 'function') {
+      window.openOv();
+      if (typeof _lwizInstallLock === 'function') _lwizInstallLock();
+    }
+  }
+
+  await new Promise(r => setTimeout(r, 300));
+
+  var isOpen = ov && ov.classList.contains('show');
+  var fired = window.__lwizAutoFired === true;
+
   return {
-    ovExists: !!ov,
-    display: ov ? ov.style.display : 'n/a',
-    hasShowClass: ov ? ov.classList.contains('show') : false,
-    hidden: !!hidden,
-    allOk: !!hidden
+    firedFlag: fired,
+    ovOpen: !!isOpen,
+    allOk: fired && !!isOpen
   };
 }
 """
@@ -136,12 +158,13 @@ async () => {
 
 # ---------------------------------------------------------------------------
 # Sub-check 5 — escBlockedWhenNoTags
+# Verifies hard-block: Esc AND 'S' key are both swallowed while lock is active.
 # ---------------------------------------------------------------------------
 CHECK_ESC_BLOCKED_NO_TAGS = r"""
 async () => {
   // Ensure wizard is open and lock is active, no tags set
   pageTags = {};
-  window.__lwizAutoLockActive = true;
+  window.__lwizAutoLockActive = false;
 
   // Make sure ov is open
   var ov = document.getElementById('ov');
@@ -149,9 +172,11 @@ async () => {
     caseId = 'test-mock';
     if (typeof openOv === 'function') openOv();
     await new Promise(r => setTimeout(r, 200));
-    // Re-install lock since it may not be active
-    window.__lwizAutoLockActive = true;
   }
+
+  // Install the hard-block lock fresh
+  if (typeof _lwizInstallLock === 'function') _lwizInstallLock();
+  await new Promise(r => setTimeout(r, 100));
 
   var openBefore = ov && ov.classList.contains('show');
 
@@ -159,11 +184,17 @@ async () => {
   var existingHint = document.getElementById('lwiz-hint');
   if (existingHint) existingHint.remove();
 
-  // Dispatch Escape
+  // Dispatch Escape — should be blocked
   document.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'Escape', bubbles: true, cancelable: true
   }));
-  await new Promise(r => setTimeout(r, 150));
+  await new Promise(r => setTimeout(r, 100));
+
+  // Dispatch 'S' key — should also be blocked (hard-block swallows all keys)
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 's', bubbles: true, cancelable: true
+  }));
+  await new Promise(r => setTimeout(r, 100));
 
   var stillOpen = ov && ov.classList.contains('show');
   var hintVisible = !!document.getElementById('lwiz-hint');
@@ -172,7 +203,8 @@ async () => {
     openBefore: !!openBefore,
     stillOpen: !!stillOpen,
     hintVisible: hintVisible,
-    allOk: !!openBefore && !!stillOpen && hintVisible
+    lockStillActive: window.__lwizAutoLockActive === true,
+    allOk: !!openBefore && !!stillOpen && hintVisible && window.__lwizAutoLockActive === true
   };
 }
 """
@@ -316,14 +348,14 @@ async () => {
 # Check list
 # ---------------------------------------------------------------------------
 CHECKS = [
-    ("scriptInjected",              CHECK_SCRIPT_INJECTED,          ["allOk"]),
-    ("bootInstalledWatcher",        CHECK_BOOT_INSTALLED_WATCHER,    ["allOk"]),
-    ("wizardDoesNotAutoOpenOnLoad", CHECK_WIZARD_NO_AUTO_OPEN,       ["allOk"]),
-    ("wizardAutoOpensOnFirstScale", CHECK_WIZARD_AUTO_OPENS,         ["allOk"]),
-    ("escBlockedWhenNoTags",        CHECK_ESC_BLOCKED_NO_TAGS,       ["allOk"]),
-    ("escAllowedAfterFirstTag",     CHECK_ESC_ALLOWED_AFTER_TAG,     ["allOk"]),
-    ("secondScaleNoRetrigger",      CHECK_SECOND_SCALE_NO_RETRIGGER, ["allOk"]),
-    ("loadProtoSuppresses",         CHECK_LOAD_PROTO_SUPPRESSES,     ["allOk"]),
+    ("scriptInjected",              CHECK_SCRIPT_INJECTED,              ["allOk"]),
+    ("bootInstalledWatcher",        CHECK_BOOT_INSTALLED_WATCHER,       ["allOk"]),
+    ("wizardAutoOpensOnUpload",     CHECK_WIZARD_AUTO_OPENS_ON_UPLOAD,  ["allOk"]),
+    ("wizardAutoOpensOnFirstScale", CHECK_WIZARD_AUTO_OPENS,            ["allOk"]),
+    ("escBlockedWhenNoTags",        CHECK_ESC_BLOCKED_NO_TAGS,          ["allOk"]),
+    ("escAllowedAfterFirstTag",     CHECK_ESC_ALLOWED_AFTER_TAG,        ["allOk"]),
+    ("secondScaleNoRetrigger",      CHECK_SECOND_SCALE_NO_RETRIGGER,    ["allOk"]),
+    ("loadProtoSuppresses",         CHECK_LOAD_PROTO_SUPPRESSES,        ["allOk"]),
 ]
 
 

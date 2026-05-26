@@ -833,6 +833,59 @@ function _lovsExportReport() {
   alert("ฟังก์ชันสร้างรายงานไม่พร้อม — ยืนยันว่าโหลด lite/static/js/report-vars.js แล้ว");
 }
 
+/* -- force-fill missing tags on Done (LWIZ-FORCE-FILL) -- */
+function _lovsForceFillMissingTags() {
+  if (typeof pageCount === "undefined" || pageCount <= 0) return;
+  if (typeof pageTags === "undefined") return;
+
+  var missing = [];
+  var tagged  = [];
+  for (var i = 1; i <= pageCount; i++) {
+    if (pageTags[i]) {
+      tagged.push({
+        idx: i,
+        tag: pageTags[i],
+        floor: (typeof pageFloorNum !== "undefined") ? pageFloorNum[i] : undefined,
+        kind: (typeof pageFloorKind !== "undefined") ? pageFloorKind[i] : undefined
+      });
+    } else {
+      missing.push(i);
+    }
+  }
+
+  // No tagged page at all → fallback all missing to "excluded"
+  if (tagged.length === 0) {
+    for (var j = 0; j < missing.length; j++) {
+      if (typeof liteSetTag === "function") liteSetTag(missing[j], "excluded");
+      else pageTags[missing[j]] = "excluded";
+    }
+    return;
+  }
+
+  // For each missing page, find nearest by page#-distance (tiebreak: lower idx wins)
+  for (var k = 0; k < missing.length; k++) {
+    var m = missing[k];
+    var best = null, bestDist = Infinity;
+    for (var n = 0; n < tagged.length; n++) {
+      var t = tagged[n];
+      var d = Math.abs(t.idx - m);
+      if (d < bestDist || (d === bestDist && best !== null && t.idx < best.idx)) {
+        best = t;
+        bestDist = d;
+      }
+    }
+    if (best) {
+      if (typeof liteSetTag === "function") liteSetTag(m, best.tag);
+      else pageTags[m] = best.tag;
+      if (best.floor !== undefined && typeof pageFloorNum !== "undefined") pageFloorNum[m] = best.floor;
+      if (best.kind  !== undefined && typeof pageFloorKind !== "undefined") pageFloorKind[m] = best.kind;
+    }
+  }
+
+  // Trigger reseed of PF folders so they pick up new pages
+  if (typeof reseedActivePageFolders === "function") reseedActivePageFolders();
+}
+
 /* -- nav wiring -- */
 function _lovsWireNav() {
   var cb = document.getElementById("ov-close");
@@ -841,7 +894,11 @@ function _lovsWireNav() {
   var next = document.getElementById("ov-next");
   if (next) next.addEventListener("click", function() {
     if (_lovsCurStep < 3) _lovsGoStep(_lovsCurStep + 1);
-    else { var ov = document.getElementById("ov"); if (ov) ov.classList.remove("show"); _lovsSelected.clear(); }
+    else {
+      // Done (Step 3): force-fill any untagged pages before closing
+      _lovsForceFillMissingTags();
+      var ov = document.getElementById("ov"); if (ov) ov.classList.remove("show"); _lovsSelected.clear();
+    }
   });
   document.querySelectorAll("#ov-steps .step").forEach(function(el) { el.addEventListener("click", function() { _lovsGoStep(+el.dataset.step); }); });
   var sq = document.getElementById("ov-seq"); if (sq) sq.addEventListener("click", _lovsSequentialFloor);
