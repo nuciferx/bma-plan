@@ -107,6 +107,20 @@ function _floorLabel(folderId) {
   return folderId.indexOf(p) === 0 ? folderId.slice(p.length) : null;
 }
 
+/* LFOC-ORDER-A: deterministic .order rank for a PF folder id.
+   PF_site=0, PF_floor_N=10+N*10 (floor#1→20, floor#2→30, …),
+   PF_floor_roof=900, unknown PF=5000, PF_excluded=9999.
+   Gap at order=10 reserved for a future PF_floor_0/mezzanine slot.
+   Non-PF folders are never passed here. */
+function _rankPFFolder(folderId) {
+  if (folderId === "PF_site")        return 0;
+  if (folderId === "PF_excluded")    return 9999;
+  if (folderId === "PF_floor_roof")  return 900;
+  var m = /^PF_floor_(\d+)$/.exec(folderId);
+  if (m) return 10 + parseInt(m[1], 10) * 10;
+  return 5000;
+}
+
 /* Internal: seed base layers under a newly created PF folder.
    site     → ที่ดิน(site) · พื้นที่อาคารปกคลุม(gfa) · แนวร่น(use)
    floor_N  → GFA ชั้น N(gfa) · หักช่องลิฟต์(ded) · หักช่องบันได(ded)
@@ -181,6 +195,16 @@ function seedPageFolders(pageList, pageTags, pageFloorNum) {
                     folderId: fid, baseLayerIds: baseLayerIds});
     }
   }
+  /* LFOC-ORDER-A: re-rank PF folder .order deterministically so they render
+     in workflow order regardless of creation sequence. Idempotent — safe to
+     call on every seed. Non-PF folders (kind !== 'page-folder') are untouched. */
+  for (var fi = 0; fi < FOLDERS.length; fi++) {
+    var _f = FOLDERS[fi];
+    if (_f && _f.kind === "page-folder") {
+      _f.order = _rankPFFolder(_f.id);
+    }
+  }
+
   return {created: created, skipped: skipped};
 }
 
