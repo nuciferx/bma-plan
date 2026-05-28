@@ -99,13 +99,25 @@ function _ready() {
   return !!(pdfDoc && pdfDocCaseId === caseId && curPage && pageCache[curPage]);
 }
 
-/* ---- computeTransform: BYTE-IDENTICAL to spike v4 computeTransform ----
- * Formula proven analytically in spike v4; 24/24 contract PASS verified.
- * θ = θ_total = pgRot + V.rot  (option B — folds page rotation in)
- * pageH = un-rotated PDF-pt page height (from pageDims[n].h; swapped below
- * in render() when pgRot is 90/270 to keep the origin at the correct corner).
+/* ---- _computeTransform: deprecated post-PDFJS-ANTIFLICKER+MIRROR-FIX ----
+ *
+ * spike v4's analytical T derived a Y-flip (`-cR*dpr` in the 4th matrix slot)
+ * to compensate for PDF.js's PDF-Y-up → screen-Y-down flip. The derivation
+ * assumed PDF.js's `transform` was applied to a NON-rotated viewport.
+ *
+ * REAL PDF.js behaviour: `getViewport({rotation:R})` returns a viewport whose
+ * `transform` already encodes intrinsic /Rotate + R + scale + Y-flip. Then
+ * `render({transform:our_T})` composes our_T on top. Spike v4 was correct only
+ * when intrinsic /Rotate=0; for /Rotate=90 PDFs (e.g. RAMA4 A1), intrinsic
+ * adds a rotation that v4's T didn't anticipate → content rendered upside-down
+ * AND mirrored. Reported by user 2026-05-28.
+ *
+ * Fix: don't compute T analytically. Pass rotation=(V.rot+pgRot) to getViewport
+ * (PDF.js handles intrinsic + user/page rotation), then T = translate-only to
+ * (V.ox, V.oy). Visual output is correct for any /Rotate value. Function kept
+ * (unused) for spike v4 reference / future re-derivation if needed.
  */
-function _computeTransform(pageH, theta) {
+function _computeTransform(pageH, theta) {  /* eslint-disable-line no-unused-vars */
   var dpr = window.devicePixelRatio || 1;
   var s   = RS * V.k;
   var th  = theta * Math.PI / 180;
@@ -194,9 +206,12 @@ async function loadPage(n) {
     if (!pageCache[n]) {
       pageCache[n] = await pdfDoc.getPage(n);
     }
-    var view = pageCache[n].view;  // [x0, y0, x1, y1]
-    pageDims[n] = { w: view[2] - view[0], h: view[3] - view[1] };
-    // Expose pageData for coord-conversion consumers (same shape as old /pageinfo)
+    // pageDims = POST-INTRINSIC-ROTATION dims (the orientation server JPEG used to deliver).
+    // page.view gives NATIVE pre-rotation dims — wrong for PDFs with /Rotate metadata.
+    // PDF.js viewport at rotation=0 already applies intrinsic /Rotate, so its
+    // width/height reflect the visually-correct landscape (e.g. RAMA4 A1 /Rotate=90).
+    var natVp = pageCache[n].getViewport({ scale: 1, rotation: 0 });
+    pageDims[n] = { w: natVp.width, h: natVp.height };
     pageData = { size: { orig_w_pt: pageDims[n].w, orig_h_pt: pageDims[n].h } };
     hideLoading();
     fit();
@@ -224,28 +239,22 @@ async function _render(myToken) {
   var Vsnap = { k: V.k, ox: V.ox, oy: V.oy, rot: V.rot };
   var pgRot = pageRot[curPage] || 0;
 
-  var rawW = pageDims[curPage].w;
-  var rawH = pageDims[curPage].h;
-  var swapped = (pgRot % 180 !== 0);
-  var pageH_tx = swapped ? rawW : rawH;
+  // Strategy (post spike-v4): let PDF.js handle ALL rotation in its viewport
+  // (intrinsic /Rotate via rotation=0 default; user pgRot+V.rot via rotation arg).
+  // Our `transform` is then TRANSLATE-ONLY — places the rendering at canvas
+  // (V.ox, V.oy). spike v4's analytical T mis-rotated PDFs with intrinsic
+  // /Rotate ≠ 0 (e.g. RAMA4 A1 /Rotate=90 came out upside-down).
+  //
+  // ptToScreen alignment: since pageDims already reflects post-intrinsic dims,
+  // lite's p ∈ [0, pageW] × [0, pageH] is in "visual orientation" coords. At
+  // V.rot=0, pgRot=0: ptToScreen(p)=(p.x*RS*V.k+V.ox, p.y*RS*V.k+V.oy), which
+  // matches PDF.js's content drawn at (V.ox, V.oy) with scale RS*V.k.
+  var thetaUser = ((Vsnap.rot + pgRot) % 360 + 360) % 360;
+  var scale     = RS * Vsnap.k;
+  var viewport  = cp.getViewport({ scale: scale, rotation: thetaUser });
 
-  var thetaTotal = pgRot + Vsnap.rot;
-  var scale      = RS * Vsnap.k;
-  var viewport   = cp.getViewport({ scale: scale, rotation: 0 });
-  // Recompute transform using the snapshotted V so any concurrent V change
-  // doesn't poison the matrix mid-await.
   var dpr = window.devicePixelRatio || 1;
-  var th  = thetaTotal * Math.PI / 180;
-  var cR  = Math.cos(th), sR = Math.sin(th);
-  var s   = RS * Vsnap.k;
-  var T = [
-    cR * dpr,
-    sR * dpr,
-    sR * dpr,
-    -cR * dpr,
-    (Vsnap.ox - pageH_tx * s * sR) * dpr,
-    (Vsnap.oy + pageH_tx * s * cR) * dpr
-  ];
+  var T = [dpr, 0, 0, dpr, Vsnap.ox * dpr, Vsnap.oy * dpr];
 
   if (myToken !== _renderToken) return; // stale
 
