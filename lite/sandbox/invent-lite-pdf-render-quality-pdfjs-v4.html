@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPIKE v4 — PDF.js + lite's ptToScreen contract probe</title>
+<!--
+  SPIKE v4 for invent idea 2026-05-27-23-05.
+
+  v3 proved PDF.js viewport-clipped renders memory-stable + Chrome-grade sharp
+  using its OWN coord convention (panX/panY/curZoom/curRot + viewport.convertToViewportPoint).
+
+  v4 proves the SAME engine can drive `lite`'s coord state (V.ox/V.oy/V.k/V.rot)
+  + lite's `ptToScreen` / `screenToPt` UNCHANGED. This is the prerequisite of
+  Sprint #2: if we cannot make PDF.js render align with lite's existing
+  measurement math, Sprint #2 will diverge and break .bmaplan compat.
+
+  Approach: lock PDF.js rotation=0 + handle ALL rotation/scale/translation in
+  the `transform` parameter of render(), derived from lite's ptToScreen formula.
+
+  Derived formula (proven analytically — see comment in code below):
+     scale_pdfjs = RS * V.k
+     transform = [
+       cos(V.rot)*dpr, -sin(V.rot)*dpr,
+       -sin(V.rot)*dpr, -cos(V.rot)*dpr,
+       (V.ox + pageH * RS * V.k * sin(V.rot)) * dpr,
+       (V.oy + pageH * RS * V.k * cos(V.rot)) * dpr
+     ]
+
+  Two contracts validated per (zoom, rot) combo:
+    C1 (math): for sampled PDF-pts, ptToScreen(p) ≡ T * viewport(p) within ε
+    C2 (visual): a polygon drawn at ptToScreen overlays a rendered PDF feature
+
+  Headless-driveable via window.__spike4 for Playwright sweep.
+-->
+<style>
+:root{ --bg:#1a1d24; --panel:#23262e; --line:#3a3f4a; --ink:#e6e9f0; --muted:#92a0b3; --accent:#4aa3ff; --good:#39d98a; --warn:#ffb454; --bad:#ff6b6b; }
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:13px/1.45 -apple-system,Segoe UI,sans-serif;height:100%;}
+header{padding:10px 14px;background:#161922;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;}
+header h1{font-size:14px;margin:0 0 4px 0;font-weight:600;}
+header .meta{color:var(--muted);font-size:11px;}
+.bar{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12px;}
+.bar button,.bar input[type=file]{padding:5px 10px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;cursor:pointer;font-size:12px;}
+.bar button.on{background:var(--accent);border-color:var(--accent);}
+.bar .sep{color:var(--muted);margin:0 4px;}
+main{display:flex;gap:0;height:calc(100vh - 110px);}
+#canvas-wrap{flex:1;overflow:hidden;background:#0f1116;position:relative;display:flex;align-items:center;justify-content:center;}
+.canvas-stack{position:relative;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,0.5);}
+#pdfCanvas{display:block;cursor:grab;}
+#pdfCanvas.dragging{cursor:grabbing;}
+#overlay{position:absolute;top:0;left:0;pointer-events:none;}
+aside#status{width:380px;background:var(--panel);border-left:1px solid var(--line);padding:14px;font-family:Menlo,monospace;font-size:11px;color:var(--muted);overflow:auto;line-height:1.55;}
+aside h2{font-family:-apple-system,sans-serif;font-size:13px;color:var(--accent);margin:0 0 8px 0;}
+aside .ok{color:var(--good);} aside .warn{color:var(--warn);} aside .fail{color:var(--bad);}
+aside b{color:var(--ink);}
+aside hr{border:0;border-top:1px solid var(--line);margin:10px 0;}
+aside .row{display:flex;justify-content:space-between;gap:8px;}
+.probe{font-size:10px;line-height:1.3;}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPIKE v4 — PDF.js + lite's ptToScreen contract probe</h1>
+  <div class="meta">PDF.js rotation=0; ALL transform via `render({transform})` to match lite's <code>ptToScreen</code>. Pan: drag canvas (updates V.ox/V.oy).</div>
+  <div class="bar">
+    <input type="file" id="file-input" accept=".pdf">
+    <span class="sep">·</span>
+    <span style="color:var(--muted);">V.k =</span>
+    <button class="z on" data-z="1">1×</button>
+    <button class="z" data-z="2">2×</button>
+    <button class="z" data-z="5">5×</button>
+    <button class="z" data-z="10">10×</button>
+    <button class="z" data-z="20">20×</button>
+    <button class="z" data-z="50">50×</button>
+    <span class="sep">·</span>
+    <span style="color:var(--muted);">V.rot =</span>
+    <button class="r on" data-r="0">0°</button>
+    <button class="r" data-r="90">90°</button>
+    <button class="r" data-r="180">180°</button>
+    <button class="r" data-r="270">270°</button>
+    <span class="sep">·</span>
+    <button id="resetPan">⟲ reset V.ox/V.oy</button>
+    <button id="runContract">▶ run contract sweep</button>
+  </div>
+</header>
+
+<main>
+  <div id="canvas-wrap">
+    <div id="empty-msg" style="color:var(--muted);font-family:-apple-system,sans-serif;font-size:14px;">เลือกไฟล์ PDF</div>
+    <div class="canvas-stack" id="stack" style="display:none;">
+      <canvas id="pdfCanvas"></canvas>
+      <canvas id="overlay"></canvas>
+    </div>
+  </div>
+  <aside id="status">
+    <h2>PDF.js</h2>
+    <div id="lib-status">loading…</div>
+    <hr>
+    <h2>V state (lite convention)</h2>
+    <div id="v-state">-</div>
+    <hr>
+    <h2>Derived PDF.js transform</h2>
+    <div id="tx-info" class="probe">-</div>
+    <hr>
+    <h2>Contract C1 (math, current combo)</h2>
+    <div id="contract-c1" class="probe">no test yet</div>
+    <hr>
+    <h2>Contract C2 (visual overlay)</h2>
+    <div id="contract-c2" class="probe">no test yet</div>
+    <hr>
+    <h2>Contract sweep</h2>
+    <div id="sweep-info" class="probe">click ▶ to sweep 24 combos</div>
+  </aside>
+</main>
+
+<script type="module">
+// =============================================================================
+// PDF.js loader
+// =============================================================================
+const PDFJS_VER = "4.0.379";
+const libStatus = document.getElementById('lib-status');
+let pdfjsLib;
+try {
+  pdfjsLib = await import(`https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/build/pdf.min.mjs`);
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/build/pdf.worker.min.mjs`;
+  libStatus.innerHTML = `<span class="ok">✓ PDF.js ${PDFJS_VER} loaded</span>`;
+} catch (e) {
+  libStatus.innerHTML = `<span class="fail">✗ PDF.js load failed</span><br>${e.message}`;
+  throw e;
+}
+
+// =============================================================================
+// VENDORED from lite/ui-lite.html (line 257-260) — byte-identical, NEVER edit here
+// (rotation matrix is clockwise: rx=ix*c-iy*s, ry=ix*s+iy*c)
+// =============================================================================
+const RS = 1.5;
+function ptToScreen(p, V){
+  var ix=p.x*RS, iy=p.y*RS, th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
+  var rx=ix*c-iy*s, ry=ix*s+iy*c;
+  return {x:rx*V.k+V.ox, y:ry*V.k+V.oy};
+}
+function screenToPt(sx, sy, V){
+  var u=(sx-V.ox)/V.k, v=(sy-V.oy)/V.k, th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
+  // inverse rotation (transpose for orthogonal matrix): [c, s; -s, c]
+  var ix=u*c+v*s, iy=-u*s+v*c;
+  return {x:ix/RS, y:iy/RS};
+}
+
+// =============================================================================
+// State (lite convention)
+// =============================================================================
+const dpr = window.devicePixelRatio || 1;
+const V = { k: 1.0, ox: 40, oy: 40, rot: 0 };
+let curPdf = null, curPage = null, curPageNum = 1, pageCount = 0;
+let curFileName = "";
+let curRenderTask = null;
+let renderTaskId = 0;
+let lastRenderMs = 0;
+
+// Fixed viewport canvas size
+function computeViewportSize() {
+  const wrap = document.getElementById('canvas-wrap');
+  const r = wrap.getBoundingClientRect();
+  return {
+    css_w: Math.max(400, Math.floor(r.width  - 40)),
+    css_h: Math.max(300, Math.floor(r.height - 40))
+  };
+}
+
+// =============================================================================
+// Derive transform that makes PDF.js render align with ptToScreen
+// =============================================================================
+// At PDF.js rotation=0, scale=s:
+//   viewport.convertToViewportPoint(p) = (p.x*s, (pageH - p.y)*s)   // PDF.js flips Y internally
+//
+// We want T * viewport(p) = ptToScreen(p) for all p.
+// Let s = RS * V.k, cR = cos(V.rot), sR = sin(V.rot).
+//
+// Lite's ptToScreen (CW rotation, vendored above):
+//   ptToScreen(p) = (p.x*s*cR - p.y*s*sR + V.ox,
+//                    p.x*s*sR + p.y*s*cR + V.oy)
+//
+// Solving for T = [a, b, c, d, e, f] s.t. T*(vp_x, vp_y) = (a*vp_x + b*vp_y + e, c*vp_x + d*vp_y + f):
+//   From p=(0,0): vp=(0, pageH*s).    b*pageH*s + e = V.ox    ;   d*pageH*s + f = V.oy.
+//   From p=(1,0): vp=(s, pageH*s).    a*s = cR*s → a = cR     ;   c*s = sR*s → c = sR.
+//   From p=(0,1): vp=(0, (pageH-1)*s). -b*s = -sR*s → b = sR  ;   -d*s = cR*s → d = -cR.
+//
+// Final:  a = cR    b = sR    c = sR    d = -cR
+//         e = V.ox - pageH*s*sR
+//         f = V.oy + pageH*s*cR
+// And multiply each by dpr for device-px canvas backing.
+function computeTransform(pageH) {
+  const s  = RS * V.k;
+  const th = V.rot * Math.PI / 180;
+  const cR = Math.cos(th);
+  const sR = Math.sin(th);
+  return [
+    cR * dpr,
+    sR * dpr,
+    sR * dpr,
+    -cR * dpr,
+    (V.ox - pageH * s * sR) * dpr,
+    (V.oy + pageH * s * cR) * dpr
+  ];
+}
+
+// =============================================================================
+// Render — PDF.js draws via derived transform
+// =============================================================================
+async function render() {
+  if (!curPage) return;
+  const myTaskId = ++renderTaskId;
+  const t0 = performance.now();
+
+  // Lock PDF.js rotation=0; we handle rotation in transform
+  const scale = RS * V.k;
+  const viewport = curPage.getViewport({ scale, rotation: 0 });
+  const pageH = (curPage.view[3] - curPage.view[1]);
+  const transform = computeTransform(pageH);
+
+  if (curRenderTask) {
+    try { curRenderTask.cancel(); } catch (e) {}
+    curRenderTask = null;
+  }
+
+  const canvas  = document.getElementById('pdfCanvas');
+  const overlay = document.getElementById('overlay');
+  const stack   = document.getElementById('stack');
+
+  const vw = computeViewportSize();
+  const cssW = vw.css_w, cssH = vw.css_h;
+
+  canvas.width   = Math.round(cssW * dpr);
+  canvas.height  = Math.round(cssH * dpr);
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  overlay.width  = canvas.width;
+  overlay.height = canvas.height;
+  overlay.style.width  = canvas.style.width;
+  overlay.style.height = canvas.style.height;
+  stack.style.width  = cssW + 'px';
+  stack.style.height = cssH + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  try {
+    curRenderTask = curPage.render({ canvasContext: ctx, viewport, transform });
+    await curRenderTask.promise;
+  } catch (e) {
+    if (e?.name === 'RenderingCancelledException') return;
+    console.error("render error:", e);
+    return;
+  }
+  curRenderTask = null;
+  if (myTaskId !== renderTaskId) return;
+
+  lastRenderMs = Math.round(performance.now() - t0);
+
+  // Draw measurement overlay using ptToScreen — this is the contract C2
+  drawContractOverlay(viewport, pageH);
+  // Run math contract C1
+  runContractC1(viewport, pageH);
+
+  updateStatus(viewport, pageH, cssW, cssH, transform);
+}
+
+// =============================================================================
+// Contract C1 — math check: T * viewport(p) ≡ ptToScreen(p) within ε
+// =============================================================================
+function applyTransform(T, p) {
+  // T = [a, b, c, d, e, f]; output (a*x + b*y + e, c*x + d*y + f) in DEVICE px
+  return { x: T[0]*p.x + T[2]*p.y + T[4], y: T[1]*p.x + T[3]*p.y + T[5] };
+}
+function runContractC1(viewport, pageH) {
+  const T = computeTransform(pageH);
+  // Sample 9 PDF-pts (corners + center + midpoints)
+  const samples = [
+    {x:0, y:0}, {x:100, y:0}, {x:200, y:0},
+    {x:0, y:100}, {x:100, y:100}, {x:200, y:100},
+    {x:0, y:200}, {x:100, y:200}, {x:200, y:200}
+  ];
+  let maxDelta = 0;
+  const probes = samples.map(p => {
+    const [vx, vy] = viewport.convertToViewportPoint(p.x, p.y);
+    const dev = applyTransform(T, {x:vx, y:vy});           // device-px
+    const pdfjs_css = { x: dev.x / dpr, y: dev.y / dpr };   // back to CSS-px
+    const lite_css  = ptToScreen(p, V);
+    const dx = pdfjs_css.x - lite_css.x;
+    const dy = pdfjs_css.y - lite_css.y;
+    const d  = Math.hypot(dx, dy);
+    if (d > maxDelta) maxDelta = d;
+    return { p, pdfjs_css, lite_css, d };
+  });
+  const pass = maxDelta < 0.01;  // 0.01 CSS-px tolerance
+  document.getElementById('contract-c1').innerHTML =
+    `<div class="row"><span>samples</span><b>${samples.length}</b></div>` +
+    `<div class="row"><span>max delta (CSS-px)</span><b>${maxDelta.toFixed(6)}</b></div>` +
+    `<div class="${pass?'ok':'fail'}">${pass?'✓ C1 PASS — PDF.js transform ≡ ptToScreen (max Δ &lt; 0.01)':'✗ C1 FAIL — PDF.js diverges from ptToScreen'}</div>`;
+  window.__lastC1 = { maxDelta, pass, samples: probes };
+}
+
+// =============================================================================
+// Contract C2 — visual: draw a polygon at ptToScreen, must overlay PDF feature
+// =============================================================================
+function drawContractOverlay(viewport, pageH) {
+  const overlay = document.getElementById('overlay');
+  const ctx = overlay.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, overlay.width / dpr, overlay.height / dpr);
+
+  // PDF-pt rectangle at (100,100)-(200,200) — 100×100 pt
+  const pdfRect = [
+    {x:100, y:100}, {x:200, y:100}, {x:200, y:200}, {x:100, y:200}
+  ];
+  const cssPts = pdfRect.map(p => ptToScreen(p, V));
+
+  ctx.strokeStyle = '#ff3b30';
+  ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(255,59,48,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(cssPts[0].x, cssPts[0].y);
+  cssPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#ff3b30';
+  cssPts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill(); });
+
+  // Diagonal probe — at every rot, the diagonal length = 100*sqrt(2)*RS*V.k
+  const expected = 100 * Math.SQRT2 * RS * V.k;
+  const measured = Math.hypot(cssPts[2].x - cssPts[0].x, cssPts[2].y - cssPts[0].y);
+  const delta = Math.abs(measured - expected);
+  const pass = delta < 0.5;
+  document.getElementById('contract-c2').innerHTML =
+    `<div class="row"><span>rect diagonal expected</span><b>${expected.toFixed(2)} css-px</b></div>` +
+    `<div class="row"><span>rect diagonal measured</span><b>${measured.toFixed(2)} css-px</b></div>` +
+    `<div class="row"><span>delta</span><b>${delta.toFixed(3)}</b></div>` +
+    `<div class="${pass?'ok':'fail'}">${pass?'✓ C2 PASS — overlay diag invariant under (zoom × rot)':'✗ C2 FAIL — overlay diverges'}</div>`;
+  window.__lastC2 = { expected, measured, delta, pass };
+}
+
+function updateStatus(viewport, pageH, cssW, cssH, T) {
+  document.getElementById('v-state').innerHTML =
+    `<div class="row"><span>V.k</span><b>${V.k}</b></div>` +
+    `<div class="row"><span>V.rot</span><b>${V.rot}°</b></div>` +
+    `<div class="row"><span>V.ox</span><b>${V.ox.toFixed(1)} CSS-px</b></div>` +
+    `<div class="row"><span>V.oy</span><b>${V.oy.toFixed(1)} CSS-px</b></div>` +
+    `<div class="row"><span>RS</span><b>${RS}</b></div>` +
+    `<div class="row"><span>DPR</span><b>${dpr}</b></div>` +
+    `<div class="row"><span>page (pt)</span><b>${pageH.toFixed(0)} (h)</b></div>` +
+    `<div class="row"><span>canvas</span><b>${Math.round(cssW)}×${Math.round(cssH)} css</b></div>` +
+    `<div class="row"><span>render</span><b>${lastRenderMs} ms</b></div>`;
+  document.getElementById('tx-info').innerHTML =
+    `scale = RS×V.k = ${(RS*V.k).toFixed(3)}<br>` +
+    `T = [${T.map(x=>x.toFixed(2)).join(', ')}]<br>` +
+    `(a,b,c,d) = rotation×dpr&nbsp;&nbsp;(e,f) = translate×dpr`;
+}
+
+// =============================================================================
+// Pan: drag updates V.ox / V.oy (lite convention)
+// =============================================================================
+const canvas = document.getElementById('pdfCanvas');
+let dragStart = null, dragStartOx = 0, dragStartOy = 0;
+let renderTimer = null;
+canvas.addEventListener('mousedown', (e) => {
+  dragStart = { x: e.clientX, y: e.clientY };
+  dragStartOx = V.ox; dragStartOy = V.oy;
+  canvas.classList.add('dragging');
+});
+window.addEventListener('mousemove', (e) => {
+  if (!dragStart) return;
+  V.ox = dragStartOx + (e.clientX - dragStart.x);
+  V.oy = dragStartOy + (e.clientY - dragStart.y);
+  if (renderTimer) cancelAnimationFrame(renderTimer);
+  renderTimer = requestAnimationFrame(() => render());
+});
+window.addEventListener('mouseup', () => {
+  if (!dragStart) return;
+  dragStart = null;
+  canvas.classList.remove('dragging');
+  render();
+});
+document.getElementById('resetPan').onclick = () => { V.ox = 40; V.oy = 40; render(); };
+
+// =============================================================================
+// Controls
+// =============================================================================
+document.querySelectorAll('.z').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.z').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  V.k = parseFloat(b.dataset.z);
+  render();
+});
+document.querySelectorAll('.r').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.r').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  V.rot = parseInt(b.dataset.r);
+  V.ox = 40; V.oy = 40;
+  render();
+});
+
+// =============================================================================
+// File loader
+// =============================================================================
+async function loadPdfBuffer(buf, name) {
+  curFileName = name || "(buffer)";
+  try {
+    curPdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    pageCount = curPdf.numPages;
+    curPageNum = 1;
+    curPage = await curPdf.getPage(curPageNum);
+    V.k = 1; V.rot = 0; V.ox = 40; V.oy = 40;
+    document.getElementById('empty-msg').style.display = 'none';
+    document.getElementById('stack').style.display = 'inline-block';
+    await render();
+    return true;
+  } catch (e) {
+    document.getElementById('lib-status').innerHTML = `<span class="fail">PDF open failed: ${e.message}</span>`;
+    return false;
+  }
+}
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const buf = await f.arrayBuffer();
+  await loadPdfBuffer(buf, f.name);
+});
+
+// =============================================================================
+// Contract sweep — for Playwright headless driver
+// =============================================================================
+const SWEEP_ZOOMS = [1, 2, 5, 10, 20, 50];
+const SWEEP_ROTS  = [0, 90, 180, 270];
+
+async function runContractSweep() {
+  if (!curPage) { alert("เลือกไฟล์ PDF ก่อน"); return null; }
+  const results = [];
+  const out = document.getElementById('sweep-info');
+  out.innerHTML = "running…";
+  for (const z of SWEEP_ZOOMS) {
+    for (const r of SWEEP_ROTS) {
+      V.k = z; V.rot = r; V.ox = 40; V.oy = 40;
+      await render();
+      await new Promise(rs => setTimeout(rs, 60));
+      const c1 = window.__lastC1, c2 = window.__lastC2;
+      results.push({
+        zoom: z, rot: r,
+        c1_maxDelta: c1.maxDelta, c1_pass: c1.pass,
+        c2_diagExpected: c2.expected, c2_diagMeasured: c2.measured, c2_delta: c2.delta, c2_pass: c2.pass,
+        renderMs: lastRenderMs
+      });
+    }
+  }
+  const passCount = results.filter(r => r.c1_pass && r.c2_pass).length;
+  const html = results.map(r => {
+    const ok = r.c1_pass && r.c2_pass;
+    return `<div class="${ok?'ok':'fail'}">${ok?'✓':'✗'} z=${r.zoom}× r=${r.rot}° &nbsp; C1Δ=${r.c1_maxDelta.toFixed(4)} &nbsp; C2Δ=${r.c2_delta.toFixed(3)}</div>`;
+  }).join('');
+  out.innerHTML = `<div class="${passCount===results.length?'ok':'fail'}"><b>${passCount} / ${results.length} PASS</b></div>` + html;
+  // Reset to a nice viewing state
+  V.k = 1; V.rot = 0; await render();
+  return { passCount, total: results.length, results };
+}
+document.getElementById('runContract').onclick = runContractSweep;
+
+window.__spike4 = {
+  V,
+  get pageCount() { return pageCount; },
+  get curPageNum() { return curPageNum; },
+  loadPdfBuffer,
+  setV(partial) { Object.assign(V, partial); },
+  forceRender: render,
+  runContractSweep,
+  getStats() { return { lastRenderMs, c1: window.__lastC1, c2: window.__lastC2, V: { ...V } }; }
+};
+
+window.addEventListener('resize', () => { if (curPage) render(); });
+</script>
+</body>
+</html>

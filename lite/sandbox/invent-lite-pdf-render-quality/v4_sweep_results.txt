@@ -1,0 +1,33 @@
+[loaded] PDF in spike
+[sweep] running 24-combo contract sweep…
+
+======================================================================
+SPIKE_V4 RESULTS  24/24 combos PASS
+======================================================================
+  ✓  z=  1×  r=  0°   C1Δ=0.000000  C2Δ=0.000  render=25ms
+  ✓  z=  1×  r= 90°   C1Δ=0.000000  C2Δ=0.000  render=38ms
+  ✓  z=  1×  r=180°   C1Δ=0.000000  C2Δ=0.000  render=30ms
+  ✓  z=  1×  r=270°   C1Δ=0.000000  C2Δ=0.000  render=27ms
+  ✓  z=  2×  r=  0°   C1Δ=0.000000  C2Δ=0.000  render=20ms
+  ✓  z=  2×  r= 90°   C1Δ=0.000000  C2Δ=0.000  render=27ms
+  ✓  z=  2×  r=180°   C1Δ=0.000000  C2Δ=0.000  render=22ms
+  ✓  z=  2×  r=270°   C1Δ=0.000000  C2Δ=0.000  render=19ms
+  ✓  z=  5×  r=  0°   C1Δ=0.000000  C2Δ=0.000  render=14ms
+  ✓  z=  5×  r= 90°   C1Δ=0.000000  C2Δ=0.000  render=22ms
+  ✓  z=  5×  r=180°   C1Δ=0.000000  C2Δ=0.000  render=22ms
+  ✓  z=  5×  r=270°   C1Δ=0.000000  C2Δ=0.000  render=16ms
+  ✓  z= 10×  r=  0°   C1Δ=0.000000  C2Δ=0.000  render=20ms
+  ✓  z= 10×  r= 90°   C1Δ=0.000000  C2Δ=0.000  render=24ms
+  ✓  z= 10×  r=180°   C1Δ=0.000000  C2Δ=0.000  render=11ms
+  ✓  z= 10×  r=270°   C1Δ=0.000000  C2Δ=0.000  render=19ms
+  ✓  z= 20×  r=  0°   C1Δ=0.000000  C2Δ=0.000  render=20ms
+  ✓  z= 20×  r= 90°   C1Δ=0.000000  C2Δ=0.000  render=23ms
+  ✓  z= 20×  r=180°   C1Δ=0.000000  C2Δ=0.000  render=9ms
+  ✓  z= 20×  r=270°   C1Δ=0.000000  C2Δ=0.000  render=8ms
+  ✓  z= 50×  r=  0°   C1Δ=0.000000  C2Δ=0.000  render=14ms
+  ✓  z= 50×  r= 90°   C1Δ=0.000000  C2Δ=0.000  render=22ms
+  ✓  z= 50×  r=180°   C1Δ=0.000000  C2Δ=0.000  render=23ms
+  ✓  z= 50×  r=270°   C1Δ=0.000000  C2Δ=0.000  render=20ms
+
+✓ SPIKE_V4 CONTRACT PASS — PDF.js can drive lite's ptToScreen unchanged
+  → safe to proceed with Sprint #2 PDFJS-VIEWPORT-CLIPPED-INTEGRATION
