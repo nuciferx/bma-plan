@@ -1,0 +1,62 @@
+{
+  "phang_p01_scale1.5_jpegQ88": {
+    "scale": 1.5,
+    "fmt": "jpeg",
+    "quality": 88,
+    "pix_w": 1787,
+    "pix_h": 1263,
+    "bytes": 303637,
+    "pix_ms": 155.5,
+    "encode_ms": 104.8,
+    "total_ms": 260.3,
+    "ext": ".jpg"
+  },
+  "phang_p01_scale3.0_jpegQ88": {
+    "scale": 3.0,
+    "fmt": "jpeg",
+    "quality": 88,
+    "pix_w": 3573,
+    "pix_h": 2526,
+    "bytes": 940996,
+    "pix_ms": 372.7,
+    "encode_ms": 366.2,
+    "total_ms": 738.9,
+    "ext": ".jpg"
+  },
+  "phang_p01_scale1.5_png": {
+    "scale": 1.5,
+    "fmt": "png",
+    "quality": null,
+    "pix_w": 1787,
+    "pix_h": 1263,
+    "bytes": 1821448,
+    "pix_ms": 55.8,
+    "encode_ms": 195.2,
+    "total_ms": 251.0,
+    "ext": ".png"
+  },
+  "phang_p01_scale3.0_png": {
+    "scale": 3.0,
+    "fmt": "png",
+    "quality": null,
+    "pix_w": 3573,
+    "pix_h": 2526,
+    "bytes": 4321540,
+    "pix_ms": 148.3,
+    "encode_ms": 466.8,
+    "total_ms": 615.1,
+    "ext": ".png"
+  },
+  "phang_p01_scale3.0_jpegQ95": {
+    "scale": 3.0,
+    "fmt": "jpeg",
+    "quality": 95,
+    "pix_w": 3573,
+    "pix_h": 2526,
+    "bytes": 1556625,
+    "pix_ms": 143.6,
+    "encode_ms": 414.6,
+    "total_ms": 558.2,
+    "ext": ".jpg"
+  }
+}

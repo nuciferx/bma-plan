@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPIKE — lite-pdf-render-quality (PDF.js variant)</title>
+<!--
+  SPIKE v2 for invent idea 2026-05-27-23-05.
+
+  Tests Approach G: PDF.js client-side rendering, re-rasterized from vector
+  at the requested zoom level (Chrome PDF viewer / PDFium concept).
+
+  Three claims this spike must validate:
+    1) Visual sharpness at zoom 1×, 2×, 5×, 10× — compare side-by-side against
+       Chrome's built-in PDF viewer on the same file at the same zoom.
+    2) Measurement contract preserved — a known PDF-pt rectangle (100,100)-(200,200)
+       drawn via PDF.js viewport.convertToViewportPoint() stays anchored at the
+       SAME visual location regardless of zoom or rotation. (Demonstrates that
+       lite's ptToScreen logic survives the renderer swap.)
+    3) DPR handling — render at scale*dpr device-pixel density, display at scale
+       CSS pixels, never double-apply DPR.
+
+  Also probes the two PDF.js gotchas surfaced by the research pass:
+    - Async render cancellation (rapid zoom must not leak stale paints)
+    - DPR double-apply (canvas attr vs canvas style must be split correctly)
+
+  No server needed. Open with file:// directly. PDF.js loaded from jsDelivr CDN.
+  Pick any PDF via the file input — recommend ผัง.pdf or the RAMA4 permit.
+
+  Lite app NOT modified. Pure visual + JS contract probe.
+-->
+<style>
+:root{ --bg:#1a1d24; --panel:#23262e; --line:#3a3f4a; --ink:#e6e9f0; --muted:#92a0b3; --accent:#4aa3ff; --good:#39d98a; --warn:#ffb454; }
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:13px/1.45 -apple-system,Segoe UI,sans-serif;height:100%;}
+header{padding:10px 14px;background:#161922;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;}
+header h1{font-size:14px;margin:0 0 4px 0;font-weight:600;}
+header .meta{color:var(--muted);font-size:11px;}
+.bar{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12px;}
+.bar button,.bar input[type=file]{padding:5px 10px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;cursor:pointer;font-size:12px;}
+.bar button.on{background:var(--accent);border-color:var(--accent);}
+.bar .sep{color:var(--muted);margin:0 4px;}
+.bar .dpr-info{margin-left:auto;color:var(--muted);font-family:Menlo,monospace;}
+main{display:flex;gap:0;height:calc(100vh - 110px);}
+#canvas-wrap{flex:1;overflow:auto;background:#0f1116;position:relative;padding:18px;}
+.canvas-stack{position:relative;display:inline-block;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,0.5);}
+#pdfCanvas{display:block;}
+#overlay{position:absolute;top:0;left:0;pointer-events:none;}
+aside#status{width:320px;background:var(--panel);border-left:1px solid var(--line);padding:14px;font-family:Menlo,monospace;font-size:11px;color:var(--muted);overflow:auto;line-height:1.55;}
+aside h2{font-family:-apple-system,sans-serif;font-size:13px;color:var(--accent);margin:0 0 8px 0;}
+aside .ok{color:var(--good);} aside .warn{color:var(--warn);} aside .fail{color:#ff6b6b;}
+aside b{color:var(--ink);}
+aside hr{border:0;border-top:1px solid var(--line);margin:10px 0;}
+aside .check-row{display:flex;justify-content:space-between;gap:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPIKE — PDF.js client render (Approach G, idea 2026-05-27-23-05)</h1>
+  <div class="meta">Loads PDF via PDF.js 4.x · re-rasterizes from vector at the requested zoom · validates measurement-contract invariance via PDF-pt anchored mock-rect overlay</div>
+  <div class="bar">
+    <input type="file" id="file-input" accept=".pdf">
+    <span class="sep">·</span>
+    <span style="color:var(--muted);">zoom V.k =</span>
+    <button class="z" data-z="1" id="z1">1×</button>
+    <button class="z" data-z="2" id="z2">2×</button>
+    <button class="z" data-z="5" id="z5">5×</button>
+    <button class="z" data-z="10" id="z10">10×</button>
+    <span class="sep">·</span>
+    <span style="color:var(--muted);">rotation =</span>
+    <button class="r" data-r="0" id="r0">0°</button>
+    <button class="r" data-r="90" id="r90">90°</button>
+    <button class="r" data-r="180" id="r180">180°</button>
+    <button class="r" data-r="270" id="r270">270°</button>
+    <span class="sep">·</span>
+    <span style="color:var(--muted);">page =</span>
+    <button id="prev">◀</button>
+    <span id="page-label" style="font-family:Menlo,monospace;color:var(--ink);min-width:60px;text-align:center;">- / -</span>
+    <button id="next">▶</button>
+    <span class="dpr-info">DPR=<b id="dpr-val">?</b></span>
+  </div>
+</header>
+
+<main>
+  <div id="canvas-wrap">
+    <div id="empty-msg" style="color:var(--muted);text-align:center;margin-top:120px;font-family:-apple-system,sans-serif;font-size:14px;">เลือกไฟล์ PDF ที่ปุ่ม "Choose File" ด้านบน</div>
+    <div class="canvas-stack" id="stack" style="display:none;">
+      <canvas id="pdfCanvas"></canvas>
+      <canvas id="overlay"></canvas>
+    </div>
+  </div>
+  <aside id="status">
+    <h2>PDF.js status</h2>
+    <div id="lib-status">loading PDF.js…</div>
+    <hr>
+    <h2>Current render</h2>
+    <div id="render-info">no file loaded</div>
+    <hr>
+    <h2>Measurement contract</h2>
+    <div id="contract">no test yet</div>
+    <hr>
+    <h2>Async cancel probe</h2>
+    <div id="cancel-probe">click zoom buttons rapidly to test — stale tasks should be dropped, not painted</div>
+  </aside>
+</main>
+
+<script type="module">
+// =============================================================================
+// PDF.js loader (jsDelivr CDN, ESM, file:// compatible because CDN serves CORS)
+// =============================================================================
+const PDFJS_VER = "4.0.379";
+const libStatus = document.getElementById('lib-status');
+let pdfjsLib;
+try {
+  pdfjsLib = await import(`https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/build/pdf.min.mjs`);
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/build/pdf.worker.min.mjs`;
+  libStatus.innerHTML = `<span class="ok">✓ PDF.js ${PDFJS_VER} loaded</span><br>worker: jsDelivr CDN`;
+} catch (e) {
+  libStatus.innerHTML = `<span class="fail">✗ PDF.js load failed</span><br>${e.message}`;
+  throw e;
+}
+
+// =============================================================================
+// State
+// =============================================================================
+const RS  = 1.5;                                  // lite coord contract — IMMUTABLE
+const dpr = window.devicePixelRatio || 1;
+document.getElementById('dpr-val').textContent = dpr.toFixed(2);
+
+let curPdf = null;          // PDFDocumentProxy
+let curPageNum = 1;
+let curPage = null;         // PDFPageProxy
+let pageCount = 0;
+let curZoom = 1.0;          // V.k in lite vocabulary
+let curRot  = 0;            // 0/90/180/270
+let curRenderTask = null;   // for cancellation
+let renderTaskId = 0;       // monotonic ID for stale-paint filter
+let lastRenderMs = 0;
+let staleDroppedCount = 0;
+
+// =============================================================================
+// PDF.js viewport.convertToViewportPoint() — does PDF-pt → canvas-CSS-px
+// (already includes rotation + scale). This IS the analogue of lite's ptToScreen
+// when V.ox=V.oy=0 and V.k baked into the viewport scale.
+// =============================================================================
+function ptToCanvas(p, viewport) {
+  const [x, y] = viewport.convertToViewportPoint(p.x, p.y);
+  return { x, y };
+}
+
+// =============================================================================
+// Render the current page
+// =============================================================================
+async function render() {
+  if (!curPage) return;
+  const myTaskId = ++renderTaskId;
+  const t0 = performance.now();
+  const scale = RS * curZoom;                                // contract: 1 pt = RS*V.k canvas-CSS-px
+  const viewport = curPage.getViewport({ scale, rotation: curRot });
+
+  // Cancel any in-flight render before starting a new one (PDF.js issue #9456 workaround)
+  if (curRenderTask) {
+    try { curRenderTask.cancel(); } catch (e) {}
+    curRenderTask = null;
+  }
+
+  // === DPR-correct sizing ===
+  // canvas attr (device px) = viewport.width * dpr
+  // canvas style (CSS px)   = viewport.width
+  // → 1 device pixel per (1/dpr) CSS pixel — sharp on retina, single-apply
+  const canvas  = document.getElementById('pdfCanvas');
+  const overlay = document.getElementById('overlay');
+  canvas.width   = Math.round(viewport.width * dpr);
+  canvas.height  = Math.round(viewport.height * dpr);
+  canvas.style.width  = viewport.width  + 'px';
+  canvas.style.height = viewport.height + 'px';
+  overlay.width  = canvas.width;
+  overlay.height = canvas.height;
+  overlay.style.width  = canvas.style.width;
+  overlay.style.height = canvas.style.height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Per PDF.js docs: pass a `transform` if you want to apply dpr inside render.
+  // We choose the simpler path: setTransform on context, render at viewport size.
+  curRenderTask = curPage.render({ canvasContext: ctx, viewport });
+  try {
+    await curRenderTask.promise;
+  } catch (e) {
+    if (e?.name === 'RenderingCancelledException') return;   // expected on rapid zoom
+    console.error(e);
+    return;
+  }
+  curRenderTask = null;
+
+  // Stale-paint filter — if a newer task started while we were rendering, drop this one.
+  if (myTaskId !== renderTaskId) {
+    staleDroppedCount++;
+    document.getElementById('cancel-probe').innerHTML =
+      `<span class="ok">✓ stale task #${myTaskId} dropped (older than #${renderTaskId})</span><br>` +
+      `total stale renders dropped: <b>${staleDroppedCount}</b>`;
+    return;
+  }
+  lastRenderMs = Math.round(performance.now() - t0);
+
+  drawMeasurementOverlay(viewport);
+  updateStatus(viewport);
+}
+
+// =============================================================================
+// Measurement overlay — proves the lite ptToScreen contract still holds.
+// A 100pt × 100pt rectangle, anchored at PDF-pt (100, 100), drawn via PDF.js
+// viewport.convertToViewportPoint(). At every zoom + rotation, the rect must
+// land at the SAME visual feature of the underlying PDF.
+// =============================================================================
+function drawMeasurementOverlay(viewport) {
+  const overlay = document.getElementById('overlay');
+  const ctx = overlay.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, viewport.width, viewport.height);
+
+  // Mock measurement rectangle: PDF-pt corners
+  const pdfRectPts = [
+    {x:100,y:100}, {x:200,y:100}, {x:200,y:200}, {x:100,y:200}
+  ];
+  const canvasPts = pdfRectPts.map(p => ptToCanvas(p, viewport));
+
+  // Polygon
+  ctx.strokeStyle = '#ff3b30';
+  ctx.lineWidth = Math.max(1.5, 2 / curZoom * 1.5);  // visible at any zoom
+  ctx.fillStyle  = 'rgba(255,59,48,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(canvasPts[0].x, canvasPts[0].y);
+  canvasPts.slice(1).forEach(c => ctx.lineTo(c.x, c.y));
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Vertex dots
+  ctx.fillStyle = '#ff3b30';
+  canvasPts.forEach(c => {
+    ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI*2); ctx.fill();
+  });
+
+  // Label
+  ctx.fillStyle = '#ff3b30';
+  ctx.font = '14px -apple-system, sans-serif';
+  const labelP = canvasPts[0];
+  ctx.fillText('measure contract: PDF-pt (100,100)→(200,200) — must stay anchored', labelP.x, labelP.y - 8);
+
+  // Update contract status
+  const expected = {
+    p0: ptToCanvas(pdfRectPts[0], viewport),
+    p2: ptToCanvas(pdfRectPts[2], viewport),
+  };
+  const side_canvas_px = expected.p2.x - expected.p0.x;          // rotation 0
+  const expected_side  = 100 * RS * curZoom;                      // PDF-pt × RS × V.k
+  // For rotation 90/270, x-axis becomes y-axis; magnitude of diagonal kept.
+  const diag = Math.hypot(expected.p2.x - expected.p0.x, expected.p2.y - expected.p0.y);
+  const expected_diag  = 100 * Math.SQRT2 * RS * curZoom;
+  const diff = Math.abs(diag - expected_diag);
+  const pass = diff < 0.5;
+  document.getElementById('contract').innerHTML =
+    `<div class="check-row"><span>zoom V.k</span><b>${curZoom.toFixed(1)}×</b></div>` +
+    `<div class="check-row"><span>rotation</span><b>${curRot}°</b></div>` +
+    `<div class="check-row"><span>PDF-pt rect side</span><b>100 pt</b></div>` +
+    `<div class="check-row"><span>expected canvas-CSS-px diag</span><b>${expected_diag.toFixed(2)}</b></div>` +
+    `<div class="check-row"><span>measured canvas-CSS-px diag</span><b>${diag.toFixed(2)}</b></div>` +
+    `<div class="check-row"><span>delta</span><b>${diff.toFixed(3)}</b></div>` +
+    `<br><div class="${pass?'ok':'fail'}">${pass?'✓ contract PASS — PDF-pt → CSS-px mapping is ${RS} × V.k as required'.replace('${RS}', RS):'✗ contract FAIL — mapping drift'}</div>`;
+}
+
+function updateStatus(viewport) {
+  const cnv = document.getElementById('pdfCanvas');
+  document.getElementById('render-info').innerHTML =
+    `<div class="check-row"><span>file</span><b>${curFileName || '-'}</b></div>` +
+    `<div class="check-row"><span>page</span><b>${curPageNum} / ${pageCount}</b></div>` +
+    `<div class="check-row"><span>PDF rect</span><b>${curPage.view[2].toFixed(0)}×${curPage.view[3].toFixed(0)} pt</b></div>` +
+    `<div class="check-row"><span>scale (RS×V.k)</span><b>${(RS*curZoom).toFixed(2)}</b></div>` +
+    `<div class="check-row"><span>canvas attr (device)</span><b>${cnv.width}×${cnv.height}</b></div>` +
+    `<div class="check-row"><span>canvas CSS (logical)</span><b>${viewport.width.toFixed(0)}×${viewport.height.toFixed(0)}</b></div>` +
+    `<div class="check-row"><span>render time</span><b>${lastRenderMs} ms</b></div>` +
+    `<div class="check-row"><span>renders done</span><b>${renderTaskId}</b></div>` +
+    `<div class="check-row"><span>stale dropped</span><b>${staleDroppedCount}</b></div>`;
+  document.getElementById('page-label').textContent = `${curPageNum} / ${pageCount}`;
+}
+
+// =============================================================================
+// File loader
+// =============================================================================
+let curFileName = "";
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  curFileName = f.name;
+  const buf = await f.arrayBuffer();
+  await loadPdf(buf);
+});
+
+async function loadPdf(buffer) {
+  try {
+    curPdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    pageCount = curPdf.numPages;
+    curPageNum = 1;
+    curPage = await curPdf.getPage(curPageNum);
+    document.getElementById('empty-msg').style.display = 'none';
+    document.getElementById('stack').style.display = 'inline-block';
+    document.getElementById('z1').classList.add('on');
+    document.getElementById('r0').classList.add('on');
+    await render();
+  } catch (e) {
+    document.getElementById('render-info').innerHTML = `<span class="fail">PDF open failed: ${e.message}</span>`;
+  }
+}
+
+// =============================================================================
+// Controls
+// =============================================================================
+document.querySelectorAll('.z').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.z').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  curZoom = parseFloat(b.dataset.z);
+  render();
+});
+document.querySelectorAll('.r').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.r').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  curRot = parseInt(b.dataset.r);
+  render();
+});
+document.getElementById('prev').onclick = async () => {
+  if (!curPdf || curPageNum <= 1) return;
+  curPageNum--;
+  curPage = await curPdf.getPage(curPageNum);
+  render();
+};
+document.getElementById('next').onclick = async () => {
+  if (!curPdf || curPageNum >= pageCount) return;
+  curPageNum++;
+  curPage = await curPdf.getPage(curPageNum);
+  render();
+};
+
+// Initial empty-state hint update
+document.getElementById('render-info').innerHTML = '<span class="muted">no file loaded — pick a PDF above</span>';
+</script>
+</body>
+</html>
