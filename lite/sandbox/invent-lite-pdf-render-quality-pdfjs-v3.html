@@ -169,6 +169,12 @@ let renderTaskId = 0;
 let lastRenderMs = 0;
 let curFileName = "";
 
+// Double-buffer: PDF.js renders into offCanvas (off-screen), then we blit to
+// the visible canvas in ONE sync drawImage call. Eliminates the "blank flash"
+// flicker that occurred when canvas.width=X (clears) then await PDF.js (~30ms)
+// gave the browser time to paint an empty canvas.
+const offCanvas = document.createElement('canvas');
+
 // =============================================================================
 // Render
 // =============================================================================
@@ -207,29 +213,22 @@ async function render(skipOverlay = false) {
   }
 
   // Estimate memory (constant in clipped mode, blows up in full mode)
-  const memBytes = Math.round(cssW * dpr) * Math.round(cssH * dpr) * 4;
+  const devW = Math.round(cssW * dpr);
+  const devH = Math.round(cssH * dpr);
+  const memBytes = devW * devH * 4;
   const memMB    = memBytes / 1024 / 1024;
   updateMemBar(memMB);
 
-  canvas.width   = Math.round(cssW * dpr);
-  canvas.height  = Math.round(cssH * dpr);
-  canvas.style.width  = cssW + 'px';
-  canvas.style.height = cssH + 'px';
-  overlay.width  = canvas.width;
-  overlay.height = canvas.height;
-  overlay.style.width  = canvas.style.width;
-  overlay.style.height = canvas.style.height;
-  stack.style.width  = cssW + 'px';
-  stack.style.height = cssH + 'px';
-
-  const ctx = canvas.getContext('2d');
-  // For CLIPPED mode we pass transform via render() option — DON'T pre-transform the ctx.
-  // For FULL  mode we also use transform option for consistency (identity dpr scale).
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // --- Phase 1: render to off-screen canvas (no visible flicker) ---
+  // Only resize off-canvas when dims actually change (setting .width clears).
+  if (offCanvas.width  !== devW) offCanvas.width  = devW;
+  if (offCanvas.height !== devH) offCanvas.height = devH;
+  const offCtx = offCanvas.getContext('2d');
+  offCtx.setTransform(1, 0, 0, 1, 0, 0);
+  offCtx.clearRect(0, 0, devW, devH);
 
   try {
-    curRenderTask = curPage.render({ canvasContext: ctx, viewport, transform });
+    curRenderTask = curPage.render({ canvasContext: offCtx, viewport, transform });
     await curRenderTask.promise;
   } catch (e) {
     if (e?.name === 'RenderingCancelledException') return;
@@ -239,6 +238,24 @@ async function render(skipOverlay = false) {
   curRenderTask = null;
   if (myTaskId !== renderTaskId) return;  // stale
   lastRenderMs = Math.round(performance.now() - t0);
+
+  // --- Phase 2: resize visible canvas if needed + blit in ONE sync block ---
+  // Browser doesn't paint mid-JS-tick, so resize+drawImage in same synchronous
+  // code path is atomic to the user (no blank flash).
+  if (canvas.width  !== devW) canvas.width  = devW;
+  if (canvas.height !== devH) canvas.height = devH;
+  if (canvas.style.width  !== cssW + 'px') canvas.style.width  = cssW + 'px';
+  if (canvas.style.height !== cssH + 'px') canvas.style.height = cssH + 'px';
+  if (overlay.width  !== devW) overlay.width  = devW;
+  if (overlay.height !== devH) overlay.height = devH;
+  if (overlay.style.width  !== cssW + 'px') overlay.style.width  = cssW + 'px';
+  if (overlay.style.height !== cssH + 'px') overlay.style.height = cssH + 'px';
+  if (stack.style.width  !== cssW + 'px') stack.style.width  = cssW + 'px';
+  if (stack.style.height !== cssH + 'px') stack.style.height = cssH + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(offCanvas, 0, 0);
 
   if (!skipOverlay) drawMeasurementOverlay(viewport, cssW, cssH);
   updateStatus(viewport, cssW, cssH, memMB);

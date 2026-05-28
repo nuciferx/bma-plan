@@ -52,6 +52,23 @@ var pageDims     = {};     // n → {w, h}  (PDF-pt dimensions, un-rotated)
 var _pendingRenderTask = null;  // PDF.js RenderTask
 var _renderToken       = 0;     // monotonic bump; stale renders self-cancel
 
+/* ---- double-buffer state (anti-flicker, smooth pan/zoom) ----
+ * PDF.js renders into _offCanvas (off-screen); ui-lite.html's draw() calls
+ * _drawImage which blits _offCanvas to the visible canvas. During pan/zoom
+ * the cached image is blitted with a "diff transform" so the PDF appears to
+ * follow the cursor in real time; a fresh PDF.js render runs in background
+ * and replaces the cache when ready.
+ */
+var _offCanvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
+var _cachedV   = null;   // snapshot of V at last successful render
+var _cachedKey = null;   // state key of last successful render
+
+function _stateKey() {
+  return curPage + "|" + V.k + "|" + V.rot + "|" + Math.round(V.ox) + "|" +
+         Math.round(V.oy) + "|" + (pageRot[curPage] || 0) + "|" +
+         cv.width + "x" + cv.height;
+}
+
 /* ---- lazy PDF.js loader ---- */
 var _pdfjsLib    = null;
 var _pdfjsPromise = null;
@@ -190,82 +207,131 @@ async function loadPage(n) {
   }
 }
 
-/* ---- _render: async — does the actual PDF.js render into ctx ---- */
+/* ---- _render: async — PDF.js renders into _offCanvas (off-screen) ----
+ * On success, updates _cachedV / _cachedKey, then requests a repaint so the
+ * fresh cache gets blitted to the visible canvas.
+ *
+ * pageRot strategy (option B): θ_total = pgRot + V.rot folded into the
+ * transform; PDF.js viewport rotation stays 0. pageH for the transform = the
+ * un-rotated PDF height (or width when pgRot is 90/270, because the origin
+ * shifts to what would be the top-right corner of the un-rotated page).
+ */
 async function _render(myToken) {
   var cp = pageCache[curPage];
-  if (!cp || !pageDims[curPage]) return;
+  if (!cp || !pageDims[curPage] || !_offCanvas) return;
 
+  // Snapshot V at render-start so the cache reflects this exact state.
+  var Vsnap = { k: V.k, ox: V.ox, oy: V.oy, rot: V.rot };
   var pgRot = pageRot[curPage] || 0;
 
-  /* option B: θ_total folds pageRot into the transform so PDF.js stays at rotation=0.
-   * The viewport scale uses RS*V.k (matching spike v4).
-   * pageH for the transform formula must be the un-rotated PDF height when pgRot=0/180,
-   * OR the un-rotated PDF width when pgRot=90/270 (because the origin after baking 90°
-   * is at the top-right of the rotated image — equivalent to the original pageWidth).
-   */
   var rawW = pageDims[curPage].w;
   var rawH = pageDims[curPage].h;
   var swapped = (pgRot % 180 !== 0);
-  // pageH_for_transform: the effective "height" in the rotated coordinate origin
   var pageH_tx = swapped ? rawW : rawH;
 
-  var thetaTotal = pgRot + V.rot;
-  var scale      = RS * V.k;
+  var thetaTotal = pgRot + Vsnap.rot;
+  var scale      = RS * Vsnap.k;
   var viewport   = cp.getViewport({ scale: scale, rotation: 0 });
-  var T          = _computeTransform(pageH_tx, thetaTotal);
+  // Recompute transform using the snapshotted V so any concurrent V change
+  // doesn't poison the matrix mid-await.
+  var dpr = window.devicePixelRatio || 1;
+  var th  = thetaTotal * Math.PI / 180;
+  var cR  = Math.cos(th), sR = Math.sin(th);
+  var s   = RS * Vsnap.k;
+  var T = [
+    cR * dpr,
+    sR * dpr,
+    sR * dpr,
+    -cR * dpr,
+    (Vsnap.ox - pageH_tx * s * sR) * dpr,
+    (Vsnap.oy + pageH_tx * s * cR) * dpr
+  ];
 
-  // For pgRot=90/270 we need a different PDF.js viewport because the page's native
-  // coordinate system (as PDF.js sees it at rotation=0) has width/height un-swapped.
-  // We apply the full rotation via transform T, so viewport rotation stays 0.
-  // (The spike v4 tested only V.rot; here pgRot folds into thetaTotal.)
+  if (myToken !== _renderToken) return; // stale
 
-  if (myToken !== _renderToken) return; // stale, bail early
+  // Resize off-canvas to match visible canvas dims (only when changed — setting
+  // .width clears the canvas even if value is the same).
+  if (_offCanvas.width  !== cv.width)  _offCanvas.width  = cv.width;
+  if (_offCanvas.height !== cv.height) _offCanvas.height = cv.height;
+  var offCtx = _offCanvas.getContext("2d");
+  offCtx.setTransform(1, 0, 0, 1, 0, 0);
+  offCtx.clearRect(0, 0, _offCanvas.width, _offCanvas.height);
 
   try {
-    _pendingRenderTask = cp.render({ canvasContext: ctx, viewport: viewport, transform: T });
+    _pendingRenderTask = cp.render({ canvasContext: offCtx, viewport: viewport, transform: T });
     await _pendingRenderTask.promise;
   } catch (e) {
     if (e && e.name === "RenderingCancelledException") return;
     console.error("[page-renderer] render error:", e);
+    return;
   } finally {
     _pendingRenderTask = null;
   }
 
-  // If another draw() call bumped the token while we were rendering, request a repaint
-  if (myToken !== _renderToken) {
-    requestAnimationFrame(function() { if (typeof draw === "function") draw(); });
-  }
+  if (myToken !== _renderToken) return; // stale after await
+
+  // Commit the snapshot — _drawImage now blits this with diff-transform.
+  _cachedV   = Vsnap;
+  _cachedKey = curPage + "|" + Vsnap.k + "|" + Vsnap.rot + "|" +
+               Math.round(Vsnap.ox) + "|" + Math.round(Vsnap.oy) + "|" +
+               pgRot + "|" + cv.width + "x" + cv.height;
+
+  requestAnimationFrame(function() { if (typeof draw === "function") draw(); });
 }
 
-/* ---- drawImage: SYNC signature — called by draw() in ui-lite.html ----
- * Cancels any in-flight render, bumps renderToken, schedules async render
- * as a microtask (fire-and-forget). The sync call returns immediately so
- * draw() can continue to overlay measurement objects on top.
- * Anti-infinite-loop: _renderToken is bumped once per drawImage call.
- * The async _render checks its captured token before every await; if it
- * becomes stale it bails without scheduling another draw(). The final
- * requestAnimationFrame(draw) is only triggered when the token DID NOT
- * change during the render — so it fires at most once per completed render.
+/* ---- drawImage: SYNC — blit cached offCanvas to ctx + schedule re-render ----
+ *
+ * ANTI-FLICKER strategy:
+ *   ui-lite.html's draw() calls ctx.clearRect THEN PageRenderer.drawImage THEN
+ *   draws overlay objects. If we render PDF.js directly into ctx here, the
+ *   await holds for ~30 ms during which the canvas is BLANK (already cleared)
+ *   → visible flicker. Worse during pan because mousemove fires draw() per
+ *   frame, each scheduling a new clear+await cycle.
+ *
+ *   Fix: PDF.js renders into _offCanvas (off-screen, async). _drawImage just
+ *   BLITS the (possibly stale) _offCanvas onto ctx with a diff-transform that
+ *   accounts for the pan/zoom delta between the cached state and current V.
+ *   The PDF visually tracks the cursor during pan; a fresh render starts in
+ *   the background and replaces the cache when ready. Same idea as Google
+ *   Maps tile rendering.
+ *
+ *   Anti-infinite-loop: render is scheduled ONLY when current state key
+ *   differs from _cachedKey AND no render is in flight. Once render completes
+ *   it sets _cachedKey to its rendered state → next _drawImage with same
+ *   state won't re-schedule. requestAnimationFrame(draw) at the end of
+ *   _render fires at most once per completed render.
  */
 function _drawImage(ctx_ignored) {
   if (!_ready()) return;
+  var dpr = window.devicePixelRatio || 1;
 
-  // Cancel any still-running render
-  if (_pendingRenderTask) {
-    try { _pendingRenderTask.cancel(); } catch (_) {}
-    _pendingRenderTask = null;
-  }
-
-  var myToken = ++_renderToken;
-
-  // Optional: paint a placeholder rect while first render is pending.
-  // Skip if pageDims not yet populated (e.g. test-shim mode with curImg compat).
-  if (pageDims[curPage]) {
+  // ---- Phase 1: blit cached _offCanvas (smooth) ----
+  if (_cachedV && _offCanvas && _offCanvas.width > 0) {
+    ctx.save();
+    if (V.rot === _cachedV.rot) {
+      // Pan + zoom diff (no rotation change) → scale + translate the blit
+      // so PDF tracks user's pan/zoom in real time.
+      // ptToScreen(p, V) - ptToScreen(p, _cachedV) collapses to:
+      //   sx_new = s*(sx_old - _cachedV.ox) + V.ox,   where s = V.k/_cachedV.k
+      // in CSS-px; multiply by dpr for the device-px ctx.
+      var ss = V.k / _cachedV.k;
+      ctx.setTransform(ss, 0, 0, ss,
+        (V.ox - ss * _cachedV.ox) * dpr,
+        (V.oy - ss * _cachedV.oy) * dpr);
+    } else {
+      // Rotation diff — skip diff transform; one-frame mismatch acceptable
+      // (rotation is a discrete click, fresh render arrives within ~30 ms).
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.drawImage(_offCanvas, 0, 0);
+    ctx.restore();
+  } else if (pageDims[curPage]) {
+    // No cached image yet (first render pending) → placeholder rect so the
+    // user sees the page bounds rather than blank canvas.
     var pgRot   = pageRot[curPage] || 0;
     var swapped = (pgRot % 180 !== 0);
     var pw = (swapped ? pageDims[curPage].h : pageDims[curPage].w) * RS * V.k;
     var ph = (swapped ? pageDims[curPage].w : pageDims[curPage].h) * RS * V.k;
-    var dpr = window.devicePixelRatio || 1;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#1a1e28";
@@ -273,15 +339,22 @@ function _drawImage(ctx_ignored) {
     ctx.restore();
   }
 
-  // Fire async render (microtask) — only if real PDF.js state is present
-  if (pdfDoc && pageCache[curPage]) {
-    Promise.resolve().then(function() { _render(myToken); });
+  // ---- Phase 2: schedule re-render if state changed ----
+  if (!pdfDoc || !pageCache[curPage]) return;
+  var key = _stateKey();
+  if (key === _cachedKey && _pendingRenderTask === null) return;  // up-to-date
+
+  // State drifted from cache → kick off fresh render in background
+  if (_pendingRenderTask) {
+    try { _pendingRenderTask.cancel(); } catch (_) {}
+    _pendingRenderTask = null;
   }
+  var myToken = ++_renderToken;
+  Promise.resolve().then(function() { _render(myToken); });
 }
 
 /* ---- resetCache: called on new upload / loadProject in ui-lite.html ---- */
 function _resetCache() {
-  // Cancel any in-flight render before wiping state
   if (_pendingRenderTask) {
     try { _pendingRenderTask.cancel(); } catch (_) {}
     _pendingRenderTask = null;
@@ -292,6 +365,11 @@ function _resetCache() {
   pageCache    = {};
   pageDims     = {};
   pageRot      = {};
+  _cachedV     = null;
+  _cachedKey   = null;
+  if (_offCanvas) {
+    _offCanvas.width = 0;  // also clears
+  }
 }
 
 /* ---- public API ---- */
