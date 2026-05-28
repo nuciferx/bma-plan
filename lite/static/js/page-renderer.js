@@ -52,15 +52,24 @@ var pageDims     = {};     // n → {w, h}  (PDF-pt dimensions, un-rotated)
 var _pendingRenderTask = null;  // PDF.js RenderTask
 var _renderToken       = 0;     // monotonic bump; stale renders self-cancel
 
-/* ---- double-buffer state (anti-flicker, smooth pan/zoom) ----
- * PDF.js renders into _offCanvas (off-screen); ui-lite.html's draw() calls
- * _drawImage which blits _offCanvas to the visible canvas. During pan/zoom
- * the cached image is blitted with a "diff transform" so the PDF appears to
- * follow the cursor in real time; a fresh PDF.js render runs in background
- * and replaces the cache when ready.
+/* ---- double-buffer state (anti-flicker + sharper zoom) ----
+ * PDF.js renders into _offCanvas (off-screen, cv-sized); ui-lite.html's
+ * draw() calls _drawImage which blits _offCanvas to the visible canvas with
+ * a diff-transform that tracks pan/zoom in real time.
+ *
+ * Why not HEADROOM-sized offCanvas? Considered (and tried) — render the
+ * cached content at HEADROOM×V.k for zoom-in headroom. Failed because at
+ * HEADROOM=1.5, content (≈cv.width × 1.5 already at fit-zoom for A1 PDFs)
+ * overflows the bigger offCanvas at any moderate zoom-in, causing clip
+ * artifacts. Tile-based rendering would solve this but is over-engineered
+ * for lite's single-canvas architecture.
+ *
+ * Instead: ctx.imageSmoothingQuality = "high" makes Chrome use a cubic-like
+ * filter for the diff-blit upscale → noticeably less blur than bilinear
+ * during the ~30 ms gap before PDF.js refreshes the cache.
  */
 var _offCanvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
-var _cachedV   = null;   // snapshot of V at last successful render
+var _cachedV   = null;   // snapshot of V + page + pgRot + cv-dims at last successful render
 var _cachedKey = null;   // state key of last successful render
 
 function _stateKey() {
@@ -235,20 +244,12 @@ async function _render(myToken) {
   var cp = pageCache[curPage];
   if (!cp || !pageDims[curPage] || !_offCanvas) return;
 
-  // Snapshot V at render-start so the cache reflects this exact state.
   var Vsnap = { k: V.k, ox: V.ox, oy: V.oy, rot: V.rot };
   var pgRot = pageRot[curPage] || 0;
 
-  // Strategy (post spike-v4): let PDF.js handle ALL rotation in its viewport
-  // (intrinsic /Rotate via rotation=0 default; user pgRot+V.rot via rotation arg).
-  // Our `transform` is then TRANSLATE-ONLY — places the rendering at canvas
-  // (V.ox, V.oy). spike v4's analytical T mis-rotated PDFs with intrinsic
-  // /Rotate ≠ 0 (e.g. RAMA4 A1 /Rotate=90 came out upside-down).
-  //
-  // ptToScreen alignment: since pageDims already reflects post-intrinsic dims,
-  // lite's p ∈ [0, pageW] × [0, pageH] is in "visual orientation" coords. At
-  // V.rot=0, pgRot=0: ptToScreen(p)=(p.x*RS*V.k+V.ox, p.y*RS*V.k+V.oy), which
-  // matches PDF.js's content drawn at (V.ox, V.oy) with scale RS*V.k.
+  // PDF.js handles ALL rotation: intrinsic /Rotate via default rotation=0,
+  // user/page rotation via the rotation arg. T is translate-only — places
+  // the rendering at canvas (V.ox, V.oy).
   var thetaUser = ((Vsnap.rot + pgRot) % 360 + 360) % 360;
   var scale     = RS * Vsnap.k;
   var viewport  = cp.getViewport({ scale: scale, rotation: thetaUser });
@@ -258,11 +259,12 @@ async function _render(myToken) {
 
   if (myToken !== _renderToken) return; // stale
 
-  // Resize off-canvas to match visible canvas dims (only when changed — setting
-  // .width clears the canvas even if value is the same).
   if (_offCanvas.width  !== cv.width)  _offCanvas.width  = cv.width;
   if (_offCanvas.height !== cv.height) _offCanvas.height = cv.height;
   var offCtx = _offCanvas.getContext("2d");
+  // High-quality rasterization for the diff-blit downstream.
+  offCtx.imageSmoothingEnabled = true;
+  offCtx.imageSmoothingQuality = "high";
   offCtx.setTransform(1, 0, 0, 1, 0, 0);
   offCtx.clearRect(0, 0, _offCanvas.width, _offCanvas.height);
 
@@ -279,11 +281,8 @@ async function _render(myToken) {
 
   if (myToken !== _renderToken) return; // stale after await
 
-  // Commit the snapshot — _drawImage now blits this with diff-transform.
-  _cachedV   = Vsnap;
-  _cachedKey = curPage + "|" + Vsnap.k + "|" + Vsnap.rot + "|" +
-               Math.round(Vsnap.ox) + "|" + Math.round(Vsnap.oy) + "|" +
-               pgRot + "|" + cv.width + "x" + cv.height;
+  _cachedV = { k: Vsnap.k, ox: Vsnap.ox, oy: Vsnap.oy, rot: Vsnap.rot, pgRot: pgRot, page: curPage };
+  _cachedKey = _stateKey();
 
   requestAnimationFrame(function() { if (typeof draw === "function") draw(); });
 }
@@ -314,29 +313,34 @@ function _drawImage(ctx_ignored) {
   if (!_ready()) return;
   var dpr = window.devicePixelRatio || 1;
 
-  // ---- Phase 1: blit cached _offCanvas (smooth) ----
-  if (_cachedV && _offCanvas && _offCanvas.width > 0) {
+  // ---- Phase 1: blit cached _offCanvas with diff-transform (smooth) ----
+  //
+  // offCanvas is cv-sized; content was rendered with translate to
+  // (V.ox_cached*dpr, V.oy_cached*dpr) at scale=RS*V.k_cached. For PDF-pt p:
+  //   cached offCanvas device-px = (p.x*RS*V.k_cached + V.ox_cached) * dpr
+  //   target ctx device-px        = (p.x*RS*V.k + V.ox) * dpr
+  //
+  // Compose affine: ss = V.k / V.k_cached, translate = V.ox - ss*V.ox_cached.
+  //   At V.k = V.k_cached: ss = 1, blit at 1:1 (sharp).
+  //   At V.k < V.k_cached: ss < 1 → downscale (always sharp).
+  //   At V.k > V.k_cached: ss > 1 → upscale (bilinear blur). We mitigate via
+  //     imageSmoothingQuality="high" (cubic in Chrome) which produces noticeably
+  //     less blur than browser default.
+  if (_cachedV && _offCanvas && _offCanvas.width > 0 &&
+      V.rot === _cachedV.rot && curPage === _cachedV.page &&
+      (pageRot[curPage] || 0) === _cachedV.pgRot) {
+    var ss = V.k / _cachedV.k;
     ctx.save();
-    if (V.rot === _cachedV.rot) {
-      // Pan + zoom diff (no rotation change) → scale + translate the blit
-      // so PDF tracks user's pan/zoom in real time.
-      // ptToScreen(p, V) - ptToScreen(p, _cachedV) collapses to:
-      //   sx_new = s*(sx_old - _cachedV.ox) + V.ox,   where s = V.k/_cachedV.k
-      // in CSS-px; multiply by dpr for the device-px ctx.
-      var ss = V.k / _cachedV.k;
-      ctx.setTransform(ss, 0, 0, ss,
-        (V.ox - ss * _cachedV.ox) * dpr,
-        (V.oy - ss * _cachedV.oy) * dpr);
-    } else {
-      // Rotation diff — skip diff transform; one-frame mismatch acceptable
-      // (rotation is a discrete click, fresh render arrives within ~30 ms).
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.setTransform(ss, 0, 0, ss,
+      (V.ox - ss * _cachedV.ox) * dpr,
+      (V.oy - ss * _cachedV.oy) * dpr);
     ctx.drawImage(_offCanvas, 0, 0);
     ctx.restore();
   } else if (pageDims[curPage]) {
-    // No cached image yet (first render pending) → placeholder rect so the
-    // user sees the page bounds rather than blank canvas.
+    // No usable cache yet (first render pending, or rotation/page just changed)
+    // → placeholder rect so the user sees the page bounds rather than blank.
     var pgRot   = pageRot[curPage] || 0;
     var swapped = (pgRot % 180 !== 0);
     var pw = (swapped ? pageDims[curPage].h : pageDims[curPage].w) * RS * V.k;
@@ -348,12 +352,13 @@ function _drawImage(ctx_ignored) {
     ctx.restore();
   }
 
-  // ---- Phase 2: schedule re-render if state changed ----
+  // ---- Phase 2: schedule re-render when cache key drifts from current state ----
+  // The diff-blit handles the visual immediately; PDF.js refreshes the cache
+  // ~30 ms later. Token-based stale guard prevents infinite loops.
   if (!pdfDoc || !pageCache[curPage]) return;
   var key = _stateKey();
   if (key === _cachedKey && _pendingRenderTask === null) return;  // up-to-date
 
-  // State drifted from cache → kick off fresh render in background
   if (_pendingRenderTask) {
     try { _pendingRenderTask.cancel(); } catch (_) {}
     _pendingRenderTask = null;
