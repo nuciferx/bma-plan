@@ -730,6 +730,17 @@ User tested arc-polygon drawing, reported "ทำได้ โอเค มา�
     - Scope skill: pending (`/bma-invent` decides after research)
     - Forbidden-surface profile: `snap` / `buildSnapIndex` likely touched if vector route; `polyAreaM2` / `pdfToC` / `cToPdf` / `RS` must stay untouched. `/bma-invent` re-checks during RESEARCH
 
+### ideas 2026-05-27
+
+- [x] **Lite PDF render quality vs Foxit** — `done` (4 commits shipped 2026-05-28) — from /idea 2026-05-27
+    - Commits: `b9cda6c` (invent docs + spike v1/v2/v3) → `f53d239` (Sprint #1 PDFJS-PREP-EXTRACT-RENDERER) → `8fca51a` (spike v4 ↔ ptToScreen contract 24/24 PASS) → `382b30a` (Sprint #2 PDFJS-VIEWPORT-CLIPPED-INTEGRATION)
+    - Outcome: PDF.js viewport-clipped replaced JPEG-raster path. Memory constant ~13-15 MB at any zoom. Sharpness Chrome-grade. Forbidden surfaces (ptToScreen / screenToPt / RS / polyAreaM2 / polyMetrics / .bmaplan schema) ALL untouched
+    - Tests: 6 named + 2 bonus + new smoke probe (SMOKE_PDFJS_LIVE_OK 8/8 — real server + real PDF + real PDF.js, including pageRot=90/270 and V.k=5 zoom)
+    - arcHUDText debt resolved pre-resume (another session must have restored `draw-arc.js`; no intervention needed)
+    - Tech debt filed (non-blocking follow-up): `curImg` compat shim in page-renderer.js for 6 test files; placeholder rect not rotation-aware; pageRot=90/270 pixel-perfect alignment not Playwright-tested (only content-presence verified)
+    - Source: user 2026-05-27, "`engin`ใน lite เปิด pdf เเปิดได้ไม่ชัดเท่า foxie pdf ทำไงให้ มีคุณภาพเท่ากัน"
+    - Tags: bma-plan, lite, render, pdf, perf, p-med
+
 ## Known leftovers (predate the loop)
 
 | item | type | note |

@@ -1,12 +1,16 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-26 (BUG-20260526-lite-stale-pf-folder-cleanup SHIPPED. PF folder pruning + safety guard. PF_CLEANUP_OK 4/4 + 5 regressions GREEN. Proto untouched.)
+Date: 2026-05-28 (invent `lite-pdf-render-quality` (id `2026-05-27-23-05`) COMPLETED — Sprint #1 + spike v4 + Sprint #2 shipped in 4 commits. PDF.js viewport-clipped now the default lite render path. SMOKE_PDFJS_LIVE_OK 8/8. Previous ship: BUG-20260526-lite-stale-pf-folder-cleanup.)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
 > Known issues: [docs/status/KNOWN_ISSUES.md](docs/status/KNOWN_ISSUES.md)
 
 ## One-Line Status
+
+2026-05-28 (continued): invent `lite-pdf-render-quality` RESUMED + COMPLETED — 4 commits shipped: b9cda6c (invent docs + spike v1/v2/v3), f53d239 (Sprint #1 extract page-renderer + export-annotate), 8fca51a (spike v4 — PDF.js ↔ lite's ptToScreen contract PASS 24/24), 382b30a (Sprint #2 PDFJS-VIEWPORT-CLIPPED-INTEGRATION — Chrome-grade sharp at any zoom, mem constant ~13 MB). All forbidden surfaces (ptToScreen / screenToPt / RS / polyAreaM2 / polyMetrics / .bmaplan schema) UNTOUCHED. 8/8 named tests + smoke probe PASS. arcHUDText debt found pre-resolved (no fix needed). Tech debt: curImg compat shim in 6 test files (cleanup follow-up).
+
+2026-05-28: invent `lite-pdf-render-quality` PAUSED — spike v3 PDF.js viewport-clipped PASS on 95-page A1 (mem constant 13.6 MB across zoom 1×→100×), sprint #1 PDFJS-PREP-EXTRACT-RENDERER WIP uncommitted (ui-lite.html 1195→1100, page-renderer.js + export-annotate.js extracted). Sprint #2 design captured. Pre-existing `arcHUDText` debt blocks lite tests. Resume: see `docs/status/NEXT_ACTIONS.md`.
 
 2026-05-26: BUG-20260526-lite-stale-pf-folder-cleanup SHIPPED. Stale PF_floor_N folders + seed layers now pruned on re-tag (user-object preservation guard active). PF_CLEANUP_OK 4/4 + 5 regressions GREEN. Proto baseline unchanged (22 markers).
 
