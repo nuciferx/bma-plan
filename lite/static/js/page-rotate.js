@@ -11,6 +11,7 @@ function rotatePage(delta){
   while(cur>=360)cur-=360;
   pageRot[curPage]=cur;
   state.dirty=true;
-  delete imgCache[curPage];   // invalidate cached raster for this page
+  // Invalidate PDF.js page proxy so next loadPage re-fetches with new rotation
+  if (typeof pageCache !== "undefined") delete pageCache[curPage];
   loadPage(curPage);
 }

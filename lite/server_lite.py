@@ -158,6 +158,16 @@ def get_page(n: int, case_id: str, scale: float = RS, rot: int = 0):
     return Response(cache[key], media_type="image/jpeg")
 
 
+@app.get("/raw")
+def raw_pdf(case_id: str):
+    """Return the raw PDF bytes for a case — used by PDF.js client-side renderer."""
+    case = _get_case(case_id)
+    if not case:
+        return JSONResponse({"error": "invalid case"}, 400)
+    pdf_path = case["path"]
+    return FileResponse(str(pdf_path), media_type="application/pdf")
+
+
 @app.get("/pageinfo/{n}")
 def pageinfo(n: int, case_id: str):
     case = _get_case(case_id)

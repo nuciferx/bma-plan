@@ -262,16 +262,16 @@ function screenToPt(sx,sy){ var u=(sx-V.ox)/V.k, v=(sy-V.oy)/V.k, th=V.rot*Math.
 // proto-parity zoom commands: zoom about viewport center / reset to 100% (1 img-px = 1 screen-px).
 // resize() and fit() live in static/js/page-renderer.js (slice-1 extraction).
 var ZMIN=0.02, ZMAX=40;                        // wheel + command clamp (anti-runaway; fit() stays unclamped)
-function zoomCenter(f){ if(!curImg)return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+function zoomCenter(f){ if(!PageRenderer.ready())return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
   var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*f)); f=nk/V.k; if(f===1)return;
   V.ox=cx-(cx-V.ox)*f; V.oy=cy-(cy-V.oy)*f; V.k=nk; draw(); }
-function actualSize(){ if(!curImg)return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+function actualSize(){ if(!PageRenderer.ready())return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
   var f=1/V.k; V.ox=cx-(cx-V.ox)*f; V.oy=cy-(cy-V.oy)*f; V.k=1; draw(); }
 
 /* ============================ DRAW ============================ */
 function draw(){
   var r=cv.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height);
-  if(!curImg){ updateHUD(); return; }
+  if(!PageRenderer.ready()){ updateHUD(); return; }
   PageRenderer.drawImage(ctx);
 
   var dimJobs=[];
@@ -346,7 +346,7 @@ function updateHUD(){
   document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">1:'+scaleN(s)+' ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
   document.getElementById("hud-tr").innerHTML= caseId?("หน้า <b>"+curPage+"</b> / "+pageCount+(excluded[curPage]?' <span class="dot">(ยกเว้น)</span>':'')):"—";
   var nobj=caseId?PSpage().objects.length:0;
-  var co=(curImg&&lastMouse)?screenToPt(lastMouse.x,lastMouse.y):null;
+  var co=(PageRenderer.ready()&&lastMouse)?screenToPt(lastMouse.x,lastMouse.y):null;
   document.getElementById("hud-bl").innerHTML='วัด: <b style="color:'+cat.color+'">'+cat.name+'</b>'+(state.catVis[cat.id]?'':' <span class="dot">(ซ่อน)</span>')+
     ' &nbsp; obj '+nobj+' &nbsp; Save <span class="'+(state.dirty?'dot':'ok')+'">'+(state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว')+'</span> &nbsp; zoom '+(V.k*100|0)+'% rot '+V.rot+'°'+
     ' &nbsp; xy <b>'+(co?(Math.round(co.x)+","+Math.round(co.y)):'—')+'</b>';
@@ -393,7 +393,7 @@ var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
 function setCursor(){ if(!cv)return;
   cv.style.cursor = panning ? "grabbing" : ((state.moveObj&&state.moveObj.moved)||(state.vertEdit&&state.vertEdit.moved)) ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
 cv.addEventListener("mousedown",function(e){
-  if(!curImg)return;
+  if(!PageRenderer.ready())return;
   // PAN (proto parity): middle-button OR spacebar-hold OR pan tool — works in ANY mode, even mid-tool.
   if(e.button===1||spaceDown||state.panTool){ e.preventDefault();
     dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; setCursor(); return; }
@@ -460,7 +460,7 @@ cv.addEventListener("mousemove",function(e){
   if(state.vertEdit){ var ve=state.vertEdit, gp=screenToPt(e.offsetX,e.offsetY);
     if(!ve.moved){ if(Math.hypot(e.offsetX-ve.startScr.x,e.offsetY-ve.startScr.y)<3)return; pushUndo(); ve.moved=true; }
     ve.obj.pts[ve.idx].x=gp.x; ve.obj.pts[ve.idx].y=gp.y; state.dirty=true; setCursor(); draw(); return; }
-  if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!curImg)return;
+  if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!PageRenderer.ready())return;
   var need=state.loupe||isDrawTool()||(isAnnTool()&&state.draft&&state.draft.length===1);   // draw-tool/annotation drafting = redraw every move so live guide/rubber-band follow the cursor
   if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
     var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
@@ -480,12 +480,12 @@ cv.addEventListener("dblclick",function(e){
       if(Math.hypot(sp.x-e.offsetX,sp.y-e.offsetY)<6){ state.draft.pop(); _np++; } else break; }
     finishDraft();
   } });
-cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!curImg)return;
+cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!PageRenderer.ready())return;
   var ai=annHit(e.offsetX,e.offsetY); if(ai>=0){ var aa=PSpage().annotations[ai]; state.selAnn=aa; state.sel=null; showProps(null);  // right-click annotation = EDIT (open style/label panel); delete via panel/Delete
     var asp=ptToScreen(aa.pt||aa.pts[0]); draw(); if(typeof openAnnStyle==="function")openAnnStyle(aa,asp.x,asp.y); return; }
   var hit=pick(e.offsetX,e.offsetY);
   if(hit){ state.sel=hit; if(state.selSet.indexOf(hit)<0)state.selSet=[hit]; showProps(hit); draw(); showObjMenu(e.clientX,e.clientY,hit); } });
-cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!curImg)return;
+cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!PageRenderer.ready())return;
   var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*Math.exp(-e.deltaY*0.0015)));   // proto-parity: smooth exp + clamp
   if(nk===V.k)return;
   var p=screenToPt(e.offsetX,e.offsetY);
@@ -593,7 +593,7 @@ function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[
   objs.forEach(function(o){ if(o.counting||!o.pts||o.pts.length<2)return; var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
     for(var i=0;i<n;i++)segs.push([o.pts[i],o.pts[(i+1)%o.pts.length]]); }); return segs; }
 function computeSnap(sx,sy){
-  if(!curImg||!state.snapOn)return null;
+  if(!PageRenderer.ready()||!state.snapOn)return null;
   var ST=state.snapTypes||{endpoint:true,midpoint:true,center:true,intersection:true};
   var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,counting:false}]:[]);
   var best=null,bd=SNAP_PX;
@@ -636,7 +636,7 @@ function liveTag(x,y,txt,hot){ ctx.save(); ctx.font="600 11px Segoe UI"; ctx.tex
   var w=ctx.measureText(txt).width+10; ctx.fillStyle="rgba(15,17,21,.9)"; rr(ctx,x,y-9,w,18,4); ctx.fill();
   ctx.fillStyle=hot?"#ffd60a":"#cfe0ff"; ctx.fillText(txt,x+5,y); ctx.restore(); }
 function drawLiveOverlay(){
-  if(!curImg||panning||spaceDown||state.panTool)return;
+  if(!PageRenderer.ready()||panning||spaceDown||state.panTool)return;
   var lt=liveTarget(); if(!lt)return; var tgt=ptToScreen(lt.pt), r=cv.getBoundingClientRect();
   // cursor-guide crosshair across the whole canvas — aids alignment while measuring
   ctx.save(); ctx.strokeStyle="rgba(76,141,255,.30)"; ctx.lineWidth=1; ctx.setLineDash([3,5]);
@@ -773,7 +773,7 @@ function drawSnap(){ if(!state.snapHint)return; var s=state.snapHint.screen,t=st
   else { ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.stroke(); }
   ctx.fillStyle="#ffd60a"; ctx.font="10px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="bottom";
   ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น",midpoint:"กึ่งกลาง",center:"ศูนย์กลาง",perp:"ตั้งฉาก"}[t],s.x+9,s.y-7); }
-function drawLoupe(){ if(!state.loupe||!lastMouse||!curImg)return; var DPR=window.devicePixelRatio||1;
+function drawLoupe(){ if(!state.loupe||!lastMouse||!PageRenderer.ready())return; var DPR=window.devicePixelRatio||1;
   var mx=lastMouse.x,my=lastMouse.y,LR=64,MAG=2.6,sw=2*LR/MAG; var r=cv.getBoundingClientRect();
   var lx=mx+90,ly=my-90; if(lx+LR>r.width)lx=mx-90; if(ly-LR<0)ly=my+90;
   ctx.save(); ctx.beginPath(); ctx.arc(lx,ly,LR,0,7); ctx.closePath(); ctx.clip();
@@ -797,8 +797,8 @@ document.getElementById("p-dim").onclick=function(){if(state.sel){pushUndo();sta
 document.getElementById("p-del").onclick=function(){
   if(state.selSet.length){pushUndo();var o=PSpage().objects;state.selSet.forEach(function(s){var i=o.indexOf(s);if(i>=0)o.splice(i,1);});state.selSet=[];state.sel=null;showProps(null);state.dirty=true;draw();}
   else if(state.sel){pushUndo();var o=PSpage().objects;o.splice(o.indexOf(state.sel),1);state.sel=null;showProps(null);state.dirty=true;draw();}};
-document.getElementById("zin").onclick=function(){if(curImg){V.k*=1.2;draw();}};
-document.getElementById("zout").onclick=function(){if(curImg){V.k/=1.2;draw();}};
+document.getElementById("zin").onclick=function(){if(PageRenderer.ready()){V.k*=1.2;draw();}};
+document.getElementById("zout").onclick=function(){if(PageRenderer.ready()){V.k/=1.2;draw();}};
 document.getElementById("zfit").onclick=fit;
 
 /* menus */
@@ -1077,8 +1077,8 @@ window.addEventListener("keydown",function(e){
   if(map[e.key]){setTool(map[e.key]);}
 });
 function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
-window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(curImg)draw();} });
-window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(curImg)draw();} if(e.key===" "){spaceDown=false;setCursor();} });
+window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(PageRenderer.ready())draw();} });
+window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(PageRenderer.ready())draw();} if(e.key===" "){spaceDown=false;setCursor();} });
 
 /* boot */
 seedReportVars();

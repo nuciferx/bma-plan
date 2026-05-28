@@ -89,10 +89,10 @@
   }
 
   function showEmptyHubIfEmpty() {
-    /* curImg is the page-render predicate declared in ui-lite.html's inline script */
+    /* PageRenderer.ready() is the page-render predicate from page-renderer.js */
     var el = document.querySelector('.empty');
     if (!el) return;
-    if (typeof curImg !== 'undefined' && curImg) {
+    if (typeof PageRenderer !== 'undefined' && PageRenderer.ready && PageRenderer.ready()) {
       el.style.display = 'none';
     } else {
       el.style.display = '';
