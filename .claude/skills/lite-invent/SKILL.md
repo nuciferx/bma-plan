@@ -19,10 +19,10 @@ The 7 phases and their delegations are unchanged:
 
 1. **PICK** — next `invent-queued` lite idea from `~/.claude/ideas/IDEAS.md` / `PHASE_INDEX.md` (or the one the user names).
 2. **RESEARCH** → delegate to **`bma-researcher`** (haiku). Prior-art survey: in-repo lite + proto prior work, inline-JS libs, CAD/GIS/Bluebeam/Foxit incumbents. Returns the 5-section report + verdict (`PRIOR_ART_MATURE` / `PARTIAL` / `GREENFIELD`). **Always delegate — never answer from general knowledge.**
-3. **FRAME** — problem / constraints / forbidden surfaces / success criteria / out-of-scope.
+3. **FRAME** — problem / constraints / forbidden surfaces / **success criteria as a runnable `## Eval`** (number or pass/fail vs. expected + tolerance, run against the lite sandbox) / out-of-scope. The `## Eval` is a **taxonomy of ≥3**: 1 happy + 1 edge (blurry raster / rotated 90° / extreme size) + 1 adversarial (crafted to expose the failure mode); graders un-gameable (outcome-based). **EVAL-GATE: no runnable eval → auto-NOGO ("unmeasurable in Phase 1"); no eval = no spike.**
 4. **DIVERGE** → delegate to **`bma-inventor`** (sonnet). 3–5 genuinely different approaches on different axes.
 5. **SCORE** → `bma-inventor` scores on the 6 dimensions; recommend top + fallback.
-6. **SPIKE** — build the chosen spike. **In `lite/sandbox/invent-<name>.html`** (create the dir if absent) — NEVER in `lite/ui-lite.html` or `proto/`.
+6. **SPIKE** — build the chosen spike. **In `lite/sandbox/invent-<name>.html`** (create the dir if absent) — NEVER in `lite/ui-lite.html` or `proto/`. Acceptance = ALL `## Eval` cases (happy + edge + adversarial) run and meet expected + tolerance (never eyeballed, never happy-only); record actual vs. expected per case.
 7. **CHECKPOINT** — halt for the human: GO / NOGO / RESHAPE. Invention never auto-promotes.
 
 ## What the lite frame overrides (the only differences)
@@ -47,5 +47,7 @@ Write the sprint card into `PHASE_INDEX.md` with status `invent-done-go` and a n
 ## Rules
 
 - Research-first is non-negotiable: a `PRIOR_ART_MATURE` verdict (e.g. a viable inline-JS lib) skips diverge/spike and goes straight to a standard lite sprint card.
+- Eval-first is non-negotiable: phase 3 produces a runnable `## Eval`, the EVAL-GATE blocks the spike without one, and phase 6 acceptance is the eval passing. Main defense against a false GO.
+- Eval taxonomy, not one case: ≥3 cases (happy + edge + adversarial), spike passes ALL, graders un-gameable. A green eval is necessary not sufficient — read the actual spike behaviour on edge + adversarial before GO (Anthropic: don't trust the bare number).
 - Always halt at the checkpoint — never promote a lite idea to a sprint without the human's GO.
 - If an approach's only viable form needs a measure-math change, mark it `forbidden_surface_touch=YES` and exclude it from rank #1 (same hard rule as proto's Approach B).

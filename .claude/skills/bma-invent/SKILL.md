@@ -43,8 +43,10 @@ This is the manual single-shot version. `/bma-invent-loop` chains it.
   - **Problem** — the concrete user pain in 2 sentences
   - **Constraints** — must work on raster PDFs / Phase 1 boundary / page-scoped layers / additive `.bmaplan` schema
   - **Forbidden surfaces this idea must avoid** — explicit list (`polyAreaM2` / `pdfToC` / `RS` / etc.)
-  - **Success criteria** — how we'd know in spike if it works (concrete metric)
+  - **Success criteria — written as a runnable eval (`## Eval`), not prose.** A concrete check that produces a number or pass/fail when executed against the sandbox: exact input + procedure + expected value + tolerance. E.g. "draw shape X on test page → measured area within ±2% of known 150 m²", "snap lands on vertex within 3 px on the raster permit page", "save→reopen round-trips the new field". **Not one case — a taxonomy of ≥3** (Anthropic / eval-driven-dev): **1 happy** (clean, known answer) + **1 edge** (blurry raster / rotated 90° / extreme size) + **1 adversarial** (crafted to expose the failure mode; correct outcome may be "refuse / flag / degrade"). Write each grader un-gameable — outcome-based, no hard-coded number the spike can read. 
   - **Out of scope** — what we're explicitly NOT solving in this invention pass
+
+- **EVAL-GATE (hard).** Before phase 4, confirm the idea reduces to at least one runnable eval. If it genuinely cannot be measured inside Phase 1 → emit `INVENT_NO_EVAL` and auto-NOGO with rationale "unmeasurable in Phase 1". **No eval = no spike.**
 
 ### 4. DIVERGE (delegate to `bma-inventor`)
 
@@ -67,7 +69,7 @@ The inventor already produced the 6-dim score table. The skill's job here is jus
   - Never edit `proto/ui.html`, `proto/server.py`, `proto/static/js/*`, `proto/static/css/app.css`.
   - The sandbox file must run by opening it directly in a browser — no server, no build step.
   - May copy small helper functions from `proto/ui.html` but must not import the live file.
-- Spike acceptance = the `success_criteria` from `## Frame` are demonstrably met when the sandbox HTML is opened.
+- Spike acceptance = ALL `## Eval` cases (happy + edge + adversarial) run against the sandbox and meet expected value + tolerance — never eyeballed, never the happy case alone. Record actual vs. expected per case.
 - Record results under `## Spike`:
   - Approach attempted (A / B / C)
   - Outcome (pass / fail) + ≤5 line rationale
@@ -82,6 +84,7 @@ Print a ≤15-line summary to the user:
 Research verdict: <MATURE / PARTIAL / GREENFIELD>
 Approaches generated: <count>
 Top approach: <name>
+Eval result: happy <a/e> · edge <a/e> · adversarial <a/e> → <ALL PASS / FAIL@case>
 Spike outcome: <pass / fail-then-recovered-with-X / dead-end>
 
 Doc: docs/invent/<short-name>.md
@@ -120,7 +123,8 @@ Commit message: `invent(<short-name>): <verdict> — <one-line takeaway>` e.g. `
 | 2 | Inventor cannot reach 3 distinct approaches after 1 RESHAPE retry | `INVENT_DESIGN_AMBIGUOUS` |
 | 3 | Every approach requires a forbidden-surface edit | `INVENT_FORBIDDEN_REQUIRED` |
 | 4 | Idea crosses Phase 1 boundary (legal / OCR / AI / FAR-OSR verdict) | `INVENT_PHASE1_BOUNDARY` (auto-NOGO) |
-| 5 | 3 spike attempts fail | `LOOP_STOP_INVENT_DEAD_END` |
+| 4b | Idea cannot be reduced to a runnable eval (EVAL-GATE) | `INVENT_NO_EVAL` (auto-NOGO) |
+| 5 | 3 spike attempts fail their eval | `LOOP_STOP_INVENT_DEAD_END` |
 | 6 | Successful spike → human checkpoint reached | `INVENT_AT_CHECKPOINT` |
 
 ## Hard rules
@@ -129,4 +133,6 @@ Commit message: `invent(<short-name>): <verdict> — <one-line takeaway>` e.g. `
 - **Schema-additive only** — any data-model change proposed must be backward-compatible with v1 `.bmaplan` files.
 - **Human decides GO/NOGO/RESHAPE — never the skill.** This is the explicit boundary from `/bma-dev-loop` (which IS full-auto): invention requires human risk-taking.
 - **Research-first is non-negotiable.** Even if the user is sure the idea is novel, run phase 2 — it's cheap (haiku) and often reveals a library that saves a sprint.
+- **Eval-first is non-negotiable (Anthropic-style empiricism).** Phase 3 must produce a runnable `## Eval`; the EVAL-GATE blocks the spike without one; phase 6 acceptance is the eval passing, not eyeballing. This is the main defense against a *false GO*.
+- **Eval taxonomy, not one case.** Every `## Eval` has ≥3 cases (happy + edge + adversarial); the spike passes ALL or it fails. Graders are un-gameable (outcome-based, no hard-coded number the spike can read). A green eval is *necessary, not sufficient* — read the actual spike behaviour on the edge + adversarial cases before GO; never trust the bare number (Anthropic: "we don't take eval scores at face value until someone reads the transcripts").
 - **Output budget:** ≤25 lines to the user per phase update; the artifact `docs/invent/<short-name>.md` holds the detail.
