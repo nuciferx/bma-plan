@@ -64,7 +64,7 @@ function buildReportPayload(){
     });
     if(!groups.length) return;
     pages.push({idx:pg,title:reportPageTitle(pg),tag:(pageTags[pg]?(PAGE_TAGS[pageTags[pg]]||""):""),
-      imgUrl:api("/page/"+pg),scaleSet:!!(PS[pg]&&PS[pg].scale),
+      imgUrl:api("/page/"+pg),scaleSet:!!(PS[pg]&&PS[pg].scale), // LPM slice 4+: route through pageMgr.serverNum(pg) once mutations exist
       overlays:overlays,groups:groups,net:+net.toFixed(2)});
   });
   var _s=computeSummary(); var _agg={}; Object.keys(_s.all).forEach(function(k){_agg[k]=_s.all[k];}); Object.keys(_s.allCnt).forEach(function(k){_agg[k]=_s.allCnt[k];});

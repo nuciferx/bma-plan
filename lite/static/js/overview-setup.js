@@ -331,7 +331,7 @@ function _lovsRenderClassify() {
     var fkind = pageFloorKind[n] || (fl === "roof" ? "rooftop" : "normal");
     var fkindNeedsNum = (fkind === "normal" || fkind === "basement");
     var objc = (PS[n] && PS[n].objects && PS[n].objects.length) ? PS[n].objects.length : 0;
-    var thumbUrl = (typeof api === "function") ? api("/thumb/" + n) : "";
+    var thumbUrl = (typeof api === "function") ? api("/thumb/" + n) : ""; // LPM slice 4+: route through pageMgr.serverNum(n) once mutations exist
     var cls = "ov-tile" + ((typeof curPage !== "undefined" && n === curPage) ? " cur" : "") +
       (n === _lovsFocusPage ? " foc" : "") + (excluded[n] ? " exc" : "") + (_lovsSelected.has(n) ? " sel" : "");
     h += '<div class="' + cls + '" data-pg="' + n + '">' +

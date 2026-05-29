@@ -242,6 +242,7 @@ var pageFloorKind={}, pageFloorNum={}, pageNames={};
 var FLOOR_KIND_LABELS={basement:"ชั้นใต้ดิน",normal:"ชั้น",mechanical:"ชั้นห้องเครื่อง",rooftop:"ชั้นดาดฟ้า",custom:"(ตั้งเอง)"};
 var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น —"],["basement","ชั้นใต้ดิน"],["normal","ชั้น (ปกติ)"],["mechanical","ชั้นห้องเครื่อง"],["rooftop","ชั้นดาดฟ้า"],["custom","(ตั้งชื่อเอง)"]];
 var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
+var pageMgr=null;                // LPM: live PageModel instance; null until PDF open
 var V={k:1,ox:0,oy:0,rot:0};
 var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,panTool:false,moveObj:null,vertEdit:null,vertMode:null,hintFlash:''};
 CATS.forEach(function(c){state.catVis[c.id]=true; state.catLock[c.id]=false;});
@@ -382,9 +383,24 @@ async function uploadPdf(file){
     caseId=j.case_id; pdfName=j.name; pageCount=j.pages; PS={}; excluded={}; PageRenderer.resetCache();
     document.getElementById("empty").style.display="none";
     curPage=1; await loadPage(1);
+    _pmSeed(undefined); // LPM slice 3: seed pageMgr after upload (no pageIdentities yet)
   }catch(err){ hideLoading(); alert("อัปโหลดล้มเหลว: "+err.message); }
 }
 // loadPage() lives in static/js/page-renderer.js (slice-1 extraction).
+/* LPM-SLICE3: plumbing helpers — wires pageMgr to app globals. No behavior change until slice 5. */
+function _pmSeed(pageIdentities){
+  pageMgr=new PageModel();
+  pageMgr.seedFromGlobals({PS:PS,pageTags:pageTags,pageFloorKind:pageFloorKind,
+    pageFloorNum:pageFloorNum,pageNames:pageNames,pageRot:pageRot,
+    excluded:excluded,pageCount:pageCount,pageIdentities:pageIdentities});
+}
+function _pmCommit(){  // slice 5 will call this; UNUSED now — defined here for completeness
+  if(!pageMgr)return;
+  var g=pageMgr.projectToGlobals();
+  PS=g.PS; pageTags=g.pageTags; pageFloorKind=g.pageFloorKind; pageFloorNum=g.pageFloorNum;
+  pageNames=g.pageNames; pageRot=g.pageRot; excluded=g.excluded; pageCount=g.pageCount;
+  if(typeof reseedActivePageFolders==="function")reseedActivePageFolders(); state.dirty=true;
+}
 function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selSet=[]; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); if(typeof hideEmptyHub==="function")hideEmptyHub(); draw(); }
 
 /* ============================ INTERACTION ============================ */
@@ -813,7 +829,7 @@ function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor();
    Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
    In-progress draft/selection is NOT part of history — undo works at committed-object level. */
 var undoStack=[], redoStack=[], UNDO_MAX=80;
-function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id}); }
+function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id,pageOrder:(pageMgr?pageMgr.pageOrder:null)}); } // LPM slice 3: pageOrder included for B-DIRTY (future reorder detection)
 function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
 function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id; }
 function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
@@ -967,7 +983,8 @@ function loadProto(doc){ PS={}; excluded={};
     PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; }); }
   (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
   if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags; if(doc.pageRotations)pageRot=doc.pageRotations;
-  pageNames=doc.pageNames||{}; pageFloorKind=doc.pageFloorKind||{}; pageFloorNum=doc.pageFloorNum||{}; }
+  pageNames=doc.pageNames||{}; pageFloorKind=doc.pageFloorKind||{}; pageFloorNum=doc.pageFloorNum||{};
+  if(pageCount)_pmSeed(doc.pageIdentities); } // LPM slice 3: seed pageMgr after load (pass pageIdentities if present)
 document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0];if(!f)return;
   var rd=new FileReader(); rd.onload=function(){ try{ var doc=JSON.parse(rd.result);
     if(doc.version!==1)throw new Error("version");
@@ -986,7 +1003,7 @@ document.getElementById("btn-cmdk").onclick=openCmdK;
 
 /* F12 overview (real thumbs) */
 function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); var html="";
-  for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:''; html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; }
+  for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:''; html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; } // LPM slice 4+: route through pageMgr.serverNum(n) once mutations exist
   g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
   document.getElementById("ov").classList.add("show"); }
 document.getElementById("btn-ov").onclick=openOv;
@@ -1088,6 +1105,7 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
   (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
 </script>
 <!-- static/js/ modules: page-rotate(LROTATE-1) · ortho-mode(LORTHO-1) · snap-types(LSNAP-1) · empty-hub(LEMPTY-1) · cheatsheet(LHELP-1) · menu-flyout(LMENU-1) · annot-style(LITE-ANNOT-STYLE) -->
+<script src="static/js/page-manager.js"></script>
 <script src="static/js/page-rotate.js"></script>
 <script src="static/js/ortho-mode.js"></script>
 <script src="static/js/snap-types.js"></script>
