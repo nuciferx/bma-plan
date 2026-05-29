@@ -26,7 +26,7 @@ sys.path.insert(0, LITE)
 
 import fitz  # PyMuPDF
 
-from server_lite import _apply_page_mutations
+from server_lite import _apply_page_mutations, _merge_pdf
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +138,52 @@ def t5():
     doc.close()
 
 
+# T6 — merge: 5-page main + 2-page src → 7 pages; appended pages contain Q1,Q2
+def _build_src_doc():
+    """Build a 2-page in-memory PDF with text markers Q1, Q2."""
+    doc = fitz.open()
+    for i in range(1, 3):
+        page = doc.new_page()
+        page.insert_text(fitz.Point(50, 100), f"Q{i}", fontsize=24)
+    return doc
+
+
+def t6():
+    main_doc = _build_test_doc(5)
+    src_doc = _build_src_doc()
+    new_doc, old_count, added_count = _merge_pdf(main_doc, src_doc)
+    texts = _page_texts(new_doc)
+    new_count = old_count + added_count
+    check("T6 old_count==5", old_count == 5, f"got {old_count}")
+    check("T6 added_count==2", added_count == 2, f"got {added_count}")
+    check("T6 new_count==7", new_count == 7, f"got {new_count}")
+    check("T6 len(new_doc)==7", len(new_doc) == 7, f"got {len(new_doc)}")
+    # Original pages intact
+    for i in range(1, 6):
+        check(f"T6 page{i}==P{i}", f"P{i}" in texts[i - 1], f"got {texts[i-1]!r}")
+    # Appended pages
+    check("T6 page6 contains Q1", "Q1" in texts[5], f"got {texts[5]!r}")
+    check("T6 page7 contains Q2", "Q2" in texts[6], f"got {texts[6]!r}")
+    main_doc.close(); src_doc.close(); new_doc.close()
+
+
+# T7 — merge-then-reorder integration: _merge_pdf then _apply_page_mutations
+def t7():
+    main_doc = _build_test_doc(5)
+    src_doc = _build_src_doc()
+    merged, old_count, added_count = _merge_pdf(main_doc, src_doc)
+    # Reorder: bring Q1 (page 6) to front, keep P1..P5 as pages 2..6, Q2 last (page 7)
+    # order = [6, 1, 2, 3, 4, 5, 7]
+    reordered, rmap, new_count = _apply_page_mutations(merged, [6, 1, 2, 3, 4, 5, 7])
+    texts = _page_texts(reordered)
+    check("T7 new_count==7", new_count == 7, f"got {new_count}")
+    check("T7 page1==Q1", "Q1" in texts[0], f"got {texts[0]!r}")
+    check("T7 page2==P1", "P1" in texts[1], f"got {texts[1]!r}")
+    check("T7 page7==Q2", "Q2" in texts[6], f"got {texts[6]!r}")
+    check("T7 renumber_map[6]==1", rmap.get(6) == 1, f"rmap={rmap}")
+    main_doc.close(); src_doc.close(); merged.close(); reordered.close()
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -153,6 +199,10 @@ def main():
     t4()
     print("Running T5 (guard: empty order)...")
     t5()
+    print("Running T6 (merge: 5-page + 2-page → 7 pages)...")
+    t6()
+    print("Running T7 (merge-then-reorder integration)...")
+    t7()
 
     if failures:
         print()

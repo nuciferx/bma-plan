@@ -443,6 +443,171 @@ async def apply_page_mutations(req: Request):
         return JSONResponse({"error": f"mutation failed: {exc}"}, 500)
 
 
+def _merge_pdf(doc, src_doc):
+    """Pure function: append all pages of src_doc to the end of doc.
+
+    Returns (new_doc, old_count, added_count) where:
+      new_doc     — new in-memory fitz.Document with doc's pages then src_doc's pages
+      old_count   — number of pages in the original doc (= first appended page - 1)
+      added_count — number of pages appended from src_doc
+
+    Pure: no file I/O, no cache access.  Caller handles atomic disk swap.
+    """
+    old_count = len(doc)
+    added_count = len(src_doc)
+    new_doc = fitz.open()
+    new_doc.insert_pdf(doc)      # full copy of original
+    new_doc.insert_pdf(src_doc)  # append all pages from source
+    return new_doc, old_count, added_count
+
+
+@app.post("/merge-pages")
+async def merge_pages(req: Request, file: UploadFile = File(...)):
+    """Accept a 2nd PDF upload and append ALL its pages to the end of the case's PDF.
+
+    Multipart fields: case_id (form field) + file (UploadFile, the 2nd PDF).
+
+    Performs the same upload guards as /upload (MAX_UPLOAD_BYTES, empty, invalid,
+    encrypted checks).  Atomically replaces the on-disk PDF (same temp-swap pattern
+    as /apply-page-mutations); clears image_cache.  On any failure before os.replace
+    the original doc + file are left completely untouched.
+
+    Returns: {"ok": true, "new_count": N, "added_pages": [old_count+1..new_count],
+              "added_count": M}
+    """
+    import os
+    import tempfile
+
+    # ---- Read case_id from the multipart form --------------------------------
+    form = await req.form()
+    cid = form.get("case_id")
+
+    case = _get_case(cid)
+    if not case:
+        return JSONResponse({"error": "invalid case"}, 404)
+
+    # ---- Stream the uploaded source PDF to a temp file ----------------------
+    src_tmp_path = None
+    src_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    total = 0
+    try:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_UPLOAD_BYTES:
+                src_tmp.close()
+                try:
+                    os.unlink(src_tmp.name)
+                except Exception:
+                    pass
+                return JSONResponse({"error": "file too large"}, 413)
+            src_tmp.write(chunk)
+        src_tmp.close()
+        src_tmp_path = src_tmp.name
+
+        if total == 0:
+            try:
+                os.unlink(src_tmp_path)
+            except Exception:
+                pass
+            return JSONResponse({"error": "empty file"}, 400)
+
+        try:
+            src_doc = fitz.open(src_tmp_path)
+        except Exception:
+            try:
+                os.unlink(src_tmp_path)
+            except Exception:
+                pass
+            return JSONResponse({"error": "invalid pdf"}, 400)
+
+        if src_doc.is_encrypted:
+            src_doc.close()
+            try:
+                os.unlink(src_tmp_path)
+            except Exception:
+                pass
+            return JSONResponse({"error": "encrypted pdf not supported"}, 400)
+
+    except Exception as exc:
+        # Catch unexpected errors during upload streaming
+        try:
+            src_tmp.close()
+        except Exception:
+            pass
+        if src_tmp_path:
+            try:
+                os.unlink(src_tmp_path)
+            except Exception:
+                pass
+        return JSONResponse({"error": f"upload failed: {exc}"}, 500)
+
+    # ---- Merge and atomic swap ----------------------------------------------
+    old_doc = case["doc"]
+    old_path = case["path"]
+    merge_tmp_path = None
+    new_doc_mem = None
+    try:
+        new_doc_mem, old_count, added_count = _merge_pdf(old_doc, src_doc)
+        src_doc.close()
+        src_doc = None
+
+        # Write merged doc to temp in same directory (same fs → os.replace is atomic)
+        tmp_fd, merge_tmp_path = tempfile.mkstemp(
+            dir=str(Path(old_path).parent), suffix=".pdf"
+        )
+        try:
+            new_doc_mem.save(merge_tmp_path)
+            with open(merge_tmp_path, "rb") as f:
+                os.fsync(f.fileno())
+        finally:
+            os.close(tmp_fd)
+
+        # Atomically replace case file on disk
+        os.replace(merge_tmp_path, old_path)
+        merge_tmp_path = None  # rename consumed it
+
+        # Reopen from the new file and swap into the case
+        new_doc_disk = fitz.open(old_path)
+        old_doc.close()
+        case["doc"] = new_doc_disk
+        case["image_cache"] = {}       # stale renders must not survive merge
+        case["touched"] = time.time()
+
+        new_count = old_count + added_count
+        added_pages = list(range(old_count + 1, new_count + 1))
+
+        return JSONResponse({
+            "ok": True,
+            "new_count": new_count,
+            "added_pages": added_pages,
+            "added_count": added_count,
+        })
+
+    except Exception as exc:
+        # On failure: clean up temps; original doc + file untouched
+        if merge_tmp_path:
+            try:
+                os.unlink(merge_tmp_path)
+            except Exception:
+                pass
+        if new_doc_mem:
+            try:
+                new_doc_mem.close()
+            except Exception:
+                pass
+        return JSONResponse({"error": f"merge failed: {exc}"}, 500)
+    finally:
+        # Always clean up the src temp file
+        if src_tmp_path:
+            try:
+                os.unlink(src_tmp_path)
+            except Exception:
+                pass
+
+
 @app.get("/thumb/{n}")
 def get_thumb(n: int, case_id: str, rot: int = 0):
     case = _get_case(case_id)
