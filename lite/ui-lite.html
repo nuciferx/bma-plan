@@ -1005,6 +1005,7 @@ document.getElementById("btn-cmdk").onclick=openCmdK;
 function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); var html="";
   for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:''; html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; } // LPM slice 4+: route through pageMgr.serverNum(n) once mutations exist
   g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
+  if(typeof pmUiDecorate==='function') pmUiDecorate();
   document.getElementById("ov").classList.add("show"); }
 document.getElementById("btn-ov").onclick=openOv;
 
@@ -1106,6 +1107,7 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 </script>
 <!-- static/js/ modules: page-rotate(LROTATE-1) · ortho-mode(LORTHO-1) · snap-types(LSNAP-1) · empty-hub(LEMPTY-1) · cheatsheet(LHELP-1) · menu-flyout(LMENU-1) · annot-style(LITE-ANNOT-STYLE) -->
 <script src="static/js/page-manager.js"></script>
+<script src="static/js/page-manager-ui.js"></script>
 <script src="static/js/page-rotate.js"></script>
 <script src="static/js/ortho-mode.js"></script>
 <script src="static/js/snap-types.js"></script>
