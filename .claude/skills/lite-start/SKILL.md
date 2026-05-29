@@ -52,4 +52,4 @@ Goal: replace reading the giant project-wide status docs with one cheap lite-sco
 - Do NOT read `PHASE_INDEX.md`, `LATEST_STATUS.md`, `NEXT_ACTIONS.md`, `log.md` (token-bloated; lite state is in the 2 docs above). If the user needs a specific lite sprint row, Grep `lite` in PHASE_INDEX instead of reading it whole.
 - Do NOT read `CLAUDE.md` / `AGENTS.md` — auto-loaded.
 - If any runtime file is over its cap, the question MUST be "extract <file> to static/js/ before the next feature?" (size discipline is the only counter-force to lite bloat).
-- Clean git → write "(clean)". Dirty `ui-lite.html` with no active lite sprint → flag possible concurrent edit from another session and ask to confirm before proceeding.
+- Clean git → write "(clean)". Dirty `ui-lite.html` with no active lite sprint → flag possible concurrent edit from another session and ask to confirm before proceeding. **When a runtime file is dirty, also note it must be passed to `/bma-lite-dev` as "re-read fresh" — a reused `lite-builder` instance may hold a stale cached copy (the stale-memory guard).**

@@ -24,13 +24,32 @@ Purpose: develop `lite/` cheaply. **You (Opus) think + review; `lite-builder` (s
 
 ## Steps
 
-### 1. SPEC (Opus)
-Write ONE tight spec for this sprint. Include: goal, exact files to touch, function/region names, "behavior preserved unless stated", where to extract if it adds bulk, and the acceptance check (e.g. which `lite/tests/*` must pass). Keep it one screen. If the user gave a multi-part feature, do the **smallest safe slice** first (prefer an invisible refactor before any visible UI).
+### 1. SPEC (Opus) — spec-driven, the 6 canonical elements
+
+The spec is the single source of truth (2026 spec-driven-development standard — it's what stops the worker from drifting from intent, decaying as context grows, and producing unverifiable output). Write ONE tight spec, one screen, covering all six:
+
+1. **Outcome** — what the user observably gets when this slice lands (one sentence).
+2. **Scope boundary** — exact files + function/region names to touch, and what is explicitly OUT this slice.
+3. **Constraints** — "behavior preserved unless stated", forbidden/parity surfaces, additive-schema, the lean cap, where to extract if it adds bulk.
+4. **Prior decisions** — relevant rows from `LITE_LAYER_ROADMAP` decision log / worker lessons so the builder doesn't relitigate them.
+5. **Task breakdown** — the change as 1-5 concrete, ordered steps the builder works through (not one vague blob).
+6. **Verification criteria** — the *runnable* acceptance check: which `lite/tests/*` must pass, plus any manual assertion. No prose-only criteria — it must be checkable (carries the eval-first rule from `/lite-invent`).
+
+**Scale effort to complexity** (Anthropic orchestrator lesson): a one-line CSS fix gets a one-line spec, not the full ceremony. If the user gave a multi-part feature, do the **smallest safe slice** first (prefer an invisible refactor before any visible UI). Don't over-spec trivial work or under-spec a schema change.
 
 ### 2. DELEGATE (→ lite-builder)
-Spawn `lite-builder` (subagent_type: `lite-builder`) with the spec. **Reuse the same instance** for later sprints via SendMessage so it keeps lite's structure in context and avoids re-reading files. The worker returns `LITE_BUILD_DONE` / `LITE_BUILD_BLOCKED` + a diff + a self-check table — NOT whole files.
+Spawn `lite-builder` (subagent_type: `lite-builder`) with the spec. The worker gets a self-contained task (the spec) + the output format + its own fresh context — it does not need to know what other sprints did (Anthropic subagent isolation).
+
+**Reuse the same instance** for later sprints via SendMessage so it keeps lite's structure in context and avoids re-reading files — **with two guards against context rot** (the failure mode of long-lived reused agents):
+- **Stale-memory guard (lite-specific):** `lite/` lives in a Drive-synced folder; files can change between sprints from another session. Before reusing the instance, if `git status` (from `/lite-start` or step 4) shows the target file dirty/changed since the builder last saw it, tell the builder **"re-read <file> fresh, do not trust your cached copy"** in the SendMessage. Never let a reused builder edit from a stale mental copy.
+- **Re-baseline trigger:** after ~5 reused sprints, or if the builder's diffs start referencing line numbers/functions that no longer match, start a fresh instance (drop the rotted context) rather than fighting drift.
+
+The worker returns `LITE_BUILD_DONE` / `LITE_BUILD_BLOCKED` + a diff + a self-check table — NOT whole files.
 
 ### 3. REVIEW (Opus) — the gate
+
+**Information asymmetry rule (chain-of-verification):** the generator (sonnet) and the verifier (you, Opus) must be independent — that's what breaks self-confirmation bias. So **the worker's self-check table is a claim, not evidence.** For the two things that can corrupt lite — forbidden/parity touches and the test result — do NOT take the self-check at face value: confirm forbidden/parity yourself from the diff, and treat any test the worker says it "couldn't run" as *not passed* until you run it in step 4. (Same principle as eval-first's "read the transcript, don't trust the bare number".)
+
 Read the returned diff (not the files). Check, in order:
 - **Forbidden / parity:** did it touch `lite/static/js/measure-engine.js`, `RS`, or `pdfToC`/`cToPdf`? → if yes, STOP, do not apply, surface to user.
 - **.bmaplan schema:** any new fields must be **additive**; area math must still read `semanticTag` / role, never a display name. If non-additive → run the logic of `/bma-check-forbidden` mentally (it's a forbidden surface) and STOP.

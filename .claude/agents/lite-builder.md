@@ -34,9 +34,11 @@ The module pattern you follow when extracting code: a new `lite/static/js/<regio
 
 ## Workflow per spec
 
-1. Read only what you need (use Grep/Read on `lite/` — never read proto). Reuse what you already know from earlier turns in this session; don't re-read unchanged files.
+1. Read only what you need (use Grep/Read on `lite/` — never read proto). Reuse what you already know from earlier turns in this session; don't re-read unchanged files. **EXCEPTION (stale-memory guard):** `lite/` is in a Drive-synced folder — files can change between sprints from another session. If the spec/orchestrator says a file is dirty or "re-read fresh", or you are about to edit a file you last saw more than a few sprints ago, **re-Read the actual target region before editing** — never edit from a cached mental copy. A stale copy means your line-anchored edit lands in the wrong place.
 2. Apply the change with Edit/Write.
-3. Self-verify: `cd lite && python -m py_compile server_lite.py` if Python touched; run any test the spec names (e.g. `python tests/test_measure_parity.py`). If you cannot run a test, say so.
+3. Self-verify (chain-of-verification — verify each claim against the ACTUAL file, not from memory):
+   - `cd lite && python -m py_compile server_lite.py` if Python touched; run any test the spec names (e.g. `python tests/test_measure_parity.py`). If you cannot run a test, say so explicitly — the reviewer treats "couldn't run" as *not passed*, so don't paper over it.
+   - Before you write "behavior preserved: yes" or "forbidden surfaces touched: none", **re-Read the changed region you just wrote** and confirm it against the claim — do not assert from what you intended to do. A claim that doesn't match the diff is worse than no claim.
 4. Report back in this exact shape:
 
 ```

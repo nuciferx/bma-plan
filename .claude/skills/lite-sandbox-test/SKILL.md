@@ -31,7 +31,8 @@ This is **SB-D** (chosen 2026-05-22 over SB-A/B/C/E): full Tier-1+2 journey cove
 3. **REVIEW the findings yourself (Opus) — the gate.** Do NOT delegate this to a triager. For each finding:
    - Confirm it is reproducible (cite the endpoint + log excerpt the subagent gave).
    - Decide severity and whether it is a genuine lite bug vs a known proto-shared limitation vs a sandbox-file quirk.
-   - Group obvious duplicates.
+   - **Calibrate severity by thinking like the real user** (Anthropic "think like your agents"): the user is a Thai construction estimator measuring areas off a permit PDF to hand a client. Ask "would this make them lose work, distrust the number, or just mildly annoy them?" — that maps to BROKEN / CRASH vs FRICTION far better than an abstract pass/fail. A wrong area they'd trust is worse (BROKEN) than an obvious crash they'd report (CRASH-but-visible).
+   - Group obvious duplicates, and don't re-raise a finding you already classified as a known proto-shared limitation in a prior run — note it as "known, unchanged" instead.
 
 4. **Hand the user a decision, do NOT auto-file.** Present the reviewed findings and, for CRASH/BROKEN, recommend filing a lite sprint via `/bma-lite-dev` (one bug = one slice). Filing into `PHASE_INDEX.md` happens only after the user says GO — this skill never writes to PHASE_INDEX and never creates `.claude/` files.
 
