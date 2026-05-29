@@ -1005,7 +1005,6 @@ document.getElementById("btn-cmdk").onclick=openCmdK;
 function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); var html="";
   for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:''; html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; } // LPM slice 4+: route through pageMgr.serverNum(n) once mutations exist
   g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
-  if(typeof pmUiDecorate==='function') pmUiDecorate();
   document.getElementById("ov").classList.add("show"); }
 document.getElementById("btn-ov").onclick=openOv;
 
