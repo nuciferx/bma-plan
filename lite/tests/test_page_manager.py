@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-BMA-Plan Lite — page-manager module test (INV-2026-05-29-LPM Slice 1).
+BMA-Plan Lite — page-manager module test (INV-2026-05-29-LPM Slice 2).
 
-Runs the combined E1–E16 eval suite against the PRODUCTION module:
+Runs the combined E1–E20 eval suite against the PRODUCTION module:
   lite/static/js/page-manager.js
 
-All 17 cases (E1..E16 + E13b) must PASS. Prints LITE_PAGE_MANAGER_OK on
-success and exits 0; prints failing case ids and exits 1 on any failure.
+All 20 cases (E1..E16 + E13b + E17..E20) must PASS. Prints LITE_PAGE_MANAGER_OK
+on success and exits 0; prints failing case ids and exits 1 on any failure.
 
 Run: python lite/tests/test_page_manager.py
 Requires: Node.js on PATH.

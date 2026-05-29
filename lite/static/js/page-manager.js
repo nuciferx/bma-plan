@@ -362,6 +362,118 @@
   };
 
   // -------------------------------------------------------------------------
+  // Live-globals bridge (INV-2026-05-29-LPM Slice 2)
+  // -------------------------------------------------------------------------
+
+  /**
+   * seedFromGlobals(g) — initialise the model from the live app's current
+   * number-keyed state.
+   *
+   * g = {
+   *   PS            : { [n]: {objects:[...]} }   (may be sparse; missing entries → blank)
+   *   pageTags      : { [n]: string }
+   *   pageFloorKind : { [n]: string }
+   *   pageFloorNum  : { [n]: number|string }
+   *   pageNames     : { [n]: string }
+   *   pageRot       : { [n]: number }
+   *   excluded      : { [n]: bool }              (dict — live form)
+   *   pageCount     : number                     (authority for page set)
+   *   pageIdentities: string[] | undefined       (length === pageCount if present)
+   * }
+   *
+   * Behaviour mirrors load() so the two entry-points are consistent.
+   * Pure: no DOM, no side effects beyond `this`.
+   */
+  PageModel.prototype.seedFromGlobals = function (g) {
+    this.pageOrder   = [];
+    this.PS_by_id    = {};
+    this.meta_by_id  = {};
+    this.originNum   = {};
+    this.srcServer   = {};
+    this.pending     = [];
+    this.undoStack   = [];
+    this.curPage     = 1;
+    this._savedGroups = [];
+
+    var count = g.pageCount || 0;
+    var hasIds = Array.isArray(g.pageIdentities) &&
+                 g.pageIdentities.length === count;
+
+    var self = this;
+    for (var n = 1; n <= count; n++) {
+      var key = String(n);
+      var id  = hasIds ? g.pageIdentities[n - 1] : newId();
+      self.pageOrder.push(id);
+      self.PS_by_id[id] = deepCopy((g.PS && g.PS[n]) || { objects: [] });
+      var mt = blankMeta();
+      mt.rot      = (g.pageRot       && g.pageRot[n])       || 0;
+      mt.tag      = (g.pageTags      && g.pageTags[n])      || '';
+      mt.name     = (g.pageNames     && g.pageNames[n])     || '';
+      mt.floorKind= (g.pageFloorKind && g.pageFloorKind[n]) || '';
+      var fn = g.pageFloorNum && g.pageFloorNum[n];
+      mt.floorNum = (fn === undefined || fn === null) ? null : fn;
+      // excluded: dict {n:bool} (live form)
+      mt.excl = !!(g.excluded && g.excluded[n]);
+      self.meta_by_id[id] = mt;
+      self.originNum[id]  = n;
+    }
+
+    this._initialIds = this.pageOrder.slice();
+    this._migratedFromLegacy = !hasIds;
+    return this;
+  };
+
+  /**
+   * projectToGlobals() — emit fresh number-keyed dicts reflecting the CURRENT
+   * pageOrder, ready for the app to assign back atomically.
+   *
+   * Returns:
+   * {
+   *   PS            : { [n]: obj }   (REFERENCE — same object as PS_by_id[id])
+   *   pageTags      : { [n]: string }
+   *   pageFloorKind : { [n]: string }
+   *   pageFloorNum  : { [n]: number|string }
+   *   pageNames     : { [n]: string }
+   *   pageRot       : { [n]: number }
+   *   excluded      : { [n]: true }  (dict — live form; only truthy entries present)
+   *   pageCount     : number
+   *   pageIdentities: string[]
+   * }
+   *
+   * Inverse of seedFromGlobals: round-trip seed→project on an unmutated model
+   * reproduces the input globals (modulo blank-page normalisation).
+   * Pure: no DOM, no side effects.
+   */
+  PageModel.prototype.projectToGlobals = function () {
+    var self = this;
+    var out = {
+      PS:            {},
+      pageTags:      {},
+      pageFloorKind: {},
+      pageFloorNum:  {},
+      pageNames:     {},
+      pageRot:       {},
+      excluded:      {},
+      pageCount:     this.count(),
+      pageIdentities: this.pageOrder.slice(),
+    };
+    this.pageOrder.forEach(function (id, i) {
+      var n  = i + 1;
+      var mt = self.meta_by_id[id] || blankMeta();
+      // PS: reference (not copy) — app assigns this dict back; caller must not mutate
+      out.PS[n] = self.PS_by_id[id];
+      // fan out meta — match save() emptiness rules, EXCEPT excluded is dict here
+      if (mt.rot)            out.pageRot[n]       = mt.rot;
+      if (mt.tag)            out.pageTags[n]       = mt.tag;
+      if (mt.name)           out.pageNames[n]      = mt.name;
+      if (mt.floorKind)      out.pageFloorKind[n]  = mt.floorKind;
+      if (mt.floorNum != null) out.pageFloorNum[n] = mt.floorNum;
+      if (mt.excl)           out.excluded[n]       = true;
+    });
+    return out;
+  };
+
+  // -------------------------------------------------------------------------
   // Snapshot for deep-equal round-trip checks (used by E4 / eval harness)
   // -------------------------------------------------------------------------
   PageModel.prototype.snapshotByOrder = function () {

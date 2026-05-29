@@ -473,12 +473,260 @@ function dataOf(m, id) {
 })();
 
 // ============================================================
+// E17–E20 (Slice 2: seedFromGlobals + projectToGlobals bridge)
+// ============================================================
+
+// E17: seed→project round-trip on UNMUTATED model reproduces the input globals
+(function () {
+  resetIds();
+  // Build a representative globals snapshot (live-app form)
+  var g = {
+    pageCount: 5,
+    pageIdentities: ['idA', 'idB', 'idC', 'idD', 'idE'],
+    PS: {
+      1: { objects: ['A'] }, 2: { objects: ['B'] }, 3: { objects: ['C'] },
+      4: { objects: ['D'] }, 5: { objects: ['E'] },
+    },
+    pageTags:      { 1: 'site', 2: 'floor', 3: 'floor', 4: 'parking', 5: 'detail' },
+    pageFloorKind: { 2: 'normal', 3: 'basement' },
+    pageFloorNum:  { 2: 1, 3: -1 },
+    pageNames:     { 1: 'nA', 2: 'nB', 3: 'nC', 4: 'nD', 5: 'nE' },
+    pageRot:       { 2: 90, 3: 180 },
+    excluded:      { 2: true, 4: true },
+  };
+
+  var m = new PageModel();
+  m.seedFromGlobals(g);
+  var out = m.projectToGlobals();
+
+  // pageCount + pageIdentities
+  var countOk = out.pageCount === 5 && eq(out.pageIdentities, g.pageIdentities);
+
+  // All 5 PS entries have the right objects
+  var psOk = [1,2,3,4,5].every(function (n) {
+    return out.PS[n] && eq(out.PS[n].objects, g.PS[n].objects);
+  });
+
+  // pageTags round-trips (only truthy entries in input)
+  var tagsOk = eq(out.pageTags[1], 'site') && eq(out.pageTags[2], 'floor') &&
+               eq(out.pageTags[3], 'floor') && eq(out.pageTags[4], 'parking') &&
+               eq(out.pageTags[5], 'detail');
+
+  // pageFloorKind + pageFloorNum round-trip for pages that have them
+  var fkOk = eq(out.pageFloorKind[2], 'normal') && eq(out.pageFloorKind[3], 'basement') &&
+             eq(out.pageFloorNum[2], 1) && eq(out.pageFloorNum[3], -1);
+
+  // pageNames round-trip
+  var namesOk = [1,2,3,4,5].every(function (n) { return out.pageNames[n] === 'n' + ['A','B','C','D','E'][n-1]; });
+
+  // pageRot round-trip (only truthy)
+  var rotOk = out.pageRot[2] === 90 && out.pageRot[3] === 180 &&
+              !out.pageRot[1] && !out.pageRot[4] && !out.pageRot[5];
+
+  // excluded dict: pages 2 and 4 are true; 1,3,5 absent
+  var exclOk = out.excluded[2] === true && out.excluded[4] === true &&
+               !out.excluded[1] && !out.excluded[3] && !out.excluded[5];
+
+  check('E17', 'happy',
+    'seed→project round-trip on unmutated model reproduces all 7 input globals (+ pageCount + pageIdentities)',
+    countOk && psOk && tagsOk && fkOk && namesOk && rotOk && exclOk);
+})();
+
+// E18: seed 5 pages → reorder+delete+duplicate → projectToGlobals yields correct
+//      new numbers per identity and deleted page is fully gone.
+(function () {
+  resetIds();
+  var g = {
+    pageCount: 5,
+    pageIdentities: ['idA', 'idB', 'idC', 'idD', 'idE'],
+    PS: {
+      1: { objects: ['A'] }, 2: { objects: ['B'] }, 3: { objects: ['C'] },
+      4: { objects: ['D'] }, 5: { objects: ['E'] },
+    },
+    pageTags:      { 1: 'site', 2: 'floor', 3: 'floor', 4: 'floor', 5: 'detail' },
+    pageFloorKind: { 2: 'normal', 3: 'normal', 4: 'basement' },
+    pageFloorNum:  { 2: 1, 3: 2, 4: -1 },
+    pageNames:     { 1: 'nA', 2: 'nB', 3: 'nC', 4: 'nD', 5: 'nE' },
+    pageRot:       { 3: 90 },
+    excluded:      { 4: true },
+  };
+
+  var m = new PageModel();
+  m.seedFromGlobals(g);
+  // IDs are the seeded identities
+  var ID = { A:'idA', B:'idB', C:'idC', D:'idD', E:'idE' };
+
+  // Operation: move page 4 (index 3, which is D) to front (index 0)
+  m.reorder(3, 0);                          // order: D,A,B,C,E  (indices 0-4)
+  // delete C (was index 2 in original, now at index 3 in new order D,A,B,C,E)
+  m.del(m.numOf(ID.C) - 1);               // D,A,B,E
+  // duplicate B (now at index 2 in D,A,B,E)
+  m.duplicate(m.numOf(ID.B) - 1);         // D,A,B,B',E
+
+  var out = m.projectToGlobals();
+
+  // pageCount = 5 (D,A,B,B',E)
+  var countOk = out.pageCount === 5;
+
+  // pageIdentities: new order
+  var idenOk = eq(out.pageIdentities, [ID.D, ID.A, ID.B, m.pageOrder[3], ID.E]);
+
+  // Verify each surviving identity has the correct meta at its new number
+  // D at n=1: floorKind=basement, floorNum=-1, excl=true, tag=floor
+  var dNum = m.numOf(ID.D);  // should be 1
+  var dOk = dNum === 1 &&
+            out.pageFloorKind[1] === 'basement' &&
+            out.pageFloorNum[1] === -1 &&
+            out.excluded[1] === true &&
+            out.pageTags[1] === 'floor' &&
+            out.PS[1] && eq(out.PS[1].objects, ['D']);
+
+  // A at n=2: tag=site, no excl
+  var aNum = m.numOf(ID.A);  // should be 2
+  var aOk = aNum === 2 &&
+            out.pageTags[2] === 'site' &&
+            !out.excluded[2] &&
+            out.PS[2] && eq(out.PS[2].objects, ['A']);
+
+  // B at n=3: tag=floor, floorKind=normal, floorNum=1
+  var bNum = m.numOf(ID.B);  // should be 3
+  var bOk = bNum === 3 &&
+            out.pageTags[3] === 'floor' &&
+            out.pageFloorKind[3] === 'normal' &&
+            out.pageFloorNum[3] === 1 &&
+            out.PS[3] && eq(out.PS[3].objects, ['B']);
+
+  // B' at n=4: same meta as B (inherits via deepCopy in duplicate)
+  var bpNum = 4;
+  var bpOk = out.pageTags[4] === 'floor' &&
+             out.pageFloorKind[4] === 'normal' &&
+             out.pageFloorNum[4] === 1 &&
+             out.PS[4] && eq(out.PS[4].objects, ['B']);
+
+  // E at n=5: tag=detail, no excl, rot absent
+  var eNum = m.numOf(ID.E);  // should be 5
+  var eOk = eNum === 5 &&
+            out.pageTags[5] === 'detail' &&
+            !out.excluded[5] &&
+            out.PS[5] && eq(out.PS[5].objects, ['E']);
+
+  // C is fully gone: no PS at any number for C, pageIdentities has no 'idC'
+  var cGone = out.pageIdentities.indexOf(ID.C) < 0 &&
+              [1,2,3,4,5].every(function (n) {
+                return !(out.PS[n] && eq(out.PS[n].objects, ['C']));
+              });
+
+  check('E18', 'adversarial',
+    'seed+reorder+delete+duplicate: projectToGlobals places each identity at correct new number; deleted page absent',
+    countOk && idenOk && dOk && aOk && bOk && bpOk && eOk && cGone);
+})();
+
+// E19: seedFromGlobals tolerates SPARSE PS — pages without PS entry become blank
+(function () {
+  resetIds();
+  var g = {
+    pageCount: 5,
+    pageIdentities: ['idA', 'idB', 'idC', 'idD', 'idE'],
+    // Only pages 1 and 3 have PS entries; 2, 4, 5 are absent (sparse)
+    PS: {
+      1: { objects: ['A'] },
+      3: { objects: ['C'] },
+    },
+    pageTags:      { 1: 'site' },
+    pageFloorKind: {},
+    pageFloorNum:  {},
+    pageNames:     {},
+    pageRot:       {},
+    excluded:      {},
+  };
+
+  var m = new PageModel();
+  m.seedFromGlobals(g);
+
+  // All 5 ids must exist in pageOrder
+  var allExist = m.count() === 5 && m.pageOrder.length === 5;
+
+  // Pages 1 and 3 have their data; pages 2, 4, 5 are blank {objects:[]}
+  var p1ok = m.PS_by_id['idA'] && eq(m.PS_by_id['idA'].objects, ['A']);
+  var p3ok = m.PS_by_id['idC'] && eq(m.PS_by_id['idC'].objects, ['C']);
+  var p2ok = m.PS_by_id['idB'] && eq(m.PS_by_id['idB'], { objects: [] });
+  var p4ok = m.PS_by_id['idD'] && eq(m.PS_by_id['idD'], { objects: [] });
+  var p5ok = m.PS_by_id['idE'] && eq(m.PS_by_id['idE'], { objects: [] });
+
+  // projectToGlobals also emits all 5 pages
+  var out = m.projectToGlobals();
+  var projCount = out.pageCount === 5;
+  var projIds   = eq(out.pageIdentities, ['idA', 'idB', 'idC', 'idD', 'idE']);
+  var projSparse = out.PS[1] && eq(out.PS[1].objects, ['A']) &&
+                   out.PS[3] && eq(out.PS[3].objects, ['C']) &&
+                   out.PS[2] && eq(out.PS[2], { objects: [] }) &&
+                   out.PS[4] && eq(out.PS[4], { objects: [] }) &&
+                   out.PS[5] && eq(out.PS[5], { objects: [] });
+
+  check('E19', 'edge',
+    'sparse PS (pageCount=5 but PS has only keys 1,3): all 5 ids exist, missing pages normalised to {objects:[]}',
+    allExist && p1ok && p3ok && p2ok && p4ok && p5ok && projCount && projIds && projSparse);
+})();
+
+// E20: excluded dict round-trips through reorder — same pages (by identity) are
+//      marked excluded at their NEW display numbers in projectToGlobals().
+(function () {
+  resetIds();
+  var g = {
+    pageCount: 5,
+    pageIdentities: ['idA', 'idB', 'idC', 'idD', 'idE'],
+    PS: {
+      1: { objects: ['A'] }, 2: { objects: ['B'] }, 3: { objects: ['C'] },
+      4: { objects: ['D'] }, 5: { objects: ['E'] },
+    },
+    pageTags:      {},
+    pageFloorKind: {},
+    pageFloorNum:  {},
+    pageNames:     {},
+    pageRot:       {},
+    excluded:      { 2: true, 4: true },   // B and D are excluded
+  };
+
+  var m = new PageModel();
+  m.seedFromGlobals(g);
+  var ID = { A:'idA', B:'idB', C:'idC', D:'idD', E:'idE' };
+
+  // Before reorder: B at n=2 and D at n=4 are excluded
+  var before = m.projectToGlobals();
+  var beforeOk = before.excluded[2] === true && before.excluded[4] === true &&
+                 !before.excluded[1] && !before.excluded[3] && !before.excluded[5];
+
+  // Reorder: move E (index 4) to front → E,A,B,C,D
+  m.reorder(4, 0);
+  // Now: E(n=1), A(n=2), B(n=3), C(n=4), D(n=5)
+  // B is still excluded → must appear at n=3
+  // D is still excluded → must appear at n=5
+
+  var after = m.projectToGlobals();
+
+  var bNewNum = m.numOf(ID.B);  // should be 3
+  var dNewNum = m.numOf(ID.D);  // should be 5
+
+  var afterOk = bNewNum === 3 && dNewNum === 5 &&
+                after.excluded[3] === true &&   // B at its new position
+                after.excluded[5] === true &&   // D at its new position
+                !after.excluded[1] && !after.excluded[2] && !after.excluded[4];
+
+  // No spurious excluded entries
+  var noOrphans = Object.keys(after.excluded).length === 2;
+
+  check('E20', 'edge',
+    'excluded round-trips through reorder: same identities (B,D) remain excluded at their new display numbers (3,5)',
+    beforeOk && afterOk && noOrphans);
+})();
+
+// ============================================================
 // REPORT
 // ============================================================
 var pass = results.filter(function (r) { return r.pass; }).length;
 var total = results.length;
 
-console.log('\n=== page-manager production module eval (E1–E16) ===');
+console.log('\n=== page-manager production module eval (E1–E20) ===');
 results.forEach(function (r) {
   console.log((r.pass ? 'PASS' : 'FAIL') + '  ' + r.id + ' [' + r.kind + ']  ' + r.desc);
 });
