@@ -308,6 +308,141 @@ async def export_pdf_overlay(req: Request):
                     headers={"Content-Disposition": "attachment; filename=bma-lite-overlay.pdf"})
 
 
+def _apply_page_mutations(doc, order_1based):
+    """Pure function: reorder/delete/duplicate pages in *doc* using doc.select().
+
+    order_1based: list of 1-based original page numbers.  Repeats = duplicate;
+    omissions = delete.  Returns (new_doc, renumber_map, new_count).
+
+    renumber_map: {original_1based: new_1based} for each surviving original page;
+    first occurrence wins when an original appears more than once (duplicates).
+
+    Raises ValueError if order_1based is empty or contains out-of-range values.
+    Never performs file I/O.
+    """
+    if not order_1based:
+        raise ValueError("order must be non-empty")
+    n_pages = len(doc)
+    for idx in order_1based:
+        if idx < 1 or idx > n_pages:
+            raise ValueError(f"page {idx} out of range 1..{n_pages}")
+
+    # Build 0-based list for doc.select()
+    order_0based = [i - 1 for i in order_1based]
+
+    # Work on an in-memory copy so the original doc is never mutated by this fn.
+    # open("", "pdf") opens a blank in-memory PDF; insert_pdf copies pages.
+    new_doc = fitz.open()
+    new_doc.insert_pdf(doc)          # full copy
+    new_doc.select(order_0based)     # reorder/delete/dup in place
+
+    # Build renumber_map: first occurrence of each original page number → new pos.
+    renumber_map = {}
+    for new_idx, orig_1based in enumerate(order_1based):
+        if orig_1based not in renumber_map:
+            renumber_map[orig_1based] = new_idx + 1   # 1-based new position
+
+    new_count = len(new_doc)
+    return new_doc, renumber_map, new_count
+
+
+@app.post("/apply-page-mutations")
+async def apply_page_mutations(req: Request):
+    """Apply a set_order mutation to the case PDF atomically.
+
+    Body: {"case_id": str, "order": [1-based original page numbers]}.
+
+    Repeats in order = duplicate; omissions = delete.  After success the
+    on-disk PDF and in-memory doc reflect the new order and image_cache is
+    cleared.  On any failure the original doc + file are left untouched.
+
+    Returns: {"ok": true, "renumber_map": {...}, "new_count": N}
+    """
+    import os
+    import tempfile
+
+    data = await req.json()
+    cid = data.get("case_id")
+    order = data.get("order")
+
+    case = _get_case(cid)
+    if not case:
+        return JSONResponse({"error": "invalid case"}, 404)
+
+    if not order:
+        return JSONResponse({"error": "order must be non-empty"}, 400)
+
+    old_doc = case["doc"]
+    n_pages = len(old_doc)
+
+    # Validate range
+    for idx in order:
+        try:
+            idx_int = int(idx)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": f"non-integer page index: {idx!r}"}, 400)
+        if idx_int < 1 or idx_int > n_pages:
+            return JSONResponse(
+                {"error": f"page {idx_int} out of range 1..{n_pages}"}, 400
+            )
+
+    # Coerce to ints (JSON may deliver floats)
+    order_int = [int(i) for i in order]
+
+    # ATOMIC write: build new doc → temp file → fsync → os.replace → swap in CASES
+    old_path = case["path"]
+    tmp_path = None
+    new_doc_mem = None
+    try:
+        new_doc_mem, renumber_map, new_count = _apply_page_mutations(old_doc, order_int)
+
+        # Write to temp file in same directory (same filesystem → os.replace is atomic)
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            dir=str(Path(old_path).parent), suffix=".pdf"
+        )
+        try:
+            new_doc_mem.save(tmp_path)
+            # fsync to ensure bytes are on disk before the rename
+            with open(tmp_path, "rb") as f:
+                os.fsync(f.fileno())
+        finally:
+            os.close(tmp_fd)
+
+        # Atomically replace the case file on disk
+        os.replace(tmp_path, old_path)
+        tmp_path = None  # rename consumed it; don't try to delete on error
+
+        # Reopen from the new file and swap into the case
+        new_doc_disk = fitz.open(old_path)
+        old_doc.close()
+        case["doc"] = new_doc_disk
+        case["image_cache"] = {}       # stale renders must not survive page reorder
+        case["touched"] = time.time()
+
+        # Return string-keyed renumber_map for JSON compat (JS expects string keys)
+        return JSONResponse({
+            "ok": True,
+            "renumber_map": {str(k): v for k, v in renumber_map.items()},
+            "new_count": new_count,
+        })
+
+    except (ValueError, KeyError) as exc:
+        return JSONResponse({"error": str(exc)}, 400)
+    except Exception as exc:
+        # On failure, clean up the temp file if it still exists; original is untouched.
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+        if new_doc_mem:
+            try:
+                new_doc_mem.close()
+            except Exception:
+                pass
+        return JSONResponse({"error": f"mutation failed: {exc}"}, 500)
+
+
 @app.get("/thumb/{n}")
 def get_thumb(n: int, case_id: str, rot: int = 0):
     case = _get_case(case_id)
