@@ -194,10 +194,24 @@ function fit() {
   draw();
 }
 
-/* ---- loadPage: fetch PDF via /raw, render with PDF.js, call afterPage ---- */
+/* ---- loadPage: fetch PDF via /raw, render with PDF.js, call afterPage ----
+ * FIX-B3: display index n maps to server page via pageMgr.serverNum(n) when
+ * pending mutations exist (duplicate/reorder not yet flushed to server).
+ * After applyFlush(), serverNum(n)===n for all pages → steady-state unchanged.
+ * If serverNum returns null (merged page not yet flushed), show placeholder.
+ */
 async function loadPage(n) {
   if (!caseId || n < 1 || n > pageCount) return;
   curPage = n;
+  // FIX-B3: resolve display index to server page number
+  var sn = (typeof pageMgr !== 'undefined' && pageMgr) ? pageMgr.serverNum(n) : n;
+  if (sn === null) {
+    // Merged page not yet flushed — show placeholder, skip PDF.js fetch
+    showLoading("หน้า " + n + " (pending merge — Apply ก่อน)");
+    setTimeout(hideLoading, 1500);
+    afterPage();
+    return;
+  }
   showLoading("กำลังโหลดหน้า " + n + " / " + pageCount + "…");
   try {
     var lib = await _loadPdfjsLib();
@@ -211,16 +225,19 @@ async function loadPage(n) {
       pageCache    = {};
       pageDims     = {};
     }
-    // Cache the PDFPageProxy
-    if (!pageCache[n]) {
-      pageCache[n] = await pdfDoc.getPage(n);
+    // Cache the PDFPageProxy — keyed by SERVER page number (sn), not display index
+    if (!pageCache[sn]) {
+      pageCache[sn] = await pdfDoc.getPage(sn);
     }
+    // Store dims keyed by display index n (matches curPage usage elsewhere)
     // pageDims = POST-INTRINSIC-ROTATION dims (the orientation server JPEG used to deliver).
     // page.view gives NATIVE pre-rotation dims — wrong for PDFs with /Rotate metadata.
     // PDF.js viewport at rotation=0 already applies intrinsic /Rotate, so its
     // width/height reflect the visually-correct landscape (e.g. RAMA4 A1 /Rotate=90).
-    var natVp = pageCache[n].getViewport({ scale: 1, rotation: 0 });
+    var natVp = pageCache[sn].getViewport({ scale: 1, rotation: 0 });
     pageDims[n] = { w: natVp.width, h: natVp.height };
+    // Also alias under sn so _render can find the proxy via curPage if needed
+    pageCache[n] = pageCache[sn];
     pageData = { size: { orig_w_pt: pageDims[n].w, orig_h_pt: pageDims[n].h } };
     hideLoading();
     fit();

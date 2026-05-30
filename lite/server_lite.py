@@ -396,25 +396,32 @@ async def apply_page_mutations(req: Request):
     try:
         new_doc_mem, renumber_map, new_count = _apply_page_mutations(old_doc, order_int)
 
+        # FIX-B6 (Windows): save via tobytes() to avoid PyMuPDF holding any file
+        # handles on the temp path (mkstemp + doc.save() causes sharing-violation
+        # on Windows because MuPDF re-opens the already-open fd internally).
+        # tobytes() produces the PDF in memory; we write it with Python's own I/O.
+        pdf_bytes = new_doc_mem.tobytes()
+        new_doc_mem.close()
+        new_doc_mem = None
+
         # Write to temp file in same directory (same filesystem → os.replace is atomic)
         tmp_fd, tmp_path = tempfile.mkstemp(
             dir=str(Path(old_path).parent), suffix=".pdf"
         )
         try:
-            new_doc_mem.save(tmp_path)
-            # fsync to ensure bytes are on disk before the rename
-            with open(tmp_path, "rb") as f:
-                os.fsync(f.fileno())
+            os.write(tmp_fd, pdf_bytes)
+            os.fsync(tmp_fd)
         finally:
             os.close(tmp_fd)
 
+        # FIX-B6: close old doc BEFORE os.replace to release Windows file handle
+        old_doc.close()
         # Atomically replace the case file on disk
         os.replace(tmp_path, old_path)
         tmp_path = None  # rename consumed it; don't try to delete on error
 
         # Reopen from the new file and swap into the case
         new_doc_disk = fitz.open(old_path)
-        old_doc.close()
         case["doc"] = new_doc_disk
         case["image_cache"] = {}       # stale renders must not survive page reorder
         case["touched"] = time.time()
@@ -554,24 +561,30 @@ async def merge_pages(req: Request, file: UploadFile = File(...)):
         src_doc.close()
         src_doc = None
 
-        # Write merged doc to temp in same directory (same fs → os.replace is atomic)
+        # FIX-B6 (Windows): use tobytes() + Python write to avoid PyMuPDF holding
+        # any file handles (sharing-violation with mkstemp + doc.save() on Windows).
+        pdf_bytes = new_doc_mem.tobytes()
+        new_doc_mem.close()
+        new_doc_mem = None
+
+        # Write merged bytes to temp in same directory (same fs → os.replace is atomic)
         tmp_fd, merge_tmp_path = tempfile.mkstemp(
             dir=str(Path(old_path).parent), suffix=".pdf"
         )
         try:
-            new_doc_mem.save(merge_tmp_path)
-            with open(merge_tmp_path, "rb") as f:
-                os.fsync(f.fileno())
+            os.write(tmp_fd, pdf_bytes)
+            os.fsync(tmp_fd)
         finally:
             os.close(tmp_fd)
 
+        # FIX-B6: close old doc BEFORE os.replace to release Windows file handle.
+        old_doc.close()
         # Atomically replace case file on disk
         os.replace(merge_tmp_path, old_path)
         merge_tmp_path = None  # rename consumed it
 
         # Reopen from the new file and swap into the case
         new_doc_disk = fitz.open(old_path)
-        old_doc.close()
         case["doc"] = new_doc_disk
         case["image_cache"] = {}       # stale renders must not survive merge
         case["touched"] = time.time()

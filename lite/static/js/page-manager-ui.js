@@ -216,6 +216,8 @@ function _pmuiWire() {
       if (_pmui_dragSrcIdx === null || _pmui_dragSrcIdx === idx) return;
       pageMgr.reorder(_pmui_dragSrcIdx, idx);
       _pmui_dragSrcIdx = null;
+      // FIX-B5: mark document dirty after reorder
+      if (typeof state !== 'undefined') state.dirty = true;
       _pmuiRenderGrid();   // re-render grid after reorder
       _pmuiWire();
     });
@@ -229,6 +231,8 @@ function _pmuiWire() {
       if (pageMgr.count() <= 1) return;   // guard: refuse last page
       if (!confirm('ลบหน้า ' + (idx + 1) + '?')) return;
       pageMgr.del(idx);
+      // FIX-B5: mark document dirty after delete
+      if (typeof state !== 'undefined') state.dirty = true;
       _pmuiRenderGrid();   // re-render grid after delete
       _pmuiWire();
     });
@@ -240,6 +244,8 @@ function _pmuiWire() {
       e.stopPropagation();
       var idx = parseInt(btn.getAttribute('data-pmui-idx'), 10);
       pageMgr.duplicate(idx);
+      // FIX-B5: mark document dirty after duplicate
+      if (typeof state !== 'undefined') state.dirty = true;
       _pmuiRenderGrid();   // re-render grid after duplicate
       _pmuiWire();
     });
@@ -282,7 +288,11 @@ function _pmuiBuildActionBar() {
     undoBtn.style.cssText = 'background:#222a37;color:var(--ink);border:1px solid var(--line);' +
       'border-radius:7px;padding:6px 12px;cursor:pointer;font-size:13px;';
     undoBtn.onclick = function () {
-      if (pageMgr.undo()) { _pmuiRenderGrid(); _pmuiWire(); }
+      if (pageMgr.undo()) {
+        // FIX-B5: mark document dirty after undo
+        if (typeof state !== 'undefined') state.dirty = true;
+        _pmuiRenderGrid(); _pmuiWire();
+      }
     };
     bar.appendChild(undoBtn);
   }

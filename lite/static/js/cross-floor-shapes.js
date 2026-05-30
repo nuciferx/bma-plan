@@ -288,7 +288,9 @@ function cfssWrapSave() {
   var origHandler = btn.onclick;
   if (typeof origHandler !== 'function') return; // not yet bound; bootstrap retries via DOMContentLoaded
   btn.__cfssSaveWrapped = true;
-  btn.onclick = function(e) {
+  // FIX-B2 compat: mi-save is now async (awaits _pmuiApplyChanges for pending mutations).
+  // Use async wrapper so JSON.stringify and PS restores happen AFTER the async save completes.
+  btn.onclick = async function(e) {
     // 1. Strip instances out of PS so buildPageStore doesn't see them.
     //    Collect their descriptors into dump[] for the new top-level key.
     var stash = {}; // { pageKey: original objects array }
@@ -325,12 +327,13 @@ function cfssWrapSave() {
     };
 
     try {
-      origHandler.call(btn, e);
+      // Await in case origHandler is async (e.g. FIX-B2 made mi-save async)
+      await origHandler.call(btn, e);
     } finally {
       JSON.stringify = origStringify;
       // Restore stripped instance objects back into PS
       Object.keys(stash).forEach(function(k) {
-        window.PS[k].objects = stash[k];
+        if (window.PS[k]) window.PS[k].objects = stash[k];
       });
     }
   };

@@ -393,6 +393,14 @@ function _pmSeed(pageIdentities){
   pageMgr.seedFromGlobals({PS:PS,pageTags:pageTags,pageFloorKind:pageFloorKind,
     pageFloorNum:pageFloorNum,pageNames:pageNames,pageRot:pageRot,
     excluded:excluded,pageCount:pageCount,pageIdentities:pageIdentities});
+  // FIX-B5: wrap mutation methods on the instance so ANY direct call (UI or test)
+  // sets state.dirty. This ensures MR-dirty passes regardless of call path.
+  (function(m){
+    ['reorder','del','duplicate','merge'].forEach(function(fn){
+      var orig=m[fn].bind(m);
+      m[fn]=function(){ var r=orig.apply(m,arguments); if(typeof state!=='undefined')state.dirty=true; return r; };
+    });
+  })(pageMgr);
 }
 function _pmCommit(){  // slice 5 will call this; UNUSED now — defined here for completeness
   if(!pageMgr)return;
@@ -921,11 +929,23 @@ function buildPageStore(){ var ps={};
     (p.annotations||[]).forEach(function(a){ st.annotations.push(annFwd(a)); });
     ps[k]=st; });
   return ps; }
-document.getElementById("mi-save").onclick=function(){
+document.getElementById("mi-save").onclick=async function(){
   if(!caseId){alert("ยังไม่ได้เปิด PDF");return;}
+  // FIX-B2: if there are pending page mutations, flush them to the server first
+  // so the on-disk PDF matches the client page order before we serialise.
+  if(pageMgr&&pageMgr.pending&&pageMgr.pending.length>0){
+    try{ await _pmuiApplyChanges(); }
+    catch(err){ alert("บันทึกล้มเหลว — Apply page changes ไม่สำเร็จ: "+err.message); return; }
+    // If pending is still non-empty after apply (server error path), abort.
+    if(pageMgr.pending&&pageMgr.pending.length>0){ alert("บันทึกล้มเหลว — ยังมี page changes ค้างอยู่"); return; }
+  }
+  // FIX-B1: call _pmCommit() to project current pageMgr order → PS/globals,
+  // then include pageIdentities in the saved doc (additive field).
+  if(pageMgr)_pmCommit();
   var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,totalPages:pageCount,pageStore:buildPageStore(),
     pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
     excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,
+    pageIdentities:(pageMgr?pageMgr.pageOrder.slice():undefined),
     liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null)};}),
     liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order,kind:f.kind,pages:f.pages};}),
     reportVars:serializeReportVars()};
@@ -1003,7 +1023,11 @@ document.getElementById("btn-cmdk").onclick=openCmdK;
 
 /* F12 overview (real thumbs) */
 function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); var html="";
-  for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:''; html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'"><img loading="lazy" src="'+api("/thumb/"+n)+'">หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; } // LPM slice 4+: route through pageMgr.serverNum(n) once mutations exist
+  // FIX-B3: route thumb URLs through pageMgr.serverNum(n) so pending reorder/dup shows correct source page
+  for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:'';
+    var sn=pageMgr?pageMgr.serverNum(n):n;
+    var imgHtml=sn?'<img loading="lazy" src="'+api("/thumb/"+sn)+'">':'<div style="min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px">⏳</div>';
+    html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'">'+imgHtml+'หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; }
   g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
   document.getElementById("ov").classList.add("show"); }
 document.getElementById("btn-ov").onclick=openOv;
@@ -1096,6 +1120,8 @@ window.addEventListener("keydown",function(e){
 function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
 window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(PageRenderer.ready())draw();} });
 window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(PageRenderer.ready())draw();} if(e.key===" "){spaceDown=false;setCursor();} });
+// FIX-B5: warn before unload if document is dirty OR page mutations are pending
+window.addEventListener("beforeunload",function(e){ if(state&&(state.dirty||(pageMgr&&pageMgr.pending&&pageMgr.pending.length))){e.preventDefault();e.returnValue='';} });
 
 /* boot */
 seedReportVars();

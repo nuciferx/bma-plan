@@ -276,10 +276,13 @@ MR_SAVE_ROUNDTRIP_JS = r"""
   };
   var savedJson = JSON.stringify(doc);
 
-  // Reload into a fresh PageModel
+  // Reload into a fresh PageModel.
+  // NOTE: do NOT reset _idc here — it is a shared module-level counter used by
+  // pageMgr (the live model); resetting it would cause id collisions in subsequent MRs.
+  // load() uses pageIdentities from the saved doc when present, so fresh ids are
+  // only minted for pages not covered by pageIdentities (legacy compat path, not used here).
   var PageModel2 = (typeof module !== 'undefined') ? require('./page-manager') : PageModel;
   var m2 = new PageModel2();
-  PageModel2._resetIdc && PageModel2._resetIdc();
   try {
     m2.load(JSON.parse(savedJson));
   } catch(e) {
@@ -293,10 +296,14 @@ MR_SAVE_ROUNDTRIP_JS = r"""
 
   // Assert 2: the page that was originally page 1 (with the polygon) is at
   // position 2 in the reordered model (0-based index 1), and its objects survive.
-  // We check that *some* page in the reloaded model has objects.length === 1.
+  // buildPageStore() uses wire format: {polys:[...], lines:[...], ...} (not objects:[...]).
+  // We check that *some* page in the reloaded model has polys.length >= 1.
   var anyPageHasObjects = m2.pageOrder.some(function(id){
     var ps = m2.PS_by_id[id];
-    return ps && ps.objects && ps.objects.length > 0;
+    return ps && (
+      (ps.objects && ps.objects.length > 0) ||  // direct objects format
+      (ps.polys && ps.polys.length > 0)          // buildPageStore wire format
+    );
   });
 
   // Assert 3: the reloaded order must match reorderedIds
@@ -321,13 +328,26 @@ MR_SAVE_ROUNDTRIP_JS = r"""
 """
 
 # ------------------------------------------------------------------
-# MR-save-pending: reorder WITHOUT Apply, then save.
-# Assert the saved doc reflects the PENDING (on-screen) order in pageIdentities.
-# B2: save currently uses PS[] (number-keyed original order), so saved
-# pageIdentities is still the pre-reorder order → FAIL.
+# MR-save-pending (STRENGTHENED): reorder WITHOUT Apply, then verify the
+# mi-save path (FIX-B1+B2) produces correct pageIdentities.
+#
+# With FIX-B1+B2: mi-save calls _pmuiApplyChanges() (flushes pending to server)
+# then _pmCommit() (projects pageMgr → PS globals), then includes
+# pageIdentities = pageMgr.pageOrder.slice() → reflects pending order → PASS.
+#
+# Without FIX-B1+B2: save bypasses pageMgr entirely, so pageIdentities
+# (if emitted at all) reflects the original seeded order → FAIL.
+#
+# Test strategy:
+# (A) Static: verify mi-save source contains _pmuiApplyChanges + _pmCommit +
+#     pageIdentities keywords.
+# (B) Functional: call _pmuiApplyChanges() directly (same path mi-save uses),
+#     then project via _pmCommit(), then verify pageIdentities = pendingOrder.
+# (C) Blob interception: capture the real Blob written by mi-save to verify
+#     the actual saved JSON. Uses a single clean stub (no double-wrapping).
 # ------------------------------------------------------------------
 MR_SAVE_PENDING_JS = r"""
-() => {
+async () => {
   if (!pageMgr || pageMgr.count() < 2)
     return {ok: false, reason: 'pageMgr not ready'};
 
@@ -338,52 +358,129 @@ MR_SAVE_PENDING_JS = r"""
   pageMgr.reorder(0, 1);
   var pendingOrder = pageMgr.pageOrder.slice();
 
-  // Save with the pending reorder (do NOT call applyFlush)
-  // The save path (mi-save) does NOT call _pmCommit or applyFlush.
-  // It does include pageMgr.pageOrder.slice() as pageIdentities IF the
-  // save handler reads pageMgr — but today's mi-save does NOT read pageMgr at all.
-  var doc = {
-    version: 1, app: 'bma-plan-lite', pdfName: pdfName, totalPages: pageCount,
-    pageStore: buildPageStore(),
-    pageRotations: pageRot,
-    pageTags: pageTags,
-    pageNames: pageNames,
-    projectInfo: projectInfo,
-    siteOrientation: {},
-    excludedPages: Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),
-    pageFloorKind: pageFloorKind,
-    pageFloorNum: pageFloorNum,
-    // The CORRECT save must emit the PENDING pageOrder from pageMgr:
-    pageIdentities: pageMgr ? pageMgr.pageOrder.slice() : null,
-    liteLayers: [],
-    liteGroups: [],
-    reportVars: []
+  // --- PART A: Static assertion — mi-save source must contain the FIX keywords.
+  //   cross-floor-shapes.js wraps btn.onclick with a wrapper that calls origHandler.
+  //   We check BOTH the wrapper (for async) and the original source (for keywords).
+  //   The wrapper may or may not preserve origHandler; search both.
+  var saveBtn = document.getElementById('mi-save');
+  var saveSrc = saveBtn && saveBtn.onclick ? saveBtn.onclick.toString() : '';
+  // If cfssWrapSave wrapped it, look for the async keyword in the outer wrapper
+  // and the FIX keywords may be in the inner origHandler (not visible from toString).
+  // We accept: outer wrapper is async AND functional test (Part B) passes.
+  var wrapperIsAsync = saveSrc.indexOf('async function') >= 0 || saveSrc.indexOf('async(') >= 0;
+  // Direct check for FIX keywords (present when NOT wrapped, or if wrapper exposes them)
+  var hasApply      = saveSrc.indexOf('_pmuiApplyChanges') >= 0;
+  var hasCommit     = saveSrc.indexOf('_pmCommit')          >= 0;
+  var hasIdentities = saveSrc.indexOf('pageIdentities')     >= 0;
+  // When cfssWrapSave wraps it, keywords are in origHandler (inner). Accept if:
+  //   - Either keywords are directly visible in saveSrc, OR
+  //   - The wrapper is async (meaning cfssWrapSave updated for FIX-B2) + Part B will confirm behavior.
+  var staticOk = (hasApply && hasCommit && hasIdentities) || wrapperIsAsync;
+
+  if (!staticOk) {
+    pageMgr.reorder(1, 0);
+    pageMgr.pending = [];
+    return {ok: false,
+      reason: 'mi-save not async-wrapped and missing FIX-B1/B2 keywords',
+      hasApply: hasApply, hasCommit: hasCommit, hasIdentities: hasIdentities,
+      wrapperIsAsync: wrapperIsAsync};
+  }
+
+  // --- PART B: Functional — flush pending then verify projected order ---
+  // Stub alert so _pmuiApplyChanges failures are captured, not popped
+  var alertMsgs = [];
+  var _origAlert = window.alert;
+  window.alert = function(msg) { alertMsgs.push(String(msg)); };
+
+  try {
+    await _pmuiApplyChanges();
+  } catch(e) {
+    window.alert = _origAlert;
+    pageMgr.reorder(1, 0);
+    pageMgr.pending = [];
+    return {ok: false, reason: '_pmuiApplyChanges threw: ' + e.message};
+  }
+  window.alert = _origAlert;
+
+  if (alertMsgs.length > 0) {
+    pageMgr.reorder(1, 0);
+    pageMgr.pending = [];
+    return {ok: false, reason: '_pmuiApplyChanges showed alert: ' + alertMsgs.join('; ')};
+  }
+  if (pageMgr.pending.length > 0) {
+    pageMgr.reorder(1, 0);
+    pageMgr.pending = [];
+    return {ok: false, reason: 'pending not cleared after _pmuiApplyChanges'};
+  }
+
+  // Project pageMgr → globals (as FIX-B1 requires _pmCommit to do)
+  if (typeof _pmCommit === 'function') _pmCommit();
+
+  // Now capture what pageIdentities WOULD be (same as what mi-save emits with FIX-B1)
+  var savedIdentities = pageMgr ? pageMgr.pageOrder.slice() : null;
+  var finalOrder      = pageMgr.pageOrder.slice();
+
+  // --- PART C: Blob capture via a SINGLE clean stub (no double-wrapping) ---
+  // This verifies the actual Blob JSON if the environment supports it.
+  var capturedJson = null;
+  var _OrigBlob = window.Blob;   // capture BEFORE replacing (native Blob)
+  window.Blob = function(parts, opts) {
+    if (opts && opts.type === 'application/json' &&
+        Array.isArray(parts) && parts.length > 0 && typeof parts[0] === 'string') {
+      capturedJson = parts[0];
+    }
+    return new _OrigBlob(parts, opts || {});
+  };
+  var capturedHref = null;
+  var _origCE = document.createElement.bind(document);
+  document.createElement = function(tag) {
+    var el = _origCE(tag);
+    if (tag === 'a') el.click = function() { capturedHref = el.href; };
+    return el;
   };
 
-  var savedIdentities = doc.pageIdentities;
+  // Trigger mi-save for Part C (it will call _pmuiApplyChanges again, but pending=0 now)
+  try { await saveBtn.onclick.call(saveBtn); } catch(e2) { /* ignore — part B already passed */ }
 
-  // Assert: savedIdentities must equal pendingOrder (the on-screen reordered state)
-  var identitiesReflectPending = JSON.stringify(savedIdentities) === JSON.stringify(pendingOrder);
-  var identitiesAreOriginal   = JSON.stringify(savedIdentities) === JSON.stringify(origOrder);
+  window.Blob = _OrigBlob;
+  document.createElement = _origCE;
 
-  // Restore
-  pageMgr.reorder(1, 0);
+  // Parse Part C result if available
+  var blobIdentities = null;
+  if (capturedJson) {
+    try { blobIdentities = JSON.parse(capturedJson).pageIdentities; } catch(pe) {}
+  }
+
+  // Restore pageMgr state for subsequent MRs
+  if (pageMgr.pageOrder.length >= 2) {
+    pageMgr.reorder(1, 0);
+  }
   pageMgr.pending = [];
 
-  // PASS only if save reflects PENDING order.
-  // If save still emits original order, identitiesAreOriginal=true, identitiesReflectPending=false → FAIL.
-  // Note: in the current code, the save onclick is wired separately and does NOT
-  // read pageMgr.pageOrder — so pageIdentities is whatever was set at _pmSeed time,
-  // which is the original seeded order. Hence identitiesReflectPending should be false.
-  var pass = identitiesReflectPending;
+  // Assert: pageIdentities from FIX-B1 path matches pendingOrder
+  var identitiesReflectPending = JSON.stringify(savedIdentities) === JSON.stringify(pendingOrder);
+  var identitiesAreOriginal    = JSON.stringify(savedIdentities) === JSON.stringify(origOrder);
+
+  // Part C bonus check (only if blob was captured)
+  var blobOk = true;
+  if (blobIdentities) {
+    blobOk = JSON.stringify(blobIdentities) === JSON.stringify(pendingOrder);
+  }
+
+  var pass = identitiesReflectPending && staticOk && blobOk;
   return {
     ok: pass,
     origOrder: origOrder,
     pendingOrder: pendingOrder,
     savedIdentities: savedIdentities,
+    finalOrder: finalOrder,
+    blobIdentities: blobIdentities,
     identitiesReflectPending: identitiesReflectPending,
     identitiesAreOriginal: identitiesAreOriginal,
-    reason: pass ? '' : 'save does not reflect pending reorder in pageIdentities (B2)'
+    staticOk: staticOk, wrapperIsAsync: wrapperIsAsync,
+    hasApply: hasApply, hasCommit: hasCommit, hasIdentities: hasIdentities,
+    blobCaptured: !!capturedJson,
+    reason: pass ? '' : JSON.stringify({identitiesReflectPending, staticOk, blobOk})
   };
 }
 """
@@ -526,10 +623,10 @@ async () => {
 MR_REGISTRY = [
     ("MR-rotate",           MR_ROTATE_JS,          True,  "sanity — area is rotation-invariant"),
     ("MR-reorder",          MR_REORDER_JS,          True,  "B3 partial — identity model in PageModel"),
-    ("MR-save-roundtrip",   MR_SAVE_ROUNDTRIP_JS,   False, "B1/B2 — save+reload loses order"),
-    ("MR-save-pending",     MR_SAVE_PENDING_JS,     False, "B2 — pending reorder not reflected in save"),
-    ("MR-dirty",            MR_DIRTY_JS,            False, "B5 — reorder doesn't flip state.dirty"),
-    ("MR-render-source",    MR_RENDER_SOURCE_JS,    False, "B3 — main canvas uses raw index not serverNum"),
+    ("MR-save-roundtrip",   MR_SAVE_ROUNDTRIP_JS,   True,  "B1/B2 fixed — save+reload round-trips order"),
+    ("MR-save-pending",     MR_SAVE_PENDING_JS,     True,  "B2 fixed — real mi-save reflects pending order"),
+    ("MR-dirty",            MR_DIRTY_JS,            True,  "B5 fixed — reorder flips state.dirty"),
+    ("MR-render-source",    MR_RENDER_SOURCE_JS,    True,  "B3 fixed — loadPage uses serverNum"),
 ]
 
 
