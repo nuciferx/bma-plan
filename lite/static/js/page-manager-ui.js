@@ -389,18 +389,16 @@ async function _pmuiApplyChanges() {
   if (!pageMgr || !caseId) return;
   if (pageMgr.pending.length === 0) return;
 
-  // Check for merged pages (serverNum===null)
+  // Build order from simulateFlush (the tested, canonical flush algorithm).
+  // This is the same algorithm the tests exercise, so live and test paths are unified.
+  var sim = pageMgr.simulateFlush();
   var order = [];
   var hasMergedPage = false;
-  for (var n = 1; n <= pageMgr.count(); n++) {
-    var sn = pageMgr.serverNum(n);
-    if (sn === null) {
-      var id = pageMgr.idAt(n);
-      if (pageMgr.srcServer[id] === null || pageMgr.srcServer[id] === undefined) {
-        hasMergedPage = true;
-        break;
-      }
-    }
+  for (var i = 0; i < sim.order.length; i++) {
+    var id = sim.order[i];
+    var sn = (pageMgr.originNum[id] != null) ? pageMgr.originNum[id]
+             : (pageMgr.srcServer[id] != null ? pageMgr.srcServer[id] : null);
+    if (sn === null) { hasMergedPage = true; break; }
     order.push(sn);
   }
 
