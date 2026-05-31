@@ -25,6 +25,7 @@
    ============================================================ */
 var _pmui_dragSrcIdx = null;   // 0-based display index being dragged
 var _pmGridId = 'pm-grid';     // grid container id (inside #pm-overlay)
+var _pmThumbObserver = null;   // IntersectionObserver for lazy thumbnail loading
 
 /* ============================================================
    _pmuiInjectCss() — inject styles once (idempotent).
@@ -68,6 +69,13 @@ function _pmuiInjectCss() {
     '.pmui-label{display:block;font-size:11px;color:var(--muted);margin-top:3px;text-align:center;}',
     '.pmui-pending{width:100%;height:80px;display:flex;align-items:center;justify-content:center;',
     '  color:var(--muted);font-size:12px;background:rgba(255,255,255,.04);border-radius:6px;}',
+    /* skeleton placeholder shown while thumb loads */
+    '.pmui-skel{width:100%;min-height:60px;border-radius:4px;margin-bottom:4px;',
+    '  background:linear-gradient(90deg,#1a212c 25%,#222a37 50%,#1a212c 75%);',
+    '  background-size:200% 100%;animation:pmui-shimmer 1.4s infinite linear;}',
+    '@keyframes pmui-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}',
+    '.pmui-thumb-img{width:100%;border-radius:4px;display:block;margin-bottom:4px;',
+    '  background:#1a212c;min-height:60px;}',
     /* action bar */
     '#pmui-bar{position:sticky;bottom:0;left:0;right:0;',
     '  background:rgba(22,26,34,.97);border-top:1px solid var(--line);',
@@ -141,6 +149,12 @@ function _pmuiRenderGrid() {
   var g = document.getElementById(_pmGridId);
   if (!g) return;
 
+  /* Disconnect any previous observer to avoid leaking observers on grid rebuild */
+  if (_pmThumbObserver) {
+    _pmThumbObserver.disconnect();
+    _pmThumbObserver = null;
+  }
+
   var html = '';
   var count = pageMgr.count();
   for (var n = 1; n <= count; n++) {
@@ -150,7 +164,8 @@ function _pmuiRenderGrid() {
     html += '<div class="thumb pmui-thumb' + (isCur ? ' cur' : '') + '" draggable="true"' +
             ' data-pmui-idx="' + (n - 1) + '">' +
             (imgSrc
-              ? '<img loading="lazy" src="' + imgSrc + '">'
+              ? '<div class="pmui-skel"></div>' +
+                '<img class="pmui-thumb-img" data-src="' + imgSrc + '">'
               : '<div class="pmui-pending">⏳ pending</div>') +
             '<span class="pmui-label">หน้า ' + n + '</span>' +
             '<div class="pmui-actions">' +
@@ -159,6 +174,38 @@ function _pmuiRenderGrid() {
             '</div></div>';
   }
   g.innerHTML = html;
+
+  /* Set up IntersectionObserver on scroll container (#pm-grid-wrap as root).
+     Only tiles that enter the scroll-container viewport trigger a fetch.
+     rootMargin="200px" pre-fetches ~one row ahead of the visible edge. */
+  var wrap = document.getElementById('pm-grid-wrap');
+  if (!wrap || !window.IntersectionObserver) return;
+
+  _pmThumbObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      var img = entry.target;
+      var src = img.getAttribute('data-src');
+      if (!src) return;
+      img.src = src;
+      img.removeAttribute('data-src');
+      img.onload = function () {
+        var skel = img.previousElementSibling;
+        if (skel && skel.classList.contains('pmui-skel')) {
+          skel.style.display = 'none';
+        }
+      };
+      _pmThumbObserver.unobserve(img);
+    });
+  }, {
+    root: wrap,
+    rootMargin: '200px'
+  });
+
+  var imgs = g.querySelectorAll('.pmui-thumb-img[data-src]');
+  imgs.forEach(function (img) {
+    _pmThumbObserver.observe(img);
+  });
 }
 
 /* ============================================================

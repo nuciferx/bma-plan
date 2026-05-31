@@ -576,7 +576,9 @@ async () => {
     return parseInt(t.getAttribute('data-pmui-idx'), 10) === 1;
   });
   var dupImg     = dupTile && dupTile.querySelector('img');
-  var dupImgSrc  = dupImg ? dupImg.src : '';
+  // After lpm-8 fix, thumbnails use data-src (not src) until lazy-loaded.
+  // Check data-src first, fall back to src (already loaded case).
+  var dupImgSrc  = dupImg ? (dupImg.getAttribute('data-src') || dupImg.src || '') : '';
   // Grid should show /thumb/1 (source serverNum), not /thumb/2 (raw display idx)
   var gridThumbUsesServerNum = dupImgSrc.includes('/thumb/' + srcServerNum);
   var gridThumbUsesRawIdx    = dupImgSrc.includes('/thumb/' + displayIdx);
