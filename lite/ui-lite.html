@@ -1125,7 +1125,7 @@ window.addEventListener("keydown",function(e){
   var map={v:"select",s:"scale",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
-function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex";}
+function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex"||(document.getElementById("pm-overlay")&&document.getElementById("pm-overlay").classList.contains("show"));}
 window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(PageRenderer.ready())draw();} });
 window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(PageRenderer.ready())draw();} if(e.key===" "){spaceDown=false;setCursor();} });
 // FIX-B5: warn before unload if document is dirty OR page mutations are pending

@@ -465,7 +465,15 @@ document.addEventListener('keydown', function (e) {
    since it's not a .overlay-classed element in #app). */
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
-    _pmCloseOverlay();
+    var ov = document.getElementById('pm-overlay');
+    if (ov && ov.classList.contains('show')) {
+      // Only act while open; stop the bubble so the app's window-level Escape
+      // handler never also fires (lpm-9: no double-fire). preventDefault for
+      // good measure. When closed, fall through so app Esc behaves normally.
+      e.preventDefault();
+      e.stopPropagation();
+      _pmCloseOverlay();
+    }
   }
 });
 
