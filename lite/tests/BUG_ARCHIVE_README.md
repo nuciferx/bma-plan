@@ -20,7 +20,7 @@ Every future test/hunt run **seeds from this file first** — "you have already 
 
 ## How to use
 - **Before a release / hunt:** run every `guard_test` listed here. All must be green.
-- **`status:open` items are the next fix targets.** Currently open: `lpm-7` (Apply order from `serverNum` not `simulateFlush` — two flush algos), `lpm-8` (95-thumb load no spinner). Both FRICTION, non-data-loss. (`lpm-9` pm-overlay hotkey-leak + Esc double-fire — fixed 2026-05-31 `2e3a958`, guarded by `test_pm_modal_hotkeys.py`. `lpm-4` undo-desync was the last BROKEN — fixed 2026-05-30 `7d6f230`, guarded by `MR-undo-consistency`.)
+- **`status:open` items are the next fix targets.** Currently open: `lpm-7` (Apply order from `serverNum` not `simulateFlush` — two flush algos), `lpm-8` (95-thumb load no spinner). Both FRICTION, non-data-loss. (`lpm-9` pm-overlay hotkey-leak + Esc double-fire — fixed 2026-05-31 `3611e31`, guarded by `test_pm_modal_hotkeys.py`. `lpm-4` undo-desync was the last BROKEN — fixed 2026-05-30 `7d6f230`, guarded by `MR-undo-consistency`.)
 - **When you confirm a NEW bug:** append a line with `status:"open"`; the moment you write its guard test, fill `guard_test`; on fix set `fixed_commit`+`status:"fixed"`. A bug is not "done" until it has a green guard_test — that is what stops regression.
 
 ## Seeded history (2026-05-30 full-program hunt)
