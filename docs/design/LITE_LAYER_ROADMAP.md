@@ -6,6 +6,23 @@
 - **Owner doc**: นี่ (เดิม roadmap อยู่แค่ใน commit message ของ `4cd51ec` — ย้ายมาเขียนเป็นเอกสาร 2026-05-22)
 - **อ้างอิง proto** (ทำเสร็จแล้ว ใช้เป็นแบบ): `docs/design/PAGE_SCOPED_LAYER_MODEL.md` (LOCKED) · `docs/design/LAYER_MODEL_ALIGNMENT_AUDIT.md` (G1–G8) · `docs/invent/layer-model-rebuild.md` (verdict PRIOR_ART_MATURE) · INV-2026-05-20-002/003/004 = proto L1/L2/L3 ✅ done
 
+## ⚑ สถานะ (อัปเดต 2026-05-31) — layer system ปิดครบแล้ว
+
+**Layer roadmap นี้ DONE ทั้งหมด**: L1 → L2a/b/c → L3 (sublayer tree) → LDND (drag-drop) → LRV (report vars) → LPFL (per-page folder tree) → LOVS (overview wizard) ทุกตัว ✅ (รายละเอียดด้านล่าง). enhancement ค้างเล็กน้อย: dropdown เลือก role ตอนกด `+`, roll-up บน parent-layer. page-scoped layer = ยังไม่อยู่ในแผน (lite ตั้งใจ slim)
+
+**lite เดินต่อ *นอก* layer scope แล้ว** — งานปัจจุบันไม่ได้อยู่ในเอกสารนี้ (มัน layer-scoped) ดูที่:
+- **LPM — page manager** (reorder/duplicate/merge หน้า): `docs/invent/lite-page-manager.md` · modules `static/js/page-manager.js` + `page-manager-ui.js`
+- **EVOLT — evolutionary test loop** (PBT + metamorphic + bug-archive memory): `docs/design/EVOLUTIONARY_TEST_LOOP.md` · `lite/tests/bug-archive.jsonl` + `BUG_ARCHIVE_README.md`
+- **CFSS — cross-floor shapes**: `static/js/cross-floor-shapes.js`
+- **PDFJS — render quality** (orient/antiflicker/smooth/viewport-clipped): commit `b931213`..`382b30a`
+
+**▶ next slice (แหล่งจริง = bug-archive, ไม่ใช่ doc นี้)**: เหลือ **3 open bug** ทั้งหมด FRICTION ไม่ใช่ data-loss (ทุก BROKEN/data-loss ปิด+guard หมดแล้ว):
+- `lpm-7` — Apply order สร้างจาก `serverNum` ไม่ใช่ `simulateFlush`; 2 flush algo, live path ไม่มี test (architectural divergence ใน `page-manager-ui.js::_pmuiApplyChanges`)
+- `lpm-8` — เปิด page manager ยิง 95 `/thumb` พร้อมกัน ไม่มี spinner; grid ว่าง 2-5s บน PDF ใหญ่
+- `lpm-9` — `pm-overlay` ไม่บล็อก app hotkey (กด n/v/d สลับ tool ใต้ manager; Esc double-fire)
+
+> หมายเหตุ process: `/lite-start` อ่าน next slice จากเอกสารนี้ แต่ lite โตเกิน "layer roadmap" ไปแล้ว → แหล่ง next slice จริงตอนนี้คือ `bug-archive.jsonl` (`status:open`). ถ้าจะให้ /lite-start แม่นต่อไป ควรเพิ่ม bug-archive เป็น source ใน SKILL.md (แยก sprint).
+
 ## หลักการ (มาจาก proto, ยึดเหมือนกัน)
 
 โมเดล CAD มาตรฐาน: **object ถือ `catId`/`layerId` → layer object เป็นเจ้าของ `{name, color, visible, locked, order}`; render วน object แล้ว lookup layer.**
@@ -175,3 +192,4 @@ Sequel to LPFL-1. User asked: "ในหน้า overview ทำให้ setup
 - **ถัดไป**: L3 + LDND + LRV ปิดแล้ว. enhancement ที่ค้าง: dropdown เลือก role ตอนกด `+` · roll-up บน parent-layer (ตอนนี้ layer โชว์ own-area เท่านั้น). ขั้นถัดไปของ layer system = page-scoped (ยังไม่อยู่ในแผน — lite ตั้งใจ slim). **size watch**: `ui-lite.html` 1139/1200 (61 left) — slice ถัดไป **ต้องลง `static/js/*.js`** ห้ามเพิ่ม inline
 - **2026-05-22** — เขียน sub-spec แล้ว: **`LITE_L2C_CUSTOM_LAYER_SPEC.md`** (decision: persist additive `liteLayers`+`liteCatId`; ลบ layer→ย้าย object ไป default role; /bma-check-forbidden=WARN additive-only). แตกเป็น **L2c-1 model** (ปลอดภัย, build ก่อน) → **L2c-2 persistence** (แตะ `.bmaplan` — checkpoint คน + forbidden check รอบสอง) → **L2c-3 UI panel**
 - page-scoped layer (แบบ proto) — **ยังไม่อยู่ในแผน** จนกว่าจะมีเหตุผลชัด (lite ตั้งใจ slim)
+- **2026-05-31** — ปัก layer roadmap **DONE ครบ** (banner ด้านบน). lite เดินต่อนอก layer scope: LPM (page manager) → EVOLT (evolutionary test loop + bug-archive) → CFSS → PDFJS render. post-LPM full-program hunt (05-30) เจอ 10 bug ที่ 42-green unit suite จับไม่ได้ → เพิ่ม metamorphic (`test_metamorphic_pages.py`) + PBT (`test_pbt_measure.py`) + `bug-archive.jsonl` เป็น memory ของ test loop. **7 fixed + guard ถาวร, 3 open (lpm-7/8/9 FRICTION non-data-loss)** = next slice. **บทเรียน**: unit markers เขียวหมดไม่ได้แปลว่าไม่มีบั๊ก — บั๊ก data-loss ทั้งหมดหลุด unit suite, จับได้ด้วย metamorphic/journey เท่านั้น (ตรงกับเหตุผลที่มี `/bma-simulate` + sandbox testers)
