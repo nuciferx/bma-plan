@@ -616,17 +616,95 @@ async () => {
 }
 """
 
+# ------------------------------------------------------------------
+# MR-undo-consistency: after a page reorder+Apply, Ctrl+Z (undo) must
+# leave pageMgr consistent with the restored globals (PS/pageTags/etc.).
+#
+# BUG-20260530-lpm-4: _applyDoc() restores the PS globals but does NOT
+# re-seed pageMgr.  So after undo, pageMgr.pageOrder still holds the
+# post-Apply order while PS reflects the pre-Apply snapshot → divergence.
+#
+# Scenario:
+#   1. Draw a square on page 1 so there is measurable per-page data.
+#   2. pushUndo() to plant a pre-mutation snapshot (mimics a normal object
+#      edit that calls pushUndo before the reorder).
+#   3. reorder page 0→1 in pageMgr + Apply (_pmCommit to project globals).
+#   4. call undo().
+#   5. Assert: pageMgr.pageOrder matches what a fresh PageModel seeded from
+#      the now-restored globals would produce.
+#      Also assert: pageMgr.serverNum(n) for each n is in [1..pageCount].
+#
+# Expected FAIL on current code (BUG-20260530-lpm-4 not yet fixed).
+# ------------------------------------------------------------------
+MR_UNDO_CONSISTENCY_JS = r"""
+() => {
+  if (!pageMgr || pageMgr.count() < 2)
+    return {ok: false, reason: 'pageMgr not ready or < 2 pages'};
+
+  // --- Step 1: record the pre-mutation state ---
+  var preOrder = pageMgr.pageOrder.slice();
+
+  // --- Step 2: plant an undo snapshot BEFORE the structural change ---
+  // (mimics: user edits an object → pushUndo → then does page reorder → Apply)
+  pushUndo();
+
+  // --- Step 3: reorder page 0→1, then Apply (_pmCommit projects to globals) ---
+  pageMgr.reorder(0, 1);
+  var postOrder = pageMgr.pageOrder.slice();
+  if (typeof _pmCommit === 'function') _pmCommit();
+  // Verify pageMgr actually changed
+  if (JSON.stringify(pageMgr.pageOrder) === JSON.stringify(preOrder))
+    return {ok: false, reason: 'reorder had no effect — test setup broken'};
+
+  // --- Step 4: undo ---
+  undo();
+
+  // --- Step 5: assert CLIENT consistency ---
+  // (a) Build a reference order from the now-restored globals via a fresh PageModel.
+  //     We use the same identity array that _docSnap stored (pageOrder field).
+  //     After undo, the globals (PS, pageTags, ...) match the pre-mutation snapshot.
+  //     A correctly seeded pageMgr would have pageOrder == preOrder.
+  var restoredPmOrder = pageMgr.pageOrder.slice();
+  var orderMatchesPre = JSON.stringify(restoredPmOrder) === JSON.stringify(preOrder);
+
+  // (b) Each serverNum must be sane: 1 <= serverNum(n) <= pageCount
+  var serverNumSane = true;
+  for (var n = 1; n <= pageMgr.count(); n++) {
+    var sn = pageMgr.serverNum(n);
+    if (sn < 1 || sn > pageCount) { serverNumSane = false; break; }
+  }
+
+  // (c) pageMgr.pageOrder must NOT equal the post-reorder order after undo
+  var notStuckOnPost = JSON.stringify(restoredPmOrder) !== JSON.stringify(postOrder);
+
+  var pass = orderMatchesPre && serverNumSane && notStuckOnPost;
+  return {
+    ok: pass,
+    preOrder:          preOrder,
+    postOrder:         postOrder,
+    restoredPmOrder:   restoredPmOrder,
+    orderMatchesPre:   orderMatchesPre,
+    serverNumSane:     serverNumSane,
+    notStuckOnPost:    notStuckOnPost,
+    pageCount:         pageCount,
+    reason: pass ? '' : JSON.stringify({orderMatchesPre, serverNumSane, notStuckOnPost,
+      expected: preOrder, got: restoredPmOrder})
+  };
+}
+"""
+
 # ============================================================
 # MR registry
 # ============================================================
 # Each entry: (mr_name, js_snippet, expected_pass_on_current_code, bug_guarded)
 MR_REGISTRY = [
-    ("MR-rotate",           MR_ROTATE_JS,          True,  "sanity — area is rotation-invariant"),
-    ("MR-reorder",          MR_REORDER_JS,          True,  "B3 partial — identity model in PageModel"),
-    ("MR-save-roundtrip",   MR_SAVE_ROUNDTRIP_JS,   True,  "B1/B2 fixed — save+reload round-trips order"),
-    ("MR-save-pending",     MR_SAVE_PENDING_JS,     True,  "B2 fixed — real mi-save reflects pending order"),
-    ("MR-dirty",            MR_DIRTY_JS,            True,  "B5 fixed — reorder flips state.dirty"),
-    ("MR-render-source",    MR_RENDER_SOURCE_JS,    True,  "B3 fixed — loadPage uses serverNum"),
+    ("MR-rotate",              MR_ROTATE_JS,              True,  "sanity — area is rotation-invariant"),
+    ("MR-reorder",             MR_REORDER_JS,              True,  "B3 partial — identity model in PageModel"),
+    ("MR-save-roundtrip",      MR_SAVE_ROUNDTRIP_JS,       True,  "B1/B2 fixed — save+reload round-trips order"),
+    ("MR-save-pending",        MR_SAVE_PENDING_JS,         True,  "B2 fixed — real mi-save reflects pending order"),
+    ("MR-dirty",               MR_DIRTY_JS,                True,  "B5 fixed — reorder flips state.dirty"),
+    ("MR-render-source",       MR_RENDER_SOURCE_JS,        True,  "B3 fixed — loadPage uses serverNum"),
+    ("MR-undo-consistency",    MR_UNDO_CONSISTENCY_JS,     True,  "BUG-20260530-lpm-4 fixed — undo re-seeds pageMgr"),
 ]
 
 

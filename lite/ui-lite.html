@@ -839,7 +839,15 @@ function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor();
 var undoStack=[], redoStack=[], UNDO_MAX=80;
 function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id,pageOrder:(pageMgr?pageMgr.pageOrder:null)}); } // LPM slice 3: pageOrder included for B-DIRTY (future reorder detection)
 function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
-function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id; }
+function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id;
+  // BUG-20260530-lpm-4: re-seed pageMgr so it matches the restored globals.
+  // d.pageOrder holds the identity array captured at pushUndo() time.
+  // _pmSeed rebuilds pageMgr from (restored PS + restored identity order) then
+  // _pmCommit projects back → round-trip is a no-op on the restored state.
+  // Server caveat: the server PDF is NOT rolled back; this realigns the CLIENT
+  // model to the restored order and treats it as the new server baseline.
+  // A subsequent save/Apply will re-sync the server.
+  if(typeof _pmSeed==='function'&&pageCount&&Array.isArray(d.pageOrder)&&d.pageOrder.length===pageCount){ _pmSeed(d.pageOrder); } }
 function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
   state.sel=null; state.selSet=[]; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.vertMode=null; state.dirty=true; showProps(null); buildPicker();
   if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage);
