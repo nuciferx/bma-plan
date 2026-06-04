@@ -100,12 +100,44 @@ function evalReportExpr(expr, computed, agg) {
   return {v: acc, err: null};
 }
 
+/* --- Roll up custom-layer areas into their role bucket ---
+   Given an agg keyed by catId (layer.id), returns a new object that keeps all
+   original keys AND adds/overwrites each role key with the sum of all layers
+   that map to that role.  This means exprs referencing {ref:"gfa"} work even
+   when every measured area sits on a custom layer like "L7".
+
+   Algorithm (double-buffer to avoid double-count):
+     1. Copy all original keys into out.
+     2. Accumulate per-role sums into a SEPARATE roleSum map
+        (so a default layer whose id===role is counted exactly once).
+     3. Overwrite out[role] = roleSum[role] for every role found.
+
+   Default-only safety: agg={gfa:10}, layerById("gfa").role="gfa"
+     → roleSum={gfa:10} → out["gfa"]=10. Identical to input. No double-count.
+   Custom-only case: agg={L7:50}, layerById("L7").role="gfa"
+     → roleSum={gfa:50} → out={L7:50, gfa:50}. Now {ref:"gfa"} resolves.
+   Mixed case: agg={gfa:30, L7:50}, both role=gfa
+     → roleSum={gfa:80} → out["gfa"]=80. Correct total. */
+function rollupAggByRole(agg) {
+  agg = agg || {};
+  var out = {};
+  for (var k in agg) if (agg.hasOwnProperty(k)) out[k] = agg[k];   // keep original catId keys
+  var roleSum = {};
+  for (var k in agg) { if (!agg.hasOwnProperty(k)) continue;
+    var lay = (typeof layerById === "function") ? layerById(k) : null;
+    if (lay && lay.role) roleSum[lay.role] = (roleSum[lay.role] || 0) + agg[k];
+  }
+  for (var r in roleSum) if (roleSum.hasOwnProperty(r)) out[r] = roleSum[r]; // OVERWRITE role key with full role total
+  return out;
+}
+
 /* --- Compute all REPORT_VARS in order ---
    agg = {catId: number}  (from computeSummary)
    Returns [{id,name,unit,expr,value,err}].
    Later vars may reference earlier ones (chain). */
 function computeReportVars(agg) {
   agg = agg || {};
+  agg = rollupAggByRole(agg);
   var computed = {};
   var results = [];
   for (var i = 0; i < REPORT_VARS.length; i++) {
