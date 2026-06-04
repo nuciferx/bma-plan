@@ -1,0 +1,946 @@
+{
+  "version": 1,
+  "app": "bma-plan-lite",
+  "pdfName": "SCR_Permit_Plan_Ele_Sec_29-01-2026.pdf",
+  "totalPages": 33,
+  "pageStore": {
+    "1": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "2": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "3": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "4": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "5": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "6": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "7": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "8": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "9": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "10": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "11": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "12": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "13": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "14": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "15": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "16": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "17": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "18": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "19": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "20": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "21": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "22": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "23": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "24": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "25": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "26": {
+      "lines": [],
+      "polys": [
+        {
+          "pts": [
+            {
+              "x": 632.6270480296644,
+              "y": 722.7009644122481
+            },
+            {
+              "x": 916.8680370294577,
+              "y": 723.2528886627332
+            },
+            {
+              "x": 915.0513179299293,
+              "y": 866.7423206838698
+            },
+            {
+              "x": 633.1789722801494,
+              "y": 865.6493452878723
+            },
+            {
+              "x": 632.6270480296644,
+              "y": 722.7009644122481
+            }
+          ],
+          "closed": true,
+          "name": "",
+          "areaType": "room",
+          "id": "area-mlwh64ic",
+          "color": "#ff4d4d",
+          "opacity": 0.18,
+          "semanticTag": "gross_floor_area",
+          "useCategory": null,
+          "liteCatId": "L7"
+        },
+        {
+          "pts": [
+            {
+              "x": 784.8249409206024,
+              "y": 874.5473950502629
+            },
+            {
+              "x": 784.3426957444344,
+              "y": 1053.1815546866383
+            },
+            {
+              "x": 764.1736745891209,
+              "y": 1052.7860836835928
+            },
+            {
+              "x": 764.5691455921661,
+              "y": 1070.9777498236797
+            },
+            {
+              "x": 633.9736928750644,
+              "y": 1071.48197937085
+            },
+            {
+              "x": 633.1524587403517,
+              "y": 874.8059048991704
+            },
+            {
+              "x": 784.8249409206024,
+              "y": 874.5473950502629
+            }
+          ],
+          "closed": true,
+          "name": "",
+          "areaType": "room",
+          "id": "area-jjx2v0g7",
+          "color": "#ff4d4d",
+          "opacity": 0.18,
+          "semanticTag": "gross_floor_area",
+          "useCategory": null,
+          "liteCatId": "L7"
+        },
+        {
+          "pts": [
+            {
+              "x": 791.3983213401417,
+              "y": 942.0012790999089
+            },
+            {
+              "x": 903.175544242033,
+              "y": 941.5215485295145
+            },
+            {
+              "x": 903.175544242033,
+              "y": 1036.9879320379966
+            },
+            {
+              "x": 903.6552748124273,
+              "y": 1130.295527979704
+            },
+            {
+              "x": 792.3577824809305,
+              "y": 1130.5353932649011
+            },
+            {
+              "x": 791.3983213401417,
+              "y": 942.0012790999089
+            }
+          ],
+          "closed": true,
+          "name": "",
+          "areaType": "room",
+          "id": "area-wkp3riai",
+          "color": "#ff4d4d",
+          "opacity": 0.18,
+          "semanticTag": "gross_floor_area",
+          "useCategory": null,
+          "liteCatId": "L7"
+        },
+        {
+          "pts": [
+            {
+              "x": 784.8249409206024,
+              "y": 874.5473950502629
+            },
+            {
+              "x": 925.1679278327675,
+              "y": 875.3831471916329
+            },
+            {
+              "x": 925.2012804998519,
+              "y": 866.781677717401
+            },
+            {
+              "x": 969.4746504480128,
+              "y": 866.8969715937401
+            },
+            {
+              "x": 969.2661604061559,
+              "y": 931.7373746112343
+            },
+            {
+              "x": 1119.5874805849764,
+              "y": 932.0501096740195
+            },
+            {
+              "x": 1119.483235564048,
+              "y": 974.4778331918974
+            },
+            {
+              "x": 969.1302857804924,
+              "y": 973.9943831925934
+            },
+            {
+              "x": 969.0016807782182,
+              "y": 1127.593978750868
+            },
+            {
+              "x": 916.9088325207789,
+              "y": 1127.470827809361
+            },
+            {
+              "x": 917.3278446099683,
+              "y": 1085.0321488218494
+            },
+            {
+              "x": 903.4154095272302,
+              "y": 1083.6417300088503
+            },
+            {
+              "x": 903.2471822647113,
+              "y": 1050.9215274489559
+            },
+            {
+              "x": 917.663225519717,
+              "y": 1051.0638621433015
+            },
+            {
+              "x": 917.3278446099683,
+              "y": 993.8664796449216
+            },
+            {
+              "x": 903.175544242033,
+              "y": 993.8664796449216
+            },
+            {
+              "x": 903.1755442420331,
+              "y": 960.9737437726225
+            },
+            {
+              "x": 917.1344957906432,
+              "y": 960.8918944699967
+            },
+            {
+              "x": 917.7339277688856,
+              "y": 924.0201763111505
+            },
+            {
+              "x": 784.6923525854809,
+              "y": 923.6610139986757
+            },
+            {
+              "x": 784.8249409206024,
+              "y": 874.5473950502629
+            }
+          ],
+          "closed": true,
+          "name": "",
+          "areaType": "room",
+          "id": "area-kjok9eei",
+          "color": "#4dff4f",
+          "opacity": 0.18,
+          "semanticTag": "gross_floor_area",
+          "useCategory": null,
+          "liteCatId": "L8"
+        },
+        {
+          "pts": [
+            {
+              "x": 1119.3603333431406,
+              "y": 740.1044335027768
+            },
+            {
+              "x": 1402.7224235115725,
+              "y": 740.0412423872659
+            },
+            {
+              "x": 1402.9471576359902,
+              "y": 1007.1027535883095
+            },
+            {
+              "x": 1119.40478776037,
+              "y": 1006.4060892888613
+            },
+            {
+              "x": 1119.3603333431406,
+              "y": 740.1044335027768
+            }
+          ],
+          "closed": true,
+          "name": "",
+          "areaType": "room",
+          "id": "area-en8w524m",
+          "color": "#6a4dff",
+          "opacity": 0.18,
+          "semanticTag": "gross_floor_area",
+          "useCategory": null,
+          "liteCatId": "L9"
+        }
+      ],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": {
+        "pts_per_m": 28.34596557321068
+      },
+      "annotations": []
+    },
+    "27": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "28": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "29": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "30": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "31": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "32": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    },
+    "33": {
+      "lines": [],
+      "polys": [],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": null,
+      "annotations": []
+    }
+  },
+  "pageRotations": {},
+  "pageTags": {
+    "1": "site",
+    "2": "site",
+    "3": "site",
+    "4": "site",
+    "5": "site",
+    "6": "site",
+    "7": "site",
+    "8": "site",
+    "9": "site",
+    "10": "site",
+    "11": "site",
+    "12": "site",
+    "13": "site",
+    "14": "floor",
+    "15": "floor",
+    "16": "floor",
+    "17": "floor",
+    "18": "floor",
+    "19": "floor",
+    "20": "floor",
+    "21": "floor",
+    "22": "floor",
+    "23": "floor",
+    "24": "floor",
+    "25": "floor",
+    "26": "floor",
+    "27": "floor",
+    "28": "floor",
+    "29": "floor",
+    "30": "floor",
+    "31": "floor",
+    "32": "floor",
+    "33": "floor"
+  },
+  "pageNames": {},
+  "projectInfo": {
+    "name": ""
+  },
+  "siteOrientation": {},
+  "excludedPages": [],
+  "pageFloorKind": {
+    "14": "normal",
+    "15": "normal",
+    "16": "normal",
+    "17": "normal",
+    "18": "normal",
+    "19": "normal",
+    "20": "normal",
+    "21": "normal",
+    "22": "normal",
+    "23": "normal",
+    "24": "normal",
+    "25": "normal",
+    "26": "normal",
+    "27": "normal",
+    "28": "normal",
+    "29": "normal",
+    "30": "normal",
+    "31": "normal",
+    "32": "normal",
+    "33": "normal"
+  },
+  "pageFloorNum": {
+    "14": 1,
+    "15": 1,
+    "16": 1,
+    "17": 1,
+    "18": 1,
+    "19": 1,
+    "20": 1,
+    "21": 1,
+    "22": 1,
+    "23": 1,
+    "24": 1,
+    "25": 1,
+    "26": 1,
+    "27": 1,
+    "28": 1,
+    "29": 1,
+    "30": 1,
+    "31": 1,
+    "32": 1,
+    "33": 1
+  },
+  "pageIdentities": [
+    "pg0",
+    "pg1",
+    "pg2",
+    "pg3",
+    "pg4",
+    "pg5",
+    "pg6",
+    "pg7",
+    "pg8",
+    "pg9",
+    "pg10",
+    "pg11",
+    "pg12",
+    "pg13",
+    "pg14",
+    "pg15",
+    "pg16",
+    "pg17",
+    "pg18",
+    "pg19",
+    "pg20",
+    "pg21",
+    "pg22",
+    "pg23",
+    "pg24",
+    "pg25",
+    "pg26",
+    "pg27",
+    "pg28",
+    "pg29",
+    "pg30",
+    "pg31",
+    "pg32"
+  ],
+  "liteLayers": [
+    {
+      "id": "gfa",
+      "name": "พื้นที่อาคาร",
+      "color": "#4c8dff",
+      "role": "gfa",
+      "order": 0,
+      "parentId": null
+    },
+    {
+      "id": "use",
+      "name": "พื้นที่ใช้สอย",
+      "color": "#39d98a",
+      "role": "use",
+      "order": 1,
+      "parentId": null
+    },
+    {
+      "id": "ded",
+      "name": "ช่องว่าง/หัก",
+      "color": "#ff6b6b",
+      "role": "ded",
+      "order": 2,
+      "parentId": null
+    },
+    {
+      "id": "site",
+      "name": "ที่ดิน",
+      "color": "#c084fc",
+      "role": "site",
+      "order": 3,
+      "parentId": null
+    },
+    {
+      "id": "open",
+      "name": "ที่ว่าง",
+      "color": "#ffb454",
+      "role": "open",
+      "order": 4,
+      "parentId": null
+    },
+    {
+      "id": "count",
+      "name": "นับจำนวน",
+      "color": "#22d3ee",
+      "role": "count",
+      "order": 5,
+      "parentId": null
+    },
+    {
+      "id": "L1",
+      "name": "ที่ดิน",
+      "color": "#c084fc",
+      "role": "site",
+      "order": 6,
+      "parentId": "PF_site"
+    },
+    {
+      "id": "L2",
+      "name": "พื้นที่อาคารปกคลุม",
+      "color": "#4c8dff",
+      "role": "gfa",
+      "order": 7,
+      "parentId": "PF_site"
+    },
+    {
+      "id": "L3",
+      "name": "แนวร่น (Setback)",
+      "color": "#ffb454",
+      "role": "use",
+      "order": 8,
+      "parentId": "PF_site"
+    },
+    {
+      "id": "L4",
+      "name": "GFA ชั้น 1",
+      "color": "#4c8dff",
+      "role": "gfa",
+      "order": 9,
+      "parentId": "PF_floor_1"
+    },
+    {
+      "id": "L5",
+      "name": "หักช่องลิฟต์",
+      "color": "#ff6b6b",
+      "role": "ded",
+      "order": 10,
+      "parentId": "PF_floor_1"
+    },
+    {
+      "id": "L6",
+      "name": "หักช่องบันได",
+      "color": "#ff6b6b",
+      "role": "ded",
+      "order": 11,
+      "parentId": "PF_floor_1"
+    },
+    {
+      "id": "L7",
+      "name": "หลังคา",
+      "color": "#ff4d4d",
+      "role": "gfa",
+      "order": 12,
+      "parentId": "PF_floor_1"
+    },
+    {
+      "id": "L8",
+      "name": "ทางเดิน",
+      "color": "#4dff4f",
+      "role": "gfa",
+      "order": 13,
+      "parentId": "PF_floor_1"
+    },
+    {
+      "id": "L9",
+      "name": "10*10",
+      "color": "#6a4dff",
+      "role": "gfa",
+      "order": 14,
+      "parentId": "PF_floor_1"
+    }
+  ],
+  "liteGroups": [
+    {
+      "id": "PF_site",
+      "name": "ชั้นพื้นดิน / Site",
+      "color": "#ffb454",
+      "parentId": null,
+      "order": 0,
+      "kind": "page-folder",
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "id": "PF_floor_1",
+      "name": "ชั้น 1",
+      "color": "#ffb454",
+      "parentId": null,
+      "order": 110,
+      "kind": "page-folder",
+      "pages": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ]
+    },
+    {
+      "id": "PF_excluded",
+      "name": "อื่น ๆ",
+      "color": "#ffb454",
+      "parentId": null,
+      "order": 9999,
+      "kind": "page-folder",
+      "pages": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ]
+    }
+  ],
+  "reportVars": [
+    {
+      "id": "v_net",
+      "name": "อาคารสุทธิ",
+      "unit": "ม²",
+      "expr": [
+        {
+          "ref": "gfa"
+        },
+        {
+          "op": "-",
+          "ref": "ded"
+        }
+      ]
+    },
+    {
+      "id": "v_osr",
+      "name": "OSR",
+      "unit": "%",
+      "expr": [
+        {
+          "ref": "open"
+        },
+        {
+          "op": "/",
+          "ref": "site"
+        },
+        {
+          "op": "*",
+          "lit": 100
+        }
+      ]
+    },
+    {
+      "id": "v_far",
+      "name": "FAR",
+      "unit": "",
+      "expr": [
+        {
+          "ref": "gfa"
+        },
+        {
+          "op": "/",
+          "ref": "site"
+        }
+      ]
+    }
+  ],
+  "masters": {},
+  "instances": []
+}

@@ -972,6 +972,7 @@ function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,t
   if(t==="ann_text"||t==="ann_comment"){ o.pt=(a.pts&&a.pts[0])||a.pt||{x:0,y:0}; o.text=a.text||""; } else { o.pts=a.pts||[]; }
   if(a.color)o.color=a.color; if(a.opacity!=null)o.opacity=a.opacity; if(a.fontSize)o.fontSize=a.fontSize; if(a.label){o.label=a.label;o.labelPt=a.labelPt;} return o; }
 function polyPts(o){ if(o.pts&&o.pts.length)return o.pts; if(o.geometryType==="path"&&Array.isArray(o.segments))return flattenPathToPoints(o,1.0); return []; }
+function stripClosingDup(pts,edges){ if(!pts||pts.length<4)return pts; var a=pts[0],b=pts[pts.length-1]; if(a&&b&&Math.abs(a.x-b.x)<1e-6&&Math.abs(a.y-b.y)<1e-6){ if(edges&&edges.length===pts.length)edges.length=pts.length-1; return pts.slice(0,-1); } return pts; }
 function loadProto(doc){ PS={}; excluded={};
   /* LST-2: rebuild FOLDERS in-place from doc.liteGroups (additive — absent = old file) */
   FOLDERS.length=0;
@@ -1001,8 +1002,8 @@ function loadProto(doc){ PS={}; excluded={};
   FOLDERS.forEach(function(f){ if(state.catVis[f.id]===undefined)state.catVis[f.id]=true;
     if(state.catLock[f.id]===undefined)state.catLock[f.id]=false; });
   if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
-    (st.polys||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa")); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true,edges:o.edges}); });
-    (st.openings||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"ded"; objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:polyPts(o),dimVisible:true,edges:o.edges}); });
+    (st.polys||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa")); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:stripClosingDup(polyPts(o),o.edges),dimVisible:true,edges:o.edges}); });
+    (st.openings||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"ded"; objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:stripClosingDup(polyPts(o),o.edges),dimVisible:true,edges:o.edges}); });
     (st.lines||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; objs.push({id:state._id++,catId:cid,semanticTag:"dimension_line",kind:"line",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
     (st.refs||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; objs.push({id:state._id++,catId:cid,semanticTag:"reference_line",kind:"ref",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
     (st.counts||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(o.catId||"count"); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"count_marker",kind:"count",counting:true,pts:[{x:o.x,y:o.y}],dimVisible:false}); });
