@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike — /bma-simulate accuracy metric (INV-2026-05-24-002, Approach A)</title>
+<style>
+  :root{
+    --bg:#1a1a1e; --panel:#26262c; --panel2:#2e2e36; --line:#3a3a44;
+    --ink:#e7e7ec; --muted:#8b8b95; --accent:#6ea8ff;
+    --good:#3ecf8e; --warn:#ffb547; --bad:#ef6363;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;}
+  header{padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);}
+  header h1{margin:0;font-size:14.5px;}
+  header p{margin:4px 0 0;color:var(--muted);font-size:11.5px;}
+  header code{background:var(--panel2);padding:0 5px;border-radius:3px;font-size:11px;}
+
+  main{display:grid;grid-template-columns:280px 1fr 1fr;gap:1px;background:var(--line);
+    min-height:calc(100vh - 60px);}
+  .pane{background:var(--bg);padding:12px 14px;overflow:auto;}
+  .pane h2{margin:0 0 8px;font-size:11.5px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.5px;font-weight:600;}
+
+  /* fixtures sidebar */
+  .fixtures{display:flex;flex-direction:column;gap:6px;}
+  .fixtures button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    padding:8px 10px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:12px;
+    text-align:left;line-height:1.4;}
+  .fixtures button:hover{filter:brightness(1.2);}
+  .fixtures button.act{border-color:var(--accent);background:rgba(110,168,255,.1);}
+  .fixtures button b{display:block;font-size:12px;margin-bottom:2px;}
+  .fixtures button span{color:var(--muted);font-size:10.5px;}
+  .compute{margin-top:14px;background:var(--accent);color:#06122a;border:0;
+    padding:9px;border-radius:5px;font-weight:600;cursor:pointer;font-size:12.5px;width:100%;}
+  .compute:hover{filter:brightness(1.1);}
+
+  /* textareas */
+  .ta-block{margin-bottom:10px;}
+  .ta-block label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;}
+  textarea{width:100%;background:#101013;color:var(--ink);border:1px solid var(--line);
+    border-radius:4px;padding:8px;font:11px/1.5 ui-monospace,monospace;resize:vertical;
+    min-height:200px;}
+
+  /* result table */
+  .axis-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
+  .axis-table th,.axis-table td{padding:7px 8px;text-align:left;border-bottom:1px solid #2c2c34;}
+  .axis-table th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;
+    letter-spacing:.3px;background:var(--panel);}
+  .axis-table .axis{font-weight:600;color:var(--ink);}
+  .axis-table .score{font-family:ui-monospace,monospace;tabular-nums;}
+  .axis-table .pass{color:var(--good);}
+  .axis-table .fail{color:var(--bad);}
+  .axis-table .detail{font-size:11px;color:var(--muted);}
+
+  .verdict{margin-top:12px;padding:11px 14px;border-radius:5px;background:var(--panel);
+    border:1px solid var(--line);font-size:12.5px;}
+  .verdict.ok{border-color:var(--good);background:rgba(62,207,142,.08);}
+  .verdict.fail{border-color:var(--bad);background:rgba(239,99,99,.08);}
+  .verdict.ghost{border-color:var(--warn);background:rgba(255,181,71,.08);}
+  .verdict b{font-size:13px;display:block;margin-bottom:3px;}
+  .verdict .reason{color:var(--muted);font-size:11.5px;margin-top:4px;}
+
+  .raw{margin-top:14px;font-size:11px;background:#101013;border:1px solid var(--line);
+    border-radius:4px;padding:8px;font-family:ui-monospace,monospace;color:var(--muted);
+    white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;}
+  .raw b{color:var(--accent);}
+
+  details.spec{margin-top:14px;background:var(--panel);border:1px solid var(--line);
+    border-radius:4px;padding:8px 12px;}
+  details.spec summary{cursor:pointer;font-size:12px;color:var(--muted);font-weight:500;}
+  details.spec[open] summary{color:var(--ink);margin-bottom:6px;}
+  details.spec ul{margin:4px 0;padding-left:18px;font-size:11.5px;color:var(--muted);}
+  details.spec li{margin:2px 0;}
+  details.spec code{background:#101013;padding:0 4px;border-radius:3px;color:var(--accent);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎯 Spike — /bma-simulate accuracy metric (Approach A: browser-only, inline expected, no aggregation)</h1>
+  <p>From INV-2026-05-24-002. Click a fixture → review left/center → press Compute → see 4-axis table on right.
+     Spike proves <code>≥1 axis exact (1.0)</code> + <code>≥1 axis drift (<1.0)</code> + <code>GHOST_PASS</code> invariant fires.</p>
+</header>
+
+<main>
+
+  <!-- ===== Sidebar: fixtures + compute ===== -->
+  <section class="pane">
+    <h2>Fixtures (click to load)</h2>
+    <div class="fixtures" id="fixtures">
+      <button data-fx="EXACT" class="act">
+        <b>1 · EXACT</b><span>all 4 axes match perfectly (smoke baseline)</span>
+      </button>
+      <button data-fx="AREA_DRIFT">
+        <b>2 · AREA_DRIFT</b><span>sim measured 950 m² vs ref 1000 m² — area axis fails</span>
+      </button>
+      <button data-fx="GHOST_PASS">
+        <b>3 · GHOST_PASS</b><span>all 4 axes numerically pass BUT step count too low — false-positive trap fires</span>
+      </button>
+      <button data-fx="MIXED">
+        <b>4 · MIXED</b><span>area exact, trace drifts (+1 extra step), export+roundtrip pass</span>
+      </button>
+    </div>
+    <button class="compute" onclick="runAccuracy()">▶ Compute accuracy</button>
+
+    <details class="spec">
+      <summary>📋 Spec summary (Approach A)</summary>
+      <ul>
+        <li><b>4 axes</b>, no aggregation — raw numbers reported</li>
+        <li><code>A</code> area: mean+max <code>|sim-ref|/ref</code> per page</li>
+        <li><code>T</code> trace: Levenshtein on step sequences</li>
+        <li><code>X</code> export: sheet count + column exact match</li>
+        <li><code>R</code> round-trip: <code>|saved-reopened|/saved</code></li>
+        <li><b>Thresholds</b>: A ≤1% · T ≤2 edits · X 100% · R ≤0.1%</li>
+        <li><b>GHOST_PASS</b>: 4 axes pass but <code>step_log.length < expected.min_step_count</code></li>
+        <li><b>Output</b>: <code>accuracy.json</code> per run, supplements severity</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ===== Center: scenario plan + sim output ===== -->
+  <section class="pane">
+    <h2>Inputs</h2>
+
+    <div class="ta-block">
+      <label>① Scenario plan (with inline <code>expected</code>)</label>
+      <textarea id="planTA" rows="14"></textarea>
+    </div>
+
+    <div class="ta-block">
+      <label>② Simulator output (STEP_LOG + downloaded-file summaries)</label>
+      <textarea id="logTA" rows="18"></textarea>
+    </div>
+  </section>
+
+  <!-- ===== Right: result ===== -->
+  <section class="pane">
+    <h2>Accuracy result</h2>
+    <div id="result">
+      <p style="color:var(--muted);font-size:12px;">กด ▶ Compute เพื่อคำนวณ</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ============================================================================
+   FIXTURES — 4 scenarios demonstrating the spike acceptance criteria
+   (success criterion 4: ≥1 exact + ≥1 drift; criterion 6: ghost-pass trap)
+============================================================================ */
+
+const FIXTURES = {};
+
+FIXTURES.EXACT = {
+  plan: {
+    scenario_id: "permit-45p-smoke",
+    pdf_path: "F:/.../permit.pdf",
+    scenario_plan: [
+      { step: "boot_lite" }, { step: "open_pdf" }, { step: "tag_pages" },
+      { step: "set_scale" }, { step: "measure_loop", args: { pages: [5, 11] } },
+      { step: "save_bmaplan" }, { step: "reopen_bmaplan" }, { step: "export_xlsx" }
+    ],
+    expected: {
+      areas:    { "5": 1919.20, "11": 739.50 },
+      steps:    ["boot_lite","open_pdf","tag_pages","set_scale","measure_loop","save_bmaplan","reopen_bmaplan","export_xlsx"],
+      export:   { sheetCount: 1, columns: ["page","layer","name","area_m2"] },
+      roundtrip:{ saved_total_m2: 2658.70 },
+      min_step_count: 8
+    }
+  },
+  log: {
+    step_log: [
+      { step: "boot_lite", status: "pass" },
+      { step: "open_pdf", status: "pass" },
+      { step: "tag_pages", status: "pass" },
+      { step: "set_scale", status: "pass" },
+      { step: "measure_loop", status: "pass", sub_summary: { areas: { "5": 1919.20, "11": 739.50 } } },
+      { step: "save_bmaplan", status: "pass", observed: { total_area_m2: 2658.70 } },
+      { step: "reopen_bmaplan", status: "pass", observed: { total_area_m2: 2658.70 } },
+      { step: "export_xlsx", status: "pass", observed: { sheetCount: 1, columns: ["page","layer","name","area_m2"] } }
+    ]
+  }
+};
+
+FIXTURES.AREA_DRIFT = JSON.parse(JSON.stringify(FIXTURES.EXACT));
+FIXTURES.AREA_DRIFT.plan.scenario_id = "permit-45p-area-drift";
+FIXTURES.AREA_DRIFT.log.step_log[4].sub_summary.areas = { "5": 1819.20, "11": 702.50 }; // p5 -5.2%, p11 -5.0%
+
+FIXTURES.GHOST_PASS = {
+  plan: {
+    scenario_id: "permit-45p-ghost-pass",
+    pdf_path: "F:/.../permit.pdf",
+    scenario_plan: [
+      { step: "boot_lite" }, { step: "open_pdf" }, { step: "tag_pages" },
+      { step: "set_scale" }, { step: "measure_loop", args: { pages: [5, 11] } },
+      { step: "save_bmaplan" }, { step: "reopen_bmaplan" }, { step: "export_xlsx" }
+    ],
+    expected: {
+      areas:    { "5": 0, "11": 0 },        // nothing expected → no diff
+      steps:    ["boot_lite","open_pdf","measure_loop"],   // ref also short
+      export:   { sheetCount: 0, columns: [] },             // empty match empty
+      roundtrip:{ saved_total_m2: 0 },
+      min_step_count: 8                       // BUT min_step_count says 8 — trap
+    }
+  },
+  log: {
+    step_log: [
+      { step: "boot_lite", status: "pass" },
+      { step: "open_pdf", status: "pass" },
+      { step: "measure_loop", status: "pass", sub_summary: { areas: { "5": 0, "11": 0 } } }
+      // only 3 steps total — sim crashed silently after measure_loop?
+      // 4 axes all pass (0 vs 0 = exact), but step_count = 3 < min_step_count = 8 → GHOST_PASS
+    ]
+  }
+};
+
+FIXTURES.MIXED = JSON.parse(JSON.stringify(FIXTURES.EXACT));
+FIXTURES.MIXED.plan.scenario_id = "permit-45p-mixed";
+// trace drift: insert extra step
+FIXTURES.MIXED.log.step_log.splice(3, 0, { step: "set_scale_retry", status: "pass" });
+
+/* ============================================================================
+   ACCURACY COMPUTATION
+============================================================================ */
+
+const THRESHOLDS = {
+  area_max_pct: 0.01,       // 1%
+  trace_max_edits: 2,
+  export_must_be_exact: true,
+  roundtrip_max_pct: 0.001  // 0.1%
+};
+
+function pct(x){ return (x * 100).toFixed(3) + "%"; }
+
+/* === A: area-value accuracy === */
+function scoreArea(plan, log){
+  const expectedAreas = plan.expected.areas || {};
+  const ml = log.step_log.find(s => s.step === "measure_loop");
+  const simAreas = (ml && ml.sub_summary && ml.sub_summary.areas) || {};
+  const pages = Object.keys(expectedAreas);
+  if(!pages.length) return { score: 1.0, mean: 0, max: 0, per_page: {}, pass: true, note: "no expected areas (zero-baseline)" };
+  let total = 0, maxRel = 0;
+  const per = {};
+  for(const p of pages){
+    const ref = expectedAreas[p], sim = simAreas[p] !== undefined ? simAreas[p] : null;
+    if(ref === 0 && (sim === 0 || sim === null)){
+      per[p] = { ref, sim, rel: 0 }; continue;
+    }
+    if(sim === null){
+      per[p] = { ref, sim: "MISSING", rel: 1.0 };
+      total += 1.0; maxRel = Math.max(maxRel, 1.0); continue;
+    }
+    const rel = Math.abs(sim - ref) / Math.abs(ref || 1);
+    per[p] = { ref, sim, rel };
+    total += rel; maxRel = Math.max(maxRel, rel);
+  }
+  const mean = total / pages.length;
+  const pass = maxRel <= THRESHOLDS.area_max_pct;
+  return { mean, max: maxRel, per_page: per, pass, note: pass ? "" : `max diff ${pct(maxRel)} > ${pct(THRESHOLDS.area_max_pct)}` };
+}
+
+/* === T: trace accuracy via Levenshtein === */
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  if(!m) return n; if(!n) return m;
+  const dp = Array.from({length:m+1}, () => new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) dp[i][0] = i;
+  for(let j=0;j<=n;j++) dp[0][j] = j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    dp[i][j] = (a[i-1]===b[j-1]) ? dp[i-1][j-1]
+      : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  }
+  return dp[m][n];
+}
+function scoreTrace(plan, log){
+  const expectedSteps = plan.expected.steps || [];
+  const observedSteps = log.step_log.map(s => s.step);
+  const dist = levenshtein(expectedSteps, observedSteps);
+  const pass = dist <= THRESHOLDS.trace_max_edits;
+  return { distance: dist, expected: expectedSteps, observed: observedSteps, pass,
+    note: pass ? "" : `edit distance ${dist} > max ${THRESHOLDS.trace_max_edits}` };
+}
+
+/* === X: export accuracy === */
+function scoreExport(plan, log){
+  const expectedX = plan.expected.export || {};
+  const xs = log.step_log.find(s => s.step === "export_xlsx");
+  if(!xs || !xs.observed){
+    return { sheetCountOk: false, columnsOk: false, pass: false, note: "no export_xlsx step in log" };
+  }
+  const obs = xs.observed;
+  const sheetCountOk = obs.sheetCount === expectedX.sheetCount;
+  const expCols = (expectedX.columns || []).join("|");
+  const obsCols = (obs.columns || []).join("|");
+  const columnsOk = expCols === obsCols;
+  const pass = sheetCountOk && columnsOk;
+  return { sheetCountOk, columnsOk, expected: expectedX, observed: obs, pass,
+    note: pass ? "" : "sheet/column mismatch" };
+}
+
+/* === R: round-trip accuracy === */
+function scoreRoundtrip(plan, log){
+  const save = log.step_log.find(s => s.step === "save_bmaplan");
+  const reopen = log.step_log.find(s => s.step === "reopen_bmaplan");
+  if(!save || !reopen){
+    return { drift: null, pass: false, note: "missing save_bmaplan or reopen_bmaplan in log" };
+  }
+  const saved = (save.observed || {}).total_area_m2;
+  const reopened = (reopen.observed || {}).total_area_m2;
+  if(saved === undefined || reopened === undefined){
+    return { drift: null, pass: false, note: "missing total_area_m2 observation" };
+  }
+  if(saved === 0 && reopened === 0) return { drift: 0, saved, reopened, pass: true, note: "zero-baseline" };
+  const drift = Math.abs(reopened - saved) / Math.abs(saved || 1);
+  const pass = drift <= THRESHOLDS.roundtrip_max_pct;
+  return { drift, saved, reopened, pass, note: pass ? "" : `drift ${pct(drift)} > ${pct(THRESHOLDS.roundtrip_max_pct)}` };
+}
+
+/* === GHOST_PASS invariant === */
+function checkGhostPass(plan, log, axes){
+  const minSteps = (plan.expected && plan.expected.min_step_count) || 0;
+  const observedSteps = log.step_log.length;
+  const allPass = axes.area.pass && axes.trace.pass && axes.export.pass && axes.roundtrip.pass;
+  const tooShort = observedSteps < minSteps;
+  return { fired: allPass && tooShort, observedSteps, minSteps, allPass };
+}
+
+/* === Orchestration === */
+function compute(plan, log){
+  const axes = {
+    area:      scoreArea(plan, log),
+    trace:     scoreTrace(plan, log),
+    export:    scoreExport(plan, log),
+    roundtrip: scoreRoundtrip(plan, log)
+  };
+  const ghost = checkGhostPass(plan, log, axes);
+  return { axes, ghost };
+}
+
+/* ============================================================================
+   RENDER
+============================================================================ */
+
+function renderResult(plan, log){
+  const out = document.getElementById("result");
+  let result;
+  try{
+    result = compute(plan, log);
+  }catch(e){
+    out.innerHTML = `<div class="verdict fail"><b>❌ COMPUTE ERROR</b><div class="reason">${e.message}</div></div>`;
+    return;
+  }
+  const { axes, ghost } = result;
+
+  let html = `<table class="axis-table">
+    <thead><tr><th>axis</th><th>raw</th><th>pass?</th><th>detail</th></tr></thead><tbody>`;
+
+  html += `<tr><td class="axis">A · area</td>
+    <td class="score">mean ${pct(axes.area.mean||0)}<br>max ${pct(axes.area.max||0)}</td>
+    <td class="${axes.area.pass?'pass':'fail'}">${axes.area.pass?'✓':'✗'}</td>
+    <td class="detail">${axes.area.note || JSON.stringify(axes.area.per_page).slice(0,140)}</td></tr>`;
+
+  html += `<tr><td class="axis">T · trace</td>
+    <td class="score">edits: ${axes.trace.distance}</td>
+    <td class="${axes.trace.pass?'pass':'fail'}">${axes.trace.pass?'✓':'✗'}</td>
+    <td class="detail">${axes.trace.note || `ref ${axes.trace.expected.length} · sim ${axes.trace.observed.length}`}</td></tr>`;
+
+  html += `<tr><td class="axis">X · export</td>
+    <td class="score">${axes.export.sheetCountOk?'sheets ✓':'sheets ✗'}<br>${axes.export.columnsOk?'cols ✓':'cols ✗'}</td>
+    <td class="${axes.export.pass?'pass':'fail'}">${axes.export.pass?'✓':'✗'}</td>
+    <td class="detail">${axes.export.note || `sheets=${(axes.export.observed||{}).sheetCount}`}</td></tr>`;
+
+  html += `<tr><td class="axis">R · round-trip</td>
+    <td class="score">drift: ${axes.roundtrip.drift===null?'—':pct(axes.roundtrip.drift)}</td>
+    <td class="${axes.roundtrip.pass?'pass':'fail'}">${axes.roundtrip.pass?'✓':'✗'}</td>
+    <td class="detail">${axes.roundtrip.note || `saved ${axes.roundtrip.saved} → reopen ${axes.roundtrip.reopened}`}</td></tr>`;
+
+  html += `</tbody></table>`;
+
+  // verdict block
+  const allPass = axes.area.pass && axes.trace.pass && axes.export.pass && axes.roundtrip.pass;
+  if(ghost.fired){
+    html += `<div class="verdict ghost"><b>⚠ GHOST_PASS (false-positive trap fired)</b>
+      All 4 axes pass numerically, BUT step_log has <b>${ghost.observedSteps}</b> entries
+      and expected minimum is <b>${ghost.minSteps}</b>. The simulator likely crashed silently
+      or skipped phases. <div class="reason">→ DO NOT TRUST the per-axis scores; investigate STEP_LOG first.</div></div>`;
+  } else if(allPass){
+    html += `<div class="verdict ok"><b>✅ ALL AXES PASS</b>
+      <div class="reason">No drift detected. step_count=${ghost.observedSteps} ≥ min=${ghost.minSteps}.</div></div>`;
+  } else {
+    const failed = [];
+    if(!axes.area.pass) failed.push("area");
+    if(!axes.trace.pass) failed.push("trace");
+    if(!axes.export.pass) failed.push("export");
+    if(!axes.roundtrip.pass) failed.push("round-trip");
+    html += `<div class="verdict fail"><b>✗ ACCURACY DRIFT</b>
+      Failed axes: <b>${failed.join(", ")}</b>
+      <div class="reason">No aggregation — see per-axis raw numbers above to know what to fix.</div></div>`;
+  }
+
+  // raw JSON (the actual accuracy.json this would write per run)
+  const accuracyJson = {
+    scenario_id: plan.scenario_id,
+    timestamp: new Date().toISOString(),
+    axes: {
+      area: { mean: axes.area.mean, max: axes.area.max, pass: axes.area.pass, per_page: axes.area.per_page },
+      trace: { distance: axes.trace.distance, pass: axes.trace.pass },
+      export: { sheetCountOk: axes.export.sheetCountOk, columnsOk: axes.export.columnsOk, pass: axes.export.pass },
+      roundtrip: { drift: axes.roundtrip.drift, pass: axes.roundtrip.pass }
+    },
+    ghost_pass: ghost.fired,
+    overall: ghost.fired ? "GHOST_PASS" : (allPass ? "PASS" : "FAIL")
+  };
+  html += `<div class="raw"><b>accuracy.json</b> (would be written to artifacts/sim/lite/.../accuracy.json):
+${JSON.stringify(accuracyJson, null, 2)}</div>`;
+
+  out.innerHTML = html;
+}
+
+/* ============================================================================
+   Boot + fixture wiring
+============================================================================ */
+
+function loadFixture(name){
+  const fx = FIXTURES[name];
+  if(!fx) return;
+  document.getElementById("planTA").value = JSON.stringify(fx.plan, null, 2);
+  document.getElementById("logTA").value = JSON.stringify(fx.log, null, 2);
+  document.querySelectorAll(".fixtures button").forEach(b => b.classList.toggle("act", b.dataset.fx === name));
+}
+
+function runAccuracy(){
+  let plan, log;
+  try{ plan = JSON.parse(document.getElementById("planTA").value); }
+  catch(e){
+    document.getElementById("result").innerHTML =
+      `<div class="verdict fail"><b>❌ Plan JSON parse error</b><div class="reason">${e.message}</div></div>`;
+    return;
+  }
+  try{ log = JSON.parse(document.getElementById("logTA").value); }
+  catch(e){
+    document.getElementById("result").innerHTML =
+      `<div class="verdict fail"><b>❌ Log JSON parse error</b><div class="reason">${e.message}</div></div>`;
+    return;
+  }
+  renderResult(plan, log);
+}
+
+document.querySelectorAll(".fixtures button").forEach(b => {
+  b.addEventListener("click", () => { loadFixture(b.dataset.fx); runAccuracy(); });
+});
+
+// boot: load first fixture, auto-compute
+loadFixture("EXACT");
+runAccuracy();
+</script>
+</body>
+</html>

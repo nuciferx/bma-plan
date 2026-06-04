@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE D3 — CE picker + STABLE-ROW-ID mapper (formulas survive delete/insert)</title>
+<link rel="stylesheet" href="vendor/jspreadsheet.min.css">
+<link rel="stylesheet" href="vendor/jsuites.min.css">
+<style>
+  body{font:14px/1.5 "Segoe UI",system-ui;margin:0;background:#f4f5f7;color:#1a1d21}
+  .wrap{max-width:820px;margin:22px auto;background:#fff;padding:20px 24px;border:1px solid #e3e6ea;border-radius:10px}
+  h1{font-size:16px;margin:0 0 2px} .sub{color:#6b7280;font-size:12px;margin-bottom:14px}
+  .bar{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap}
+  .bar button{font:13px "Segoe UI";padding:6px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer}
+  .bar button:hover{background:#eef2f7}
+  .ops{display:inline-flex;gap:4px;align-items:center;margin-left:8px;padding-left:10px;border-left:1px solid #e3e6ea}
+  .ops button{font:600 13px;padding:5px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer;min-width:34px}
+  .ops button:disabled{opacity:.35;cursor:not-allowed}
+  .hint{background:#f0f6ff;border:1px solid #d6e4ff;border-radius:8px;padding:9px 12px;font-size:12.5px;color:#274b8f;margin-bottom:10px}
+  .status{font-size:12px;min-height:16px;margin-top:6px;color:#b45454}
+  .legend{font-size:11px;color:#9aa3ad;margin-top:10px}
+  .stale-cell{background:#ffedd5 !important}
+  body.picker-mode .jss td.picker-hot{outline:2px solid #2d6cdf;outline-offset:-2px;cursor:cell}
+  body.picker-mode .jss td.picker-hot:hover{background:#eff6ff !important}
+  .jexcel_container td.editor input, .jss td.editor input, td.editor input, td.editor textarea{
+    background:#fffbe6 !important;border:2px solid #2d6cdf !important;color:#1a1d21 !important;
+    font:14px "Segoe UI" !important;width:100% !important;box-sizing:border-box !important;padding:2px 4px !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>D3 — Excel cell-click picker + STABLE-ROW-ID (สูตรไม่เพี้ยนเมื่อ ลบ/แทรก แถว)</h1>
+  <div class="sub">subtotal ถูกเก็บเป็น <b>semantic id</b> (เช่น r0+r2) ไม่ใช่ position (B1+B3) → ลบแถวที่ไม่เกี่ยว สูตร rewrite เองให้ชี้แถวเดิม · ลบแถวที่อ้างถึง term นั้นถูกตัด + ขึ้นแดง</div>
+
+  <div class="hint" id="hint">ดับเบิลคลิกช่องพื้นที่แถว Subtotal → พิมพ์ <b>=</b> → คลิก cell ตัวเลข → กด <b>+/−</b> → คลิก cell ถัดไป → Enter</div>
+
+  <div class="bar">
+    <button id="btn-sub">+ แทรกแถว Subtotal</button>
+    <button id="btn-net">+ แถวรวมสุทธิ (=B1+B2+B3−B4)</button>
+    <button id="btn-del2">🗑 ลบแถว "หลังคา B" (ทดสอบ stable)</button>
+    <button id="btn-save">💾 บันทึก</button>
+    <button id="btn-reopen">📂 เปิดใหม่</button>
+    <span class="ops" id="ops" title="ใส่เครื่องหมายระหว่างพิมพ์สูตร">
+      <button data-op="+" disabled>+</button>
+      <button data-op="-" disabled>−</button>
+      <button data-op="*" disabled>×</button>
+      <button data-op="/" disabled>÷</button>
+    </span>
+  </div>
+
+  <div id="grid"></div>
+  <div id="status" class="status"></div>
+  <div class="legend">น้ำเงินหนา = override · แดงอ่อน = แถวที่สูตรนี้อ้างถึงถูกลบ (term ถูกตัด) · สูตรเก็บเป็น semantic id แล้ว remap เป็น position ตอน render</div>
+</div>
+
+<script src="vendor/jsuites.min.js"></script>
+<script src="vendor/jspreadsheet.min.js"></script>
+<script>
+/* ---------- seed (same as -d2 so picker eval is comparable) ---------- */
+var SEED = [
+  ['หลังคา A', 50.45],
+  ['หลังคา B', 36.48],
+  ['ทางเดิน', 26.16],
+  ['ช่องลิฟต์ (หัก)', 10.00]
+];
+var baseline = SEED.map(function(r){return r[1];});
+var jss = null, host = null;
+
+/* ---------- STABLE-ROW-ID model ----------
+   rowIds[] runs parallel to jss data rows. Area rows seed ids r0..r3 (always the
+   leading block). Subtotal rows get st<n> (always appended at the end).
+   subMeta[id] = semantic terms [{id:'r0',op:'+'},{id:'r2',op:'+'}] — authored once
+   from the positional formula, then re-projected to current positions after every
+   structural mutation so the user's intent survives delete/insert. */
+var rowIds = [];
+var subMeta = {};
+var stCounter = 0;
+var _rebuilding = false;   /* guard: suppress capture while we re-project formulas */
+
+/* ---------- picker state (verbatim from D2) ---------- */
+var pickerActive = false;
+var editorInput = null;
+var editorCellX = -1, editorCellY = -1;
+
+function colCell(y){ return 'B'+(y+1); }
+function colLetter(x){ return String.fromCharCode(65 + x); }
+function areaCount(){ var n=0; for(var i=0;i<rowIds.length;i++){ if(rowIds[i].charAt(0)==='r') n++; else break; } return n; }
+
+function refreshOverrideStyles(){
+  if(!jss) return;
+  var ac = areaCount();
+  for(var i=0;i<ac;i++){
+    var raw = jss.getValueFromCoords(1,i);
+    var isFormula = typeof raw==='string' && raw.charAt(0)==='=';
+    var num = parseFloat(raw);
+    var overridden = !isFormula && isFinite(num) && Math.abs(num-baseline[i])>1e-9;
+    jss.setStyle(colCell(i), 'color', overridden?'#1d4ed8':'');
+    jss.setStyle(colCell(i), 'font-weight', overridden?'700':'');
+  }
+}
+
+/* ---------- formula <-> semantic-id translation ---------- */
+function parseFormula(f){
+  /* '=B1+B3' / '=B1-B4' -> [{id,op}] mapped against CURRENT rowIds at author time */
+  var body = String(f).replace(/^=/,'');
+  var terms=[]; var re=/([+\-*/]?)\s*B(\d+)/gi; var m;
+  while((m=re.exec(body))){
+    var op = m[1]||'+';
+    var n = parseInt(m[2],10);
+    var id = rowIds[n-1];
+    if(id) terms.push({id:id, op: (op==='-'?'-':'+')});
+  }
+  return terms;
+}
+function captureFormula(rowIdx, value){
+  var id = rowIds[rowIdx];
+  if(!id) return;
+  subMeta[id] = parseFormula(value);
+}
+function rebuildSubtotals(){
+  /* re-project every stored subMeta to CURRENT positions; drop terms whose row
+     was deleted (flag red). Idempotent. */
+  _rebuilding = true;
+  for(var p=0;p<rowIds.length;p++){
+    var meta = subMeta[rowIds[p]];
+    if(!meta) continue;
+    var s='', dropped=false;
+    for(var k=0;k<meta.length;k++){
+      var t=meta[k];
+      var pos = rowIds.indexOf(t.id);
+      if(pos<0){ dropped=true; continue; }   /* referenced row was deleted */
+      var ref='B'+(pos+1);
+      if(s===''){ s = (t.op==='-'?'-':'') + ref; }
+      else      { s += t.op + ref; }
+    }
+    jss.setValueFromCoords(1, p, s===''? '0' : '='+s, true);
+    jss.setStyle('B'+(p+1), 'background-color', dropped ? '#ffe0e0' : '');
+  }
+  _rebuilding = false;
+}
+
+/* ---------- structural mutations keep rowIds + baseline in sync ---------- */
+function addSubtotalRow(label, formula){
+  var id = 'st'+(++stCounter);
+  rowIds.push(id);
+  _rebuilding = true;
+  jss.insertRow([label, formula||'']);
+  _rebuilding = false;
+  if(formula){ captureFormula(rowIds.length-1, formula); rebuildSubtotals(); }
+}
+function doDeleteRow(idx){
+  if(idx<0 || idx>=rowIds.length) return;
+  var ac = areaCount();
+  rowIds.splice(idx,1);
+  if(idx < ac) baseline.splice(idx,1);
+  _rebuilding = true;
+  jss.deleteRow(idx,1);
+  _rebuilding = false;
+  rebuildSubtotals();
+  refreshOverrideStyles();
+}
+
+/* ---------- the Excel cell-click picker (verbatim from D2) ---------- */
+function setPickerActive(on){
+  pickerActive = on;
+  document.body.classList.toggle('picker-mode', on);
+  [].forEach.call(document.querySelectorAll('#ops button'), function(b){ b.disabled = !on; });
+  if(!host) return;
+  [].forEach.call(host.querySelectorAll('td.picker-hot'), function(td){ td.classList.remove('picker-hot'); });
+  if(on){
+    [].forEach.call(host.querySelectorAll('td[data-x="1"]'), function(td){
+      var y = parseInt(td.getAttribute('data-y'),10);
+      if(y!==editorCellY) td.classList.add('picker-hot');
+    });
+  }
+}
+function insertAtCaret(text){
+  if(!editorInput) return;
+  var s = editorInput.selectionStart || editorInput.value.length;
+  var e = editorInput.selectionEnd   || editorInput.value.length;
+  var v = editorInput.value;
+  editorInput.value = v.slice(0,s) + text + v.slice(e);
+  var pos = s + text.length;
+  editorInput.selectionStart = editorInput.selectionEnd = pos;
+  editorInput.focus();
+  editorInput.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function bindHostPicker(){
+  host.addEventListener('mousedown', function(e){
+    if(!pickerActive || !editorInput) return;
+    var td = e.target.closest && e.target.closest('td');
+    if(!td) return;
+    var xs = td.getAttribute('data-x'), ys = td.getAttribute('data-y');
+    if(xs===null || ys===null) return;
+    var x = parseInt(xs,10), y = parseInt(ys,10);
+    if(x !== 1) return;
+    if(x === editorCellX && y === editorCellY) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    insertAtCaret(colLetter(x) + (y+1));
+  }, true);
+}
+
+function init(saved){
+  var data = saved && saved.data ? saved.data : SEED.map(function(r){return r.slice();});
+  if(saved && saved.baseline) baseline = saved.baseline.slice();
+  /* re-seed stable-id model */
+  rowIds = []; subMeta = {}; stCounter = 0;
+  var nArea = saved && saved.areaCount!=null ? saved.areaCount : SEED.length;
+  for(var i=0;i<data.length;i++){
+    if(i<nArea){ rowIds.push('r'+i); }
+    else { rowIds.push('st'+(++stCounter)); }
+  }
+  if(saved && saved.subMeta){ subMeta = JSON.parse(JSON.stringify(saved.subMeta)); }
+
+  host = document.getElementById('grid'); host.innerHTML='';
+  jss = jspreadsheet(host, {
+    data: data,
+    columns: [
+      {type:'text', title:'ประเภท', width:240},
+      {type:'numeric', title:'พื้นที่ (ตร.ม.)', width:160, align:'right'}
+    ],
+    allowInsertRow:true, allowDeleteRow:true, allowInsertColumn:false,
+    editable:true, about:false, tableOverflow:false,
+
+    oneditionstart: function(el, cell, x, y){
+      editorCellX = parseInt(x,10); editorCellY = parseInt(y,10);
+    },
+    oncreateeditor: function(el, cell, x, y, inputEl){
+      var inp = inputEl || cell.querySelector('input,textarea');
+      if(!inp) return;
+      editorInput = inp;
+      var update = function(){ if(!inp) return; setPickerActive((inp.value||'').charAt(0)==='='); };
+      inp.addEventListener('input', update);
+      inp.addEventListener('keyup', update);
+      update();
+    },
+    oneditionend: function(){
+      setPickerActive(false);
+      editorInput = null; editorCellX = -1; editorCellY = -1;
+    },
+    onchange: function(instance, cell, x, y, value){
+      if(_rebuilding) return;
+      document.getElementById('status').style.color='#b45454';
+      document.getElementById('status').textContent='';
+      refreshOverrideStyles();
+      /* a formula authored in column B = capture its semantic intent NOW */
+      var xi = parseInt(x,10), yi = parseInt(y,10);
+      if(xi===1 && typeof value==='string' && value.charAt(0)==='='){ captureFormula(yi, value); }
+    },
+    onload: refreshOverrideStyles
+  });
+
+  bindHostPicker();
+  refreshOverrideStyles();
+}
+
+/* ---------- operator buttons ---------- */
+document.getElementById('ops').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-op]'); if(!b || b.disabled) return;
+  insertAtCaret(b.getAttribute('data-op'));
+});
+
+/* ---------- toolbar ---------- */
+document.getElementById('btn-sub').onclick = function(){
+  addSubtotalRow('รวม (พิมพ์ = แล้วคลิก cell)','');
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='แถว Subtotal เพิ่มแล้ว — ดับเบิลคลิก → = → คลิก cell';
+};
+document.getElementById('btn-net').onclick = function(){
+  addSubtotalRow('รวมสุทธิ', '=B1+B2+B3-B4');
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='แถวรวมสุทธิ — เก็บเป็น semantic id แล้ว';
+};
+document.getElementById('btn-del2').onclick = function(){
+  doDeleteRow(1);
+  document.getElementById('status').style.color='#d97706';
+  document.getElementById('status').textContent='ลบ "หลังคา B" แล้ว — สูตรที่ไม่อ้างถึงมัน remap เองให้ค่าคงเดิม';
+};
+document.getElementById('btn-save').onclick = function(){
+  try{ localStorage.setItem('cmpD3', JSON.stringify({data:jss.getData(), baseline:baseline, areaCount:areaCount(), subMeta:subMeta})); }catch(e){}
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='บันทึกแล้ว (รวม semantic subMeta)';
+};
+document.getElementById('btn-reopen').onclick = function(){
+  var s=null; try{ s=JSON.parse(localStorage.getItem('cmpD3')); }catch(e){}
+  init(s);
+  if(s) rebuildSubtotals();
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='เปิดใหม่ — semantic ref กลับมาครบ';
+};
+
+/* ---------- eval API (DOM-driven picker + stable-id inspectors) ---------- */
+window.JSSAPI = {
+  reset: function(){
+    baseline = SEED.map(function(r){return r[1];});
+    try{localStorage.removeItem('cmpD3');}catch(e){}
+    init(null);
+  },
+  setCell: function(cell,val){ jss.setValue(cell,val); },
+  get:    function(cell){ return parseFloat(jss.getValue(cell,true)); },
+  rawGet: function(cell){ return jss.getValue(cell,false); },
+  /* subtotal insert via the stable path so rowIds stays aligned */
+  insertSubtotalFormula: function(label,formula){ addSubtotalRow(label, formula); },
+  deleteRow: function(idx){ doDeleteRow(idx); },
+  data:      function(){ return jss.getData(); },
+
+  /* stable-id inspectors */
+  rowIdsSnapshot: function(){ return rowIds.slice(); },
+  subMetaOf: function(rowIdx){ var m = subMeta[rowIds[rowIdx]]; return m? JSON.parse(JSON.stringify(m)) : null; },
+  isDropped: function(cell){
+    var st=jss.getStyle(cell);
+    return /ffe0e0|255,\s*224,\s*224/.test((st&&st['background-color'])||(typeof st==='string'?st:'')||'');
+  },
+  isStale: function(cell){
+    var st=jss.getStyle(cell);
+    return /ffedd5|255,\s*237,\s*213/.test((st&&st['background-color'])||(typeof st==='string'?st:'')||'');
+  },
+
+  /* recompute baseline (override-stale path, same as D2) */
+  recompute: function(map){
+    for(var k in map){
+      var i=parseInt(k,10);
+      var raw=jss.getValueFromCoords(1,i);
+      var isF=typeof raw==='string'&&raw.charAt(0)==='=';
+      var num=parseFloat(raw);
+      var ovr=!isF&&isFinite(num)&&Math.abs(num-baseline[i])>1e-9;
+      if(ovr){ if(Math.abs(map[k]-baseline[i])>1e-9){ jss.setStyle(colCell(i),'background-color','#ffedd5'); } }
+      else { jss.setValueFromCoords(1,i,map[k],true); }
+    }
+    for(var k2 in map){ baseline[parseInt(k2,10)]=map[k2]; }
+    refreshOverrideStyles();
+  },
+
+  /* ---- DOM-driven picker (verbatim from D2) ---- */
+  openEditor: function(x,y){
+    var td = host.querySelector('td[data-x="'+x+'"][data-y="'+y+'"]');
+    if(!td) return false;
+    jss.openEditor(td);
+    return !!editorInput;
+  },
+  typeIntoEditor: function(text){
+    if(!editorInput) return false;
+    var s = editorInput.selectionStart, e = editorInput.selectionEnd;
+    if(s==null) s = editorInput.value.length;
+    if(e==null) e = editorInput.value.length;
+    editorInput.value = editorInput.value.slice(0,s) + text + editorInput.value.slice(e);
+    var pos = s + text.length;
+    editorInput.selectionStart = editorInput.selectionEnd = pos;
+    editorInput.dispatchEvent(new Event('input',{bubbles:true}));
+    return true;
+  },
+  clickCell: function(x,y){
+    var td = host.querySelector('td[data-x="'+x+'"][data-y="'+y+'"]');
+    if(!td) return false;
+    var rect = td.getBoundingClientRect();
+    td.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, cancelable:true, clientX:rect.left+5, clientY:rect.top+5, button:0}));
+    return true;
+  },
+  clickOp: function(op){
+    var b = document.querySelector('#ops button[data-op="'+op+'"]');
+    if(!b || b.disabled) return false;
+    b.click(); return true;
+  },
+  editorValue: function(){ return editorInput ? editorInput.value : null; },
+  pickerActive: function(){ return pickerActive; },
+  commitEditor: function(){
+    if(!editorInput) return false;
+    var inp = editorInput;
+    inp.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Enter',code:'Enter',keyCode:13,which:13}));
+    inp.dispatchEvent(new KeyboardEvent('keyup',  {bubbles:true,cancelable:true,key:'Enter',code:'Enter',keyCode:13,which:13}));
+    try{ inp.blur(); }catch(e){}
+    return true;
+  }
+};
+
+init(null);
+</script>
+</body>
+</html>

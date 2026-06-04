@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPIKE — layer-panel design-system calibration (Approach D)</title>
+<!--
+  Invention spike for idea 2026-05-23-11-15 — "Layer panel design-system spec for lite (sandbox-anchored)"
+  Approach D (feature-flag `body.lt-v2` toggle) — scored 23/30 by bma-inventor 2026-05-23.
+
+  REVISION 2 (2026-05-23): v1 now byte-faithful reproduction of live `lite/ui-lite.html`
+  layer picker. Sources used to rebuild v1:
+    - `lite/ui-lite.html` lines 17-18 (:root tokens), 45-62 (picker + .cat + .lp-* CSS)
+    - `lite/static/js/layer-dnd.js` lines 38-67 (JS-inject CSS for .lt-grip, .lt-drop-into,
+      .lt-drop-group, #lt-dnd-ghost, #lt-dnd-line, #lt-autogroup-bar)
+    - `lite/static/js/layer-tree.js` lines 150-300 (row DOM construction: collapse-toggle,
+      folder icon, swatch, name, eye, lock, del — emitted by _ltRenderFolder / _ltRenderLayer)
+    - `artifacts/live-picker.html` (snapshot of real rendered DOM with default 6 layers)
+
+  Anchor for v2: `lite/sandbox/invent-layer-dnd.html` (user picked via Drive link, byte-identical
+  to repo copy). The anchor's :root and #picker/.cat/.lt-* CSS define the v2 calibration target.
+
+  Real pain confirmed by ground-truth screenshot: layer names WRAP TO 2-3 LINES because 190px
+  is too tight for Thai names like "ช่องว่าง/หัก", "พื้นที่อาคาร", "นับจำนวน". This is the
+  visible UX problem behind the user's "ยังไม่ถูกใจ ui" complaint. v2's 320px stops the wrap
+  (briefly widened to 440 in LCAL-S5 2026-05-23, then reverted to 320 in LCAL-S6 same day —
+  440 was solving a hypothetical long-name layer problem at real canvas cost; 320 fits all
+  default Thai names already, and text-overflow:ellipsis below handles future overflow).
+-->
+<style>
+  /* ===========================================================================
+     V1 :root — EXACT copy from lite/ui-lite.html line 17-18 (no edits)
+     =========================================================================== */
+  :root {
+    --bar-h: 42px;
+    --bg: #0f1115;
+    --panel: #161a22;
+    --line: #2a3140;
+    --ink: #e7ecf3;
+    --muted: #8b97a8;
+    --accent: #4c8dff;
+    --good: #39d98a;
+    --warn: #ffb454;
+  }
+
+  /* ===========================================================================
+     V2 (body.lt-v2) — anchor tokens from lite/sandbox/invent-layer-dnd.html
+     The 13th gap from inventor: anchor's `--line` is the BLUE accent, anchor's
+     `--border` is the SEPARATOR. Live's --line is the separator. To avoid token
+     renaming (would break .menu .dd / .hud / .zoomctl etc.), v2 keeps live's
+     naming and re-maps values: anchor's blue `#4aa3ff` → v2 `--accent`,
+     anchor's `#3a3d44` → v2 `--line` (separator).
+     =========================================================================== */
+  body.lt-v2 {
+    --bg: #1e1f23;
+    --panel: #26282d;
+    --line: #3a3d44;
+    --ink: #e6e8ec;
+    --muted: #8b909a;
+    --accent: #4aa3ff;
+    /* 5 NEW tokens from anchor that did not exist in live: */
+    --row: #2d3036;
+    --row-hover: #343841;
+    --row-active: #3a4150;
+    --nest: #3b5b3b;
+    --group: #2f6b3f;
+  }
+
+  /* ===========================================================================
+     Generic sandbox chrome — NOT subject of calibration
+     =========================================================================== */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    transition: background 0.18s ease;
+  }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+  .topbar h1 { margin: 0; font-size: 13px; font-weight: 600; }
+  .topbar .spacer { flex: 1; }
+  .topbar .pill {
+    display: inline-block; font-size: 11px;
+    padding: 2px 8px; border-radius: 9px;
+    background: #00000044; color: var(--muted);
+  }
+  body.lt-v2 .topbar .pill.v2 { background: var(--accent); color: #061a30; font-weight: 600; }
+  body:not(.lt-v2) .topbar .pill.v1 { background: var(--accent); color: #061a30; font-weight: 600; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 6px;
+    background: var(--accent); color: #061a30;
+    border: 0; cursor: pointer; font-weight: 600; font-size: 12px;
+  }
+  .toggle:hover { filter: brightness(1.08); }
+
+  .stage {
+    position: relative;
+    min-height: 540px;
+    background:
+      radial-gradient(ellipse at 30% 40%, #00000022, transparent 60%),
+      var(--bg);
+    transition: background 0.18s ease;
+  }
+
+  /* ===========================================================================
+     #picker — V1 RULES = byte-faithful from live `ui-lite.html` lines 45-62
+     =========================================================================== */
+  #picker {
+    position: absolute; top: 54px; left: 10px;
+    background: rgba(20, 24, 32, 0.92);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px;
+    width: 190px;
+    z-index: 20;
+    transition: width 0.22s ease, background 0.18s ease, border-radius 0.18s ease, border-color 0.18s ease;
+  }
+  #picker .h {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 2px 4px 7px;
+  }
+  .cat {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .cat:hover { background: #222a37; }
+  .cat.active { background: #1d2735; outline: 1px solid var(--accent); }
+  .cat .sw { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+  .cat .nm { flex: 1; }
+  .cat .eye {
+    font-size: 13px;
+    color: var(--muted);
+    width: 18px;
+    text-align: center;
+  }
+  .cat .eye.off { opacity: 0.35; }
+  .lp-sw {
+    cursor: pointer;
+    outline: 1px solid transparent;
+    transition: outline 0.1s;
+  }
+  .lp-sw:hover { outline-color: var(--accent); }
+  #picker .lp-add-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 4px;
+    padding: 0;
+    line-height: 1;
+  }
+  #picker .lp-add-btn:hover { background: #2a3140; color: var(--ink); }
+
+  /* JS-inject CSS from layer-dnd.js (lines 43-64) — verbatim */
+  .lt-grip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 100%;
+    cursor: grab; touch-action: none;
+    color: var(--muted, #888);
+    font-size: 13px;
+    flex-shrink: 0;
+    opacity: 0.6;
+    margin-right: 2px;
+    user-select: none;
+  }
+  .lt-grip:hover { opacity: 1; }
+  .lt-grip:active { cursor: grabbing; }
+  #lt-autogroup-bar {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 6px 3px 8px;
+    font-size: 11px;
+    color: var(--muted, #8b909a);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  #lt-autogroup-bar label {
+    display: flex; align-items: center; gap: 4px; cursor: pointer;
+  }
+
+  /* ===========================================================================
+     V2 OVERRIDES — scoped to body.lt-v2 only
+     =========================================================================== */
+  body.lt-v2 #picker {
+    width: 320px;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 0;
+  }
+  body.lt-v2 #picker .h {
+    padding: 10px 12px 8px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    font-weight: 600;
+  }
+  body.lt-v2 #lt-autogroup-bar { padding: 5px 10px; }
+  body.lt-v2 #catlist { padding: 4px 6px 8px; }
+  body.lt-v2 .cat {
+    height: 30px;
+    padding: 0 6px;
+    margin: 2px 0;
+    background: var(--row);
+    border-radius: 5px;
+    gap: 5px;
+  }
+  body.lt-v2 .cat:hover { background: var(--row-hover); }
+  body.lt-v2 .cat.active { background: var(--row-active); outline: 1px solid #4d5a72; }
+  body.lt-v2 .cat .nm {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.lt-v2 .cat .sw { width: 14px; height: 14px; }
+  body.lt-v2 .cat .eye { width: 20px; font-size: 13px; opacity: 0.85; }
+  body.lt-v2 .cat .eye:hover { opacity: 1; }
+  body.lt-v2 .lt-grip {
+    width: 14px;
+    opacity: 0.7;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ===========================================================================
+     Annotation panel
+     =========================================================================== */
+  .annot {
+    position: absolute;
+    top: 54px; right: 14px;
+    width: 460px;
+    max-height: calc(100vh - 120px);
+    overflow: auto;
+    color: var(--muted);
+    font-size: 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .annot h3 { margin: 0 0 6px; color: var(--ink); font-size: 13px; }
+  .annot h4 { margin: 10px 0 4px; color: var(--ink); font-size: 12px; }
+  .annot table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
+  .annot td { padding: 2px 4px; vertical-align: top; }
+  .annot td:nth-child(1) { color: var(--muted); width: 120px; }
+  .annot td:nth-child(2) { font-family: ui-monospace, monospace; color: #9fd; }
+  .annot td:nth-child(3) { font-family: ui-monospace, monospace; color: var(--accent); }
+  .annot code { background: #00000044; padding: 1px 4px; border-radius: 3px; font-size: 11px; color: #9fd; }
+  .annot .gap { color: #f6a609; }
+  .annot ul { margin: 4px 0; padding-left: 18px; }
+  .annot li { margin: 3px 0; }
+  .annot .v1note {
+    background: #00000033;
+    border-left: 3px solid var(--warn);
+    padding: 6px 8px;
+    margin: 6px 0;
+    font-size: 11px;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>SPIKE — layer-panel calibration (Approach D)</h1>
+  <span class="pill v1">v1 = live ปัจจุบัน (byte-faithful)</span>
+  <span class="pill v2">v2 = anchor calibrated</span>
+  <span class="spacer"></span>
+  <button class="toggle" id="btnToggle">Toggle v1 ⇄ v2</button>
+</div>
+
+<div class="stage">
+  <!-- Picker — DOM structure replicates layer-tree.js _ltRenderLayer output exactly -->
+  <div id="picker">
+    <div class="h" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>กำลังวัดอะไร (= layer = semantic)</span>
+      <span style="display:flex;gap:2px;">
+        <button class="lp-add-btn" title="เพิ่ม layer ใหม่">+</button>
+        <button class="lp-add-btn" title="เพิ่มกลุ่ม">📁+</button>
+        <button class="lp-add-btn" title="สลับธีม layer panel (LCAL-S3 ใน live)">🎨</button>
+      </span>
+    </div>
+    <div id="lt-autogroup-bar">
+      <label><input type="checkbox"> จับกลุ่มเมื่อชนกัน</label>
+    </div>
+    <div id="catlist"></div>
+  </div>
+
+  <!-- Annotation panel -->
+  <div class="annot">
+    <h3>Approach D — feature-flag <code>body.lt-v2</code></h3>
+    กดปุ่ม Toggle ด้านบน เพื่อสลับระหว่าง v1 (live ปัจจุบัน) ↔ v2 (anchor calibrated).
+    <code id="bodyClass">(none)</code> = body class ปัจจุบัน.
+
+    <div class="v1note">
+      <b>v1 ground truth:</b> ภาพ <code>#picker</code> ใน v1 = สำเนา byte-faithful จาก
+      <code>lite/ui-lite.html</code> สด ที่ port 8110 (snapshot ลง <code>artifacts/live-picker.html</code>).
+      สังเกตว่า <b>ชื่อ Thai ตัดบรรทัด</b> เพราะ 190px แคบ — นี่คือ pain ที่จับต้องได้
+      เบื้องหลัง "ยังไม่ถูกใจ ui".
+    </div>
+
+    <h4>Token changes v1 → v2</h4>
+    <table>
+      <tr><td>Token</td><td>v1 (live)</td><td>v2 (anchor)</td></tr>
+      <tr><td>--bg</td><td>#0f1115</td><td>#1e1f23</td></tr>
+      <tr><td>--panel</td><td>#161a22</td><td>#26282d</td></tr>
+      <tr><td>--line</td><td>#2a3140</td><td>#3a3d44</td></tr>
+      <tr><td>--accent</td><td>#4c8dff</td><td>#4aa3ff</td></tr>
+      <tr><td class="gap">--row</td><td class="gap">(ไม่มี)</td><td>#2d3036</td></tr>
+      <tr><td class="gap">--row-hover</td><td class="gap">(ไม่มี)</td><td>#343841</td></tr>
+      <tr><td class="gap">--row-active</td><td class="gap">(ไม่มี)</td><td>#3a4150</td></tr>
+      <tr><td class="gap">--nest</td><td class="gap">(ไม่มี)</td><td>#3b5b3b</td></tr>
+      <tr><td class="gap">--group</td><td class="gap">(ไม่มี)</td><td>#2f6b3f</td></tr>
+    </table>
+
+    <h4>Layout / row changes</h4>
+    <table>
+      <tr><td>Property</td><td>v1 (live)</td><td>v2 (anchor)</td></tr>
+      <tr><td>#picker width</td><td>190px</td><td>320px (LCAL-S2 ship; briefly 440 in S5, reverted in S6)</td></tr>
+      <tr><td>#picker bg</td><td>rgba(20,24,32,.92)</td><td>var(--panel)</td></tr>
+      <tr><td>#picker radius</td><td>10px</td><td>8px</td></tr>
+      <tr><td>#picker padding</td><td>8px</td><td>0 (header/list pad internally)</td></tr>
+      <tr><td>#picker .h</td><td>margin 2px 4px 7px, font 11px</td><td>padding 10/12, font 13, border-bottom</td></tr>
+      <tr><td>.cat bg (idle)</td><td>transparent</td><td>var(--row) chip</td></tr>
+      <tr><td>.cat:hover</td><td>#222a37</td><td>var(--row-hover)</td></tr>
+      <tr><td>.cat.active</td><td>#1d2735 + accent outline</td><td>var(--row-active) + #4d5a72</td></tr>
+      <tr><td>.cat radius</td><td>7px</td><td>5px</td></tr>
+      <tr><td>.cat height</td><td>content-driven (wraps!)</td><td>30px fixed (ellipsis)</td></tr>
+      <tr><td>.cat padding</td><td>6px 8px</td><td>0 6px</td></tr>
+      <tr><td>.cat margin</td><td>0</td><td>2px 0</td></tr>
+      <tr><td>.cat gap</td><td>8px</td><td>5px</td></tr>
+      <tr><td>.sw size</td><td>12×12</td><td>14×14</td></tr>
+      <tr><td>.eye width</td><td>18px</td><td>20px</td></tr>
+      <tr><td>.lt-grip opacity</td><td>0.6</td><td>0.7</td></tr>
+    </table>
+
+    <h4>Risk จาก inventor</h4>
+    <ul>
+      <li><b>--line naming inversion:</b> anchor spike ใช้ <code>--line</code> = น้ำเงิน accent, live ใช้ <code>--line</code> = สี separator. Approach D เก็บชื่อตามของ live (line=separator, accent=blue) แค่เปลี่ยน value — ไม่เกิด rename.</li>
+      <li><b>Specificity doubling:</b> <code>body.lt-v2 .cat</code> ลึกกว่า <code>.cat</code> 1 ระดับ. ถ้า future inline-injected style จาก <code>layer-dnd.js</code> ไม่ scope ใต้ flag, จะ override v2 colors. Ship sprint ต้อง scope JS-inject หรือ migrate ไป <code>layer-panel.css</code>.</li>
+      <li><b>Canvas overlap risk:</b> 320px panel กิน canvas working area เพิ่ม 130px (จากเดิม 190px). ใน live จริงต้องเช็คว่าหน้าจอเล็ก (≤1024px) ยังทำงานได้ — ที่ 1400px viewport เหลือ canvas ~1080px ซึ่งสบาย</li>
+    </ul>
+
+    <h4>หลัง GO — ship plan (LCAL-S1..S3 ผ่าน /bma-lite-dev)</h4>
+    <ol>
+      <li><b>LCAL-S1</b> — <code>lite/static/css/design-tokens.css</code> (~30 บรรทัด, <code>body.lt-v2 {}</code> block).</li>
+      <li><b>LCAL-S2</b> — <code>lite/static/css/layer-panel.css</code> (~80 บรรทัด, all <code>body.lt-v2 #picker</code> + <code>.cat</code> selectors).</li>
+      <li><b>LCAL-S3</b> — toggle button + 4-line JS toggler ใน <code>ui-lite.html</code> (+~8 บรรทัด, สู่ 1146/1200).</li>
+      <li>(แยก) <b>LCAL-S4</b> — เมื่อ user ยืนยัน v2 ชนะ: ลบ flag, ย้าย v2 values เป็น base <code>:root</code>, ลบ <code>body.lt-v2</code> selectors. <b>Flag = เครื่องมือตัดสินใจ, ไม่ใช่ฟีเจอร์ถาวร.</b></li>
+    </ol>
+  </div>
+</div>
+
+<script>
+/* Mock the 6 default layers from lite/ui-lite.html CATS array — uses real ids/colors/names */
+var LAYERS = [
+  {id:"gfa",   name:"พื้นที่อาคาร",  color:"rgb(76, 141, 255)",  active:true},
+  {id:"use",   name:"พื้นที่ใช้สอย",  color:"rgb(57, 217, 138)",  active:false},
+  {id:"ded",   name:"ช่องว่าง/หัก",   color:"rgb(255, 107, 107)", active:false},
+  {id:"site",  name:"ที่ดิน",         color:"rgb(192, 132, 252)", active:false},
+  {id:"open",  name:"ที่ว่าง",        color:"rgb(255, 180, 84)",  active:false},
+  {id:"count", name:"นับจำนวน",       color:"rgb(34, 211, 238)",  active:false}
+];
+
+function render(){
+  var list = document.getElementById("catlist");
+  list.innerHTML = "";
+  LAYERS.forEach(function(L){
+    var d = document.createElement("div");
+    d.className = "cat lt-layer-row" + (L.active ? " active" : "");
+    d.setAttribute("data-catid", L.id);
+    d.setAttribute("data-nodekind", "layer");
+    d.tabIndex = 0;
+
+    // .lt-grip — verbatim from layer-dnd.js line 147-149 (⠇ Braille, not ⠿)
+    var grip = document.createElement("span");
+    grip.className = "lt-grip";
+    grip.title = "ลากเพื่อย้าย/จัดกลุ่ม";
+    grip.textContent = "⠇";
+
+    // 13px spacer for align (live emits this when no children) — layer-tree.js line 344-347
+    var spacer = document.createElement("span");
+    spacer.style.display = "inline-block";
+    spacer.style.width = "13px";
+
+    var sw = document.createElement("span");
+    sw.className = "sw lp-sw";
+    sw.style.background = L.color;
+    sw.title = "เปลี่ยนสี";
+
+    var nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = L.name;
+
+    var eye = document.createElement("span");
+    eye.className = "eye";
+    eye.textContent = "👁";
+
+    var lk = document.createElement("span");
+    lk.className = "eye";
+    lk.textContent = "🔓";
+
+    d.appendChild(grip);
+    d.appendChild(spacer);
+    d.appendChild(sw);
+    d.appendChild(nm);
+    d.appendChild(eye);
+    d.appendChild(lk);
+    list.appendChild(d);
+  });
+
+  var b = document.body;
+  document.getElementById("bodyClass").textContent = b.className || "(none)";
+}
+
+document.getElementById("btnToggle").addEventListener("click", function(){
+  document.body.classList.toggle("lt-v2");
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

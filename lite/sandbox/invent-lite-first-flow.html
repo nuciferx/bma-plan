@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Lite First-Flow UI — Mockup Picker</title>
+<style>
+  :root{
+    --bg:#1a1a1e; --panel:#26262c; --panel2:#2e2e36; --line:#3a3a44;
+    --text:#e7e7ec; --mute:#8b8b95; --accent:#6ea8ff; --good:#3ecf8e;
+    --warn:#ffb547; --info:#c490ff;
+    --canvasBg:#222228;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;}
+  header{padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);}
+  header h1{margin:0 0 4px;font-size:15px;}
+  header p{margin:0;color:var(--mute);font-size:12px;}
+
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);background:var(--panel2);}
+  .tab{padding:11px 18px;cursor:pointer;border:none;background:transparent;
+    color:var(--mute);font-size:12.5px;font-weight:500;font-family:inherit;
+    border-bottom:2px solid transparent;display:flex;flex-direction:column;gap:2px;align-items:flex-start;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--text);border-bottom-color:var(--accent);background:var(--bg);}
+  .tab .sub{font-size:10.5px;color:var(--mute);font-weight:400;}
+  .tab.active .sub{color:var(--accent);}
+
+  main{padding:16px 18px;min-height:550px;}
+  .approach{display:none;}
+  .approach.active{display:grid;grid-template-columns:1fr 320px;gap:18px;}
+
+  /* mock lite UI */
+  .mockup{background:var(--canvasBg);border:1px solid var(--line);border-radius:6px;
+    overflow:hidden;height:540px;position:relative;display:flex;flex-direction:column;}
+  .mb{display:flex;height:28px;background:#16161a;border-bottom:1px solid var(--line);
+    align-items:center;gap:0;padding:0 6px;font-size:11px;}
+  .mb .item{padding:0 10px;height:100%;display:flex;align-items:center;color:#bbb;}
+  .mb .item.active{background:#2a2a32;color:#fff;}
+  .body{flex:1;display:flex;}
+  .left,.right{width:140px;background:#1c1c22;border-right:1px solid var(--line);
+    padding:8px;font-size:10.5px;color:#999;}
+  .right{border-right:0;border-left:1px solid var(--line);}
+  .canvas{flex:1;background:#252530;display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden;color:#666;}
+  .statusbar{height:22px;background:#16161a;border-top:1px solid var(--line);
+    display:flex;font-size:10.5px;color:#999;align-items:center;padding:0 8px;gap:14px;}
+
+  /* approach-specific overlays */
+  .empty-hub{text-align:center;color:#aaa;}
+  .empty-hub h2{font-size:18px;margin:0 0 6px;color:#ddd;font-weight:500;}
+  .empty-hub p{margin:0 0 18px;font-size:12px;color:#888;}
+  .empty-hub .actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+  .empty-hub .btn{background:var(--accent);color:#06122a;padding:8px 16px;border-radius:5px;
+    font-weight:500;cursor:default;font-size:12px;border:0;}
+  .empty-hub .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+  .empty-hub .tip{margin-top:24px;font-size:11px;color:#666;}
+  .empty-hub .recent{margin-top:18px;display:flex;flex-direction:column;gap:3px;
+    align-items:center;font-size:11px;}
+  .empty-hub .recent .r{color:var(--accent);text-decoration:underline;cursor:default;}
+
+  /* wizard modal */
+  .modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;
+    align-items:center;justify-content:center;}
+  .modal{background:#2a2a32;border:1px solid var(--line);border-radius:8px;
+    width:380px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.5);}
+  .modal h3{margin:0 0 4px;font-size:14px;}
+  .modal p.sub{margin:0 0 14px;color:#888;font-size:11.5px;}
+  .planTypes{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+  .planTypes .pt{background:#1c1c22;border:1px solid var(--line);border-radius:5px;
+    padding:10px;text-align:center;cursor:default;font-size:11.5px;}
+  .planTypes .pt.sel{border-color:var(--accent);background:rgba(110,168,255,.1);color:#fff;}
+  .planTypes .pt .ic{font-size:18px;display:block;margin-bottom:3px;}
+  .seedHint{background:#1c1c22;border-radius:5px;padding:8px 10px;font-size:10.5px;
+    color:#aaa;margin-bottom:12px;}
+  .seedHint b{color:var(--good);}
+  .modal .row{display:flex;justify-content:space-between;align-items:center;font-size:11px;}
+  .modal .row label{color:#999;}
+  .modal .actions{display:flex;gap:6px;justify-content:flex-end;margin-top:14px;}
+  .modal .actions .btn{padding:6px 12px;font-size:11px;background:var(--accent);
+    color:#06122a;border:0;border-radius:4px;cursor:default;font-weight:500;}
+  .modal .actions .btn.ghost{background:transparent;color:#888;border:1px solid var(--line);}
+
+  /* cheatsheet */
+  .cheat{position:absolute;inset:30px 60px;background:#222228;border:1px solid var(--line);
+    border-radius:8px;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:auto;}
+  .cheat h3{margin:0 0 4px;font-size:14px;display:flex;justify-content:space-between;align-items:center;}
+  .cheat h3 .close{font-size:11px;color:#666;}
+  .cheat p.sub{margin:0 0 14px;color:#888;font-size:11px;}
+  .cheat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:11px;}
+  .cheat-grid h4{margin:0 0 6px;color:var(--accent);font-size:11.5px;font-weight:500;
+    border-bottom:1px solid #333;padding-bottom:3px;}
+  .cheat-grid .kv{display:flex;justify-content:space-between;padding:2px 0;color:#bbb;}
+  .cheat-grid .kv kbd{background:#1c1c22;border:1px solid #444;padding:0 5px;border-radius:3px;
+    color:var(--text);font-family:ui-monospace,monospace;font-size:10px;}
+
+  /* coach-marks */
+  .coach-arrow{position:absolute;background:#1c1c22;border:2px solid var(--accent);
+    border-radius:8px;padding:8px 12px;font-size:11px;color:#fff;max-width:200px;
+    box-shadow:0 6px 24px rgba(0,0,0,.5);}
+  .coach-arrow b{color:var(--accent);}
+  .coach-arrow .nav{margin-top:6px;display:flex;justify-content:space-between;font-size:10px;color:#999;}
+  .coach-arrow .nav .ok{color:var(--accent);}
+
+  /* progressive disclosure */
+  .greyed{opacity:.35;}
+  .mb .item.greyed{color:#555;}
+  .left.greyed-block .lline{opacity:.4;color:#666;}
+  .pd-tip{position:absolute;bottom:30px;right:8px;background:rgba(255,181,71,.15);
+    border:1px solid var(--warn);color:var(--warn);padding:6px 10px;border-radius:4px;
+    font-size:11px;max-width:240px;}
+
+  /* description panel */
+  .desc{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;
+    height:540px;overflow:auto;display:flex;flex-direction:column;gap:10px;}
+  .desc h3{margin:0;font-size:13.5px;color:var(--accent);}
+  .desc .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    border-radius:3px;padding:1px 6px;font-size:10px;color:#bbb;margin-right:4px;}
+  .desc table{font-size:11px;width:100%;border-collapse:collapse;}
+  .desc th,.desc td{padding:3px 4px;text-align:left;border-bottom:1px solid #333;}
+  .desc th{color:#999;font-weight:500;}
+  .desc td .yes{color:var(--good);}
+  .desc td .no{color:#888;}
+  .desc td .warn{color:var(--warn);}
+  .desc h4{margin:6px 0 2px;font-size:11.5px;color:#bbb;}
+  .desc ul{margin:0;padding-left:18px;font-size:11.5px;color:#bbb;}
+  .desc ul li{margin:2px 0;}
+  .desc .v-row{display:grid;grid-template-columns:80px 1fr;gap:6px;font-size:11px;
+    padding:3px 0;border-bottom:1px dotted #333;}
+  .desc .v-row .k{color:#888;}
+  .vote{display:flex;gap:6px;margin-top:auto;padding-top:10px;border-top:1px solid var(--line);}
+  .vote button{flex:1;padding:7px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--text);font-family:inherit;font-size:11.5px;cursor:pointer;border-radius:4px;}
+  .vote button.up{background:rgba(62,207,142,.15);border-color:var(--good);color:var(--good);}
+  .vote button.up.active{background:var(--good);color:#062014;font-weight:600;}
+  .vote button.dn{background:rgba(239,99,99,.1);border-color:#ef6363;color:#ef6363;}
+  .vote button.dn.active{background:#ef6363;color:#2a0606;font-weight:600;}
+
+  /* output */
+  footer{border-top:1px solid var(--line);background:var(--panel);padding:12px 18px;}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+  .toolbar button{padding:6px 14px;border:0;border-radius:4px;font-size:12px;cursor:pointer;}
+  .toolbar .primary{background:var(--accent);color:#06122a;font-weight:600;}
+  .toolbar .sec{background:var(--panel2);color:var(--text);border:1px solid var(--line);}
+  textarea#out{width:100%;min-height:140px;background:#101013;color:var(--text);
+    border:1px solid var(--line);border-radius:4px;padding:10px;font-size:12px;
+    font-family:ui-monospace,monospace;resize:vertical;}
+  textarea#notes{width:100%;min-height:50px;background:var(--panel2);color:var(--text);
+    border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12px;
+    font-family:inherit;margin-top:8px;}
+  .copied{color:var(--good);font-size:11px;margin-left:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Lite First-Flow UI — เลือกแนวก่อน /bma-invent</h1>
+  <p>คลิก tab ดูทีละแบบ → vote 👍 / 👎 ที่ฝั่งขวา → Generate text → copy ส่งกลับให้ผม</p>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-i="A">A · Empty-state hub<span class="sub">เปิดมา canvas ว่าง</span></button>
+  <button class="tab" data-i="CE">C+E · Smart template / wizard<span class="sub">หลังเปิด PDF, seed อัตโนมัติ</span></button>
+  <button class="tab" data-i="D">D · Cheatsheet panel<span class="sub">ปุ่ม ? โชว์ shortcut</span></button>
+  <button class="tab" data-i="G">G · Progressive disclosure<span class="sub">tool โผล่ตามขั้น</span></button>
+  <button class="tab" data-i="B">B · Coach-marks tour<span class="sub">balloon ชี้ขั้นตอน</span></button>
+</nav>
+
+<main>
+  <!-- ============ A: Empty-state hub ============ -->
+  <section class="approach active" data-i="A">
+    <div class="mockup">
+      <div class="mb">
+        <div class="item">File ▾</div><div class="item">Edit ▾</div><div class="item">View ▾</div>
+        <div class="item">Page ▾</div><div class="item">Measure ▾</div><div class="item">Annotate ▾</div>
+      </div>
+      <div class="body">
+        <div class="left">— ยังไม่มีหน้า —</div>
+        <div class="canvas">
+          <div class="empty-hub">
+            <h2>📐 BMA-Plan Lite</h2>
+            <p>วัดพื้นที่จาก PDF แบบเร็ว ๆ — มาเริ่มกัน</p>
+            <div class="actions">
+              <button class="btn">📂 เปิดไฟล์ PDF…</button>
+              <button class="btn ghost">📋 เปิดโปรเจกต์ .bmaplan</button>
+              <button class="btn ghost">🎲 ลองใช้ตัวอย่าง</button>
+            </div>
+            <div class="recent">
+              <div style="color:#888;margin-bottom:3px;">โปรเจกต์ล่าสุด</div>
+              <div class="r">RAMA4-permit-rev1.bmaplan</div>
+              <div class="r">test-site-2026-04.bmaplan</div>
+            </div>
+            <div class="tip">💡 หรือลาก PDF มาวางตรงนี้ก็ได้</div>
+          </div>
+        </div>
+        <div class="right">— ไม่มี object —</div>
+      </div>
+      <div class="statusbar">
+        <span>🛠 Select</span><span>📏 — Scale ยังไม่ตั้ง</span><span>📄 0/0</span>
+      </div>
+    </div>
+
+    <div class="desc">
+      <h3>A · Empty-state hub</h3>
+      <div>
+        <span class="tag">verdict: PARTIAL</span>
+        <span class="tag">effort: S</span>
+        <span class="tag">no schema impact</span>
+      </div>
+      <p style="font-size:11.5px;color:#bbb;margin:4px 0;">
+        เปลี่ยน canvas ดำตอนยังไม่เปิด PDF → hub มี <b>3 ปุ่มหลัก + recent projects + drag-drop hint</b>.
+        เปิด PDF แล้วหายไปเอง.
+      </p>
+      <h4>กระทบ 5 constraints</h4>
+      <table>
+        <tr><th>constraint</th><th>impact</th></tr>
+        <tr><td>workflow เดิม</td><td><span class="yes">✓ ไม่กระทบ</span></td></tr>
+        <tr><td>layer system</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>report variables</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>menu-flyout</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>code cap</td><td><span class="yes">✓ ลง static/js/empty-hub.js</span></td></tr>
+      </table>
+      <h4>ROI</h4>
+      <ul>
+        <li>ลด friction "เปิดมาเจอจอดำ" ใน 1 sprint</li>
+        <li>ผูก recent projects (มี localStorage `bmaPlan.recentProjects.v1` แล้ว) → ใช้งานง่าย</li>
+        <li>Drag-drop PDF onto canvas = พฤติกรรม web มาตรฐาน</li>
+      </ul>
+      <h4>ที่ต้องระวัง</h4>
+      <ul>
+        <li>recent projects ของ lite ยังไม่ได้ wire ลง localStorage — ต้องเช็ค</li>
+        <li>ตัวอย่าง PDF: ต้อง bundle หรือ fetch จาก server (มี endpoint อยู่แล้ว?)</li>
+      </ul>
+      <div class="vote">
+        <button class="up" onclick="vote('A','up',this)">👍 ใช่ลุย</button>
+        <button class="dn" onclick="vote('A','dn',this)">👎 ไม่เอา</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ C+E: Smart template / wizard ============ -->
+  <section class="approach" data-i="CE">
+    <div class="mockup">
+      <div class="mb">
+        <div class="item">File ▾</div><div class="item">Edit ▾</div><div class="item">View ▾</div>
+        <div class="item">Page ▾</div><div class="item">Measure ▾</div><div class="item">Annotate ▾</div>
+      </div>
+      <div class="body">
+        <div class="left">📄 หน้า 1<br>📄 หน้า 2<br>📄 หน้า 3</div>
+        <div class="canvas">
+          <div style="opacity:.3;font-size:42px;">📐</div>
+          <div class="modal-bg">
+            <div class="modal">
+              <h3>📐 PDF นี้คือผังประเภทไหน?</h3>
+              <p class="sub">เราจะตั้ง layer + report เริ่มต้นให้เหมาะกับงาน</p>
+              <div class="planTypes">
+                <div class="pt sel">
+                  <span class="ic">🏢</span>ผังพื้นอาคาร<br><span style="color:#666;font-size:10px;">floor plan</span>
+                </div>
+                <div class="pt">
+                  <span class="ic">🗺</span>ผังบริเวณ<br><span style="color:#666;font-size:10px;">site plan</span>
+                </div>
+                <div class="pt">
+                  <span class="ic">🏛</span>รูปด้าน<br><span style="color:#666;font-size:10px;">elevation</span>
+                </div>
+                <div class="pt">
+                  <span class="ic">✂</span>รูปตัด<br><span style="color:#666;font-size:10px;">section</span>
+                </div>
+              </div>
+              <div class="seedHint">
+                <b>จะเตรียมให้:</b> Layers (GFA / Useable / Deductions / Openings),
+                report vars (Total GFA, Useable %), scale field hint (m:cm).
+                <i>ปรับทีหลังได้</i>
+              </div>
+              <div class="row">
+                <label><input type="checkbox" checked> อย่าถามอีกครั้ง — ใช้ floor plan เป็น default</label>
+              </div>
+              <div class="actions">
+                <button class="btn ghost">ข้าม</button>
+                <button class="btn">เริ่มเลย →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="right">— ไม่มี object —</div>
+      </div>
+      <div class="statusbar">
+        <span>🛠 Select</span><span>📏 — Scale ยังไม่ตั้ง</span><span>📄 1/3</span>
+      </div>
+    </div>
+
+    <div class="desc">
+      <h3>C+E · Smart template / wizard</h3>
+      <div>
+        <span class="tag">verdict: PARTIAL</span>
+        <span class="tag">effort: S-M</span>
+        <span class="tag">⚠ schema impact (additive)</span>
+      </div>
+      <p style="font-size:11.5px;color:#bbb;margin:4px 0;">
+        เปิด PDF ครั้งแรก → modal ถามประเภทผัง (4 ตัวเลือก) → seed layers + reportVars + tag default ให้.
+        Workflow ใหม่: <b>Open → ⊕ Pick type → Set Scale → Draw</b>. dismissible.
+      </p>
+      <h4>กระทบ 5 constraints</h4>
+      <table>
+        <tr><th>constraint</th><th>impact</th></tr>
+        <tr><td>workflow เดิม</td><td><span class="warn">⚠ เพิ่ม optional step</span></td></tr>
+        <tr><td>layer system</td><td><span class="warn">⚠ pre-seed (additive ใน .bmaplan)</span></td></tr>
+        <tr><td>report variables</td><td><span class="warn">⚠ pre-seed (มี reseed default อยู่แล้ว)</span></td></tr>
+        <tr><td>menu-flyout</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>code cap</td><td><span class="yes">✓ ลง static/js/plan-wizard.js</span></td></tr>
+      </table>
+      <h4>ROI</h4>
+      <ul>
+        <li>ลด "ไม่รู้จะตั้ง layer อะไร" — ปัญหาใหญ่ของ CAD-newbie</li>
+        <li>ผูก domain ของ permit-plan (BMA) — proto ก็ยังไม่มี</li>
+        <li>ลายเซ็น UX ของ lite — แตกต่างจาก proto จริง ๆ</li>
+      </ul>
+      <h4>ที่ต้องระวัง</h4>
+      <ul>
+        <li>ต้องตัดสิน schema เพิ่ม: `.bmaplan.planType` ฟิลด์ใหม่ (additive, proto ignore ได้)</li>
+        <li>ถ้า user ข้าม wizard → default ของเดิมต้องยังใช้ได้</li>
+        <li>layer/reportVars defaults — กำหนดให้ดี ๆ ไม่งั้น user ต้องลบทิ้งทุกครั้ง</li>
+      </ul>
+      <div class="vote">
+        <button class="up" onclick="vote('CE','up',this)">👍 ใช่ลุย</button>
+        <button class="dn" onclick="vote('CE','dn',this)">👎 ไม่เอา</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ D: Cheatsheet ============ -->
+  <section class="approach" data-i="D">
+    <div class="mockup">
+      <div class="mb">
+        <div class="item">File ▾</div><div class="item">Edit ▾</div><div class="item">View ▾</div>
+        <div class="item">Page ▾</div><div class="item active">Measure ▾</div><div class="item">Annotate ▾</div>
+      </div>
+      <div class="body">
+        <div class="left">📄 หน้า 1<br>📄 หน้า 2</div>
+        <div class="canvas">
+          <div style="opacity:.3;font-size:42px;">▱</div>
+          <div class="cheat">
+            <h3>⌨ คีย์ลัด & เครื่องมือ <span class="close">กด ? อีกครั้ง หรือ Esc เพื่อปิด</span></h3>
+            <p class="sub">รวมทุกอย่างที่ lite ทำได้ในที่เดียว</p>
+            <div class="cheat-grid">
+              <div>
+                <h4>เครื่องมือวัด</h4>
+                <div class="kv"><span>Select</span><kbd>V</kbd></div>
+                <div class="kv"><span>Pan</span><kbd>H / Space</kbd></div>
+                <div class="kv"><span>Set Scale</span><kbd>S</kbd></div>
+                <div class="kv"><span>Polygon area</span><kbd>A</kbd></div>
+                <div class="kv"><span>Arc edge (ขณะวาด)</span><kbd>A → A</kbd></div>
+                <div class="kv"><span>Distance</span><kbd>D</kbd></div>
+                <div class="kv"><span>Continuous path</span><kbd>⇧D</kbd></div>
+                <div class="kv"><span>Reference line</span><kbd>R</kbd></div>
+                <div class="kv"><span>Count marker</span><kbd>N</kbd></div>
+              </div>
+              <div>
+                <h4>Snap & helper</h4>
+                <div class="kv"><span>Endpoint snap</span><kbd>E</kbd></div>
+                <div class="kv"><span>Midpoint snap</span><kbd>M</kbd></div>
+                <div class="kv"><span>Center snap</span><kbd>C</kbd></div>
+                <div class="kv"><span>Snap off-all</span><kbd>G</kbd></div>
+                <div class="kv"><span>Ortho mode</span><kbd>⇧O</kbd></div>
+                <div class="kv"><span>Loupe</span><kbd>L</kbd></div>
+                <h4>หน้า / ดู</h4>
+                <div class="kv"><span>Fit / actual</span><kbd>Ctrl+0 / Ctrl+1</kbd></div>
+                <div class="kv"><span>Focus mode</span><kbd>F</kbd></div>
+                <div class="kv"><span>Overview</span><kbd>F12</kbd></div>
+                <div class="kv"><span>Page search</span><kbd>Ctrl+K</kbd></div>
+                <div class="kv"><span>Undo / Redo</span><kbd>Ctrl+Z / Y</kbd></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="right">Layers · ReportVars</div>
+      </div>
+      <div class="statusbar">
+        <span>🛠 Polygon</span><span>📏 1:200</span><span>📄 1/2</span>
+        <span style="margin-left:auto;color:var(--accent);">? = คีย์ลัด</span>
+      </div>
+    </div>
+
+    <div class="desc">
+      <h3>D · Cheatsheet panel</h3>
+      <div>
+        <span class="tag">verdict: MATURE</span>
+        <span class="tag">effort: S</span>
+        <span class="tag">no schema</span>
+      </div>
+      <p style="font-size:11.5px;color:#bbb;margin:4px 0;">
+        Overlay panel (กด <kbd>?</kbd> หรือ <kbd>F1</kbd>) รวมทุก shortcut + tool. สำคัญหลัง LSNAP+LORTHO+LCURVE เพิ่ม key เยอะ (E/M/C/⇧O/A→A/⇧D).
+      </p>
+      <h4>กระทบ 5 constraints</h4>
+      <table>
+        <tr><th>constraint</th><th>impact</th></tr>
+        <tr><td>workflow เดิม</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>layer system</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>report variables</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>menu-flyout</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>code cap</td><td><span class="yes">✓ overlay เดียวใน static/js/cheatsheet.js</span></td></tr>
+      </table>
+      <h4>ROI</h4>
+      <ul>
+        <li>แก้ปัญหา "shortcut เยอะแต่ไม่รู้" ตรง ๆ (สดใหม่หลัง 6 slice ที่เพิ่งทำ)</li>
+        <li>เป็น <b>กึ่ง-onboarding</b>: user รู้ tool ได้เร็วโดยไม่ต้อง modal</li>
+        <li>Discoverability — link จาก status bar "? = คีย์ลัด"</li>
+      </ul>
+      <h4>ที่ต้องระวัง</h4>
+      <ul>
+        <li>verdict MATURE → research จะตอบ "ใช้ pattern เดิม" → <b>อาจไม่ต้องผ่าน /bma-invent</b>, ทำ /bma-lite-dev ตรง ๆ ได้</li>
+      </ul>
+      <div class="vote">
+        <button class="up" onclick="vote('D','up',this)">👍 ใช่ลุย</button>
+        <button class="dn" onclick="vote('D','dn',this)">👎 ไม่เอา</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ G: Progressive disclosure ============ -->
+  <section class="approach" data-i="G">
+    <div class="mockup">
+      <div class="mb">
+        <div class="item">File ▾</div><div class="item">Edit ▾</div><div class="item">View ▾</div>
+        <div class="item">Page ▾</div>
+        <div class="item active">Measure ▾</div>
+        <div class="item greyed">Annotate ▾</div>
+      </div>
+      <div class="body">
+        <div class="left">📄 หน้า 1<br>📄 หน้า 2</div>
+        <div class="canvas">
+          <div style="opacity:.3;font-size:36px;">▱</div>
+          <div class="pd-tip">
+            ⚠ ยังไม่ตั้ง scale — เครื่องมือวัดอื่นจะ enable หลังกด <kbd style="background:#222;padding:0 4px;border-radius:2px;border:1px solid #555;">S</kbd>
+          </div>
+          <!-- mock dropdown opened -->
+          <div style="position:absolute;top:0;left:160px;background:#16161a;border:1px solid var(--line);border-radius:0 0 6px 6px;width:180px;font-size:11px;padding:5px;">
+            <div style="padding:5px 8px;color:#bbb;">Select  <span style="float:right;color:#666;">V</span></div>
+            <div style="padding:5px 8px;color:#bbb;">Pan      <span style="float:right;color:#666;">H</span></div>
+            <div style="height:1px;background:#333;margin:3px 0;"></div>
+            <div style="padding:5px 8px;background:rgba(110,168,255,.15);color:var(--accent);font-weight:500;">▸ Set Scale… <span style="float:right;">S</span></div>
+            <div style="height:1px;background:#333;margin:3px 0;"></div>
+            <div style="padding:5px 8px;color:#555;">Area ▶ <span style="float:right;">A</span></div>
+            <div style="padding:5px 8px;color:#555;">Distance ▶ <span style="float:right;">D</span></div>
+            <div style="padding:5px 8px;color:#555;">Reference Line <span style="float:right;">R</span></div>
+            <div style="padding:5px 8px;color:#555;">Count Marker <span style="float:right;">N</span></div>
+            <div style="height:1px;background:#333;margin:3px 0;"></div>
+            <div style="padding:5px 8px;color:#555;">Snap Modes ▶</div>
+            <div style="padding:5px 8px;color:#555;">Loupe <span style="float:right;">L</span></div>
+            <div style="padding:5px 8px;color:#555;">Ortho Mode <span style="float:right;">⇧O</span></div>
+          </div>
+        </div>
+        <div class="right greyed-block">
+          <div class="lline">Layers</div>
+          <div class="lline">— ยังไม่มี object —</div>
+          <div class="lline" style="margin-top:8px;">Report Vars</div>
+          <div class="lline">— ตั้ง scale ก่อน —</div>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>🛠 Select</span><span style="color:var(--warn);">⚠ ตั้ง scale ก่อน</span><span>📄 1/2</span>
+      </div>
+    </div>
+
+    <div class="desc">
+      <h3>G · Progressive disclosure</h3>
+      <div>
+        <span class="tag">verdict: PARTIAL</span>
+        <span class="tag">effort: M</span>
+        <span class="tag">⚠ menu-flyout state-aware</span>
+      </div>
+      <p style="font-size:11.5px;color:#bbb;margin:4px 0;">
+        เปิด lite → เห็นแต่ <b>Open</b> + <b>Set Scale</b> + Select/Pan. <br>
+        Set scale เสร็จ → unlock Area / Distance / Snap / Reference / Count <br>
+        วาด object แรก → unlock Annotate + ReportVars panel
+      </p>
+      <h4>กระทบ 5 constraints</h4>
+      <table>
+        <tr><th>constraint</th><th>impact</th></tr>
+        <tr><td>workflow เดิม</td><td><span class="warn">⚠ บังคับลำดับ (hard gating)</span></td></tr>
+        <tr><td>layer system</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>report variables</td><td><span class="warn">⚠ ซ่อน panel จนกว่ามี object</span></td></tr>
+        <tr><td>menu-flyout</td><td><span class="warn">⚠ ต้องเขียน state-aware (greyed/enabled per condition)</span></td></tr>
+        <tr><td>code cap</td><td><span class="warn">⚠ menu-flyout +rules engine ใหญ่ขึ้น</span></td></tr>
+      </table>
+      <h4>ROI</h4>
+      <ul>
+        <li>บังคับ user เดิน workflow ที่ถูก (= match memory ของ user "prefers hard gating over warnings")</li>
+        <li>ลด "ทำไมวัดออกเป็น pt ไม่ใช่ m" → เพราะ Area greyed จน set scale</li>
+      </ul>
+      <h4>ที่ต้องระวัง</h4>
+      <ul>
+        <li>กลายเป็น "annoying" ถ้า user advanced ต้องการข้าม — ต้อง escape hatch</li>
+        <li>menu-flyout เดิมเป็น static data — ต้อง refactor ให้ accept predicate per item</li>
+      </ul>
+      <div class="vote">
+        <button class="up" onclick="vote('G','up',this)">👍 ใช่ลุย</button>
+        <button class="dn" onclick="vote('G','dn',this)">👎 ไม่เอา</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ B: Coach-marks ============ -->
+  <section class="approach" data-i="B">
+    <div class="mockup">
+      <div class="mb">
+        <div class="item">File ▾</div><div class="item">Edit ▾</div><div class="item">View ▾</div>
+        <div class="item">Page ▾</div>
+        <div class="item active">Measure ▾</div><div class="item">Annotate ▾</div>
+      </div>
+      <div class="body">
+        <div class="left">📄 หน้า 1<br>📄 หน้า 2
+          <div class="coach-arrow" style="top:120px;left:155px;">
+            <b>Step 1/4</b><br>เลือกหน้าก่อน — Sheets ฝั่งซ้าย<br>
+            <div class="nav"><span>← prev</span><span class="ok">next →</span></div>
+          </div>
+        </div>
+        <div class="canvas">
+          <div style="opacity:.3;font-size:42px;">▱</div>
+        </div>
+        <div class="right">Layers · ReportVars</div>
+      </div>
+      <div class="statusbar">
+        <span>🛠 Select</span><span>📏 — ยังไม่ตั้ง scale</span><span>📄 1/2</span>
+      </div>
+    </div>
+
+    <div class="desc">
+      <h3>B · Coach-marks tour</h3>
+      <div>
+        <span class="tag">verdict: MATURE</span>
+        <span class="tag">effort: M</span>
+        <span class="tag">library: Intro.js / Shepherd.js</span>
+      </div>
+      <p style="font-size:11.5px;color:#bbb;margin:4px 0;">
+        Balloon tour ขั้น 1→2→3→4 ครั้งแรกที่เปิดโปรแกรม → dismissible. <br>
+        ข้อดี: hand-holding ตรง ๆ. ข้อเสีย: คน skip ทันที + maintain ภาระ
+      </p>
+      <h4>กระทบ 5 constraints</h4>
+      <table>
+        <tr><th>constraint</th><th>impact</th></tr>
+        <tr><td>workflow เดิม</td><td><span class="yes">✓ overlay only</span></td></tr>
+        <tr><td>layer system</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>report variables</td><td><span class="yes">✓</span></td></tr>
+        <tr><td>menu-flyout</td><td><span class="warn">⚠ balloon ต้อง anchor element ID</span></td></tr>
+        <tr><td>code cap</td><td><span class="warn">⚠ Intro.js ~50KB + JS wrapper</span></td></tr>
+      </table>
+      <h4>ROI / ระวัง</h4>
+      <ul>
+        <li>MATURE → research จะแนะนำ Intro.js → ไม่ต้อง invent</li>
+        <li>คน enterprise ส่วนใหญ่ skip tour แล้วก็อ่านเอา → ROI ต่ำกว่า D (cheatsheet)</li>
+        <li>ถ้าจะทำ ทำ D ก่อน + B หลัง</li>
+      </ul>
+      <div class="vote">
+        <button class="up" onclick="vote('B','up',this)">👍 ใช่ลุย</button>
+        <button class="dn" onclick="vote('B','dn',this)">👎 ไม่เอา</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="toolbar">
+    <button class="primary" onclick="generate()">Generate text</button>
+    <button class="sec" onclick="copyOut()">📋 Copy</button>
+    <span id="copyHint" class="copied" style="display:none;">copied ✓</span>
+    <span style="color:#666;font-size:11px;margin-left:auto;">ติ๊ก 👍 ทาง(หรือหลายทาง)ที่อยากให้ invent · 👎 ทางที่ตัดทิ้ง</span>
+  </div>
+  <textarea id="out" readonly placeholder="กด Generate text แล้วผลจะมาที่นี่"></textarea>
+  <textarea id="notes" placeholder="หมายเหตุเพิ่มเติม (จะติดไปกับ output)"></textarea>
+</footer>
+
+<script>
+var VOTES = {A:null, CE:null, D:null, G:null, B:null};
+var LABELS = {
+  A: 'Empty-state hub',
+  CE: 'Smart template / wizard (C+E)',
+  D: 'Cheatsheet panel',
+  G: 'Progressive disclosure',
+  B: 'Coach-marks tour'
+};
+var VERDICTS = {A:'PARTIAL', CE:'PARTIAL', D:'MATURE', G:'PARTIAL', B:'MATURE'};
+var EFFORT = {A:'S', CE:'S-M', D:'S', G:'M', B:'M'};
+
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.approach').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelector('.approach[data-i="'+t.dataset.i+'"]').classList.add('active');
+  });
+});
+
+function vote(key, dir, btn){
+  VOTES[key] = (VOTES[key]===dir) ? null : dir;
+  // refresh button states for this approach
+  var sec = document.querySelector('.approach[data-i="'+key+'"]');
+  sec.querySelectorAll('.vote button').forEach(function(b){ b.classList.remove('active'); });
+  if(VOTES[key]==='up') sec.querySelector('.vote .up').classList.add('active');
+  if(VOTES[key]==='dn') sec.querySelector('.vote .dn').classList.add('active');
+}
+
+function generate(){
+  var today = new Date().toISOString().slice(0,10);
+  var lines = [];
+  lines.push('# Lite first-flow UI — vote — '+today);
+  lines.push('# idea: 2026-05-24-02-23');
+  lines.push('');
+  var ups=[], dns=[], skip=[];
+  Object.keys(VOTES).forEach(function(k){
+    var icon = VOTES[k]==='up' ? '👍' : (VOTES[k]==='dn' ? '👎' : '·');
+    var line = '  '+icon+' ['+k+'] '+LABELS[k]+'   (verdict: '+VERDICTS[k]+', effort: '+EFFORT[k]+')';
+    lines.push(line);
+    if(VOTES[k]==='up') ups.push(k);
+    else if(VOTES[k]==='dn') dns.push(k);
+    else skip.push(k);
+  });
+  lines.push('');
+  lines.push('## Summary');
+  lines.push('  KEEP (vote up):  '+(ups.join(', ')||'(none)'));
+  lines.push('  DROP (vote dn):  '+(dns.join(', ')||'(none)'));
+  lines.push('  NO VOTE:         '+(skip.join(', ')||'(none)'));
+  lines.push('');
+  // recommendation
+  lines.push('## Suggested next step');
+  if(ups.length===0){
+    lines.push('  → ผู้ใช้ยังไม่ตัดสินใจ — ผมจะรอ vote ก่อนเข้า /bma-invent');
+  } else if(ups.length===1){
+    var k = ups[0];
+    if(VERDICTS[k]==='MATURE'){
+      lines.push('  → '+k+' verdict=MATURE → ข้าม /bma-invent, ทำเป็น /bma-lite-dev sprint ตรง ๆ');
+    } else {
+      lines.push('  → '+k+' verdict='+VERDICTS[k]+' → เข้า /bma-invent (PICK → RESEARCH → FRAME → ...)');
+    }
+  } else {
+    lines.push('  → ผู้ใช้เลือกหลายทาง ('+ups.length+') — ทำเรียงตามลำดับ:');
+    ups.forEach(function(k,i){
+      lines.push('     '+(i+1)+'. '+k+' ('+LABELS[k]+') verdict='+VERDICTS[k]);
+    });
+  }
+  var notes = document.getElementById('notes').value.trim();
+  if(notes){
+    lines.push('');
+    lines.push('## Notes from user');
+    notes.split(/\r?\n/).forEach(function(l){ lines.push('  '+l); });
+  }
+  document.getElementById('out').value = lines.join('\n');
+}
+
+function copyOut(){
+  var ta = document.getElementById('out');
+  if(!ta.value) generate();
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(function(){
+    var h=document.getElementById('copyHint');
+    h.style.display='inline';
+    setTimeout(function(){h.style.display='none';}, 1800);
+  });
+}
+</script>
+</body>
+</html>

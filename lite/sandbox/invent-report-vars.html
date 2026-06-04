@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPIKE · report-vars (idea 2026-05-23-00-14) — lite</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --ink:#e7ebf3; --dim:#9aa4b6;
+    --acc:#5b8def; --good:#46c285; --warn:#e0a23c; --bad:#e8636a; --chip:#222836;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{margin:0;font-size:15px}
+  header .sub{color:var(--dim);font-size:11px;margin-top:3px}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 18px;align-items:start}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .card>h2{margin:0;padding:9px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line);color:var(--dim);letter-spacing:.3px;text-transform:uppercase}
+  .card .body{padding:10px 12px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:5px 6px;text-align:left;border-bottom:1px solid var(--line);font-size:12.5px}
+  th{color:var(--dim);font-weight:600;font-size:11px}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10.5px;background:var(--chip);color:var(--dim)}
+  .pill.area{color:#9ecbff}.pill.dist{color:#ffd28a}.pill.count{color:#a6e8c5}
+  .var-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .var-row:last-child{border-bottom:0}
+  .var-name{width:130px;background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:4px 7px;font-size:12.5px}
+  select,.btn{background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:4px 7px;font-size:12px;cursor:pointer}
+  select.op{width:42px;text-align:center}
+  .btn{cursor:pointer;user-select:none}
+  .btn:hover{border-color:var(--acc)}
+  .btn.mini{padding:2px 7px;font-size:11px}
+  .btn.add{color:var(--good);border-color:#2f4d3f}
+  .btn.del{color:var(--bad);border-color:#4d2f31}
+  .val{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;min-width:74px;text-align:right}
+  .val.err{color:var(--bad);font-weight:500;font-size:11px}
+  .val.ok{color:var(--good)}
+  .hint{color:var(--dim);font-size:11px;margin:8px 2px 2px}
+  .report{margin-top:4px}
+  .report h3{margin:10px 0 4px;font-size:12px;color:var(--acc)}
+  .seg{height:1px;background:var(--line);margin:8px 0}
+  code{background:var(--bg);padding:1px 5px;border-radius:4px;color:#cdd6e6;font-size:11.5px}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;font-size:11px;color:#b9c2d4;max-height:240px}
+  .note{grid-column:1/3;background:#12161e;border:1px solid var(--line);border-radius:8px;padding:10px 14px;color:var(--dim);font-size:11.5px}
+  .note b{color:var(--ink)}
+  .tag{cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPIKE · report-vars — named-variable registry + visual composer</h1>
+  <div class="sub">idea <code>2026-05-23-00-14</code> · lite invent · approach <b>A (data-model) + D (zero-syntax UX)</b> · <b>standalone</b> — ไม่แตะ measure-engine / area math / ui-lite.html / .bmaplan</div>
+</header>
+
+<div class="wrap">
+
+  <!-- LEFT: measured quantities (mock layer totals) -->
+  <div class="card">
+    <h2>① ยอดวัดจริง (per-layer aggregate — mock)</h2>
+    <div class="body">
+      <p class="hint">จำลองยอดที่ <code>computeSummary()</code> รวมให้ต่อ layer วันจริงค่าพวกนี้มาจากการวาด แต่ละแถวอ้างด้วย <b>layer.id</b> (ไม่ใช่ชื่อ → ปลอดภัยตาม contract). คลิกชื่อเพื่อใส่ลงสูตร</p>
+      <table id="measuredTbl"></table>
+      <p class="hint">ลองแก้ค่า "ปกคลุม" แล้วดูตัวแปร derived ด้านขวา recalc สด</p>
+    </div>
+  </div>
+
+  <!-- RIGHT: derived variable composer -->
+  <div class="card">
+    <h2>② ตัวแปร derived (visual composer — ไม่ต้องพิมพ์สูตร)</h2>
+    <div class="body">
+      <div id="varList"></div>
+      <button class="btn add" id="addVar">+ เพิ่มตัวแปร</button>
+      <div class="hint">operand = dropdown ของ "ยอดวัด + ตัวแปรที่นิยามก่อนหน้า"; chain ได้ <code>(A op B) op C</code> ซ้ายไปขวา ครอบคลุม FAR / OSR / ที่ว่าง ได้หมดโดยไม่ต้องรู้ syntax</div>
+    </div>
+  </div>
+
+  <!-- REPORT preview -->
+  <div class="card" style="grid-column:1/3">
+    <h2>③ report preview (lite-report.html จะ render แบบนี้)</h2>
+    <div class="body report" id="reportPreview"></div>
+  </div>
+
+  <!-- persisted model -->
+  <div class="card" style="grid-column:1/3">
+    <h2>④ ข้อมูลที่จะ persist (additive — proto เปิดได้, ignore ฟิลด์นี้)</h2>
+    <div class="body"><pre id="modelDump"></pre></div>
+  </div>
+
+  <div class="note">
+    <b>สิ่งที่ spike นี้พิสูจน์:</b> (1) ตัวแปรอยู่ใน registry ระดับโปรเจกต์ — จำนวนเท่าไรก็ได้ (taxonomy คุณมี ~15+ ตัว ที่ role เดียวกัน) ไม่ติด 6-role เหมือน approach C ·
+    (2) operand ผูก <code>layerId</code> หรือชื่อตัวแปรอื่น — calc <b>ไม่อ่าน layer.name</b> เลย ·
+    (3) สูตรเก็บเป็น token array <code>{ref|literal, op}[]</code> — eval ด้วย left-to-right fold (~60 LOC, ไม่ต้อง parser) ·
+    (4) recalc สดเมื่อยอดวัดเปลี่ยน ·
+    (5) <b>compute + display เท่านั้น</b> — ไม่ตัดสินผ่าน/ไม่ผ่าน (ไม่ใช่ rule engine v2). <br>
+    <b>ของจริงจะ slice เป็น:</b> S1 <code>report-vars.js</code> (model+eval) → S2 ปุ่ม composer ใน Σ summary (ui-lite.html, ~40 LOC) → S3 derived panel ใน lite-report.html → S4 save/load <code>doc.reportVars</code> additive + cross-open parity test.
+  </div>
+
+</div>
+
+<script>
+// ---------- mock: per-layer measured aggregate (วันจริงมาจาก computeSummary) ----------
+// id = layer.id (role.id หรือ custom layer id). kind = area|dist|count (มาจาก tool ที่วาด)
+let MEASURED = [
+  {id:'site_land',   name:'ที่ดิน',          kind:'area',  value:300.0},
+  {id:'coverage',    name:'ปกคลุม',          kind:'area',  value:120.0},
+  {id:'permeable',   name:'ที่ซึมน้ำ',        kind:'area',  value: 45.0},
+  {id:'green',       name:'สีเขียว',          kind:'area',  value: 30.0},
+  {id:'gfa_total',   name:'พื้นที่อาคารรวม',  kind:'area',  value:480.0},
+  {id:'setback_f',   name:'ร่นหน้า',          kind:'dist',  value:  6.0},
+  {id:'park_normal', name:'ที่จอดรถ',         kind:'count', value: 14  },
+];
+
+// ---------- registry: derived variables (this is what persists, additive) ----------
+// expr = token array: [{operand}, {op, operand}, ...]  operand = {ref:id} | {lit:number}
+let VARS = [
+  {id:'v_open', name:'ที่ว่าง',  unit:'ม²', expr:[{ref:'site_land'}, {op:'-', ref:'coverage'}]},
+  {id:'v_osr',  name:'OSR (%)',  unit:'%',  expr:[{ref:'v_open'},   {op:'/', ref:'site_land'}, {op:'*', lit:100}]},
+  {id:'v_far',  name:'FAR',      unit:'',   expr:[{ref:'gfa_total'},{op:'/', ref:'site_land'}]},
+];
+
+const OPS = ['+','-','*','/'];
+let _seq = 100;
+
+// ---------- evaluator: left-to-right fold over token array ----------
+// resolve a ref id to a number: measured first, then computed vars (allows chaining v_open -> v_osr)
+function resolveRef(id, computed){
+  const m = MEASURED.find(x=>x.id===id); if(m) return m.value;
+  if(id in computed) return computed[id];
+  return null; // unknown / forward ref
+}
+function evalExpr(expr, computed){
+  if(!expr.length) return {v:null, err:'ว่าง'};
+  function operandVal(t){
+    if('lit' in t) return t.lit;
+    const r = resolveRef(t.ref, computed);
+    return r;
+  }
+  let acc = operandVal(expr[0]);
+  if(acc===null) return {v:null, err:'อ้างตัวแปรไม่พบ/ยังไม่คำนวณ'};
+  for(let i=1;i<expr.length;i++){
+    const t=expr[i], rhs=operandVal(t);
+    if(rhs===null) return {v:null, err:'อ้างตัวแปรไม่พบ'};
+    if(t.op==='+') acc+=rhs;
+    else if(t.op==='-') acc-=rhs;
+    else if(t.op==='*') acc*=rhs;
+    else if(t.op==='/'){ if(rhs===0) return {v:null,err:'หารด้วยศูนย์'}; acc/=rhs; }
+  }
+  return {v:acc, err:null};
+}
+// compute all vars in order (later vars may reference earlier ones)
+function computeAll(){
+  const computed={};
+  for(const vv of VARS){
+    const r=evalExpr(vv.expr, computed);
+    vv._res=r;
+    if(r.err===null) computed[vv.id]=r.v;
+  }
+  return computed;
+}
+
+// ---------- option lists for the dropdowns ----------
+function operandOptions(beforeVarId){
+  const opts=[];
+  for(const m of MEASURED) opts.push({val:'ref:'+m.id, label:m.name+' ('+m.kind+')'});
+  for(const vv of VARS){ if(vv.id===beforeVarId) break; opts.push({val:'ref:'+vv.id, label:'➜ '+vv.name}); }
+  opts.push({val:'lit', label:'ตัวเลข…'});
+  return opts;
+}
+
+// ---------- render ----------
+const fmt=n=> (n===null||n===undefined)?'—':(Math.abs(n)>=100?n.toFixed(0):n.toFixed(2));
+
+function renderMeasured(){
+  const t=document.getElementById('measuredTbl');
+  let h='<tr><th>ตัวแปรวัด</th><th>ชนิด</th><th class="num">ค่า</th></tr>';
+  for(const m of MEASURED){
+    h+=`<tr><td><span class="tag" title="${m.id}">${m.name}</span></td>`+
+       `<td><span class="pill ${m.kind}">${m.kind}</span></td>`+
+       `<td class="num"><input data-mid="${m.id}" value="${m.value}" style="width:64px;text-align:right;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);padding:2px 4px"></td></tr>`;
+  }
+  t.innerHTML=h;
+  t.querySelectorAll('input[data-mid]').forEach(inp=>inp.oninput=e=>{
+    const m=MEASURED.find(x=>x.id===e.target.dataset.mid); m.value=parseFloat(e.target.value)||0; renderAll();
+  });
+}
+
+function operandSelect(varId, idx, t){
+  const sel=document.createElement('select');
+  const cur = ('lit' in t)?'lit':('ref:'+t.ref);
+  for(const o of operandOptions(varId)){
+    const op=document.createElement('option'); op.value=o.val; op.textContent=o.label;
+    if(o.val===cur) op.selected=true; sel.appendChild(op);
+  }
+  sel.onchange=e=>{
+    const v=e.target.value;
+    if(v==='lit'){ delete t.ref; t.lit=0; }
+    else { delete t.lit; t.ref=v.slice(4); }
+    renderAll();
+  };
+  const frag=document.createElement('span'); frag.style.display='inline-flex'; frag.style.gap='4px'; frag.style.alignItems='center';
+  frag.appendChild(sel);
+  if('lit' in t){
+    const li=document.createElement('input'); li.value=t.lit; li.style.cssText='width:54px;background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:4px';
+    li.oninput=e=>{ t.lit=parseFloat(e.target.value)||0; renderAll(); }; frag.appendChild(li);
+  }
+  return frag;
+}
+
+function renderVars(){
+  const box=document.getElementById('varList'); box.innerHTML='';
+  VARS.forEach(vv=>{
+    const row=document.createElement('div'); row.className='var-row';
+    const nm=document.createElement('input'); nm.className='var-name'; nm.value=vv.name;
+    nm.oninput=e=>{vv.name=e.target.value; renderReport(); dumpModel();}; row.appendChild(nm);
+    const eq=document.createElement('span'); eq.textContent='='; eq.style.color='var(--dim)'; row.appendChild(eq);
+    vv.expr.forEach((t,i)=>{
+      if(i>0){
+        const os=document.createElement('select'); os.className='op';
+        OPS.forEach(o=>{const op=document.createElement('option');op.textContent=o;op.value=o;if(o===t.op)op.selected=true;os.appendChild(op);});
+        os.onchange=e=>{t.op=e.target.value;renderAll();}; row.appendChild(os);
+      }
+      row.appendChild(operandSelect(vv.id,i,t));
+    });
+    const more=document.createElement('button'); more.className='btn mini'; more.textContent='+ ขั้น';
+    more.onclick=()=>{vv.expr.push({op:'+',lit:0});renderAll();}; row.appendChild(more);
+    if(vv.expr.length>1){
+      const less=document.createElement('button'); less.className='btn mini'; less.textContent='−';
+      less.onclick=()=>{vv.expr.pop();renderAll();}; row.appendChild(less);
+    }
+    const val=document.createElement('span');
+    if(vv._res.err){val.className='val err';val.textContent='⚠ '+vv._res.err;}
+    else{val.className='val ok';val.textContent=fmt(vv._res.v)+(vv.unit?' '+vv.unit:'');}
+    row.appendChild(val);
+    const del=document.createElement('button'); del.className='btn del mini'; del.textContent='✕';
+    del.onclick=()=>{VARS=VARS.filter(x=>x!==vv);renderAll();}; row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function renderReport(){
+  const r=document.getElementById('reportPreview');
+  let h='<h3>ยอดวัด</h3><table><tr><th>รายการ</th><th class="num">ค่า</th><th>หน่วย</th></tr>';
+  for(const m of MEASURED) h+=`<tr><td>${m.name}</td><td class="num">${fmt(m.value)}</td><td>${m.kind==='area'?'ม²':m.kind==='dist'?'ม.':'หน่วย'}</td></tr>`;
+  h+='</table><div class="seg"></div><h3>ค่าที่คำนวณ (derived)</h3><table><tr><th>ตัวชี้วัด</th><th class="num">ค่า</th><th>หน่วย</th></tr>';
+  for(const vv of VARS) h+=`<tr><td>${vv.name}</td><td class="num">${vv._res.err?'<span style=color:var(--bad)>—</span>':fmt(vv._res.v)}</td><td>${vv.unit||''}</td></tr>`;
+  h+='</table>';
+  r.innerHTML=h;
+}
+
+function dumpModel(){
+  document.getElementById('modelDump').textContent =
+    '// .bmaplan additive field — proto ignores, lite reads\n'+
+    'doc.reportVars = '+JSON.stringify(VARS.map(v=>({id:v.id,name:v.name,unit:v.unit,expr:v.expr})),null,2)+';';
+}
+
+function renderAll(){ computeAll(); renderVars(); renderReport(); dumpModel(); }
+function renderBoot(){ renderMeasured(); renderAll(); }
+
+document.getElementById('addVar').onclick=()=>{
+  VARS.push({id:'v_'+(_seq++),name:'ตัวแปรใหม่',unit:'',expr:[{ref:MEASURED[0].id}]}); renderAll();
+};
+renderBoot();
+</script>
+</body>
+</html>

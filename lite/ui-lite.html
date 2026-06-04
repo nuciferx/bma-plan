@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMA-Plan Lite</title>
+<!--
+  BMA-Plan Lite (INV-2026-05-21-001, Approach A) — runnable single-page UI.
+  Open a real PDF (POST /upload), render pages (/page/{n}), calibrate scale,
+  measure (polygon/distance/path/reference/count), see live areas, save/load
+  .bmaplan. Area math = the VENDORED polyAreaM2 / polyMetrics / pathAreaM2 from
+  static/js/measure-engine.js (byte-identical to proto). Geometry stored in PDF
+  points; the canvas view handles rotate/zoom/pan; dimension labels render at
+  constant screen size with right-click show/hide.
+-->
+<style>
+  :root{--bar-h:42px;--bg:#0f1115;--panel:#161a22;--line:#2a3140;--ink:#e7ecf3;
+    --muted:#8b97a8;--accent:#4c8dff;--good:#39d98a;--warn:#ffb454;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",system-ui,sans-serif;}
+  html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100vh;}
+  #topbar{height:var(--bar-h);min-height:var(--bar-h);max-height:var(--bar-h);display:flex;
+    align-items:center;gap:4px;padding:0 8px;background:var(--panel);border-bottom:1px solid var(--line);
+    white-space:nowrap;overflow:visible;position:relative;z-index:60;}
+  #topbar .logo{font-weight:700;color:var(--accent);margin-right:4px;font-size:14px;}
+  #topbar .tag{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-right:8px;}
+  .menu{position:relative;}
+  .menu>button,.rbtn{background:transparent;border:0;color:var(--ink);font-size:13px;padding:6px 9px;border-radius:6px;cursor:pointer;height:30px;}
+  .menu>button:hover,.rbtn:hover{background:#222a37;}
+  .menu .dd{position:absolute;top:32px;left:0;min-width:220px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:5px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;}
+  .menu.open .dd{display:block;}
+  .dd .item{padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:18px;}
+  .dd .item:hover{background:#222a37;} .dd .item.on{outline:1px solid var(--accent);}
+  .dd .item .k{color:var(--muted);font-size:11px;} .dd .sep{height:1px;background:var(--line);margin:5px 4px;}
+  .spacer{flex:1;} .rbtn{border:1px solid var(--line);margin-left:4px;font-size:12px;}
+  #stage{position:relative;flex:1;overflow:hidden;background:#0a0c10;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
+  .hud{position:absolute;background:rgba(20,24,32,.82);border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;font-size:12px;color:var(--ink);backdrop-filter:blur(3px);pointer-events:none;line-height:1.5;}
+  #hud-tl{top:10px;left:10px;} #hud-tr{top:10px;right:10px;text-align:right;}
+  #hud-bl{bottom:10px;left:10px;} #hud-br{bottom:10px;right:10px;text-align:right;pointer-events:auto;}
+  .hud b{color:var(--accent);} .hud .ok{color:var(--good);} .hud .dot{color:var(--warn);}
+  .zoomctl button{background:#222a37;border:1px solid var(--line);color:var(--ink);width:26px;height:24px;border-radius:5px;cursor:pointer;font-size:14px;}
+  #picker{position:absolute;top:54px;left:10px;background:rgba(20,24,32,.92);border:1px solid var(--line);
+    border-radius:10px;padding:8px;width:190px;z-index:20;}
+  #picker .h{font-size:11px;color:var(--muted);margin:2px 4px 7px;}
+  .cat{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px;}
+  .cat:hover{background:#222a37;} .cat.active{background:#1d2735;outline:1px solid var(--accent);}
+  .cat .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;} .cat .nm{flex:1;}
+  .cat .eye{font-size:13px;color:var(--muted);width:18px;text-align:center;} .cat .eye.off{opacity:.35;}
+  /* L2c-3: layer-panel controls */
+  .lp-sw{cursor:pointer;outline:1px solid transparent;transition:outline .1s;} .lp-sw:hover{outline-color:var(--accent);}
+  .lp-ord-btn,.lp-del-btn{background:transparent;border:1px solid transparent;color:var(--muted);font-size:10px;
+    width:16px;height:16px;border-radius:3px;cursor:pointer;padding:0;line-height:1;flex:0 0 auto;}
+  .lp-ord-btn:hover{background:#2a3140;color:var(--ink);} .lp-ord-btn:disabled{opacity:.2;cursor:default;}
+  .lp-del-btn{color:#ff6b6b;} .lp-del-btn:hover{background:#2a3140;}
+  .lp-rename-inp{flex:1;background:#0c0f14;border:1px solid var(--accent);color:var(--ink);border-radius:4px;
+    font-size:13px;padding:1px 4px;min-width:0;width:100%;}
+  #picker .lp-add-btn{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:13px;
+    width:20px;height:20px;border-radius:4px;cursor:pointer;margin-left:4px;padding:0;line-height:1;}
+  #picker .lp-add-btn:hover{background:#2a3140;color:var(--ink);}
+  #props{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(20,24,32,.95);
+    border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;display:none;gap:14px;align-items:center;z-index:25;}
+  #props.show{display:flex;} #props .val{color:var(--good);font-weight:600;}
+  #props button{background:#222a37;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;}
+  .overlay{position:absolute;inset:0;background:rgba(6,8,12,.78);z-index:80;display:none;align-items:flex-start;justify-content:center;padding-top:90px;}
+  .overlay.show{display:flex;}
+  #cmdk .box{width:520px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;}
+  #cmdk input{width:100%;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;}
+  #cmdk .res{margin-top:8px;max-height:300px;overflow:auto;} #cmdk .r{padding:8px 10px;border-radius:7px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;}
+  #cmdk .r:hover{background:#222a37;}
+  #ov .grid{width:min(92vw,1040px);max-height:78vh;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;}
+  .thumb{background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;font-size:11px;text-align:center;}
+  .thumb:hover{outline:1px solid var(--accent);} .thumb img{width:100%;border-radius:4px;display:block;margin-bottom:4px;background:#1a212c;min-height:60px;}
+  .thumb.cur{outline:2px solid var(--accent);}
+  #modal{position:absolute;inset:0;background:rgba(6,8,12,.7);z-index:90;display:none;align-items:center;justify-content:center;}
+  #modal.show{display:flex;} #modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;width:340px;}
+  #modal h4{margin:0 0 10px;} #modal input{width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:14px;}
+  #modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+  #modal button{padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:#222a37;color:var(--ink);cursor:pointer;}
+  #modal button.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted);
+    background:rgba(20,24,32,.8);padding:3px 10px;border-radius:6px;z-index:15;}
+  /* LMENU-1: flyout submenu chrome */
+  .item.has-sub{position:relative;}
+  .item.has-sub::after{content:'▸';float:right;opacity:.6;margin-left:8px;}
+  .item.has-sub>.sub-dd{display:none;position:absolute;left:100%;top:-1px;min-width:200px;background:var(--panel);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.4);z-index:11;border-radius:8px;padding:5px;}
+  .item.has-sub:hover>.sub-dd{display:block;}
+  .item.has-sub>.sub-dd .item{display:flex;align-items:center;}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--muted);z-index:5;}
+  .empty button{background:var(--accent);border:0;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;}
+  body.focus #picker,body.focus .hud:not(#hud-br),body.focus .hint{display:none;}
+  .objmenu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:160px;}
+  .objmenu-row{padding:7px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink);white-space:nowrap;}
+  .objmenu-row:hover{background:#222a37;}
+  /* LITE-FLOOR: shared tag/floor-kind control (Page Setup + Summary) */
+  .floorctl select,.floorctl input{width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px;display:block;margin-top:6px;}
+  .floorctl select:first-child{margin-top:0;}
+  .floorctl input.fc-num{width:90px;}
+  .floorctl .fc-hint{font-size:10.5px;color:#ffcc00;margin-top:4px;}
+  /* LITE-ANNOT: inline comment/text editor overlay */
+  #annEditor{position:absolute;display:none;z-index:96;min-width:170px;max-width:300px;min-height:26px;
+    background:rgba(15,17,21,.96);color:#ffe08a;border:1px solid var(--accent);border-radius:6px;
+    padding:5px 8px;font:13px/1.4 "Segoe UI","Noto Sans Thai",sans-serif;resize:none;outline:none;
+    box-shadow:0 6px 20px rgba(0,0,0,.55);overflow:hidden;}
+  #annEditor::placeholder{color:#7f8794;font-size:11px;}
+</style>
+<link rel="stylesheet" href="static/css/design-tokens.css">
+<link rel="stylesheet" href="static/css/layer-panel.css">
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <span class="logo">◯ BMA-Plan</span><span class="tag">LITE</span>
+    <div class="menu" data-m="file"><button>File ▾</button><div class="dd">
+      <div class="item" id="mi-open">เปิด PDF<span class="k">Ctrl+O</span></div>
+      <div class="sep"></div>
+      <div class="item" id="mi-save">บันทึก .bmaplan<span class="k">Ctrl+S</span></div>
+      <div class="item" id="mi-load">เปิดโปรเจกต์ .bmaplan</div>
+      <div class="sep"></div>
+      <div class="item" id="mi-xlsx">Export XLSX<span class="k">Ctrl+E</span></div>
+      <div class="item" id="mi-pdfov">Export PDF (overlay)</div>
+      <div class="item" id="mi-report">ส่งออกรายงาน (แก้ไขได้)…</div>
+    </div></div>
+    <div class="menu" data-m="edit"><button>Edit ▾</button><div class="dd">
+      <div class="item" id="mi-undo">ย้อนกลับ (Undo)<span class="k">Ctrl+Z</span></div>
+      <div class="item" id="mi-redo">ทำซ้ำ (Redo)<span class="k">Ctrl+Y</span></div>
+    </div></div>
+    <div class="menu" data-m="measure"><button>Measure ▾</button><div class="dd">
+      <div class="item" data-tool="select">เลือก/แก้ไข (Select)<span class="k">V</span></div>
+      <div class="item" data-tool="scale">ตั้งสเกล (Set Scale)<span class="k">S</span></div>
+      <div class="item" data-tool="poly">วัดพื้นที่ (Polygon)<span class="k">A</span></div>
+      <div class="item" data-tool="dist">ระยะ (Distance)<span class="k">D</span></div>
+      <div class="item" data-tool="path">ระยะต่อเนื่อง (Path)<span class="k">⇧D</span></div>
+      <div class="item" data-tool="ref">เส้นอ้างอิง (Reference)<span class="k">R</span></div>
+      <div class="item" data-tool="count">นับจำนวน (Count)<span class="k">N</span></div>
+      <div class="sep"></div>
+      <div class="item" id="mi-snap">Snap: <span id="snap-state">เปิด</span> (ปลาย/กลาง/ศูนย์/ตัด/ตั้งฉาก/บนเส้น)<span class="k">G</span></div>
+      <div class="item" id="mi-loupe">แว่นขยาย (Loupe)<span class="k">L</span></div>
+      <div class="item" id="mi-ortho">   Ortho Mode<span class="k">⇧O</span></div>
+      <div class="item" style="color:var(--muted);font-size:11px;pointer-events:none">กด Shift ค้าง = ล็อกมุม 45°</div>
+    </div></div>
+    <div class="menu" data-m="page"><button>Page ▾</button><div class="dd">
+      <div class="item" id="mi-prev">หน้าก่อน<span class="k">PgUp</span></div>
+      <div class="item" id="mi-next">หน้าถัดไป<span class="k">PgDn</span></div>
+      <div class="item" id="mi-rot">หมุนหน้า +90° (View)</div>
+      <div class="item" id="mi-rot-left">หมุน Raster 90° ซ้าย</div>
+      <div class="item" id="mi-rot-right">หมุน Raster 90° ขวา</div>
+      <div class="item" id="mi-excl">ยกเว้นหน้านี้ (toggle)</div>
+      <div class="sep"></div>
+      <div class="item" id="mi-setup">Page Setup… (แท็ก/สเกล/โปรเจกต์)<span class="k">Ctrl+,</span></div>
+    </div></div>
+    <div class="menu" data-m="annotate"><button>Annotate ▾</button><div class="dd">
+      <div class="item" data-tool="ann_text">ตัวหนังสือ (Text)</div>
+      <div class="item" data-tool="ann_comment">คอมเมนต์ (Comment)</div>
+      <div class="item" data-tool="ann_arrow">ลูกศร (Arrow)</div>
+      <div class="item" data-tool="ann_highlight">ไฮไลต์ (Highlight)</div>
+      <div class="sep"></div>
+      <div class="item" data-tool="ann_rect">กรอบสี่เหลี่ยม</div>
+      <div class="item" data-tool="ann_circle">กรอบวงกลม</div>
+      <div class="item" data-tool="ann_cloud">กรอบเมฆ</div>
+    </div></div>
+    <div class="spacer"></div>
+    <button class="rbtn" id="btn-sum">Σ สรุป</button>
+    <button class="rbtn" id="btn-cmdk">🔍 ค้นหาหน้า ⌘K</button>
+    <button class="rbtn" id="btn-ov">🐦 Overview F12</button>
+    <button class="rbtn" id="btn-focus">◯ Focus F</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="empty" id="empty">
+      <div>ยังไม่ได้เปิดไฟล์ PDF</div>
+      <button id="empty-open">เปิด PDF</button>
+    </div>
+    <div id="loading" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,8,12,.62);z-index:95;backdrop-filter:blur(1px)">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 22px;font-size:14px;color:var(--ink)"><span id="loading-txt">กำลังโหลด…</span></div></div>
+    <div class="hint" id="hint">ลาก=pan · ลูกล้อ=zoom · เลือกเครื่องมือแล้ววาด · dblclick/Enter=จบรูป · คลิกขวาที่รูป=เมนู</div>
+    <div id="picker"><div class="h" style="display:flex;align-items:center;justify-content:space-between;">กำลังวัดอะไร (= layer = semantic)<span style="display:flex;gap:2px;"><button class="lp-add-btn" id="lp-add" title="เพิ่ม layer ใหม่">+</button><button class="lp-add-btn" id="lp-add-folder" title="เพิ่มกลุ่ม">📁+</button></span></div><div id="catlist"></div></div>
+    <div class="hud" id="hud-tl"></div>
+    <div class="hud" id="hud-tr"></div>
+    <div class="hud" id="hud-bl"></div>
+    <div class="hud" id="hud-br"><div class="zoomctl"><button id="zin">+</button><button id="zout">−</button><button id="zfit">⤢</button></div></div>
+    <textarea id="annEditor" spellcheck="false" placeholder="พิมพ์ข้อความ… (Enter=จบ · Shift+Enter=บรรทัดใหม่ · Esc=ยกเลิก)"></textarea>
+    <div id="props"><span id="p-name">—</span><span><span class="val" id="p-area">—</span></span>
+      <button id="p-dim">ซ่อน dimension</button><button id="p-del">ลบ</button></div>
+    <div class="overlay" id="cmdk"><div class="box"><input id="cmdk-in" placeholder="ค้นหาหน้า… (พิมพ์เลขหน้า)"><div class="res" id="cmdk-res"></div></div></div>
+    <div class="overlay" id="ov"><div class="grid" id="ov-grid"></div></div>
+    <div class="overlay" id="sum"><div class="box" style="width:560px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;max-height:80vh;overflow:auto"><h3 style="margin:0 0 12px">Σ สรุปการวัด</h3><div id="sum-body"></div></div></div>
+    <div id="modal"><div class="box"><h4>ตั้งสเกล</h4>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">ระยะที่คลิก = <span id="cal-pt">—</span> pt. ใส่ระยะจริง (เมตร):</p>
+      <input id="cal-m" type="number" step="0.01" placeholder="เช่น 10.00">
+      <div class="row"><button id="cal-cancel">ยกเลิก</button><button class="pri" id="cal-ok">ตั้งสเกล</button></div></div></div>
+    <div id="setupModal" style="position:absolute;inset:0;background:rgba(6,8,12,.7);z-index:92;display:none;align-items:center;justify-content:center;">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;width:390px">
+        <h4 style="margin:0 0 12px">Page Setup</h4>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:3px">ชื่อโปรเจกต์</div>
+        <input id="su-proj" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px">
+        <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">แท็กหน้านี้ / ประเภทชั้น (ใช้จัดกลุ่มใน Overview)</div>
+        <div id="su-floor" class="floorctl"></div>
+        <div style="font-size:12px;color:var(--muted);margin:10px 0 3px">สเกลหน้านี้ — pt ต่อ 1 เมตร (ว่าง = ไม่เปลี่ยน)</div>
+        <input id="su-ppm" type="number" step="0.01" placeholder="(ตั้งจากเครื่องมือ Set Scale ก็ได้)" style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid var(--line);color:var(--ink);border-radius:7px;font-size:13px">
+        <div class="row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button id="su-cancel" style="padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:#222a37;color:var(--ink);cursor:pointer">ยกเลิก</button><button class="pri" id="su-ok" style="padding:7px 14px;border-radius:7px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer">บันทึก</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="file-pdf" accept="application/pdf" style="display:none">
+<input type="file" id="file-bma" accept=".bmaplan,application/json" style="display:none">
+
+<!-- HOST GLOBALS — declared before the engine. measure-engine.js owns RS + _PATH_FLATTEN_TOL. -->
+<script>
+  var curPage = 1;
+  var pageData = null;
+  var canvas = document.getElementById("cv");
+  function getRot(pg){ return 0; }                 // view rotation handled separately; coord stays rot0
+  function getScaleForPage(pg){ var s = (PS[pg]||{}).scale; return s || null; }
+</script>
+<script src="static/js/measure-engine.js"></script>
+<script src="static/js/draw-arc.js"></script>
+<script src="static/js/layer-system.js"></script>
+<script src="static/js/page-folder-layers.js"></script>
+<script src="static/js/layer-panel.js"></script>
+<script src="static/js/layer-tree.js"></script>
+<script src="static/js/layer-dnd.js"></script>
+<script src="static/js/report-vars.js"></script>
+<script src="static/js/page-renderer.js"></script>
+<script src="static/js/export-annotate.js"></script>
+<script>
+/* ============================ STATE ============================ */
+var cssVar=function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();};
+/* CATS is now an alias for LAYERS (seeded by layer-system.js).
+   Each layer carries .id .name .color .tag .counting to keep all
+   existing call-sites (catOf, buildPicker, buildExportData, …) unchanged. */
+var CATS = LAYERS;
+var caseId=null, pdfName=null, pageCount=0, excluded={};
+var projectInfo={name:""}, pageTags={};
+var PAGE_TAGS={"":"— ไม่ระบุ —",site:"ผังบริเวณ",floor:"แปลนชั้น",plan:"ผัง",parking:"ที่จอดรถ",amenity:"ส่วนกลาง",detail:"รายละเอียด/รูปด้าน"};
+/* LITE-FLOOR: per-page floor designation (proto-parity: pageFloorKind/pageFloorNum, gated on tag 'floor'). */
+var pageFloorKind={}, pageFloorNum={}, pageNames={};
+var FLOOR_KIND_LABELS={basement:"ชั้นใต้ดิน",normal:"ชั้น",mechanical:"ชั้นห้องเครื่อง",rooftop:"ชั้นดาดฟ้า",custom:"(ตั้งเอง)"};
+var FLOOR_KIND_OPTIONS=[["","— เลือกประเภทชั้น —"],["basement","ชั้นใต้ดิน"],["normal","ชั้น (ปกติ)"],["mechanical","ชั้นห้องเครื่อง"],["rooftop","ชั้นดาดฟ้า"],["custom","(ตั้งชื่อเอง)"]];
+var PS={};                       // PS[n] = {objects:[], scale:{pts_per_m}|null}
+var pageMgr=null;                // LPM: live PageModel instance; null until PDF open
+var V={k:1,ox:0,oy:0,rot:0};
+var state={tool:"poly",activeCat:"gfa",catVis:{},catLock:{},draft:null,sel:null,selSet:[],selAnn:null,dragLabel:null,dirty:false,_id:1,calib:null,snapOn:true,snapHint:null,loupe:false,shift:false,panTool:false,moveObj:null,vertEdit:null,vertMode:null,hintFlash:''};
+CATS.forEach(function(c){state.catVis[c.id]=true; state.catLock[c.id]=false;});
+var SNAP_PX=11; var lastMouse=null;
+
+var cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+function PSpage(){ if(!PS[curPage]) PS[curPage]={objects:[],scale:null,annotations:[]}; if(!PS[curPage].annotations)PS[curPage].annotations=[]; return PS[curPage]; }
+var ANN_TOOLS=["ann_text","ann_comment","ann_arrow","ann_highlight","ann_rect","ann_circle","ann_cloud"];
+function isAnnTool(t){return ANN_TOOLS.indexOf(t||state.tool)>=0;}
+
+/* ============================ TRANSFORM ============================ */
+// geometry stored in PDF points; image px = pt*RS (pdfToC rot0). View = rot+scale+pan.
+function ptToScreen(p){ var ix=p.x*RS, iy=p.y*RS, th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
+  var rx=ix*c-iy*s, ry=ix*s+iy*c; return {x:rx*V.k+V.ox, y:ry*V.k+V.oy}; }
+function screenToPt(sx,sy){ var u=(sx-V.ox)/V.k, v=(sy-V.oy)/V.k, th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
+  var ix=u*c+v*s, iy=-u*s+v*c; return {x:ix/RS, y:iy/RS}; }   // cToPdf rot0 = /RS
+
+// proto-parity zoom commands: zoom about viewport center / reset to 100% (1 img-px = 1 screen-px).
+// resize() and fit() live in static/js/page-renderer.js (slice-1 extraction).
+var ZMIN=0.02, ZMAX=40;                        // wheel + command clamp (anti-runaway; fit() stays unclamped)
+function zoomCenter(f){ if(!PageRenderer.ready())return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+  var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*f)); f=nk/V.k; if(f===1)return;
+  V.ox=cx-(cx-V.ox)*f; V.oy=cy-(cy-V.oy)*f; V.k=nk; draw(); }
+function actualSize(){ if(!PageRenderer.ready())return; var r=cv.getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+  var f=1/V.k; V.ox=cx-(cx-V.ox)*f; V.oy=cy-(cy-V.oy)*f; V.k=1; draw(); }
+
+/* ============================ DRAW ============================ */
+function draw(){
+  var r=cv.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height);
+  if(!PageRenderer.ready()){ updateHUD(); return; }
+  PageRenderer.drawImage(ctx);
+
+  var dimJobs=[];
+  objectsInZOrder(PSpage().objects).forEach(function(o){
+    if(!effVisible(o.catId,_isHidden))return;
+    var cat=catOf(o.catId), sel=state.sel===o||state.selSet.indexOf(o)>=0;
+    if(o.counting){ var sp=ptToScreen(o.pts[0]); ctx.beginPath(); ctx.arc(sp.x,sp.y,7,0,7); ctx.fillStyle=cat.color; ctx.fill();
+      if(sel){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();} return; }
+    if(o.kind==="poly"){ tracePoly(o); ctx.fillStyle=hexA(cat.color,sel?0.30:0.16); ctx.fill();
+      ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; ctx.stroke(); }
+    else { var scr=o.pts.map(ptToScreen); ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
+      ctx.strokeStyle=cat.color; ctx.lineWidth=sel?2.5:1.5; if(o.kind==="ref")ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]); }
+    if(o.dimVisible){
+      var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
+      for(var i=0;i<n;i++){ var a=o.pts[i], b=o.pts[(i+1)%o.pts.length];
+        var lm=edgeM(a,b); if(lm==null)continue; var mp=ptToScreen({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+        dimJobs.push({x:mp.x,y:mp.y,txt:lm.toFixed(2)+" m"}); }
+      if(o.kind==="poly"){ var ar=areaOf(o); var cen=centroid(o.pts), cp=ptToScreen(cen);
+        dimJobs.push({x:cp.x,y:cp.y,txt:cat.name+"  "+(ar==null?"—":ar.toFixed(2)+" m²"),big:true}); }
+    }
+  });
+  if(state.vertMode&&!state.vertMode.counting&&state.vertMode.pts&&state.vertMode.pts.length>0){
+    var vobj=state.vertMode, vcat=catOf(vobj.catId), vpts=vobj.pts, vactive=state.vertEdit&&state.vertEdit.obj===vobj;
+    for(var vi=0;vi<vpts.length;vi++){ var vs=ptToScreen(vpts[vi]); var ishit=vactive&&state.vertEdit.idx===vi;
+      ctx.fillStyle=ishit?"#ffd60a":"#fff"; ctx.strokeStyle=vcat.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.rect(vs.x-5,vs.y-5,10,10); ctx.fill(); ctx.stroke(); } }
+  drawAnnots();
+  if(state.draft){ var cat=catOf(state.activeCat); var scr=state.draft.map(ptToScreen);
+    ctx.beginPath(); scr.forEach(function(p,i){ i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y); });
+    ctx.strokeStyle=cat.color; ctx.setLineDash([5,4]); ctx.lineWidth=1.5; ctx.stroke(); ctx.setLineDash([]);
+    scr.forEach(function(p){ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(p.x,p.y,3,0,7);ctx.fill();}); }
+  // dimension labels — CONSTANT screen size + declutter
+  var placed=[]; ctx.textAlign="center"; ctx.textBaseline="middle";
+  dimJobs.sort(function(a,b){return (b.big?1:0)-(a.big?1:0);}).forEach(function(j){
+    var fs=j.big?12:11; ctx.font=(j.big?"600 ":"")+fs+"px Segoe UI";
+    var w=ctx.measureText(j.txt).width+8, h=fs+6, box=[j.x-w/2,j.y-h/2,w,h];
+    if(placed.some(function(p){return ovl(p,box);}))return; placed.push(box);
+    ctx.fillStyle="rgba(15,17,21,.82)"; rr(ctx,box[0],box[1],w,h,4); ctx.fill();
+    ctx.fillStyle=j.big?"#fff":"#cfe0ff"; ctx.fillText(j.txt,j.x,j.y); });
+  drawLiveOverlay();
+  drawSnap();
+  drawLoupe();
+  updateHUD();
+}
+function catOf(id){return layerById(id);}
+function hexA(hex,a){var h=hex.replace('#','');var n=parseInt(h,16);return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")";}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function ovl(a,b){return !(a[0]+a[2]<b[0]||b[0]+b[2]<a[0]||a[1]+a[3]<b[1]||b[1]+b[3]<a[1]);}
+function centroid(pts){var x=0,y=0;pts.forEach(function(p){x+=p.x;y+=p.y;});return{x:x/pts.length,y:y/pts.length};}
+
+/* area + length via VENDORED engine (polyAreaM2) ------------------- */
+function hasArc(o){ return o.edges&&o.edges.some(function(e){return e&&e.edgeType==="arc";}); }
+function areaOf(o){ if(o.kind!=="poly")return null; return hasArc(o)?polygonAreaWithArcsM2(o):polyAreaM2(o.pts); }   // vendored
+function tracePoly(o){ var scr=o.pts.map(ptToScreen); ctx.beginPath(); ctx.moveTo(scr[0].x,scr[0].y);
+  if(!hasArc(o)){ for(var i=1;i<scr.length;i++)ctx.lineTo(scr[i].x,scr[i].y); ctx.closePath(); return; }
+  var cent=centroid(o.pts),n=scr.length;
+  for(var i=0;i<n;i++){ var j=(i+1)%n,e=(o.edges||[])[i];
+    if(e&&e.edgeType==="arc"&&e.arcThrough&&Math.abs(e.arcSweep||0)>0.001){ var arc=computeArcEdge(o.pts[i],o.pts[j],e.arcThrough,cent);
+      if(arc.center){ var Cc=ptToScreen(arc.center),Rc=Math.hypot(scr[i].x-Cc.x,scr[i].y-Cc.y),aA=Math.atan2(scr[i].y-Cc.y,scr[i].x-Cc.x),aB=Math.atan2(scr[j].y-Cc.y,scr[j].x-Cc.x),Pc=ptToScreen(e.arcThrough),aP=Math.atan2(Pc.y-Cc.y,Pc.x-Cc.x);
+        var sw=(aB-aA+2*Math.PI)%(2*Math.PI),op=(aP-aA+2*Math.PI)%(2*Math.PI); ctx.arc(Cc.x,Cc.y,Rc,aA,aB,op>sw); continue; } }
+    ctx.lineTo(scr[j].x,scr[j].y); }
+  ctx.closePath(); }
+function edgeM(a,b){ var s=getScaleForPage(curPage); if(!s)return null; return Math.hypot(b.x-a.x,b.y-a.y)/s.pts_per_m; }
+// scaleN: drawing-scale denominator 1:N from pts_per_m — matches proto finishCalib (N=round(1000*(72/25.4)/ppm))
+function scaleN(s){ if(!s||!(s.pts_per_m>0))return null; return Math.round(1000*(72/25.4)/s.pts_per_m); }
+
+/* ============================ HUD / PICKER / PROPS ============================ */
+var TOOLNAME={select:"เลือก/แก้ไข",scale:"Set Scale",poly:"Polygon",dist:"Distance",path:"Path",ref:"Reference",count:"Count",
+  ann_text:"Text",ann_comment:"Comment",ann_arrow:"Arrow",ann_highlight:"Highlight",ann_rect:"Rect",ann_circle:"Circle",ann_cloud:"Cloud"};
+function updateHUD(){
+  var s=getScaleForPage(curPage), cat=catOf(state.activeCat);
+  document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">1:'+scaleN(s)+' ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
+  document.getElementById("hud-tr").innerHTML= caseId?("หน้า <b>"+curPage+"</b> / "+pageCount+(excluded[curPage]?' <span class="dot">(ยกเว้น)</span>':'')):"—";
+  var nobj=caseId?PSpage().objects.length:0;
+  var co=(PageRenderer.ready()&&lastMouse)?screenToPt(lastMouse.x,lastMouse.y):null;
+  document.getElementById("hud-bl").innerHTML='วัด: <b style="color:'+cat.color+'">'+cat.name+'</b>'+(state.catVis[cat.id]?'':' <span class="dot">(ซ่อน)</span>')+
+    ' &nbsp; obj '+nobj+' &nbsp; Save <span class="'+(state.dirty?'dot':'ok')+'">'+(state.dirty?'● ยังไม่บันทึก':'○ บันทึกแล้ว')+'</span> &nbsp; zoom '+(V.k*100|0)+'% rot '+V.rot+'°'+
+    ' &nbsp; xy <b>'+(co?(Math.round(co.x)+","+Math.round(co.y)):'—')+'</b>';
+  var hintEl=document.getElementById("hint");
+  if(state.panTool)hintEl.innerHTML="✋ โหมด Pan: ลาก=เลื่อน · กด H อีกครั้ง/เลือกเครื่องมือ=ออก · ลูกล้อ=zoom · F=พอดีจอ";
+  else if(state.tool==="select")hintEl.innerHTML="โหมดเลือก: คลิกรูปเพื่อเลือก · คลิกขวา=เมนู · Delete ลบ · ลาก/Space/กลางเมาส์=pan";
+  else hintEl.innerHTML="วาด: คลิกวาง · Space/กลางเมาส์=pan ได้ทุกโหมด · ลูกล้อ=zoom · F=พอดีจอ · Ctrl+0/1=fit/100% · dblclick/Enter=จบ"+((state.draft&&state.draft.length)?(" · <b>"+state.draft.length+" จุด</b> · Ctrl+Z=ถอยจุด"):"")+(state.tool==="poly"?arcHUDText():"");
+  /* LMENU-1: hintFlash prepend — shown by flyout items for 5s, then cleared */
+  if(state.hintFlash)hintEl.innerHTML='<b style="color:var(--accent)">'+state.hintFlash+'</b> · '+hintEl.innerHTML;
+}
+/* buildPicker() lives in static/js/layer-panel.js (L2c-3 extraction). */
+function showProps(o){ var box=document.getElementById("props");
+  if(state.selSet.length>1){ document.getElementById("p-name").innerHTML='<b>'+state.selSet.length+' objects</b>';
+    document.getElementById("p-area").textContent="—";
+    document.getElementById("p-dim").textContent="dimension"; box.classList.add("show"); return; }
+  if(!o){box.classList.remove("show");return;}
+  var cat=catOf(o.catId); document.getElementById("p-name").innerHTML='<b style="color:'+cat.color+'">'+cat.name+'</b>';
+  var v = o.counting?"(count)" : (o.kind==="poly"? (areaOf(o)==null?"—":areaOf(o).toFixed(2)+" m²") : "เส้น");
+  document.getElementById("p-area").textContent=v;
+  document.getElementById("p-dim").textContent=o.dimVisible?"ซ่อน dimension":"แสดง dimension"; box.classList.add("show"); }
+
+/* ============================ BACKEND ============================ */
+function api(path){ return path+(path.indexOf("?")<0?"?":"&")+"case_id="+caseId; }
+function showLoading(t){ var e=document.getElementById("loading"); document.getElementById("loading-txt").textContent=t; e.style.display="flex"; }
+function hideLoading(){ document.getElementById("loading").style.display="none"; }
+async function uploadPdf(file){
+  var mb=(file.size/1048576).toFixed(0);
+  showLoading("กำลังอัปโหลด PDF ("+mb+" MB)… ไฟล์ใหญ่อาจใช้เวลาสักครู่");
+  try{
+    var fd=new FormData(); fd.append("file",file);
+    var res=await fetch("/upload",{method:"POST",body:fd});
+    var j=await res.json(); if(j.error){hideLoading();alert("เปิดไม่ได้: "+j.error);return;}
+    caseId=j.case_id; pdfName=j.name; pageCount=j.pages; PS={}; excluded={}; PageRenderer.resetCache();
+    document.getElementById("empty").style.display="none";
+    curPage=1; await loadPage(1);
+    _pmSeed(undefined); // LPM slice 3: seed pageMgr after upload (no pageIdentities yet)
+  }catch(err){ hideLoading(); alert("อัปโหลดล้มเหลว: "+err.message); }
+}
+// loadPage() lives in static/js/page-renderer.js (slice-1 extraction).
+/* LPM-SLICE3: plumbing helpers — wires pageMgr to app globals. No behavior change until slice 5. */
+function _pmSeed(pageIdentities){
+  pageMgr=new PageModel();
+  pageMgr.seedFromGlobals({PS:PS,pageTags:pageTags,pageFloorKind:pageFloorKind,
+    pageFloorNum:pageFloorNum,pageNames:pageNames,pageRot:pageRot,
+    excluded:excluded,pageCount:pageCount,pageIdentities:pageIdentities});
+  // FIX-B5: wrap mutation methods on the instance so ANY direct call (UI or test)
+  // sets state.dirty. This ensures MR-dirty passes regardless of call path.
+  (function(m){
+    ['reorder','del','duplicate','merge'].forEach(function(fn){
+      var orig=m[fn].bind(m);
+      m[fn]=function(){ var r=orig.apply(m,arguments); if(typeof state!=='undefined')state.dirty=true; return r; };
+    });
+  })(pageMgr);
+}
+function _pmCommit(){  // slice 5 will call this; UNUSED now — defined here for completeness
+  if(!pageMgr)return;
+  var g=pageMgr.projectToGlobals();
+  PS=g.PS; pageTags=g.pageTags; pageFloorKind=g.pageFloorKind; pageFloorNum=g.pageFloorNum;
+  pageNames=g.pageNames; pageRot=g.pageRot; excluded=g.excluded; pageCount=g.pageCount;
+  if(typeof reseedActivePageFolders==="function")reseedActivePageFolders(); state.dirty=true;
+}
+function afterPage(){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.sel=null; state.selSet=[]; state.selAnn=null; state.draft=null; showProps(null); buildPicker(); if(typeof hideEmptyHub==="function")hideEmptyHub(); draw(); }
+
+/* ============================ INTERACTION ============================ */
+var dragging=false,lastX=0,lastY=0,moved=false,panning=false,spaceDown=false;
+// proto-parity cursor feedback: grabbing while panning, grab when pan armed, crosshair while drawing, default in select.
+function setCursor(){ if(!cv)return;
+  cv.style.cursor = panning ? "grabbing" : ((state.moveObj&&state.moveObj.moved)||(state.vertEdit&&state.vertEdit.moved)) ? "grabbing" : (spaceDown||state.panTool) ? "grab" : state.tool==="select" ? "default" : "crosshair"; }
+cv.addEventListener("mousedown",function(e){
+  if(!PageRenderer.ready())return;
+  // PAN (proto parity): middle-button OR spacebar-hold OR pan tool — works in ANY mode, even mid-tool.
+  if(e.button===1||spaceDown||state.panTool){ e.preventDefault();
+    dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; setCursor(); return; }
+  if(e.button!==0)return;
+  var p;
+  if((state.shift||state.orthoOn)&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
+  else if(state.snapOn&&state.snapHint&&isDrawTool()){ p=state.snapHint.pt; }
+  else { p=screenToPt(e.offsetX,e.offsetY); }
+  if((state.tool==="count"||state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref")&&state.catLock[state.activeCat]){
+    var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; return; }
+  if(state.tool==="scale"){ state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
+    if(state.draft.length===2){ openCalib(); } draw(); return; }
+  if(state.tool==="count"){ pushUndo(); PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
+  if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
+    state.draft=state.draft||[];
+    if(state.tool==="poly"){ /* LCURVE-1: arc edge sub-state */
+      var _arc=arcOnClick(p,state.draft);
+      if(_arc.consumed){ state.dirty=true; draw(); return; } /* through-point absorbed */
+      var _clP=window.CL_litePolyClick&&window.CL_litePolyClick(p,e.offsetX,e.offsetY); state.draft.push(_clP||p); state.dirty=true;
+      if(_arc.edgeRecord){ /* arc closed — store edge at [i-1] after push */
+        if(!state.draft.edges)state.draft.edges=[];
+        state.draft.edges[state.draft.length-2]=_arc.edgeRecord; }
+    } else {
+      state.draft.push(p); state.dirty=true;
+      if(state.tool==="dist"&&state.draft.length===2){ finishDraft(); } }
+    draw(); return; }
+  if(state.tool==="select"&&state.vertMode&&!state.vertMode.counting){ var vh=vertexHandleHit(state.vertMode,e.offsetX,e.offsetY); if(vh>=0){ state.vertEdit={obj:state.vertMode,idx:vh,startScr:{x:e.offsetX,y:e.offsetY},orig:{x:state.vertMode.pts[vh].x,y:state.vertMode.pts[vh].y},moved:false}; setCursor(); return; } }
+  if(isAnnTool()){
+    if(state.tool==="ann_text"||state.tool==="ann_comment"){ pushUndo();
+      var ann=Object.assign({id:state._id++,type:state.tool,pt:p,text:""},ANN_DEFAULTS[state.tool]); PSpage().annotations.push(ann); state.dirty=true;
+      openAnnEditor(ann,true); draw(); return; }
+    state.draft=state.draft||[]; state.draft.push(p);
+    if(state.draft.length===2){ pushUndo(); PSpage().annotations.push(Object.assign({id:state._id++,type:state.tool,pts:state.draft.slice()},ANN_DEFAULTS[state.tool])); state.draft=null; state.dirty=true; }
+    draw(); return; }
+  // select/pan
+  if(state.tool==="select"&&state.selAnn&&state.selAnn.label){ var lb=_labelBox(state.selAnn);
+    if(lb&&e.offsetX>=lb.x-3&&e.offsetX<=lb.x+lb.w+3&&e.offsetY>=lb.y-3&&e.offsetY<=lb.y+lb.h+3){
+      pushUndo(); var anc=_labelAnchor(state.selAnn),gp=screenToPt(e.offsetX,e.offsetY);
+      state.dragLabel={ann:state.selAnn,dx:anc.x-gp.x,dy:anc.y-gp.y}; setCursor(); return; } }
+  if(state.tool==="select"){ var aih=annHit(e.offsetX,e.offsetY);
+    if(aih>=0){ var aa=PSpage().annotations[aih]; state.selAnn=aa; state.sel=null; showProps(null);
+      var asp=ptToScreen(aa.pt||aa.pts[0]); draw(); if(typeof openAnnStyle==="function")openAnnStyle(aa,asp.x,asp.y); return; } }
+  var hit=pick(e.offsetX,e.offsetY);
+  if(hit){ state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle();
+    if(state.shift){ var ix=state.selSet.indexOf(hit); if(ix>=0)state.selSet.splice(ix,1); else state.selSet.push(hit); state.sel=hit; }
+    else if(state.selSet.length>1&&state.selSet.indexOf(hit)>=0){ state.sel=hit; }   // grab a group member -> preserve group for drag
+    else { state.selSet=[hit]; state.sel=hit; if(state.vertMode!==hit)state.vertMode=null; }
+    showProps(hit);
+    var grp=(state.selSet.length>1&&state.selSet.indexOf(hit)>=0)?state.selSet.slice():[hit];
+    state.moveObj={group:grp, startPt:screenToPt(e.offsetX,e.offsetY), startScr:{x:e.offsetX,y:e.offsetY}, orig:grp.map(function(o){return o.pts.map(function(p){return {x:p.x,y:p.y};});}), moved:false};
+    draw(); }
+  else { dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; state.sel=null; state.selSet=[]; state.vertMode=null; state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); showProps(null); setCursor(); draw(); }
+});
+window.addEventListener("mousemove",function(e){ if(!dragging)return; moved=true;
+  V.ox+=e.clientX-lastX; V.oy+=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; draw(); });
+cv.addEventListener("mousemove",function(e){
+  if(state.dragLabel){ var gp=screenToPt(e.offsetX,e.offsetY); state.dragLabel.ann.labelPt={x:gp.x+state.dragLabel.dx,y:gp.y+state.dragLabel.dy}; state.dirty=true; draw(); return; }
+  if(state.moveObj){ var mo=state.moveObj, gp=screenToPt(e.offsetX,e.offsetY);
+    if(!mo.moved){ if(Math.hypot(e.offsetX-mo.startScr.x,e.offsetY-mo.startScr.y)<3)return; pushUndo(); mo.moved=true; }
+    var dx=gp.x-mo.startPt.x, dy=gp.y-mo.startPt.y;
+    for(var gi=0;gi<mo.group.length;gi++){ var go=mo.group[gi],og=mo.orig[gi];
+      for(var mi=0;mi<go.pts.length;mi++){ go.pts[mi].x=og[mi].x+dx; go.pts[mi].y=og[mi].y+dy; } }
+    state.dirty=true; setCursor(); draw(); return; }
+  if(state.vertEdit){ var ve=state.vertEdit, gp=screenToPt(e.offsetX,e.offsetY);
+    if(!ve.moved){ if(Math.hypot(e.offsetX-ve.startScr.x,e.offsetY-ve.startScr.y)<3)return; pushUndo(); ve.moved=true; }
+    ve.obj.pts[ve.idx].x=gp.x; ve.obj.pts[ve.idx].y=gp.y; state.dirty=true; setCursor(); draw(); return; }
+  if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!PageRenderer.ready())return;
+  var need=state.loupe||isDrawTool()||(isAnnTool()&&state.draft&&state.draft.length===1);   // draw-tool/annotation drafting = redraw every move so live guide/rubber-band follow the cursor
+  if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
+    var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
+    if(changed){state.snapHint=h;need=true;} }
+  else if(state.snapHint){state.snapHint=null;need=true;}
+  if(need)draw(); });
+window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();} if(state.moveObj){state.moveObj=null;setCursor();} if(state.vertEdit){state.vertEdit=null;setCursor();} dragging=false;panning=false;setCursor();});
+cv.addEventListener("dblclick",function(e){
+  if(!state.draft){
+    if(state.selAnn&&state.selAnn.label){ var lb=_labelBox(state.selAnn);
+      if(lb&&e.offsetX>=lb.x-3&&e.offsetX<=lb.x+lb.w+3&&e.offsetY>=lb.y-3&&e.offsetY<=lb.y+lb.h+3){ pushUndo(); openAnnEditor(state.selAnn,false,"label"); return; } }
+    var ei=annHit(e.offsetX,e.offsetY); if(ei>=0){ var ea=PSpage().annotations[ei]; if(ea.type==="ann_text"||ea.type==="ann_comment"){ pushUndo(); openAnnEditor(ea,false,"text"); } } return; }
+  if(state.tool==="poly"||state.tool==="path"||state.tool==="ref"){
+    // the dblclick's own two mousedowns each added a stray point at the dblclick
+    // spot — pop trailing points within 6 screen-px of it before finishing.
+    for(var _np=0;_np<2&&state.draft.length>0;){ var sp=ptToScreen(state.draft[state.draft.length-1]);
+      if(Math.hypot(sp.x-e.offsetX,sp.y-e.offsetY)<6){ state.draft.pop(); _np++; } else break; }
+    finishDraft();
+  } });
+cv.addEventListener("contextmenu",function(e){ e.preventDefault(); if(!PageRenderer.ready())return;
+  var ai=annHit(e.offsetX,e.offsetY); if(ai>=0){ var aa=PSpage().annotations[ai]; state.selAnn=aa; state.sel=null; showProps(null);  // right-click annotation = EDIT (open style/label panel); delete via panel/Delete
+    var asp=ptToScreen(aa.pt||aa.pts[0]); draw(); if(typeof openAnnStyle==="function")openAnnStyle(aa,asp.x,asp.y); return; }
+  var hit=pick(e.offsetX,e.offsetY);
+  if(hit){ state.sel=hit; if(state.selSet.indexOf(hit)<0)state.selSet=[hit]; showProps(hit); draw(); showObjMenu(e.clientX,e.clientY,hit); } });
+cv.addEventListener("wheel",function(e){ e.preventDefault(); if(!PageRenderer.ready())return;
+  var nk=Math.max(ZMIN,Math.min(ZMAX,V.k*Math.exp(-e.deltaY*0.0015)));   // proto-parity: smooth exp + clamp
+  if(nk===V.k)return;
+  var p=screenToPt(e.offsetX,e.offsetY);
+  V.k=nk; var sp=ptToScreen(p); V.ox+=e.offsetX-sp.x; V.oy+=e.offsetY-sp.y; draw(); },{passive:false});
+
+function mkObj(pts,kind,counting){ var cat=catOf(state.activeCat);
+  return {id:state._id++,catId:state.activeCat,semanticTag:cat.tag,pts:pts,kind:kind,counting:!!counting,dimVisible:!counting}; }
+function finishDraft(){
+  if(state.catLock[state.activeCat]){ state.draft=null; arcCancel(); var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; draw(); return; }
+  var min=state.tool==="poly"?3:2;
+  if(!state.draft||state.draft.length<min){ state.draft=null; arcCancel(); draw(); return; }
+  var kind=state.tool==="poly"?"poly":(state.tool==="ref"?"ref":"line");
+  /* LCURVE-1: capture edges from the draft array before clearing.
+     edges is stored as a sparse property on the draft array (not null-padded by default).
+     Include in saved object only if at least one arc edge exists; otherwise omit entirely
+     so wire-compatible payloads for straight-only polys stay identical to pre-arc schema. */
+  var draftEdges = (state.tool==="poly" && state.draft.edges && state.draft.edges.some(function(e){return e&&e.edgeType==="arc";}))
+    ? state.draft.edges.slice() : null;
+  arcCancel();
+  if(state.tool==="poly"&&window.CL_litePolyFinish){var _clR=window.CL_litePolyFinish(state.draft);if(_clR){if(state.draft.edges)_clR.edges=state.draft.edges;state.draft=_clR;}}
+  pushUndo();
+  var o = mkObj(state.draft, kind, false);
+  if(draftEdges) o.edges = draftEdges;
+  PSpage().objects.push(o);
+  state.draft=null; state.dirty=true; draw();
+}
+function nudgeSel(dxs,dys){
+  var tgt=state.selSet.length?state.selSet:(state.sel?[state.sel]:[]);
+  if(!tgt.length)return;
+  var o0=screenToPt(0,0),o1=screenToPt(dxs,dys),dx=o1.x-o0.x,dy=o1.y-o0.y;
+  pushUndo();
+  tgt.forEach(function(o){ o.pts.forEach(function(p){ p.x+=dx; p.y+=dy; }); });
+  state.dirty=true; draw();
+}
+function duplicateSel(){
+  var src=state.selSet.length?state.selSet.slice():(state.sel?[state.sel]:[]);
+  if(!src.length)return;
+  pushUndo();
+  // ~16 screen px offset expressed in PDF units at the current zoom:
+  var o0=screenToPt(0,0),o1=screenToPt(16,16),dx=o1.x-o0.x,dy=o1.y-o0.y;
+  var arr=PSpage().objects,clones=[];
+  src.forEach(function(o){
+    var c=JSON.parse(JSON.stringify(o));
+    c.id=state._id++;
+    c.pts=c.pts.map(function(p){return {x:p.x+dx,y:p.y+dy};});
+    arr.push(c); clones.push(c);
+  });
+  state.selSet=clones.length>1?clones:[];
+  state.sel=clones[clones.length-1];
+  state.dirty=true; showProps(clones.length>1?null:state.sel); draw();
+}
+var _objMenuEl=null, _objMenuOutside=null;
+function closeObjMenu(){
+  if(_objMenuEl){ _objMenuEl.remove(); _objMenuEl=null; }
+  if(_objMenuOutside){ document.removeEventListener("click",_objMenuOutside,true); _objMenuOutside=null; }
+}
+function showObjMenu(cx,cy,obj){
+  closeObjMenu();
+  var m=document.createElement("div"); m.className="objmenu";
+  function row(label,action){ var r=document.createElement("div"); r.className="objmenu-row"; r.textContent=label;
+    r.addEventListener("click",function(e){ e.stopPropagation(); closeObjMenu(); action(); draw(); }); m.appendChild(r); }
+  // แก้จุด / ออกจากแก้จุด
+  var isVertMode=state.vertMode===obj;
+  row(isVertMode?"ออกจากแก้จุด":"แก้จุด",function(){ state.vertMode=(state.vertMode===obj?null:obj); });
+  // ซ่อน/แสดง dimension — skip for counting objects
+  if(!obj.counting){ row(obj.dimVisible?"ซ่อน dimension":"แสดง dimension",function(){ pushUndo(); obj.dimVisible=!obj.dimVisible; state.dirty=true; showProps(obj); }); }
+  // สำเนา
+  row("สำเนา",function(){ state.sel=obj; state.selSet=[obj]; duplicateSel(); });
+  // ลบ
+  row("ลบ",function(){ pushUndo(); var a=PSpage().objects; var i=a.indexOf(obj); if(i>=0)a.splice(i,1); state.sel=null; state.selSet=[]; state.vertMode=null; showProps(null); state.dirty=true; });
+  // position
+  var vw=window.innerWidth, vh=window.innerHeight;
+  var mw=164, mh=(obj.counting?3:4)*36+8;
+  var left=Math.min(cx,vw-mw-8), top=Math.min(cy,vh-mh-8);
+  m.style.left=left+"px"; m.style.top=top+"px";
+  document.body.appendChild(m); _objMenuEl=m;
+  // one-shot outside-click close (capture phase so it fires before other handlers)
+  _objMenuOutside=function(e){ if(!m.contains(e.target)){ closeObjMenu(); } };
+  // defer to avoid the current right-click event closing the menu immediately
+  setTimeout(function(){ document.addEventListener("click",_objMenuOutside,true); },0);
+}
+function pick(sx,sy){
+  // Iterate z-order DESCENDING so the visually-top object (highest layer.order) wins.
+  var zObjs=objectsInZOrder(PSpage().objects);
+  for(var i=zObjs.length-1;i>=0;i--){ var o=zObjs[i]; if(!effVisible(o.catId,_isHidden))continue; if(effLocked(o.catId,_isLocked))continue;
+    if(o.counting){ var sp=ptToScreen(o.pts[0]); if(Math.hypot(sx-sp.x,sy-sp.y)<10)return o; continue; }
+    var scr=o.pts.map(ptToScreen);
+    if(o.kind==="poly"){ if(inPoly(sx,sy,scr))return o; }
+    else { for(var k=0;k<scr.length-1;k++){ if(distSeg(sx,sy,scr[k],scr[k+1])<6)return o; } } }
+  return null;
+}
+function inPoly(x,y,poly){var c=false;for(var i=0,j=poly.length-1;i<poly.length;j=i++){var xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+  if(((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
+function distSeg(px,py,a,b){var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1)return Math.hypot(px-a.x,py-a.y);
+  var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2));return Math.hypot(px-(a.x+t*dx),py-(a.y+t*dy));}
+
+/* --- LITE-SNAP: lite-native snap (endpoint / intersection / nearest-on-edge).
+   Re-uses the vendored segIntersect for intersections. Works in SCREEN space. --- */
+function isDrawTool(){ return ["scale","poly","dist","path","ref","count"].indexOf(state.tool)>=0; }
+function edgeHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var m=ptToScreen({x:(o.pts[i].x+o.pts[(i+1)%o.pts.length].x)/2,y:(o.pts[i].y+o.pts[(i+1)%o.pts.length].y)/2}); if(Math.abs(sx-m.x)<7&&Math.abs(sy-m.y)<7)return i; } return -1; }
+function vertexHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var s=ptToScreen(o.pts[i]); if(Math.abs(sx-s.x)<6&&Math.abs(sy-s.y)<6)return i; } return -1; }
+function nearOnSegS(px,py,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1)return{x:a.x,y:a.y};
+  var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2)); return{x:a.x+t*dx,y:a.y+t*dy}; }
+function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,kind:(state.tool==="poly"?"poly":"line"),counting:false}]:[]);
+  objs.forEach(function(o){ if(o.counting||!o.pts||o.pts.length<2)return; var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
+    for(var i=0;i<n;i++)segs.push([o.pts[i],o.pts[(i+1)%o.pts.length]]); }); return segs; }
+function computeSnap(sx,sy){
+  if(!PageRenderer.ready()||!state.snapOn)return null;
+  var ST=state.snapTypes||{endpoint:true,midpoint:true,center:true,intersection:true};
+  var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,counting:false}]:[]);
+  var best=null,bd=SNAP_PX;
+  if(ST.endpoint){ objs.forEach(function(o){ if(o.counting||!o.pts)return; o.pts.forEach(function(p){ var s=ptToScreen(p),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:p,screen:s,type:"endpoint"};} }); }); if(best)return best; }  // endpoint wins
+  var segs=pageSegs();
+  if(ST.intersection){ for(var i=0;i<segs.length;i++)for(var j=i+1;j<segs.length;j++){
+    var a0=ptToScreen(segs[i][0]),a1=ptToScreen(segs[i][1]),b0=ptToScreen(segs[j][0]),b1=ptToScreen(segs[j][1]);
+    var ix=segIntersect(a0.x,a0.y,a1.x,a1.y,b0.x,b0.y,b1.x,b1.y);   // vendored
+    if(ix){ var d=Math.hypot(ix.x-sx,ix.y-sy); if(d<bd){bd=d;best={pt:screenToPt(ix.x,ix.y),screen:ix,type:"intersection"};} } }
+  if(best)return best; }                                // intersection next
+  if(ST.midpoint){ segs.forEach(function(seg){ var m={x:(seg[0].x+seg[1].x)/2,y:(seg[0].y+seg[1].y)/2},s=ptToScreen(m),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:m,screen:s,type:"midpoint"};} }); if(best)return best; }  // midpoint
+  if(ST.center){ PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!effVisible(o.catId,_isHidden))return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
+    if(d<bd){bd=d;best={pt:c,screen:s,type:"center"};} }); if(best)return best; }    // center
+  if(state.draft&&state.draft.length){ var lp=state.draft[state.draft.length-1];
+    segs.forEach(function(seg){ var foot=footPerp(lp,seg[0],seg[1]); var s=ptToScreen(foot),d=Math.hypot(s.x-sx,s.y-sy);
+      if(d<bd){bd=d;best={pt:foot,screen:s,type:"perp"};} }); }
+  if(best)return best;                                  // perpendicular (from last point)
+  segs.forEach(function(seg){ var s0=ptToScreen(seg[0]),s1=ptToScreen(seg[1]),np=nearOnSegS(sx,sy,s0,s1),d=Math.hypot(np.x-sx,np.y-sy);
+    if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} });
+  return best;
+}
+function footPerp(p,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1e-6)return{x:a.x,y:a.y};
+  var t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; return {x:a.x+t*dx,y:a.y+t*dy}; }   // projection onto infinite line
+function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy),step=Math.PI/4;
+  var la=Math.round(Math.atan2(dy,dx)/step)*step; return {x:prev.x+Math.cos(la)*len,y:prev.y+Math.sin(la)*len}; }
+/* --- LITE-LIVE: ported measurement-display feedback from proto's redraw().
+   Rubber-band line to the cursor, live segment length + bearing, running total
+   (path/dist), live area preview (poly), cursor-guide crosshair, and a coordinate
+   readout (in updateHUD). Pure overlay — no area-math / transform changes. The
+   live target honours Shift angle-lock and snap exactly like the mousedown path. --- */
+function liveTarget(){ if(!lastMouse||!isDrawTool())return null;
+  var raw=screenToPt(lastMouse.x,lastMouse.y), hasLast=state.draft&&state.draft.length;
+  if((state.shift||state.orthoOn)&&hasLast&&state.tool!=="count")return {pt:angleLock(state.draft[state.draft.length-1],raw),locked:true};
+  if(state.snapOn&&state.snapHint)return {pt:state.snapHint.pt,snapped:true};
+  return {pt:raw}; }
+function fmtPtLen(ptd){ var s=getScaleForPage(curPage); return s?(ptd/s.pts_per_m).toFixed(2)+" m":ptd.toFixed(1)+" pt"; }
+function liveTag(x,y,txt,hot){ ctx.save(); ctx.font="600 11px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="middle";
+  var w=ctx.measureText(txt).width+10; ctx.fillStyle="rgba(15,17,21,.9)"; rr(ctx,x,y-9,w,18,4); ctx.fill();
+  ctx.fillStyle=hot?"#ffd60a":"#cfe0ff"; ctx.fillText(txt,x+5,y); ctx.restore(); }
+function drawLiveOverlay(){
+  if(!PageRenderer.ready()||panning||spaceDown||state.panTool)return;
+  var lt=liveTarget(); if(!lt)return; var tgt=ptToScreen(lt.pt), r=cv.getBoundingClientRect();
+  // cursor-guide crosshair across the whole canvas — aids alignment while measuring
+  ctx.save(); ctx.strokeStyle="rgba(76,141,255,.30)"; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+  ctx.beginPath(); ctx.moveTo(0,tgt.y); ctx.lineTo(r.width,tgt.y); ctx.moveTo(tgt.x,0); ctx.lineTo(tgt.x,r.height); ctx.stroke(); ctx.restore();
+  if(!(state.draft&&state.draft.length)||state.tool==="count")return;          // no rubber-band before first point / for count markers
+  var lp=state.draft[state.draft.length-1], ls=ptToScreen(lp), hot=lt.locked||lt.snapped;
+  ctx.save(); ctx.strokeStyle=hot?"#ffd60a":((catOf(state.activeCat)||{}).color||"#4c8dff");
+  ctx.setLineDash([6,4]); ctx.lineWidth=1.5; ctx.globalAlpha=0.9; ctx.beginPath(); ctx.moveTo(ls.x,ls.y); ctx.lineTo(tgt.x,tgt.y); ctx.stroke(); ctx.restore();
+  var segPt=Math.hypot(lt.pt.x-lp.x,lt.pt.y-lp.y);
+  var deg=Math.atan2(-(tgt.y-ls.y),tgt.x-ls.x)*180/Math.PI; if(deg<0)deg+=360;   // screen-space bearing (y-up)
+  liveTag((ls.x+tgt.x)/2+8,(ls.y+tgt.y)/2,fmtPtLen(segPt)+"  ∠"+deg.toFixed(0)+"°"+(lt.locked?" 🔒":""),hot);
+  var extra="";
+  if(state.tool==="path"||state.tool==="dist"){ if(state.draft.length>1){ var tot=segPt;
+      for(var i=1;i<state.draft.length;i++)tot+=Math.hypot(state.draft[i].x-state.draft[i-1].x,state.draft[i].y-state.draft[i-1].y); extra="Σ "+fmtPtLen(tot); } }
+  else if(state.tool==="poly"&&state.draft.length>=2){ var pa=polyAreaM2(state.draft.concat([lt.pt])); if(pa!=null)extra="▱ "+pa.toFixed(2)+" m²"; }
+  if(extra)liveTag(tgt.x+12,tgt.y+16,extra,false);
+  /* LCURVE-1: arc curve preview when through-point is set */
+  if(state.tool==="poly")arcRenderPreview(ctx,lp,lt.pt);
+}
+
+/* --- LITE-ANNOT: render + hit-test --- */
+/* style defaults per annotation type (color/opacity/fontSize all editable via annot-style.js) */
+var ANN_DEFAULTS={ann_text:{color:"#ffe08a",opacity:1,fontSize:13},ann_comment:{color:"#ffe08a",opacity:1,fontSize:13},
+  ann_arrow:{color:"#ff453a",opacity:1},ann_highlight:{color:"#ffd60a",opacity:0.30},
+  ann_rect:{color:"#ff453a",opacity:1},ann_circle:{color:"#ff453a",opacity:1},ann_cloud:{color:"#ff453a",opacity:1}};
+function annStyle(a){ var d=ANN_DEFAULTS[a.type]||{}; return {color:a.color||d.color||"#ff453a",opacity:(a.opacity!=null?a.opacity:(d.opacity!=null?d.opacity:1)),fontSize:a.fontSize||d.fontSize||13}; }
+function _hexA(hex,a){ hex=String(hex||"#ff453a").replace("#",""); if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var n=parseInt(hex,16); return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")"; }
+function drawAnnots(){ var anns=PSpage().annotations||[];
+  anns.forEach(function(a){ var st=annStyle(a);
+    if(a.type==="ann_text"||a.type==="ann_comment"){ if(typeof annEdit!=="undefined"&&annEdit&&annEdit.ann===a)return; // hidden while editing inline
+      var s=ptToScreen(a.pt),pre=a.type==="ann_comment"?"💬 ":"";
+      ctx.save(); ctx.globalAlpha=st.opacity; ctx.font=st.fontSize+"px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="top";
+      var lines=String(a.text||"").split("\n"); lines[0]=pre+lines[0]; var lh=Math.round(st.fontSize*1.3),maxw=0;
+      lines.forEach(function(ln){maxw=Math.max(maxw,ctx.measureText(ln).width);});
+      var w=maxw+10,h=lines.length*lh+6; ctx.fillStyle="rgba(15,17,21,.85)"; rr(ctx,s.x,s.y,w,h,4); ctx.fill();
+      ctx.fillStyle=st.color; lines.forEach(function(ln,i){ctx.fillText(ln,s.x+5,s.y+4+i*lh);}); ctx.restore();
+      if(a===state.selAnn)_annSelBox(s.x,s.y,w,h); return; }
+    if(!a.pts||a.pts.length<2)return; var a0=ptToScreen(a.pts[0]),a1=ptToScreen(a.pts[1]);
+    var x=Math.min(a0.x,a1.x),y=Math.min(a0.y,a1.y),w=Math.abs(a1.x-a0.x),h=Math.abs(a1.y-a0.y);
+    ctx.save();
+    if(a.type==="ann_highlight"){ ctx.fillStyle=_hexA(st.color,st.opacity); ctx.fillRect(x,y,w,h); }
+    else { ctx.globalAlpha=st.opacity; ctx.strokeStyle=st.color; ctx.lineWidth=2; ctx.setLineDash([]);
+      if(a.type==="ann_rect"){ ctx.strokeRect(x,y,w,h); }
+      else if(a.type==="ann_circle"){ ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); ctx.stroke(); }
+      else if(a.type==="ann_cloud"){ drawCloud(x,y,w,h); }
+      else if(a.type==="ann_arrow"){ ctx.beginPath(); ctx.moveTo(a0.x,a0.y); ctx.lineTo(a1.x,a1.y); ctx.stroke();
+        var ang=Math.atan2(a1.y-a0.y,a1.x-a0.x),hl=12; ctx.beginPath(); ctx.moveTo(a1.x,a1.y);
+        ctx.lineTo(a1.x-hl*Math.cos(ang-0.4),a1.y-hl*Math.sin(ang-0.4)); ctx.moveTo(a1.x,a1.y);
+        ctx.lineTo(a1.x-hl*Math.cos(ang+0.4),a1.y-hl*Math.sin(ang+0.4)); ctx.stroke(); } }
+    ctx.restore(); _drawAnnLabel(a); if(a===state.selAnn)_annSelBox(x-3,y-3,w+6,h+6); });
+  drawAnnotPreview(); }
+function _annSelBox(x,y,w,h){ ctx.save(); ctx.strokeStyle="#4c8dff"; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(x-2,y-2,w+4,h+4); ctx.restore(); }
+/* movable text label ("เทค") on shape annotations */
+function _labelBox(a){ if(!a.label)return null; var s=ptToScreen(_labelAnchor(a));
+  ctx.save(); ctx.font="13px Segoe UI"; var lines=String(a.label).split("\n"),maxw=0;
+  lines.forEach(function(ln){maxw=Math.max(maxw,ctx.measureText(ln).width);}); ctx.restore();
+  return {x:s.x,y:s.y,w:maxw+10,h:lines.length*17+4}; }
+function _drawAnnLabel(a){ if(!a.label)return; if(annEdit&&annEdit.ann===a&&annEdit.field==="label")return;
+  var st=annStyle(a),b=_labelBox(a); ctx.save(); ctx.globalAlpha=st.opacity;
+  ctx.fillStyle="rgba(15,17,21,.85)"; rr(ctx,b.x,b.y,b.w,b.h,4); ctx.fill();
+  ctx.font="13px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillStyle=st.color;
+  String(a.label).split("\n").forEach(function(ln,i){ctx.fillText(ln,b.x+5,b.y+3+i*17);}); ctx.restore();
+  if(a===state.selAnn){ ctx.save(); ctx.strokeStyle="#4c8dff"; ctx.lineWidth=1; ctx.setLineDash([3,2]); ctx.strokeRect(b.x-1,b.y-1,b.w+2,b.h+2); ctx.restore(); } }
+/* LITE-ANNOT-PREVIEW: rubber-band while placing a 2-point/shape annotation */
+function drawAnnotPreview(){ if(!(state.draft&&isAnnTool()&&state.draft.length===1&&lastMouse))return;
+  var a0=ptToScreen(state.draft[0]),a1={x:lastMouse.x,y:lastMouse.y};
+  var x=Math.min(a0.x,a1.x),y=Math.min(a0.y,a1.y),w=Math.abs(a1.x-a0.x),h=Math.abs(a1.y-a0.y);
+  ctx.save(); ctx.globalAlpha=0.9; ctx.setLineDash([6,4]);
+  if(state.tool==="ann_highlight"){ ctx.fillStyle="rgba(255,214,10,.25)"; ctx.fillRect(x,y,w,h); }
+  else { ctx.strokeStyle="#ff453a"; ctx.lineWidth=2;
+    if(state.tool==="ann_rect")ctx.strokeRect(x,y,w,h);
+    else if(state.tool==="ann_circle"){ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);ctx.stroke();}
+    else if(state.tool==="ann_cloud")drawCloud(x,y,w,h);
+    else if(state.tool==="ann_arrow"){ctx.beginPath();ctx.moveTo(a0.x,a0.y);ctx.lineTo(a1.x,a1.y);ctx.stroke();
+      var ang=Math.atan2(a1.y-a0.y,a1.x-a0.x),hl=12;ctx.beginPath();ctx.moveTo(a1.x,a1.y);
+      ctx.lineTo(a1.x-hl*Math.cos(ang-0.4),a1.y-hl*Math.sin(ang-0.4));ctx.moveTo(a1.x,a1.y);
+      ctx.lineTo(a1.x-hl*Math.cos(ang+0.4),a1.y-hl*Math.sin(ang+0.4));ctx.stroke();} }
+  ctx.setLineDash([]); ctx.fillStyle="#ff453a"; ctx.beginPath(); ctx.arc(a0.x,a0.y,3,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+/* LITE-ANNOT-EDIT: inline textarea editor. Edits either a.text (text/comment body)
+   or a.label (a movable tag on shape annotations) via the `field` param.
+   annEdit={ann,isNew,field,orig}. pushUndo() is done by the caller BEFORE opening. */
+var annEdit=null;
+/* default anchor for a shape's label (mid-point of an arrow, top-left for box shapes) */
+function _labelDefault(a){ if(!a.pts||!a.pts.length)return {x:0,y:0};
+  if(a.type==="ann_arrow")return {x:(a.pts[0].x+a.pts[1].x)/2,y:(a.pts[0].y+a.pts[1].y)/2};
+  return {x:Math.min(a.pts[0].x,a.pts[1].x),y:Math.min(a.pts[0].y,a.pts[1].y)}; }
+function _labelAnchor(a){ return a.labelPt||_labelDefault(a); }
+function _annEd(){ return document.getElementById("annEditor"); }
+function _autoGrow(ed){ ed.style.height="auto"; ed.style.height=Math.min(ed.scrollHeight,220)+"px"; }
+function openAnnEditor(ann,isNew,field){ field=field||"text"; if(annEdit&&annEdit.ann!==ann)commitAnnEditor();
+  if(typeof closeAnnStyle==="function")closeAnnStyle();
+  if(field==="label"&&!ann.labelPt)ann.labelPt=_labelDefault(ann);
+  annEdit={ann:ann,isNew:!!isNew,field:field,orig:ann[field]||""};
+  var ed=_annEd(),s=(field==="label")?ptToScreen(ann.labelPt):ptToScreen(ann.pt);
+  ed.value=ann[field]||""; ed.style.left=Math.round(s.x)+"px"; ed.style.top=Math.round(s.y)+"px"; ed.style.display="block";
+  _autoGrow(ed); setTimeout(function(){ed.focus();ed.select();},0); }
+function _annRemove(a){ var arr=PSpage().annotations,ix=arr.indexOf(a); if(ix>=0)arr.splice(ix,1); }
+function _closeAnnEd(){ var ed=_annEd(); ed.style.display="none"; ed.value=""; annEdit=null; }
+function commitAnnEditor(){ if(!annEdit)return; var ed=_annEd(),raw=ed.value,v=raw.trim(),a=annEdit.ann,isNew=annEdit.isNew,f=annEdit.field,orig=annEdit.orig;
+  if(isNew){ if(!v){ _annRemove(a); undoStack.pop(); }   // empty new → discard + drop redundant history entry
+    else { a[f]=raw; } }
+  else { if(!v){ if(f==="label"){ delete a.label; delete a.labelPt; }   // cleared label → drop the tag only
+           else { _annRemove(a); } }                                      // cleared body text → delete annotation
+    else if(raw!==orig){ a[f]=raw; }
+    else { undoStack.pop(); } }                            // unchanged → drop history entry
+  var committedNew=isNew&&v; _closeAnnEd(); state.dirty=true;
+  if(committedNew){ setTool("select"); } else { draw(); } }
+function cancelAnnEditor(){ if(!annEdit)return; var a=annEdit.ann,isNew=annEdit.isNew,f=annEdit.field,orig=annEdit.orig;
+  if(isNew){ _annRemove(a); } else if(f==="label"&&!orig){ delete a.label; delete a.labelPt; }
+  undoStack.pop(); _closeAnnEd(); state.dirty=true; draw(); }
+(function(){ var ed=_annEd();
+  ed.addEventListener("blur",function(){ if(annEdit)commitAnnEditor(); });
+  ed.addEventListener("input",function(){ _autoGrow(ed); });
+  ed.addEventListener("keydown",function(e){ e.stopPropagation();
+    if(e.key==="Escape"){ e.preventDefault(); cancelAnnEditor(); }
+    else if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); ed.blur(); } }); })();
+function drawCloud(x,y,w,h){ var r=Math.max(7,Math.min(w,h)/8),step=r*1.6;
+  function bumps(x0,y0,x1,y1){ var dx=x1-x0,dy=y1-y0,len=Math.hypot(dx,dy)||1,n=Math.max(1,Math.round(len/step));
+    for(var i=0;i<n;i++){ var cx=x0+dx*(i+0.5)/n,cy=y0+dy*(i+0.5)/n; ctx.moveTo(cx+r,cy); ctx.arc(cx,cy,r,0,Math.PI*2);} }
+  ctx.beginPath(); bumps(x,y,x+w,y); bumps(x+w,y,x+w,y+h); bumps(x+w,y+h,x,y+h); bumps(x,y+h,x,y); ctx.stroke(); }
+function annHit(sx,sy){ var anns=PSpage().annotations||[];
+  for(var i=anns.length-1;i>=0;i--){ var a=anns[i];
+    if(a.pt){ var s=ptToScreen(a.pt),nl=String(a.text||"").split("\n").length; if(sx>=s.x-2&&sx<=s.x+130&&sy>=s.y-2&&sy<=s.y+nl*17+8)return i; }
+    else if(a.pts){ var b0=ptToScreen(a.pts[0]),b1=ptToScreen(a.pts[1]),x=Math.min(b0.x,b1.x),y=Math.min(b0.y,b1.y),w=Math.abs(b1.x-b0.x),h=Math.abs(b1.y-b0.y);
+      if(a.type==="ann_arrow"){ if(distSeg(sx,sy,b0,b1)<7)return i; }
+      else if(a.type==="ann_highlight"){ if(sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return i; }
+      else if(sx>=x-5&&sx<=x+w+5&&sy>=y-5&&sy<=y+h+5&&(Math.abs(sx-x)<6||Math.abs(sx-(x+w))<6||Math.abs(sy-y)<6||Math.abs(sy-(y+h))<6))return i; } }
+  return -1; }
+function drawSnap(){ if(!state.snapHint)return; var s=state.snapHint.screen,t=state.snapHint.type;
+  ctx.strokeStyle="#ffd60a"; ctx.lineWidth=2; ctx.setLineDash([]);
+  if(t==="endpoint"){ ctx.strokeRect(s.x-5,s.y-5,10,10); }
+  else if(t==="intersection"){ ctx.beginPath();ctx.moveTo(s.x-6,s.y-6);ctx.lineTo(s.x+6,s.y+6);ctx.moveTo(s.x+6,s.y-6);ctx.lineTo(s.x-6,s.y+6);ctx.stroke(); }
+  else { ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.stroke(); }
+  ctx.fillStyle="#ffd60a"; ctx.font="10px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="bottom";
+  ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น",midpoint:"กึ่งกลาง",center:"ศูนย์กลาง",perp:"ตั้งฉาก"}[t],s.x+9,s.y-7); }
+function drawLoupe(){ if(!state.loupe||!lastMouse||!PageRenderer.ready())return; var DPR=window.devicePixelRatio||1;
+  var mx=lastMouse.x,my=lastMouse.y,LR=64,MAG=2.6,sw=2*LR/MAG; var r=cv.getBoundingClientRect();
+  var lx=mx+90,ly=my-90; if(lx+LR>r.width)lx=mx-90; if(ly-LR<0)ly=my+90;
+  ctx.save(); ctx.beginPath(); ctx.arc(lx,ly,LR,0,7); ctx.closePath(); ctx.clip();
+  ctx.drawImage(cv,(mx-sw/2)*DPR,(my-sw/2)*DPR,sw*DPR,sw*DPR,lx-LR,ly-LR,2*LR,2*LR); ctx.restore();
+  ctx.strokeStyle="#fff"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(lx,ly,LR,0,7); ctx.stroke();
+  ctx.strokeStyle="rgba(255,255,255,.55)"; ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(lx-LR,ly);ctx.lineTo(lx+LR,ly);ctx.moveTo(lx,ly-LR);ctx.lineTo(lx,ly+LR); ctx.stroke(); }
+
+/* calibration modal */
+function openCalib(){ var d=state.draft; var ptDist=Math.hypot(d[1].x-d[0].x,d[1].y-d[0].y);
+  state.calib={pts:d.slice(),ptDist:ptDist}; document.getElementById("cal-pt").textContent=ptDist.toFixed(2);
+  document.getElementById("cal-m").value=""; document.getElementById("modal").classList.add("show");
+  setTimeout(function(){document.getElementById("cal-m").focus();},50); state.draft=null; }
+document.getElementById("cal-ok").onclick=function(){ var m=parseFloat(document.getElementById("cal-m").value);
+  if(!(m>0)){alert("ใส่ระยะเป็นตัวเลขมากกว่า 0");return;} pushUndo(); PSpage().scale={pts_per_m:state.calib.ptDist/m};
+  document.getElementById("modal").classList.remove("show"); state.tool="poly"; state.dirty=true; buildPicker(); draw(); };
+document.getElementById("cal-cancel").onclick=function(){document.getElementById("modal").classList.remove("show");state.calib=null;draw();};
+
+/* props buttons */
+document.getElementById("p-dim").onclick=function(){if(state.sel){pushUndo();state.sel.dimVisible=!state.sel.dimVisible;showProps(state.sel);state.dirty=true;draw();}};
+document.getElementById("p-del").onclick=function(){
+  if(state.selSet.length){pushUndo();var o=PSpage().objects;state.selSet.forEach(function(s){var i=o.indexOf(s);if(i>=0)o.splice(i,1);});state.selSet=[];state.sel=null;showProps(null);state.dirty=true;draw();}
+  else if(state.sel){pushUndo();var o=PSpage().objects;o.splice(o.indexOf(state.sel),1);state.sel=null;showProps(null);state.dirty=true;draw();}};
+document.getElementById("zin").onclick=function(){if(PageRenderer.ready()){V.k*=1.2;draw();}};
+document.getElementById("zout").onclick=function(){if(PageRenderer.ready()){V.k/=1.2;draw();}};
+document.getElementById("zfit").onclick=fit;
+
+/* menus */
+document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=function(e){e.stopPropagation();
+  var m=b.parentElement,open=m.classList.contains("open"); document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");}); if(!open)m.classList.add("open");};});
+document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
+function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
+window.addEventListener("click",closeMenus);
+function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; arcCancel(); /* LCURVE-1: clear arc sub-state on tool switch */ state.vertMode=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+
+/* LITE-UNDO: snapshot-based history over the per-page document model.
+   Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
+   In-progress draft/selection is NOT part of history — undo works at committed-object level. */
+var undoStack=[], redoStack=[], UNDO_MAX=80;
+function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id,pageOrder:(pageMgr?pageMgr.pageOrder:null)}); } // LPM slice 3: pageOrder included for B-DIRTY (future reorder detection)
+function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
+function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id;
+  // BUG-20260530-lpm-4: re-seed pageMgr so it matches the restored globals.
+  // d.pageOrder holds the identity array captured at pushUndo() time.
+  // _pmSeed rebuilds pageMgr from (restored PS + restored identity order) then
+  // _pmCommit projects back → round-trip is a no-op on the restored state.
+  // Server caveat: the server PDF is NOT rolled back; this realigns the CLIENT
+  // model to the restored order and treats it as the new server baseline.
+  // A subsequent save/Apply will re-sync the server.
+  if(typeof _pmSeed==='function'&&pageCount&&Array.isArray(d.pageOrder)&&d.pageOrder.length===pageCount){ _pmSeed(d.pageOrder); } }
+function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
+  state.sel=null; state.selSet=[]; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.vertMode=null; state.dirty=true; showProps(null); buildPicker();
+  if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage);
+  if(document.getElementById("sum").classList.contains("show"))openSum();
+  draw(); }
+function undo(){ if(!undoStack.length)return; redoStack.push(_docSnap()); _applyDoc(undoStack.pop()); _afterHistory(); }
+function redo(){ if(!redoStack.length)return; undoStack.push(_docSnap()); _applyDoc(redoStack.pop()); _afterHistory(); }
+document.getElementById("mi-undo").onclick=function(){undo();closeMenus();};
+document.getElementById("mi-redo").onclick=function(){redo();closeMenus();};
+function toggleSnap(){ state.snapOn=!state.snapOn; if(!state.snapOn)state.snapHint=null; var el=document.getElementById("snap-state"); if(el)el.textContent=state.snapOn?"เปิด":"ปิด"; draw(); }
+document.getElementById("mi-snap").onclick=function(){ toggleSnap(); closeMenus(); };
+document.getElementById("mi-loupe").onclick=function(){ state.loupe=!state.loupe; closeMenus(); draw(); };
+
+/* file ops */
+document.getElementById("mi-open").onclick=function(){document.getElementById("file-pdf").click();};
+document.getElementById("empty-open").onclick=function(){document.getElementById("file-pdf").click();};
+document.getElementById("file-pdf").onchange=function(e){var f=e.target.files[0];if(f)uploadPdf(f);e.target.value="";};
+document.getElementById("mi-prev").onclick=function(){if(curPage>1)loadPage(curPage-1);};
+document.getElementById("mi-next").onclick=function(){if(curPage<pageCount)loadPage(curPage+1);};
+document.getElementById("mi-rot").onclick=function(){V.rot=(V.rot+90)%360;fit();};
+document.getElementById("mi-rot-left").onclick=function(){rotatePage(-90);closeMenus();};
+document.getElementById("mi-rot-right").onclick=function(){rotatePage(90);closeMenus();};
+document.getElementById("mi-excl").onclick=function(){pushUndo();excluded[curPage]=!excluded[curPage];state.dirty=true;draw();};
+/* LITE-FLOOR: floor designation logic (ported from proto page-setup.js, gated on tag 'floor').
+   Tag + floor controls apply LIVE (proto-parity); only project name + scale defer to Save. */
+function autoNamePage(n,force){ if((pageTags[n]||"")!=="floor")return; var k=pageFloorKind[n]||""; if(!k||k==="custom")return;
+  if(!force&&pageNames[n]&&pageNames[n]!==("หน้า "+n))return;
+  if(k==="mechanical")pageNames[n]=FLOOR_KIND_LABELS.mechanical;
+  else if(k==="rooftop")pageNames[n]=FLOOR_KIND_LABELS.rooftop;
+  else if(k==="basement")pageNames[n]=FLOOR_KIND_LABELS.basement+" "+(pageFloorNum[n]||1);
+  else if(k==="normal")pageNames[n]=FLOOR_KIND_LABELS.normal+" "+(pageFloorNum[n]||1); }
+function liteSetTag(n,val){ pageTags[n]=val; if(val!=="floor"){delete pageFloorKind[n];delete pageFloorNum[n];} else autoNamePage(n); state.dirty=true; }
+function liteSetFloorKind(n,kind){ if(!kind){delete pageFloorKind[n];delete pageFloorNum[n];}
+  else{ pageFloorKind[n]=kind;
+    if(kind==="basement"||kind==="normal"){ if(!pageFloorNum[n])pageFloorNum[n]=1; }
+    else delete pageFloorNum[n]; /* mechanical/rooftop/custom carry no floor number */
+    if(kind!=="custom")autoNamePage(n,true); } state.dirty=true; }
+function liteSetFloorNum(n,num){ pageFloorNum[n]=Math.max(1,parseInt(num,10)||1); autoNamePage(n,true); state.dirty=true; }
+function escAttr(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+/* Shared tag+floor control. Re-renders itself in place; updates Overview/draw on change. */
+function floorOptsHTML(n){ var tag=pageTags[n]||"";
+  var html=Object.keys(PAGE_TAGS).map(function(k){return '<option value="'+k+'"'+(tag===k?" selected":"")+'>'+PAGE_TAGS[k]+'</option>';}).join("");
+  var out='<select class="fc-tag" onchange="onFloorTag('+n+',this.value,this)">'+html+'</select>';
+  if(tag==="floor"){ var fk=pageFloorKind[n]||"";
+    out+='<select class="fc-kind" onchange="onFloorKind('+n+',this.value,this)">'+FLOOR_KIND_OPTIONS.map(function(o){return '<option value="'+o[0]+'"'+(fk===o[0]?" selected":"")+'>'+o[1]+'</option>';}).join("")+'</select>';
+    if(fk==="basement"||fk==="normal")out+='<input class="fc-num" type="number" min="1" step="1" value="'+(pageFloorNum[n]||1)+'" title="เลขชั้น" onchange="onFloorNum('+n+',this.value,this)">';
+    out+='<input class="fc-name" type="text" placeholder="ชื่อหน้า/ชั้น (เว้นว่าง = อัตโนมัติ)" value="'+escAttr(pageNames[n]||"")+'" onchange="onFloorName('+n+',this.value,this)">';
+    if(fk==="custom")out+='<div class="fc-hint">⌨ ตั้งชื่อชั้นเองในช่องด้านบน (auto-name ปิดไว้)</div>'; }
+  return out; }
+function renderFloorCtl(containerId,n){ var c=document.getElementById(containerId); if(c)c.innerHTML=floorOptsHTML(n); }
+function refreshFloorCtls(){ if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage); if(document.getElementById("sum").classList.contains("show"))openSum(); }
+function onFloorTag(n,v,el){ pushUndo(); liteSetTag(n,v); refreshFloorCtls(); draw(); }
+function onFloorKind(n,v,el){ pushUndo(); liteSetFloorKind(n,v); refreshFloorCtls(); draw(); }
+function onFloorNum(n,v,el){ pushUndo(); liteSetFloorNum(n,v); refreshFloorCtls(); draw(); }
+function onFloorName(n,v,el){ var t=v.trim(); if(t&&t===(pageNames[n]||""))return; pushUndo(); if(t){pageNames[n]=t;} else { delete pageNames[n]; autoNamePage(n,true); } state.dirty=true; refreshFloorCtls(); }
+/* LITE-PAGESETUP */
+function openSetup(){ if(!caseId){alert("เปิด PDF ก่อน");return;}
+  document.getElementById("su-proj").value=projectInfo.name||"";
+  renderFloorCtl("su-floor",curPage);
+  var s=getScaleForPage(curPage); document.getElementById("su-ppm").value=s?s.pts_per_m.toFixed(2):"";
+  document.getElementById("setupModal").style.display="flex"; }
+document.getElementById("mi-setup").onclick=function(){closeMenus();openSetup();};
+document.getElementById("su-cancel").onclick=function(){document.getElementById("setupModal").style.display="none";};
+document.getElementById("su-ok").onclick=function(){ projectInfo.name=document.getElementById("su-proj").value;
+  /* tag/floor already applied live via onFloorTag/onFloorKind/onFloorNum */
+  var v=parseFloat(document.getElementById("su-ppm").value); if(v>0)PSpage().scale={pts_per_m:v};
+  document.getElementById("setupModal").style.display="none"; state.dirty=true; draw(); };
+
+/* LITE-5: save/load in proto's .bmaplan schema (cross-open with proto).
+   Lite objects -> proto pageStore[n].{polys,openings,lines,refs,annotations,calibScale};
+   count objects -> additive pageStore[n].counts[] (proto ignores unknown arrays). */
+function rid(){return Math.random().toString(36).slice(2,10);}
+var ANN_FWD={ann_text:"text",ann_comment:"comment",ann_arrow:"arrow",ann_highlight:"highlight",ann_rect:"rect_frame",ann_circle:"circle_frame",ann_cloud:"cloud_frame"};
+var ANN_REV={text:"ann_text",comment:"ann_comment",arrow:"ann_arrow",highlight:"ann_highlight",rect_frame:"ann_rect",circle_frame:"ann_circle",cloud_frame:"ann_cloud",sticky:"ann_text"};
+var SEM_REV={gross_floor_area:"gfa",use_area:"use",floor_area:"use",deduction_opening:"ded","void":"ded",site_land_area:"site",building_footprint:"site",legal_open_space:"open",open_space:"open",permeable_area:"open",hardscape:"open",parking_area:"gfa",count_marker:"count"};
+function endpts(o){var p=o.pts;return {x0:p[0].x,y0:p[0].y,x1:p[p.length-1].x,y1:p[p.length-1].y};}
+function annFwd(a){ var st=annStyle(a); var o={id:"ann_"+rid(),type:ANN_FWD[a.type]||"text",pts:a.pt?[a.pt]:(a.pts||[]),text:a.text||"",color:st.color,opacity:st.opacity,createdAt:new Date().toISOString()}; if(a.type==="ann_text"||a.type==="ann_comment")o.fontSize=st.fontSize; if(a.label){o.label=a.label;o.labelPt=a.labelPt;} return o; }
+function buildPageStore(){ var ps={};
+  Object.keys(PS).forEach(function(k){ var p=PS[k]; var st={lines:[],polys:[],openings:[],refs:[],parking:[],counts:[],calibScale:p.scale||null,annotations:[]};
+    p.objects.forEach(function(o){ var col=catOf(o.catId).color;
+      if(o.counting){ st.counts.push({x:o.pts[0].x,y:o.pts[0].y,catId:o.catId,semanticTag:o.semanticTag,liteCatId:o.catId,count:1}); return; }
+      if(o.kind==="ref"){ st.refs.push(Object.assign({pts:o.pts,kind:"ref",id:"ref-"+rid(),color:col,opacity:1,semanticTag:"reference_line",useCategory:null,refType:"custom",name:"เส้นอ้างอิง",liteCatId:o.catId},endpts(o))); return; }
+      if(o.kind==="line"){ st.lines.push(Object.assign({pts:o.pts,kind:(o.pts.length>2?"path":"line"),id:"line-"+rid(),color:col,opacity:1,semanticTag:"dimension_line",useCategory:null,liteCatId:o.catId},endpts(o))); return; }
+      var poly={pts:o.pts,closed:true,name:"",areaType:(o.catId==="site"?"land":"room"),id:(o.catId==="ded"?"opening":"area")+"-"+rid(),color:col,opacity:0.18,semanticTag:o.semanticTag,useCategory:null,liteCatId:o.catId};
+      if(o.edges)poly.edges=o.edges;
+      if(o.catId==="ded")st.openings.push(poly); else st.polys.push(poly); });
+    (p.annotations||[]).forEach(function(a){ st.annotations.push(annFwd(a)); });
+    ps[k]=st; });
+  return ps; }
+document.getElementById("mi-save").onclick=async function(){
+  if(!caseId){alert("ยังไม่ได้เปิด PDF");return;}
+  // FIX-B2: if there are pending page mutations, flush them to the server first
+  // so the on-disk PDF matches the client page order before we serialise.
+  if(pageMgr&&pageMgr.pending&&pageMgr.pending.length>0){
+    try{ await _pmuiApplyChanges(); }
+    catch(err){ alert("บันทึกล้มเหลว — Apply page changes ไม่สำเร็จ: "+err.message); return; }
+    // If pending is still non-empty after apply (server error path), abort.
+    if(pageMgr.pending&&pageMgr.pending.length>0){ alert("บันทึกล้มเหลว — ยังมี page changes ค้างอยู่"); return; }
+  }
+  // FIX-B1: call _pmCommit() to project current pageMgr order → PS/globals,
+  // then include pageIdentities in the saved doc (additive field).
+  if(pageMgr)_pmCommit();
+  var doc={version:1,app:"bma-plan-lite",pdfName:pdfName,totalPages:pageCount,pageStore:buildPageStore(),
+    pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
+    excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,
+    pageIdentities:(pageMgr?pageMgr.pageOrder.slice():undefined),
+    liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null)};}),
+    liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order,kind:f.kind,pages:f.pages};}),
+    reportVars:serializeReportVars()};
+  var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=(pdfName||"project").replace(/\.pdf$/i,"")+".bmaplan"; a.click();
+  state.dirty=false; draw();
+};
+/* LITE-6 + LITE-REPORT: export/report helpers live in static/js/export-annotate.js */
+document.getElementById("mi-xlsx").onclick=function(){ ExportAnnotate.exportXlsx(); };
+document.getElementById("mi-pdfov").onclick=function(){ ExportAnnotate.exportPdfOverlay(); };
+document.getElementById("mi-report").onclick=function(){ ExportAnnotate.openReport(); };
+
+document.getElementById("mi-load").onclick=function(){document.getElementById("file-bma").click();};
+function annRevFn(a){ var t=ANN_REV[a.type]||"ann_text"; var o={id:state._id++,type:t};
+  if(t==="ann_text"||t==="ann_comment"){ o.pt=(a.pts&&a.pts[0])||a.pt||{x:0,y:0}; o.text=a.text||""; } else { o.pts=a.pts||[]; }
+  if(a.color)o.color=a.color; if(a.opacity!=null)o.opacity=a.opacity; if(a.fontSize)o.fontSize=a.fontSize; if(a.label){o.label=a.label;o.labelPt=a.labelPt;} return o; }
+function polyPts(o){ if(o.pts&&o.pts.length)return o.pts; if(o.geometryType==="path"&&Array.isArray(o.segments))return flattenPathToPoints(o,1.0); return []; }
+function stripClosingDup(pts,edges){ if(!pts||pts.length<4)return pts; var a=pts[0],b=pts[pts.length-1]; if(a&&b&&Math.abs(a.x-b.x)<1e-6&&Math.abs(a.y-b.y)<1e-6){ if(edges&&edges.length===pts.length)edges.length=pts.length-1; return pts.slice(0,-1); } return pts; }
+function loadProto(doc){ PS={}; excluded={};
+  /* LST-2: rebuild FOLDERS in-place from doc.liteGroups (additive — absent = old file) */
+  FOLDERS.length=0;
+  (doc.liteGroups||[]).forEach(function(g){ if(g&&g.id) FOLDERS.push({id:g.id,name:g.name,color:g.color,
+    parentId:(g.parentId!==undefined?g.parentId:null),order:(g.order!==undefined?g.order:FOLDERS.length),kind:g.kind,pages:g.pages}); });
+  /* L2c-2: rebuild LAYERS in-place from doc.liteLayers (additive — absent = old file) */
+  if(doc.liteLayers&&doc.liteLayers.length){
+    LAYERS.length=0;
+    doc.liteLayers.forEach(function(e){ if(!roleDef(e.role))return; // skip unknown role
+      LAYERS.push({id:e.id,name:e.name,color:e.color,role:e.role,
+        tag:roleSemanticTag(e.role),counting:!!(roleDef(e.role).counting),subTag:"",order:e.order,groupId:null,
+        parentId:(e.parentId!==undefined?e.parentId:null)}); });
+    /* ensure every role's default layer exists (fallback target) */
+    ROLE_DEFS.forEach(function(rd){ if(!layerById(rd.id)){
+      LAYERS.push({id:rd.id,name:rd.name,color:rd.color,role:rd.id,
+        tag:rd.tag,counting:!!rd.counting,subTag:"",order:rd.order||0,groupId:null,parentId:null}); } });
+  }
+  /* LRV-S4: restore report vars — new files restore saved vars; old files reseed defaults */
+  if(doc.reportVars&&doc.reportVars.length){loadReportVars(doc.reportVars);}
+  else{REPORT_VARS.length=0;seedReportVars();}
+  /* LST-2: integrity pass — orphan any layer/folder whose parentId resolves to nothing */
+  LAYERS.forEach(function(l){ if(l.parentId!==null&&!folderById(l.parentId)&&!layerById(l.parentId))l.parentId=null; });
+  FOLDERS.forEach(function(f){ if(f.parentId!==null&&!folderById(f.parentId)&&!layerById(f.parentId))f.parentId=null; });
+  /* re-seed visibility/lock for any layer id that doesn't have a flag yet */
+  LAYERS.forEach(function(l){ if(state.catVis[l.id]===undefined)state.catVis[l.id]=true;
+    if(state.catLock[l.id]===undefined)state.catLock[l.id]=false; });
+  FOLDERS.forEach(function(f){ if(state.catVis[f.id]===undefined)state.catVis[f.id]=true;
+    if(state.catLock[f.id]===undefined)state.catLock[f.id]=false; });
+  if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
+    (st.polys||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa")); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:stripClosingDup(polyPts(o),o.edges),dimVisible:true,edges:o.edges}); });
+    (st.openings||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"ded"; objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:stripClosingDup(polyPts(o),o.edges),dimVisible:true,edges:o.edges}); });
+    (st.lines||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; objs.push({id:state._id++,catId:cid,semanticTag:"dimension_line",kind:"line",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
+    (st.refs||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; objs.push({id:state._id++,catId:cid,semanticTag:"reference_line",kind:"ref",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
+    (st.counts||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(o.catId||"count"); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"count_marker",kind:"count",counting:true,pts:[{x:o.x,y:o.y}],dimVisible:false}); });
+    PS[k]={objects:objs,scale:st.calibScale||null,annotations:(st.annotations||[]).map(annRevFn)}; }); }
+  else if(doc.pages){ Object.keys(doc.pages).forEach(function(n){ var p=doc.pages[n];
+    PS[n]={scale:p.scale||null,objects:(p.objects||[]).map(function(o){o.id=state._id++;return o;}),annotations:(p.annotations||[]).map(function(a){a.id=state._id++;return a;})}; }); }
+  (doc.excludedPages||[]).forEach(function(n){excluded[n]=true;});
+  if(doc.projectInfo)projectInfo=doc.projectInfo; if(doc.pageTags)pageTags=doc.pageTags; if(doc.pageRotations)pageRot=doc.pageRotations;
+  pageNames=doc.pageNames||{}; pageFloorKind=doc.pageFloorKind||{}; pageFloorNum=doc.pageFloorNum||{};
+  if(pageCount)_pmSeed(doc.pageIdentities); } // LPM slice 3: seed pageMgr after load (pass pageIdentities if present)
+document.getElementById("file-bma").onchange=function(e){var f=e.target.files[0];if(!f)return;
+  var rd=new FileReader(); rd.onload=function(){ try{ var doc=JSON.parse(rd.result);
+    if(doc.version!==1)throw new Error("version");
+    loadProto(doc);
+    alert("โหลดโปรเจกต์แล้ว ("+Object.keys(PS).length+" หน้ามีข้อมูล)"); state.dirty=false; afterPage();
+    }catch(err){alert("ไฟล์ .bmaplan ไม่ถูกต้อง: "+err.message);} }; rd.readAsText(f); e.target.value=""; };
+
+/* cmd-K */
+function openCmdK(){if(!caseId)return;document.getElementById("cmdk").classList.add("show");var i=document.getElementById("cmdk-in");i.value="";i.focus();renderCmdK("");}
+function renderCmdK(q){ var res=document.getElementById("cmdk-res"); var out="";
+  for(var n=1;n<=pageCount;n++){ if(q&&(""+n).indexOf(q)<0)continue; if(out.split("r ").length>12)break;
+    out+='<div class="r" data-pg="'+n+'"><span>หน้า '+n+(excluded[n]?' (ยกเว้น)':'')+'</span><span class="k" style="color:#8b97a8">'+(PS[n]&&PS[n].objects.length?PS[n].objects.length+' obj':'')+'</span></div>'; }
+  res.innerHTML=out; res.querySelectorAll(".r").forEach(function(r){r.onclick=function(){loadPage(+r.dataset.pg);closeOverlays();};}); }
+document.getElementById("cmdk-in").addEventListener("input",function(e){renderCmdK(e.target.value);});
+document.getElementById("btn-cmdk").onclick=openCmdK;
+
+/* F12 overview (real thumbs) */
+function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); var html="";
+  // FIX-B3: route thumb URLs through pageMgr.serverNum(n) so pending reorder/dup shows correct source page
+  for(var n=1;n<=pageCount;n++){ var tg=pageTags[n]?' · '+PAGE_TAGS[pageTags[n]]:'';
+    var sn=pageMgr?pageMgr.serverNum(n):n;
+    var imgHtml=sn?'<img loading="lazy" src="'+api("/thumb/"+sn)+'">':'<div style="min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px">⏳</div>';
+    html+='<div class="thumb '+(n===curPage?'cur':'')+'" data-pg="'+n+'">'+imgHtml+'หน้า '+n+(excluded[n]?' ⛔':'')+tg+(PS[n]&&PS[n].objects.length?' · '+PS[n].objects.length:'')+'</div>'; }
+  g.innerHTML=html; g.querySelectorAll(".thumb").forEach(function(t){t.onclick=function(){loadPage(+t.dataset.pg);closeOverlays();};});
+  document.getElementById("ov").classList.add("show"); }
+document.getElementById("btn-ov").onclick=openOv;
+
+/* LITE-REVIEW: summary — area totals by category (current page + all pages) + site metrics */
+function computeSummary(){ var cur={},all={},curCnt={},allCnt={},pagesWith=0;
+  Object.keys(PS).forEach(function(k){ var pg=+k, has=false;
+    PS[k].objects.forEach(function(o){
+      if(o.counting){ allCnt[o.catId]=(allCnt[o.catId]||0)+1; if(pg===curPage)curCnt[o.catId]=(curCnt[o.catId]||0)+1; has=true; return; }
+      if(o.kind!=="poly")return; var a=polyMetrics({pts:o.pts},pg).area; if(a==null)return; // vendored, per-page scale
+      all[o.catId]=(all[o.catId]||0)+a; if(pg===curPage)cur[o.catId]=(cur[o.catId]||0)+a; has=true; });
+    if(has)pagesWith++; });
+  return {cur:cur,all:all,curCnt:curCnt,allCnt:allCnt,pagesWith:pagesWith}; }
+function openSum(){ if(!caseId)return; var s=computeSummary();
+  var fmt=function(v){return v==null?"—":v.toFixed(2);};
+  var rows="";
+  CATS.forEach(function(c){ if(c.counting){ if(s.allCnt[c.id])rows+='<tr><td><span style="color:'+c.color+'">■</span> '+c.name+'</td><td style="text-align:right">'+(s.curCnt[c.id]||0)+' จุด</td><td style="text-align:right">'+(s.allCnt[c.id]||0)+' จุด</td></tr>'; return; }
+    if(s.all[c.id]!=null)rows+='<tr><td><span style="color:'+c.color+'">■</span> '+c.name+'</td><td style="text-align:right">'+fmt(s.cur[c.id])+'</td><td style="text-align:right">'+fmt(s.all[c.id])+'</td></tr>'; });
+  if(!rows)rows='<tr><td colspan="3" style="color:var(--muted);padding:10px 0">ยังไม่มีข้อมูลวัด — ตั้งสเกลแล้ววาดพื้นที่</td></tr>';
+  var agg={}; Object.keys(s.all).forEach(function(k){agg[k]=s.all[k];}); Object.keys(s.allCnt).forEach(function(k){agg[k]=s.allCnt[k];});
+  var nm=pageNames[curPage]?' · '+pageNames[curPage]:'';
+  var floorBlock='<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:5px">กำหนดประเภท/ชั้น — หน้า '+curPage+nm+'</div>'+
+    '<div id="sum-floor" class="floorctl">'+floorOptsHTML(curPage)+'</div></div>';
+  document.getElementById("sum-body").innerHTML=floorBlock+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:var(--muted);font-size:11px">'+
+    '<th style="text-align:left;padding-bottom:6px">ประเภท</th><th style="text-align:right">หน้า '+curPage+' (ตร.ม.)</th><th style="text-align:right">ทุกหน้า (ตร.ม.)</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+    '<div id="rv-host"></div>'+
+    '<div style="margin-top:10px;font-size:11px;color:var(--muted)">'+s.pagesWith+' หน้ามีข้อมูล · พื้นที่คำนวณจาก polyAreaM2 (vendored) ตามสเกลของแต่ละหน้า</div>';
+  renderReportVarsEditor(document.getElementById("rv-host"), agg);
+  document.getElementById("sum").classList.add("show"); }
+document.getElementById("btn-sum").onclick=openSum;
+function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(o){o.classList.remove("show");});}
+document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("click",function(e){if(e.target===o)closeOverlays();});});
+document.getElementById("btn-focus").onclick=function(){document.body.classList.toggle("focus");};
+document.getElementById("lp-add").onclick=lpHandleAddLayer;
+document.getElementById("lp-add-folder").onclick=function(){ var f=addFolder("กลุ่มใหม่","#ffb454",null); state.catVis[f.id]=true; state.catLock[f.id]=false; state.dirty=true; buildPicker(); draw(); };
+
+/* keys */
+window.addEventListener("keydown",function(e){
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();
+    if(state.draft&&state.draft.length){state.draft.pop();if(!state.draft.length)state.draft=null;draw();}  // proto-parity: while drawing, Ctrl+Z removes the last placed point
+    else{undo();}                                                                                          // not drawing → object-level history
+    return;}
+  if((e.metaKey||e.ctrlKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();redo();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCmdK();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="s"){e.preventDefault();document.getElementById("mi-save").onclick();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="o"){e.preventDefault();document.getElementById("file-pdf").click();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="e"){e.preventDefault();document.getElementById("mi-xlsx").onclick();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key===","){e.preventDefault();openSetup();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="d"){e.preventDefault();duplicateSel();return;}
+  // proto-parity zoom shortcuts (work regardless of focus)
+  if((e.metaKey||e.ctrlKey)&&e.key==="0"){e.preventDefault();fit();return;}
+  if((e.metaKey||e.ctrlKey)&&e.key==="1"){e.preventDefault();actualSize();return;}
+  if((e.metaKey||e.ctrlKey)&&(e.key==="="||e.key==="+")){e.preventDefault();zoomCenter(1.25);return;}
+  if((e.metaKey||e.ctrlKey)&&e.key==="-"){e.preventDefault();zoomCenter(1/1.25);return;}
+  if(modalOpen())return;
+  if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="ArrowUp"||e.key==="ArrowDown"){
+    if(!(state.sel||state.selSet.length))return;     // nothing selected → let default happen
+    e.preventDefault();
+    var step=e.shiftKey?10:1;
+    var dx=(e.key==="ArrowLeft"?-step:e.key==="ArrowRight"?step:0);
+    var dy=(e.key==="ArrowUp"?-step:e.key==="ArrowDown"?step:0);
+    nudgeSel(dx,dy);return;
+  }
+  if(e.key===" "){ e.preventDefault(); if(!spaceDown){spaceDown=true;setCursor();} return; }  // spacebar-hold pan
+  if(e.key==="h"||e.key==="H"){ state.panTool=!state.panTool; setCursor(); draw(); return; }     // toggle pan tool
+  if(e.key==="f"||e.key==="F"){ fit(); return; }                                                  // fit to window
+  if(e.key==="F12"){e.preventDefault();openOv();return;}
+  if(e.key==="Escape"){closeOverlays();closeObjMenu();if(state.vertMode){state.vertMode=null;draw();return;}
+    /* LCURVE-1: Esc clears arc sub-state without killing the draft */
+    if(state.tool==="poly"&&state.draft&&arcCancel()){draw();return;}
+    if(state.draft){state.draft=null;draw();}return;}
+  if(e.key==="Enter"&&state.draft){finishDraft();return;}
+  if(e.key==="PageUp"){if(curPage>1)loadPage(curPage-1);return;}
+  if(e.key==="PageDown"){if(curPage<pageCount)loadPage(curPage+1);return;}
+  if(e.key==="Delete"&&state.selAnn){ pushUndo(); var arr=PSpage().annotations,ix=arr.indexOf(state.selAnn); if(ix>=0)arr.splice(ix,1); state.selAnn=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.dirty=true; draw(); return; }
+  if(e.key==="Delete"&&(state.sel||state.selSet.length)){document.getElementById("p-del").onclick();return;}
+  if(e.key==="g"||e.key==="G"){toggleSnap();return;}
+  if(e.key==="l"||e.key==="L"){state.loupe=!state.loupe;draw();return;}
+  /* LCURVE-1: A while drawing poly → arc toggle; A otherwise → activate poly tool */
+  if(e.key==="a"||e.key==="A"){
+    if(state.tool==="poly"&&state.draft&&state.draft.length>=1){arcToggle();draw();}
+    else{setTool("poly");}
+    return; }
+  var map={v:"select",s:"scale",d:"dist",r:"ref",n:"count"};
+  if(map[e.key]){setTool(map[e.key]);}
+});
+function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex"||(document.getElementById("pm-overlay")&&document.getElementById("pm-overlay").classList.contains("show"));}
+window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(PageRenderer.ready())draw();} });
+window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(PageRenderer.ready())draw();} if(e.key===" "){spaceDown=false;setCursor();} });
+// FIX-B5: warn before unload if document is dirty OR page mutations are pending
+window.addEventListener("beforeunload",function(e){ if(state&&(state.dirty||(pageMgr&&pageMgr.pending&&pageMgr.pending.length))){e.preventDefault();e.returnValue='';} });
+
+/* boot */
+seedReportVars();
+document.body.classList.add("lt-v2");  /* LSKIN-DROP: v1 removed 2026-05-26 — v2 is the only skin now */
+buildPicker(); resize(); setCursor();
+console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
+  (function(){PS[0]={objects:[],scale:{pts_per_m:20}};var sv=curPage;curPage=0;var a=polyAreaM2([{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]);curPage=sv;return a;})());
+</script>
+<!-- static/js/ modules: page-rotate(LROTATE-1) · ortho-mode(LORTHO-1) · snap-types(LSNAP-1) · empty-hub(LEMPTY-1) · cheatsheet(LHELP-1) · menu-flyout(LMENU-1) · annot-style(LITE-ANNOT-STYLE) -->
+<script src="static/js/page-manager.js"></script>
+<script src="static/js/page-manager-ui.js"></script>
+<script src="static/js/page-rotate.js"></script>
+<script src="static/js/ortho-mode.js"></script>
+<script src="static/js/snap-types.js"></script>
+<script src="static/js/empty-hub.js"></script>
+<script src="static/js/cheatsheet.js"></script>
+<script src="static/js/menu-flyout.js"></script>
+<script src="static/js/annot-style.js"></script>
+<script src="static/js/centerline-snap.js"></script>
+</body>
+</html>

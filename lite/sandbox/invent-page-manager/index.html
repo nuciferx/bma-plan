@@ -1,0 +1,139 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SPIKE — lite page manager (GoodNotes/ABBYY-style)</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;margin:0;background:#f4f5f7;color:#1a1a1a}
+  header{background:#1f2937;color:#fff;padding:12px 18px}
+  header h1{font-size:16px;margin:0}
+  header .sub{font-size:12px;opacity:.7;margin-top:2px}
+  .wrap{display:flex;gap:18px;padding:18px;align-items:flex-start}
+  .panel{background:#fff;border:1px solid #e2e4e8;border-radius:10px;padding:14px;min-width:240px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin:0 0 10px}
+  .pg{display:flex;align-items:center;gap:10px;border:1px solid #e2e4e8;border-radius:8px;
+      padding:8px 10px;margin-bottom:8px;cursor:grab;background:#fff}
+  .pg.drag{opacity:.4} .pg .num{width:22px;height:22px;border-radius:5px;background:#eef2ff;
+      color:#4f46e5;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .pg .thumb{width:40px;height:52px;border:1px solid #d1d5db;border-radius:4px;display:flex;
+      align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#374151;background:#f9fafb}
+  .pg .meta{flex:1;font-size:12px;color:#6b7280}
+  .pg .meta b{color:#111;font-size:13px}
+  .pg .act{display:flex;gap:4px}
+  .pg button{border:0;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer;background:#f3f4f6}
+  .pg button:hover{background:#e5e7eb}
+  .pg button.del:hover{background:#fee2e2;color:#b91c1c}
+  .bar{display:flex;gap:8px;margin-bottom:12px}
+  .bar button{border:0;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;background:#4f46e5;color:#fff}
+  .bar button.ghost{background:#fff;border:1px solid #d1d5db;color:#374151}
+  .ev{font-family:ui-monospace,monospace;font-size:12px}
+  .ev .row{padding:3px 0;border-bottom:1px solid #f0f0f0}
+  .ev .ok{color:#16a34a} .ev .no{color:#dc2626}
+  .note{font-size:12px;color:#6b7280;max-width:280px}
+</style>
+<header>
+  <h1>SPIKE — lite page manager · approach D (optimistic client + stable page-id)</h1>
+  <div class="sub">data-model only · no real PDF · no server · proves reorder/delete/duplicate keep measurement data intact</div>
+</header>
+<div class="wrap">
+  <div class="panel" style="min-width:300px">
+    <h2>Page panel (drag to reorder)</h2>
+    <div class="bar">
+      <button class="ghost" id="undo">↶ Undo</button>
+      <button class="ghost" id="reset">Reset</button>
+    </div>
+    <div id="list"></div>
+    <div class="note">Each page carries a stable id. Number = position. Drag, delete, or
+      duplicate — the marker/tag/rotation stays glued to its page, never shifts.</div>
+  </div>
+  <div class="panel">
+    <h2>Live state</h2>
+    <pre class="ev" id="state"></pre>
+    <h2 style="margin-top:14px">Pending → server</h2>
+    <pre class="ev" id="pending"></pre>
+  </div>
+  <div class="panel">
+    <h2>Eval (E1–E6)</h2>
+    <div class="ev" id="eval"></div>
+    <div class="note" style="margin-top:10px">Run <code>node eval.js</code> for the headless gate.
+      Here the same checks run in-browser.</div>
+  </div>
+</div>
+
+<script src="page-model.js"></script>
+<script>
+var EMOJI = {A:'🅰',B:'🅱',C:'🅲',D:'🅳',E:'🅴'};
+function freshDoc(){return{version:1,
+  pageStore:{'1':{objects:['A']},'2':{objects:['B']},'3':{objects:['C']},'4':{objects:['D']},'5':{objects:['E']}},
+  pageTags:{'1':'site','2':'plan','3':'elev','4':'sect','5':'detail'},
+  pageRot:{'1':0,'2':90,'3':180,'4':270,'5':0},
+  excluded:{'2':true,'4':true},
+  pageIdentities:['idA','idB','idC','idD','idE']};}
+var m;
+function reset(){ m=new PageModel(); m.load(freshDoc()); render(); }
+
+function render(){
+  var list=document.getElementById('list'); list.innerHTML='';
+  m.pageOrder.forEach(function(id,i){
+    var d=m.PS_by_id[id]; var mk=d.objects[0];
+    var el=document.createElement('div'); el.className='pg'; el.draggable=true; el.dataset.idx=i;
+    el.innerHTML='<div class="num">'+(i+1)+'</div>'+
+      '<div class="thumb">'+(EMOJI[mk]||mk)+'</div>'+
+      '<div class="meta"><b>'+mk+(m.originNum[id]==null?"′":"")+'</b><br>'+
+      'tag:'+(m.tag_by_id[id]||'—')+' · rot:'+(m.rot_by_id[id]||0)+'°'+(m.excl_by_id[id]?' · ⛔':'')+'</div>'+
+      '<div class="act"><button data-dup="'+i+'">Dup</button>'+
+      '<button class="del" data-del="'+i+'">Del</button></div>';
+    list.appendChild(el);
+  });
+  document.getElementById('state').textContent =
+    'order: '+m.pageOrder.map(function(id){return m.PS_by_id[id].objects[0]+(m.originNum[id]==null?"′":"");}).join(' ')+
+    '\ncount: '+m.count();
+  document.getElementById('pending').textContent =
+    m.pending.length? m.pending.map(function(p){return p.type+(p.type==='reorder'?'':' '+(p.id||p.srcId||''));}).join('\n') : '(none)';
+  runEval();
+  wire();
+}
+function wire(){
+  var dragIdx=null;
+  document.querySelectorAll('.pg').forEach(function(el){
+    el.ondragstart=function(){dragIdx=+el.dataset.idx;el.classList.add('drag');};
+    el.ondragend=function(){el.classList.remove('drag');};
+    el.ondragover=function(e){e.preventDefault();};
+    el.ondrop=function(e){e.preventDefault();var to=+el.dataset.idx;
+      if(dragIdx!=null&&dragIdx!==to){m.reorder(dragIdx,to);render();}};
+  });
+  document.querySelectorAll('[data-del]').forEach(function(b){
+    b.onclick=function(){m.del(+b.dataset.del);render();};});
+  document.querySelectorAll('[data-dup]').forEach(function(b){
+    b.onclick=function(){m.duplicate(+b.dataset.dup);render();};});
+}
+document.getElementById('undo').onclick=function(){m.undo();render();};
+document.getElementById('reset').onclick=reset;
+
+function runEval(){
+  // run the headless sequence on a throwaway model, mirror eval.js
+  var t=new PageModel(); t.load(freshDoc());
+  var eq=PageModel.deepEq;
+  function idMk(mk){for(var i=0;i<t.pageOrder.length;i++){var id=t.pageOrder[i];
+    if(t.PS_by_id[id].objects.indexOf(mk)>=0)return id;}return null;}
+  var ID={A:idMk('A'),B:idMk('B'),C:idMk('C'),D:idMk('D'),E:idMk('E')};
+  function dat(id){return{ps:t.PS_by_id[id],tag:t.tag_by_id[id],rot:t.rot_by_id[id],excl:!!t.excl_by_id[id]};}
+  var ORIG={};['A','B','C','D','E'].forEach(function(k){ORIG[k]=dat(ID[k]);});
+  t.reorder(4,1); t.del(t.numOf(ID.C)-1); t.duplicate(t.numOf(ID.B)-1);
+  var R=[];
+  R.push(['E1',['A','B','D','E'].every(function(k){return eq(dat(ID[k]),ORIG[k]);})&&
+    eq(t.pageOrder.map(function(id){return t.PS_by_id[id].objects[0];}),['A','E','B','B','D'])]);
+  R.push(['E2',t.pageOrder.indexOf(ID.C)<0&&!(ID.C in t.PS_by_id)]);
+  var bpId=t.pageOrder[t.numOf(ID.B)];
+  var e3=bpId!==ID.B&&eq(t.PS_by_id[bpId].objects,['B']); t.PS_by_id[bpId].objects.push('X');
+  R.push(['E3',e3&&eq(t.PS_by_id[ID.B].objects,['B'])]);
+  var before=t.snapshotByOrder();var doc=t.save();var t2=new PageModel();t2.load(doc);
+  R.push(['E4',eq(before,t2.snapshotByOrder())&&eq(t.pageOrder,t2.pageOrder)]);
+  var lg=freshDoc();delete lg.pageIdentities;var t3=new PageModel();t3.load(lg);
+  R.push(['E5',t3._migratedFromLegacy&&t3.count()===5&&t3.pageOrder.indexOf('idA')<0]);
+  var fl=t.simulateFlush(5);var lm={};t.pageOrder.forEach(function(id,i){if(t.originNum[id]!=null)lm[t.originNum[id]]=i+1;});
+  R.push(['E6',eq(fl.renumberMap,lm)&&eq(fl.order,t.pageOrder)]);
+  document.getElementById('eval').innerHTML=R.map(function(r){
+    return '<div class="row '+(r[1]?'ok':'no')+'">'+(r[1]?'PASS':'FAIL')+'  '+r[0]+'</div>';
+  }).join('')+'<div class="row"><b>'+R.filter(function(r){return r[1];}).length+'/6</b></div>';
+}
+reset();
+</script>

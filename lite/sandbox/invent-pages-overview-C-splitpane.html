@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike C — Pages Overview · Split-pane Gallery + Form</title>
+<style>
+:root{
+  --bg:#0f1216; --pnl:#151a20; --pnl2:#1c232b; --br:#2a323c; --txt:#dbe1e8;
+  --mut:#7c8896; --acc:#4cc9f0; --ok:#2ec27e; --warn:#f6a609; --bad:#ef5350;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--br);background:var(--pnl)}
+header h1{margin:0;font-size:14px}
+header .meta{color:var(--mut);font-size:11px}
+header .pat{color:var(--acc);font-weight:600;margin-left:auto;font-size:11px}
+
+main{display:grid;grid-template-columns:60% 40%;height:calc(100vh - 41px)}
+
+/* LEFT — gallery */
+.gallery{border-right:1px solid var(--br);overflow:auto;padding:12px 14px;background:var(--bg)}
+.gtools{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.gtools input{background:var(--pnl);color:var(--txt);border:1px solid var(--br);padding:5px 10px;border-radius:4px;font-size:12px;min-width:160px}
+.gtools button{background:var(--pnl);color:var(--txt);border:1px solid var(--br);padding:5px 10px;border-radius:4px;cursor:pointer;font-size:11px}
+.gtools button.pri{background:var(--acc);color:#001218;border-color:var(--acc)}
+.gtools .ct{margin-left:auto;color:var(--mut);font-size:11px;tabular-nums}
+.gtools .ct b{color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.card{background:var(--pnl);border:2px solid var(--br);border-radius:5px;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:transform .08s,border-color .1s}
+.card:hover{transform:translateY(-1px)}
+.card.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(76,201,240,.3)}
+.card.lst{outline:1px dashed var(--acc)}
+.card .th{height:80px;background:#22282f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:24px;position:relative;border-bottom:1px solid var(--br)}
+.card .pn{position:absolute;top:3px;left:5px;background:rgba(0,0,0,.7);padding:1px 5px;border-radius:3px;font-size:10px}
+.card .bg{position:absolute;top:3px;right:5px;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;color:#001218}
+.card .fl{position:absolute;bottom:3px;right:5px;background:rgba(76,201,240,.85);color:#001218;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700}
+.card .lb{padding:4px 7px;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.exc{opacity:.4}
+.t-cover,.t-notes,.t-legend,.t-fixtures,.t-sanitary{background:#5a6b7c;color:#fff}
+.t-site{background:#9ad14b} .t-floor{background:#4cc9f0}
+.t-roof{background:#7e8ed4} .t-section{background:#a385f0;color:#fff} .t-restroom{background:#c87cae;color:#fff}
+.t-stair{background:#d49a3b} .t-detail{background:#cf6f44;color:#fff} .t-schedule{background:#3e6985;color:#fff}
+
+/* RIGHT — form */
+.form{display:flex;flex-direction:column;background:var(--pnl);overflow:hidden}
+.fhead{padding:14px 18px;border-bottom:1px solid var(--br)}
+.fhead h2{margin:0 0 4px;font-size:13px}
+.fhead .sub{color:var(--mut);font-size:11px}
+.fbody{flex:1;overflow:auto;padding:14px 18px}
+.ffield{margin-bottom:14px}
+.ffield label{display:block;font-size:11px;color:var(--mut);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.ffield select,.ffield input{width:100%;background:var(--pnl2);color:var(--txt);border:1px solid var(--br);padding:7px 9px;border-radius:4px;font-size:12px}
+.ffield .opt-keep{color:var(--warn);font-style:italic}
+.ffield .hint{color:var(--mut);font-size:10px;margin-top:3px}
+.ffield .row{display:flex;gap:8px}
+.ffield .row select,.ffield .row input{flex:1}
+.checkbox3{display:flex;gap:6px;align-items:center}
+.checkbox3 button{flex:1;background:var(--pnl2);color:var(--txt);border:1px solid var(--br);padding:6px;border-radius:4px;cursor:pointer;font-size:11px}
+.checkbox3 button.act{background:var(--acc);color:#001218;border-color:var(--acc);font-weight:600}
+.facts{padding:10px 14px;background:var(--pnl2);border-radius:5px;margin-top:14px;font-size:11px;color:var(--mut);line-height:1.6}
+.facts b{color:var(--txt)}
+
+.fapply{padding:12px 18px;border-top:1px solid var(--br);display:flex;gap:8px;align-items:center}
+.fapply button{flex:1;background:var(--acc);color:#001218;border:0;padding:9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px}
+.fapply button.sec{background:var(--pnl2);color:var(--txt);border:1px solid var(--br);font-weight:400}
+.fapply button:disabled{opacity:.4;cursor:not-allowed}
+
+.summary{padding:10px 18px;border-top:1px solid var(--br);background:var(--pnl2);display:flex;gap:8px;font-size:11px;flex-wrap:wrap}
+.summary .pill{background:var(--bg);border:1px solid var(--br);padding:3px 9px;border-radius:11px;color:var(--mut)}
+.summary .pill b{color:var(--txt);font-variant-numeric:tabular-nums}
+.summary .pill.ok b{color:var(--ok)}
+.summary .pill.warn b{color:var(--warn)}
+</style>
+</head>
+<body>
+<header>
+  <h1>📑 Spike C — Pages Overview · Split-pane Gallery + Form</h1>
+  <span class="meta">RAMA4 APARTMENT PERMIT · 45 หน้า · invent-loop top-2 (score 26)</span>
+  <span class="pat">Pattern: Lightroom-style · Browse left, edit right (Cmd-click multi-select)</span>
+</header>
+
+<main>
+  <!-- LEFT — GALLERY -->
+  <section class="gallery">
+    <div class="gtools">
+      <input id="q" placeholder="🔎 ค้นหา (เช่น 'floor', 'p11', 'ห้องพัก')" oninput="filter()">
+      <button onclick="selectAll()">เลือกทั้งหมด</button>
+      <button onclick="selectByTag()">เลือกตาม tag…</button>
+      <button onclick="clearSel()">ล้าง</button>
+      <span class="ct">เลือก <b id="selN">0</b>/45</span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- RIGHT — FORM -->
+  <aside class="form">
+    <div class="fhead">
+      <h2 id="ftitle">เลือกหน้าใน gallery</h2>
+      <div class="sub" id="fsub">คลิก = เลือก · Shift-คลิก = ช่วง · Cmd/Ctrl-คลิก = เพิ่ม/ลด</div>
+    </div>
+    <div class="fbody" id="fbody"></div>
+    <div class="fapply" id="fapply"></div>
+    <div class="summary" id="summary"></div>
+  </aside>
+</main>
+
+<script>
+const TAGS = ['cover','site','floor','roof','section','restroom','stair','detail','schedule','notes','legend','fixtures','sanitary'];
+const TAG_LABELS = {cover:'cover',site:'site',floor:'floor',roof:'roof',section:'section',restroom:'restroom',stair:'stair',detail:'detail',schedule:'schedule',notes:'notes',legend:'legend',fixtures:'fixtures',sanitary:'sanitary'};
+const MEASURABLE = new Set(['site','floor']);
+
+const PAGES = [
+  {p:1,tag:'cover',   label:'ปก / DRAWING SET INDEX'},
+  {p:2,tag:'site',    label:'ผังบริเวณตำแหน่งโครงการ', excluded:true},
+  {p:3,tag:'legend',  label:'ตำนานสัญลักษณ์'},
+  {p:4,tag:'fixtures',label:'มาตรฐานสุขภัณฑ์'},
+  {p:5,tag:'site',    label:'ผังบริเวณ + Setback'},
+  {p:6,tag:'sanitary',label:'ระบบสุขาภิบาล'},
+  {p:7,tag:'site',    label:'ผังบริเวณ + อาคารปกคลุม 839.10'},
+  {p:8,tag:'site',    label:'ขอบเขตอาคาร + Setback (alt)'},
+  {p:9,tag:'section', label:'รูปตัด Section A'},
+  {p:10,tag:'notes',  label:'หมายเหตุ'},
+  {p:11,tag:'floor',floor:1,label:'แปลนชั้น 1 Ground'},
+  {p:12,tag:'floor',floor:2,label:'แปลนชั้น 2 (211-)'},
+  {p:13,tag:'floor',floor:3,label:'แปลนชั้น 3 (311-)'},
+  {p:14,tag:'floor',floor:4,label:'แปลนชั้น 4 (411-)'},
+  {p:15,tag:'floor',floor:5,label:'แปลนชั้น 5'},
+  {p:16,tag:'floor',floor:'roof',label:'ดาดฟ้า'},
+  {p:17,tag:'roof',   label:'แปลนหลังคา'},
+  {p:18,tag:'section',label:'รูปตัด'},{p:19,tag:'section',label:'รูปตัด'},
+  {p:20,tag:'section',label:'รูปด้าน'},{p:21,tag:'section',label:'รูปด้าน AW-17'},
+  {p:22,tag:'restroom',label:'ห้องน้ำ ST01'},{p:23,tag:'restroom',label:'ห้องน้ำ ST02'},
+  {p:24,tag:'restroom',label:'ห้องน้ำ ST03'},{p:25,tag:'restroom',label:'ห้องน้ำ ST04'},
+  {p:26,tag:'restroom',label:'ห้องน้ำ ST05'},
+  {p:27,tag:'stair',  label:'บันได'},{p:28,tag:'stair',label:'บันได'},
+  {p:29,tag:'stair',  label:'รายละเอียดบันได'},
+  {p:30,tag:'detail', label:'LS-01 ลิฟต์'},{p:31,tag:'detail',label:'LS-01 ลิฟต์'},
+  {p:32,tag:'schedule',label:'หน้าต่าง'},{p:33,tag:'schedule',label:'ประตู'},{p:34,tag:'schedule',label:'ประตู/หน้าต่าง'},
+  {p:35,tag:'section',label:'รูปตัดผนัง'},{p:36,tag:'section',label:'รูปตัดผนัง AW-09'},{p:37,tag:'section',label:'รูปตัดผนัง'},
+  {p:38,tag:'notes',  label:'หมายเหตุ'},
+  {p:39,tag:'detail', label:'ระเบียง RL01'},{p:40,tag:'detail',label:'ระแนง RL02'},
+  {p:41,tag:'detail', label:'DT01 หลังคา'},{p:42,tag:'detail',label:'DT04 สระน้ำ'},
+  {p:43,tag:'detail', label:'A10_05'},{p:44,tag:'detail',label:'FC01'},{p:45,tag:'detail',label:'FC02'}
+];
+
+let selected = new Set();
+let last = null;
+let filterText = '';
+
+function filter(){ filterText = document.getElementById('q').value.trim().toLowerCase(); renderGrid(); }
+
+function pageMatches(p){
+  if(!filterText) return true;
+  return ('p'+p.p).includes(filterText) || p.tag.includes(filterText) || p.label.toLowerCase().includes(filterText) || (p.floor+'').includes(filterText);
+}
+
+function renderGrid(){
+  const g = document.getElementById('grid');
+  let h = '';
+  for(const p of PAGES){
+    if(!pageMatches(p)) continue;
+    const tagShort = p.tag.slice(0,4);
+    const fl = p.tag==='floor' && p.floor!=null ? `<span class="fl">${p.floor==='roof'?'⛅':'L'+p.floor}</span>` : '';
+    h += `<div class="card ${selected.has(p.p)?'sel':''} ${p.p===last?'lst':''} ${p.excluded?'exc':''}"
+       data-p="${p.p}" onclick="onCard(${p.p}, event)">
+      <div class="th"><span class="pn">p${p.p}</span><span class="bg t-${p.tag}">${tagShort}</span>${fl}📄</div>
+      <div class="lb">${p.label}</div>
+    </div>`;
+  }
+  g.innerHTML = h;
+  document.getElementById('selN').textContent = selected.size;
+  renderForm();
+  renderSummary();
+}
+
+function onCard(pn, ev){
+  if(ev.shiftKey && last!=null){
+    const a = Math.min(last, pn), b = Math.max(last, pn);
+    for(const p of PAGES){ if(p.p>=a && p.p<=b && pageMatches(p)) selected.add(p.p); }
+  } else if(ev.ctrlKey || ev.metaKey){
+    selected.has(pn) ? selected.delete(pn) : selected.add(pn);
+  } else {
+    selected.clear(); selected.add(pn);
+  }
+  last = pn;
+  renderGrid();
+}
+
+function selectAll(){ selected.clear(); for(const p of PAGES) if(pageMatches(p)) selected.add(p.p); renderGrid(); }
+function clearSel(){ selected.clear(); last=null; renderGrid(); }
+function selectByTag(){
+  const t = prompt('เลือกทุกหน้าที่ tag = ?  (' + TAGS.join('/') + ')');
+  if(!t || !TAGS.includes(t)) return;
+  selected.clear();
+  for(const p of PAGES) if(p.tag===t) selected.add(p.p);
+  renderGrid();
+}
+
+function renderForm(){
+  const sel = [...selected].map(p=>PAGES.find(x=>x.p===p));
+  const body = document.getElementById('fbody');
+  const apply = document.getElementById('fapply');
+  const title = document.getElementById('ftitle');
+  const sub = document.getElementById('fsub');
+
+  if(sel.length===0){
+    title.textContent = 'ไม่ได้เลือกหน้าใด';
+    sub.textContent = 'คลิก = เลือก · Shift-คลิก = ช่วง · Cmd/Ctrl-คลิก = เพิ่ม/ลด · Cmd-A = ทั้งหมด';
+    body.innerHTML = `<div class="facts">
+      <div>📋 <b>ที่ดิน</b> 1,919.20 m² (1 ไร่ 0 งาน 79.8 ตร.ว.)</div>
+      <div>🏗 <b>อาคารปกคลุม</b> 839.10 m² (จาก p7)</div>
+      <div>📐 <b>FAR อนุญาต</b> 10 · <b>OSR ต้อง</b> 3% (พ.8 zoning)</div>
+      <div>🎯 <b>GFA max</b> 19,192 m² · <b>GFA จริง</b> ~3,248 m² (จาก parking calc)</div>
+    </div>`;
+    apply.innerHTML = '';
+    return;
+  }
+
+  const uniqTag = [...new Set(sel.map(p=>p.tag))];
+  const allFloor = sel.every(p=>p.tag==='floor');
+
+  title.textContent = sel.length===1 ? `หน้า ${sel[0].p} — แก้คุณสมบัติ` : `${sel.length} หน้า — แก้พร้อมกัน`;
+  sub.textContent = sel.length===1 ? sel[0].label : `เลือก: p${sel.slice(0,8).map(p=>p.p).join(', p')}${sel.length>8?' …':''}`;
+
+  body.innerHTML = `
+    <div class="ffield">
+      <label>Tag</label>
+      <select id="f-tag">
+        ${sel.length>1?'<option value="" class="opt-keep">⟨ คงเดิม ⟩</option>':''}
+        ${TAGS.map(t=>`<option value="${t}" ${uniqTag.length===1 && uniqTag[0]===t?'selected':''}>${TAG_LABELS[t]}</option>`).join('')}
+      </select>
+      <div class="hint">${uniqTag.length>1?`⚠ ขณะนี้ tag ผสม: ${uniqTag.join(', ')}`:''}</div>
+    </div>
+
+    ${allFloor || (sel.length===1 && sel[0].tag==='floor') ? `
+    <div class="ffield">
+      <label>Floor numbering</label>
+      <div class="row">
+        <select id="f-floor-kind">
+          <option value="">⟨ คงเดิม ⟩</option>
+          <option value="normal">ชั้นปกติ</option>
+          <option value="basement">ชั้นใต้ดิน</option>
+          <option value="rooftop">ดาดฟ้า</option>
+          <option value="mechanical">ชั้นเครื่อง</option>
+        </select>
+        <input id="f-floor-num" type="number" placeholder="เลขชั้น" min="1">
+      </div>
+      ${sel.length>1?`<div class="hint" style="margin-top:6px"><label><input type="checkbox" id="f-seq"> sequential เริ่มที่ <input type="number" id="f-seq-start" value="1" style="width:50px;display:inline-block;padding:1px 4px"> (ล่างสุด = roof ถ้า ≥4)</label></div>`:''}
+    </div>
+    `:''}
+
+    <div class="ffield">
+      <label>ชื่อหน้า</label>
+      <input id="f-name" type="text" placeholder="${sel.length>1?'⟨ คงเดิม ⟩':'ตัวอย่าง: ชั้น 1, ห้องน้ำส่วนกลาง'}" value="${sel.length===1?(sel[0].label||''):''}">
+    </div>
+
+    <div class="ffield">
+      <label>Exclude จากการคำนวณ</label>
+      <div class="checkbox3">
+        <button data-v="" class="act" onclick="setExc(this,'')">⟨ คงเดิม ⟩</button>
+        <button data-v="0" onclick="setExc(this,'0')">นับ</button>
+        <button data-v="1" onclick="setExc(this,'1')">excluded</button>
+      </div>
+    </div>
+  `;
+
+  apply.innerHTML = `
+    <button class="sec" onclick="clearSel()">ยกเลิก</button>
+    <button onclick="applyForm()">⚡ Apply (${sel.length})</button>
+  `;
+}
+
+let _exc = '';
+function setExc(btn, v){
+  _exc = v;
+  document.querySelectorAll('.checkbox3 button').forEach(b=>b.classList.toggle('act', b===btn));
+}
+
+function applyForm(){
+  const tag = document.getElementById('f-tag')?.value;
+  const fk  = document.getElementById('f-floor-kind')?.value;
+  const fn  = document.getElementById('f-floor-num')?.value;
+  const nm  = document.getElementById('f-name')?.value;
+  const seq = document.getElementById('f-seq')?.checked;
+  const seqStart = +(document.getElementById('f-seq-start')?.value || 1);
+
+  const sel = [...selected].map(p=>PAGES.find(x=>x.p===p)).sort((a,b)=>a.p-b.p);
+  let n = seqStart;
+  for(let i=0;i<sel.length;i++){
+    const p = sel[i];
+    if(tag) { p.tag = tag; if(tag!=='floor') p.floor = null; }
+    if(p.tag==='floor'){
+      if(seq) p.floor = (i===sel.length-1 && sel.length>=4) ? 'roof' : n++;
+      else if(fn) p.floor = +fn;
+    }
+    if(nm && sel.length===1) p.label = nm;
+    if(_exc==='1') p.excluded = true;
+    if(_exc==='0') delete p.excluded;
+  }
+  _exc = '';
+  renderGrid();
+}
+
+function renderSummary(){
+  const meas = PAGES.filter(p=>MEASURABLE.has(p.tag) && !p.excluded).length;
+  const exc  = PAGES.filter(p=>p.excluded || !MEASURABLE.has(p.tag)).length;
+  const floors = PAGES.filter(p=>p.tag==='floor' && !p.excluded).length;
+  // mock GFA = 650 m² × floor count (รวม roof 298)
+  const floorList = PAGES.filter(p=>p.tag==='floor' && !p.excluded);
+  const gfa = floorList.reduce((s,p)=>s+(p.floor==='roof'?298:650),0);
+  const fmt = n => n.toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1});
+  document.getElementById('summary').innerHTML = `
+    <span class="pill ok">📐 วัด <b>${meas}</b></span>
+    <span class="pill warn">📋 ไม่วัด <b>${exc}</b></span>
+    <span class="pill">🏢 floor <b>${floors}</b></span>
+    <span class="pill ok">GFA mock <b>${fmt(gfa)}</b> m²</span>
+  `;
+}
+
+window.addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='a'){ selectAll(); e.preventDefault(); }
+  if(e.key==='Escape'){ clearSel(); }
+});
+
+renderGrid();
+</script>
+</body>
+</html>

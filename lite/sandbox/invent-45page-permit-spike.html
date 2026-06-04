@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike — 45-page permit · layer UI + report mockup</title>
+<style>
+:root{
+  --bg:#0f1216; --pnl:#151a20; --pnl2:#1c232b; --br:#2a323c; --txt:#dbe1e8;
+  --mut:#7c8896; --acc:#4cc9f0; --ok:#2ec27e; --warn:#f6a609; --bad:#ef5350;
+  --site:#9ad14b; --gfa:#4cc9f0; --ded:#ef5350; --use:#a385f0; --site2:#62a544;
+  --open:#f6a609; --count:#7e8ed4; --roof:#7e8ed4; --grey:#5a6b7c;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--txt);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--br);background:var(--pnl)}
+header h1{margin:0;font-size:14px;font-weight:600}
+header .meta{color:var(--mut);font-size:11px}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{background:var(--pnl2);color:var(--txt);border:1px solid var(--br);padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px}
+nav button.act{background:var(--acc);color:#001218;border-color:var(--acc)}
+main{display:flex;height:calc(100vh - 41px)}
+/* layer panel */
+.lpanel{width:280px;border-right:1px solid var(--br);background:var(--pnl);overflow:auto;padding:8px}
+.lpanel h2{margin:4px 4px 8px;font-size:11px;text-transform:uppercase;color:var(--mut);letter-spacing:.5px}
+.lrow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;cursor:pointer;font-size:12px}
+.lrow:hover{background:var(--pnl2)}
+.lrow.act{background:#2a3b48}
+.lrow .sw{width:14px;height:14px;border-radius:3px;border:1px solid var(--br);flex:0 0 14px}
+.lrow .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .cn{color:var(--mut);font-size:10px;tabular-nums}
+.lrow .sum{color:var(--ok);font-size:11px;tabular-nums;font-variant-numeric:tabular-nums}
+.lrow .ico{cursor:pointer;color:var(--mut);padding:0 2px}
+.lrow .ico.act{color:var(--txt)}
+.folder{font-weight:600;color:var(--mut);padding-left:0}
+.folder .nm{font-size:12px}
+.folder .sum{color:var(--acc)}
+.indent{padding-left:18px}
+.indent2{padding-left:32px}
+.add{margin-top:6px;background:transparent;color:var(--mut);border:1px dashed var(--br);width:100%;padding:4px;border-radius:4px;cursor:pointer;font-size:11px}
+.add:hover{color:var(--acc);border-color:var(--acc)}
+
+/* main content */
+.body{flex:1;overflow:auto;padding:14px 18px;background:var(--bg)}
+.tab{display:none} .tab.act{display:block}
+
+/* Pages tab */
+.pages-tools{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.pages-tools .pill{background:var(--pnl2);border:1px solid var(--br);padding:3px 9px;border-radius:11px;font-size:11px;color:var(--mut);tabular-nums}
+.pages-tools .pill b{color:var(--txt)}
+.pages-tools .pill.ok b{color:var(--ok)}
+.pages-tools .pill.warn b{color:var(--warn)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.card{background:var(--pnl);border:1px solid var(--br);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;font-size:11px}
+.card.meas{border-color:#3a5566}
+.card.exc{opacity:.5}
+.card .thumb{background:#22282f;height:90px;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:24px;border-bottom:1px solid var(--br);position:relative}
+.card .pn{position:absolute;top:4px;left:6px;background:rgba(0,0,0,.7);padding:1px 5px;border-radius:3px;font-size:10px;color:var(--txt)}
+.card .badge{position:absolute;top:4px;right:6px;padding:1px 5px;border-radius:3px;font-size:9px;color:#fff;font-weight:600}
+.card .info{padding:6px 8px}
+.card .label{font-weight:600;color:var(--txt);margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.card select{background:var(--pnl2);color:var(--txt);border:1px solid var(--br);font-size:10px;padding:2px 4px;width:100%;margin-top:2px;border-radius:3px}
+.card .fl{display:flex;gap:4px;margin-top:3px;align-items:center;color:var(--mut)}
+.card .fl input{width:34px;background:var(--pnl2);color:var(--txt);border:1px solid var(--br);font-size:10px;padding:1px 3px;border-radius:3px;text-align:center}
+.tag-cover{background:#5a6b7c} .tag-site{background:#62a544} .tag-floor{background:#4cc9f0;color:#001218}
+.tag-roof{background:#7e8ed4} .tag-section{background:#a385f0} .tag-restroom{background:#c87cae}
+.tag-stair{background:#d49a3b} .tag-detail{background:#cf6f44} .tag-schedule{background:#3e6985}
+.tag-notes{background:#5a6b7c} .tag-legend{background:#5a6b7c} .tag-fixtures{background:#5a6b7c}
+.tag-sanitary{background:#3e8d75} .tag-other{background:#444}
+
+/* Report tab */
+.rep{max-width:900px;margin:0 auto;background:#fff;color:#222;padding:32px 40px;border-radius:6px;font-family:"Sarabun","Tahoma",sans-serif}
+.rep h1{font-size:20px;margin:0 0 4px;color:#0c2b3a}
+.rep h2{font-size:14px;margin:18px 0 6px;color:#0c2b3a;border-bottom:2px solid #0c2b3a;padding-bottom:3px}
+.rep h3{font-size:12px;margin:14px 0 4px;color:#0c2b3a}
+.rep .sub{color:#666;font-size:11px;margin-bottom:14px}
+.rep table{width:100%;border-collapse:collapse;font-size:11px;margin:6px 0}
+.rep th,.rep td{border:1px solid #ccc;padding:5px 7px;text-align:left}
+.rep th{background:#eef2f5;font-weight:600}
+.rep td.num{text-align:right;font-variant-numeric:tabular-nums}
+.rep td.tot{font-weight:700;background:#f8f8f8}
+.rep .kv{display:grid;grid-template-columns:140px 1fr;gap:3px 12px;font-size:11px;margin:4px 0}
+.rep .kv b{font-weight:600;color:#555}
+.rep .pl{display:flex;flex-wrap:wrap;gap:4px;font-size:10px;margin:4px 0 10px}
+.rep .pl span{background:#eef2f5;padding:2px 6px;border-radius:9px;color:#345}
+.rep .pl span.exc{background:#f8e0e0;color:#722}
+.rep .calc{background:#fffaef;border:1px solid #f0d59c;padding:10px 12px;margin:8px 0;border-radius:4px;font-size:11px}
+.rep .calc .row{display:flex;justify-content:space-between;padding:2px 0}
+.rep .calc .row.tot{border-top:1px solid #d4b870;padding-top:5px;margin-top:4px;font-weight:700}
+.rep footer{margin-top:20px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:8px}
+
+/* Notes */
+.note{background:var(--pnl);border:1px solid var(--br);padding:10px 14px;border-radius:6px;margin-bottom:10px;font-size:11px;color:var(--mut)}
+.note b{color:var(--txt)}
+.note code{background:var(--pnl2);padding:1px 4px;border-radius:3px;color:var(--acc);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧪 Spike — 45-page permit · BMA-Plan Lite</h1>
+  <span class="meta">RAMA4 APARTMENT PERMIT rev 1.pdf · 45 หน้า · A1 landscape rot=90°</span>
+  <nav>
+    <button data-tab="pages" class="act">📄 Pages</button>
+    <button data-tab="report">📊 Report Preview</button>
+  </nav>
+</header>
+<main>
+  <!-- LAYER PANEL (sticky) -->
+  <aside class="lpanel">
+    <h2>Layers (โครงสร้างที่เสนอ)</h2>
+    <div id="layer-tree"></div>
+    <button class="add">+ เพิ่ม layer</button>
+
+    <h2 style="margin-top:14px">Page-floor map</h2>
+    <div id="floor-map" style="font-size:11px;color:var(--mut);line-height:1.7"></div>
+  </aside>
+
+  <!-- BODY -->
+  <section class="body">
+
+    <!-- PAGES TAB -->
+    <div class="tab act" data-tab="pages">
+      <div class="note">
+        <b>วิธีอ่าน:</b> ทุก card คือ 1 หน้า · ป้ายสีบนมุมขวา = ประเภท (tag) ที่ใช้คำนวณ ·
+        <code>tag=floor</code> + <code>เลขชั้น</code> = นับเข้า GFA · <code>tag=site</code> = นับเข้าพื้นที่ที่ดิน/coverage ·
+        ตัวที่หรี่ลง = excluded จากการคำนวณ.
+        <br><b>เป้าหมาย spike:</b> ดูว่าจาก 45 หน้า มี **9 หน้า** ที่วัดพื้นที่จริง (p5, p7-8 site; p11-16 floor/roof-deck) — ที่เหลือ 36 หน้าเป็น cover/legend/section/detail/schedule
+      </div>
+      <div class="pages-tools">
+        <span class="pill ok">วัดพื้นที่ <b id="meas-count">—</b></span>
+        <span class="pill">site <b id="site-count">—</b></span>
+        <span class="pill">floor/roof-deck <b id="floor-count">—</b></span>
+        <span class="pill warn">excluded <b id="exc-count">—</b></span>
+        <span class="pill">total <b>45</b></span>
+      </div>
+      <div class="grid" id="page-grid"></div>
+    </div>
+
+    <!-- REPORT TAB -->
+    <div class="tab" data-tab="report">
+      <div class="note">
+        <b>ตัวอย่างรายงาน</b> สำหรับ permit นี้ — คำนวณจาก 9 หน้าที่ <code>tag</code> เป็น site/floor/roof-deck.
+        ตัวเลขในตัวอย่างเป็น mock (อิงจาก p7 "พื้นที่อาคารปกคลุมที่ดิน 839.10 ตารางเมตร" + ที่ดิน 1 ไร่ 0 งาน 79.8 ตารางวา = 1,919.20 m² และระยะที่อ่านได้จาก floor plan)
+      </div>
+      <article class="rep" id="rep"></article>
+    </div>
+
+  </section>
+</main>
+
+<script>
+/* =========================================================================
+   1. DATASET — 45-page classification (manual, derived from text scan)
+========================================================================= */
+const PAGES = [
+  {p:1,  tag:'cover',    label:'ปก / สารบัญแบบ DRAWING SET INDEX'},
+  {p:2,  tag:'site',     label:'ผังบริเวณตำแหน่งโครงการ (location plan)', excluded:true, note:'context only'},
+  {p:3,  tag:'legend',   label:'ตำนานสัญลักษณ์ / Legend sheet'},
+  {p:4,  tag:'fixtures', label:'มาตรฐานสุขภัณฑ์'},
+  {p:5,  tag:'site',     label:'ผังบริเวณ + ระยะ Setback + ที่ดินรอบข้าง'},
+  {p:6,  tag:'sanitary', label:'แบบระบบสุขาภิบาล (drainage)'},
+  {p:7,  tag:'site',     label:'ผังบริเวณ + อาคารปกคลุม 839.10 m²', primary:true},
+  {p:8,  tag:'site',     label:'ขอบเขตอาคาร + ระยะ Setback (alt)'},
+  {p:9,  tag:'section',  label:'รูปตัด Section A-A\' / B-B\''},
+  {p:10, tag:'notes',    label:'หมายเหตุ / Title block'},
+  {p:11, tag:'floor',    floor:1, label:'แปลนพื้นชั้น 1 (Ground floor)'},
+  {p:12, tag:'floor',    floor:2, label:'แปลนพื้นชั้น 2 (ห้องพัก 211–)'},
+  {p:13, tag:'floor',    floor:3, label:'แปลนพื้นชั้น 3 (ห้องพัก 311–)'},
+  {p:14, tag:'floor',    floor:4, label:'แปลนพื้นชั้น 4 (ห้องพัก 411–)'},
+  {p:15, tag:'floor',    floor:5, label:'แปลนพื้นชั้น 5 (door layout)'},
+  {p:16, tag:'floor',    floor:'roof', label:'แปลนพื้นดาดฟ้า / Roof deck'},
+  {p:17, tag:'roof',     label:'แปลนหลังคา คสล. + OVERFLOW'},
+  {p:18, tag:'section',  label:'รูปตัด section'},
+  {p:19, tag:'section',  label:'รูปตัด section'},
+  {p:20, tag:'section',  label:'รูปด้าน Elevation'},
+  {p:21, tag:'section',  label:'รูปด้าน Elevation AW-17'},
+  {p:22, tag:'restroom', label:'แปลนขยายห้องน้ำ ST01'},
+  {p:23, tag:'restroom', label:'แปลนขยายห้องน้ำ ST02'},
+  {p:24, tag:'restroom', label:'แปลนขยายห้องน้ำ ST03'},
+  {p:25, tag:'restroom', label:'แปลนขยายห้องน้ำ ST04'},
+  {p:26, tag:'restroom', label:'แปลนขยายห้องน้ำ ST05'},
+  {p:27, tag:'stair',    label:'แปลนบันได (stair plan)'},
+  {p:28, tag:'stair',    label:'แปลนบันได (stair plan alt)'},
+  {p:29, tag:'stair',    label:'รายละเอียดบันได จมูก/ลูกตั้ง/ลูกนอน'},
+  {p:30, tag:'detail',   label:'LS-01 รายละเอียดลิฟต์ / shaft'},
+  {p:31, tag:'detail',   label:'LS-01 รายละเอียดลิฟต์ (alt)'},
+  {p:32, tag:'schedule', label:'ตารางหน้าต่าง (Window schedule)'},
+  {p:33, tag:'schedule', label:'ตารางประตู (Door schedule)'},
+  {p:34, tag:'schedule', label:'ตารางประตู/หน้าต่าง (cont.)'},
+  {p:35, tag:'section',  label:'รูปตัดผนัง (Wall section)'},
+  {p:36, tag:'section',  label:'รูปตัดผนัง / รูปด้าน AW-09'},
+  {p:37, tag:'section',  label:'รูปตัดผนัง (cont.)'},
+  {p:38, tag:'notes',    label:'หมายเหตุ / Title block'},
+  {p:39, tag:'detail',   label:'ระเบียง RL01 แบบขยาย'},
+  {p:40, tag:'detail',   label:'ระแนงตกแต่ง RL02 FAMELINE'},
+  {p:41, tag:'detail',   label:'DT01 หลังคา concrete'},
+  {p:42, tag:'detail',   label:'DT04 สระน้ำ / เครื่องปั๊ม'},
+  {p:43, tag:'detail',   label:'A10_05 detail'},
+  {p:44, tag:'detail',   label:'FC01 stainless / fascia'},
+  {p:45, tag:'detail',   label:'FC02 fascia / detail'},
+];
+
+const TAGS = {
+  cover:    {label:'cover ปก',          meas:false, cls:'tag-cover'},
+  site:     {label:'site ผังบริเวณ',    meas:true,  cls:'tag-site'},
+  floor:    {label:'floor แปลนชั้น',    meas:true,  cls:'tag-floor'},
+  roof:     {label:'roof หลังคา',       meas:false, cls:'tag-roof'},
+  section:  {label:'section รูปตัด',    meas:false, cls:'tag-section'},
+  restroom: {label:'restroom ห้องน้ำ',  meas:false, cls:'tag-restroom'},
+  stair:    {label:'stair บันได',       meas:false, cls:'tag-stair'},
+  detail:   {label:'detail รายละเอียด', meas:false, cls:'tag-detail'},
+  schedule: {label:'schedule ตาราง',    meas:false, cls:'tag-schedule'},
+  notes:    {label:'notes หมายเหตุ',    meas:false, cls:'tag-notes'},
+  legend:   {label:'legend สัญลักษณ์',  meas:false, cls:'tag-legend'},
+  fixtures: {label:'fixtures มาตรฐาน',  meas:false, cls:'tag-fixtures'},
+  sanitary: {label:'sanitary สุขาภิบาล',meas:false, cls:'tag-sanitary'},
+  other:    {label:'other',             meas:false, cls:'tag-other'},
+};
+
+/* =========================================================================
+   2. MOCK MEASUREMENTS — ตัวเลขสมมุติที่จะออกมาเมื่อวัดครบ 9 หน้า
+   อิงจาก: p7 อาคารปกคลุม 839.10 m² + 1 ไร่ 0 งาน 79.8 ตร.ว. = 1919.20 m²
+   ระยะ floor plan: 45.00 × 16.50 m ≈ 740 m² × 5 ชั้น + ดาดฟ้า
+========================================================================= */
+const MEAS = {
+  // site (page 5/7/8)
+  landArea:       1919.20,                    // ที่ดิน (รวม) — 1 ไร่ 0 งาน 79.8 ตร.ว.
+  buildingCover:   839.10,                    // อาคารปกคลุมที่ดิน (จาก p7)
+  setbacks:       {front:3.00, back:3.50, leftA:6.50, leftB:7.20, right:11.20},
+  // GFA per floor (mock, อิงจากระยะ 45.00 × ~16.50 และ deduction ลิฟต์/บันได)
+  floors: [
+    {n:1,    page:11, label:'ชั้น 1 (Ground)', gross:739.50, ded: 42.30, use:'commercial + lobby'},
+    {n:2,    page:12, label:'ชั้น 2',          gross:739.50, ded: 38.10, use:'residential 14 ห้อง'},
+    {n:3,    page:13, label:'ชั้น 3',          gross:739.50, ded: 38.10, use:'residential 14 ห้อง'},
+    {n:4,    page:14, label:'ชั้น 4',          gross:739.50, ded: 38.10, use:'residential 14 ห้อง'},
+    {n:5,    page:15, label:'ชั้น 5',          gross:739.50, ded: 38.10, use:'residential 14 ห้อง'},
+    {n:'roof', page:16, label:'ดาดฟ้า / Roof deck', gross:298.40, ded:24.20, use:'common roof / equipment'}
+  ],
+  rooms_typical: [
+    {code:'F05', name:'โถงลิฟต์',      count_per_floor:1},
+    {code:'F08', name:'ห้องน้ำส่วนกลาง', count_per_floor:1},
+    {code:'F10', name:'ห้องพัก',       count_per_floor:14}
+  ]
+};
+
+/* =========================================================================
+   3. LAYER TREE — โครงสร้างที่เสนอสำหรับงาน permit
+========================================================================= */
+const LAYERS = [
+  {kind:'folder', id:'F_site', name:'📐 Site / ผังบริเวณ', children:[
+    {kind:'layer', id:'site_land',   role:'site',  name:'ที่ดิน',           color:'#9ad14b', area:1919.20, page:[5,7,8]},
+    {kind:'layer', id:'site_cover',  role:'gfa',   name:'พื้นที่อาคารปกคลุม', color:'#62a544', area:839.10,  page:[7]},
+    {kind:'layer', id:'site_setback',role:'use',   name:'แนวร่น (Setback)', color:'#f6a609', area:0,       page:[5,8], note:'วัดระยะไม่ใช่พื้นที่'},
+  ]},
+  {kind:'folder', id:'F_gfa', name:'🏢 GFA / พื้นที่อาคาร', children:[
+    {kind:'layer', id:'gfa_l1',  role:'gfa', name:'ชั้น 1 GFA',  color:'#4cc9f0', area:739.50, page:[11]},
+    {kind:'layer', id:'gfa_l2',  role:'gfa', name:'ชั้น 2 GFA',  color:'#4cc9f0', area:739.50, page:[12]},
+    {kind:'layer', id:'gfa_l3',  role:'gfa', name:'ชั้น 3 GFA',  color:'#4cc9f0', area:739.50, page:[13]},
+    {kind:'layer', id:'gfa_l4',  role:'gfa', name:'ชั้น 4 GFA',  color:'#4cc9f0', area:739.50, page:[14]},
+    {kind:'layer', id:'gfa_l5',  role:'gfa', name:'ชั้น 5 GFA',  color:'#4cc9f0', area:739.50, page:[15]},
+    {kind:'layer', id:'gfa_rd',  role:'gfa', name:'ดาดฟ้า GFA',  color:'#7e8ed4', area:298.40, page:[16]},
+  ]},
+  {kind:'folder', id:'F_ded', name:'➖ Deductions / หัก', children:[
+    {kind:'layer', id:'ded_lift',  role:'ded', name:'ช่องลิฟต์',  color:'#ef5350', area:38.10*5+24.20, page:[11,12,13,14,15,16]},
+    {kind:'layer', id:'ded_stair', role:'ded', name:'ช่องบันได',  color:'#ef5350', area:0,            page:[11,12,13,14,15,16], note:'แยกถ้าต้องการ'},
+  ]},
+  {kind:'folder', id:'F_use', name:'🏠 Use / ประเภทห้อง', children:[
+    {kind:'layer', id:'use_resid', role:'use', name:'ห้องพัก',     color:'#a385f0', area:0, page:[12,13,14,15]},
+    {kind:'layer', id:'use_lobby', role:'use', name:'lobby/โถง',   color:'#a385f0', area:0, page:[11,12,13,14,15,16]},
+    {kind:'layer', id:'use_wc',    role:'use', name:'ห้องน้ำ',     color:'#c87cae', area:0, page:[11,12,13,14,15]},
+  ]},
+  {kind:'folder', id:'F_count', name:'🔢 Counts / นับ', children:[
+    {kind:'layer', id:'cnt_rooms', role:'count', name:'จำนวนห้องพัก',  color:'#7e8ed4', area:0, page:[12,13,14,15], count:56},
+    {kind:'layer', id:'cnt_park',  role:'count', name:'ที่จอดรถ',     color:'#7e8ed4', area:0, page:[7], count:0,  note:'อ่านจาก p7'},
+  ]},
+];
+
+/* =========================================================================
+   4. RENDER — Layer panel
+========================================================================= */
+function fmt(n,d=2){ if(typeof n!=='number')return ''; return n.toLocaleString('th-TH',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
+function renderLayers(){
+  const root = document.getElementById('layer-tree');
+  let html = '';
+  for(const f of LAYERS){
+    let sum = 0; for(const c of f.children) sum += (c.area||0);
+    html += `<div class="lrow folder"><span class="ico">▾</span><span class="nm">${f.name}</span><span class="sum">Σ ${fmt(sum)} m²</span></div>`;
+    for(const l of f.children){
+      const pgs = l.page.length>3 ? `${l.page.length} หน้า` : `p${l.page.join(',')}`;
+      const main = l.count!=null ? `<span class="cn">×${l.count}</span>` : `<span class="sum">${l.area?fmt(l.area):'—'}</span>`;
+      html += `<div class="lrow indent" title="${l.note||''}">
+        <span class="sw" style="background:${l.color}"></span>
+        <span class="nm">${l.name}</span>
+        ${main}
+      </div>
+      <div class="lrow indent2" style="padding-top:0;padding-bottom:2px;color:var(--mut);font-size:10px">↳ ${pgs}</div>`;
+    }
+  }
+  root.innerHTML = html;
+}
+
+function renderFloorMap(){
+  const m = document.getElementById('floor-map');
+  let html = '';
+  for(const f of MEAS.floors){
+    const net = f.gross - f.ded;
+    html += `<div>p<b style="color:var(--txt)">${f.page}</b> = ${f.label} · <span style="color:var(--ok)">${fmt(net)}</span> m² net</div>`;
+  }
+  html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--br);color:var(--ok)">รวม GFA <b>${fmt(MEAS.floors.reduce((s,f)=>s+f.gross-f.ded,0))}</b> m²</div>`;
+  m.innerHTML = html;
+}
+
+/* =========================================================================
+   5. RENDER — 45-page grid
+========================================================================= */
+function renderPages(){
+  const g = document.getElementById('page-grid');
+  let html = '';
+  for(const p of PAGES){
+    const t = TAGS[p.tag];
+    const excluded = p.excluded || !t.meas;
+    html += `<div class="card ${t.meas?'meas':''} ${p.excluded?'exc':''}">
+      <div class="thumb">
+        <span class="pn">p${p.p}</span>
+        <span class="badge ${t.cls}">${t.label.split(' ')[0]}</span>
+        ${t.meas?'📐':'·'}
+      </div>
+      <div class="info">
+        <div class="label" title="${p.label}">${p.label}</div>
+        <select onchange="setTag(${p.p}, this.value)">
+          ${Object.keys(TAGS).map(k=>`<option value="${k}" ${k===p.tag?'selected':''}>${TAGS[k].label}</option>`).join('')}
+        </select>
+        ${p.tag==='floor'?`<div class="fl">ชั้น <input type="text" value="${p.floor||''}" onchange="setFloor(${p.p}, this.value)"></div>`:''}
+      </div>
+    </div>`;
+  }
+  g.innerHTML = html;
+  updateCounts();
+}
+function updateCounts(){
+  const meas = PAGES.filter(p=>TAGS[p.tag].meas && !p.excluded).length;
+  const site = PAGES.filter(p=>p.tag==='site' && !p.excluded).length;
+  const fl   = PAGES.filter(p=>p.tag==='floor' && !p.excluded).length;
+  const exc  = PAGES.filter(p=>p.excluded || !TAGS[p.tag].meas).length;
+  document.getElementById('meas-count').textContent  = meas;
+  document.getElementById('site-count').textContent  = site;
+  document.getElementById('floor-count').textContent = fl;
+  document.getElementById('exc-count').textContent   = exc;
+}
+function setTag(pn, t){
+  const p = PAGES.find(x=>x.p===pn); p.tag = t; if(t!=='floor') delete p.floor;
+  renderPages(); renderReport();
+}
+function setFloor(pn, v){
+  const p = PAGES.find(x=>x.p===pn);
+  p.floor = (v==='roof' || /^\d+$/.test(v)) ? (v==='roof'?'roof':parseInt(v,10)) : v;
+}
+
+/* =========================================================================
+   6. RENDER — Report mockup
+========================================================================= */
+function renderReport(){
+  const totGross = MEAS.floors.reduce((s,f)=>s+f.gross,0);
+  const totDed   = MEAS.floors.reduce((s,f)=>s+f.ded,0);
+  const totNet   = totGross - totDed;
+  const FAR      = totNet / MEAS.landArea;
+  const coverage = MEAS.buildingCover / MEAS.landArea * 100;
+  const openSpace= MEAS.landArea - MEAS.buildingCover;
+  const OSR      = openSpace / totNet * 100;
+
+  const measPages = PAGES.filter(p=>TAGS[p.tag].meas && !p.excluded).map(p=>p.p);
+  const excPages  = PAGES.filter(p=>p.excluded || !TAGS[p.tag].meas).map(p=>p.p);
+
+  const rep = document.getElementById('rep');
+  rep.innerHTML = `
+    <h1>รายงานสรุปการคำนวณพื้นที่ — โครงการ RAMA4 APARTMENT</h1>
+    <div class="sub">เลขที่แบบ: rev 1 · จำนวนหน้าทั้งหมด 45 · จากแฟ้ม <code>20250616_RAMA4 APARTMENT PERMIT rev 1.pdf</code></div>
+
+    <h2>1. ข้อมูลโครงการ</h2>
+    <div class="kv">
+      <b>ที่ตั้ง</b><span>ถนนพระราม 4 ซอยจอมสมบูรณ์</span>
+      <b>ประเภทอาคาร</b><span>อพาร์ตเมนต์ (residential 5 ชั้น + ดาดฟ้า)</span>
+      <b>ที่ดิน</b><span>1 ไร่ 0 งาน 79.8 ตารางวา = <b>${fmt(MEAS.landArea)} m²</b></span>
+      <b>หน้าที่ใช้คำนวณ</b><span>${measPages.length} หน้า / 45 (${(measPages.length/45*100).toFixed(0)}%)</span>
+    </div>
+
+    <h2>2. ผังบริเวณ — Site Coverage</h2>
+    <table>
+      <tr><th>รายการ</th><th class="num" style="width:140px">พื้นที่ (m²)</th><th style="width:80px">ที่มา</th></tr>
+      <tr><td>ที่ดิน (รวม)</td><td class="num">${fmt(MEAS.landArea)}</td><td>p5, p7, p8</td></tr>
+      <tr><td>อาคารปกคลุมที่ดิน</td><td class="num">${fmt(MEAS.buildingCover)}</td><td>p7</td></tr>
+      <tr><td>ที่ว่าง (Open Space)</td><td class="num">${fmt(openSpace)}</td><td>derived</td></tr>
+      <tr class="tot"><td>Site Coverage</td><td class="num">${coverage.toFixed(2)} %</td><td></td></tr>
+    </table>
+    <h3>ระยะแนวร่น (Setback)</h3>
+    <table>
+      <tr><th>ด้าน</th><th class="num">ระยะ (m)</th><th>ที่มา</th></tr>
+      <tr><td>หน้าโครงการ (ซอยจอมสมบูรณ์)</td><td class="num">${MEAS.setbacks.front.toFixed(2)}</td><td>p5/p7</td></tr>
+      <tr><td>หลัง</td><td class="num">${MEAS.setbacks.back.toFixed(2)}</td><td>p5</td></tr>
+      <tr><td>ข้าง (ซ้าย ตอน A)</td><td class="num">${MEAS.setbacks.leftA.toFixed(2)}</td><td>p7</td></tr>
+      <tr><td>ข้าง (ซ้าย ตอน B)</td><td class="num">${MEAS.setbacks.leftB.toFixed(2)}</td><td>p7</td></tr>
+      <tr><td>ข้าง (ขวา)</td><td class="num">${MEAS.setbacks.right.toFixed(2)}</td><td>p7</td></tr>
+    </table>
+
+    <h2>3. พื้นที่อาคาร — GFA Breakdown ต่อชั้น</h2>
+    <table>
+      <tr><th style="width:90px">ชั้น</th><th>การใช้งาน</th><th style="width:60px">หน้า</th>
+          <th class="num" style="width:90px">Gross (m²)</th>
+          <th class="num" style="width:80px">หัก (m²)</th>
+          <th class="num" style="width:90px">Net (m²)</th></tr>
+      ${MEAS.floors.map(f=>`<tr>
+        <td>${f.label}</td><td>${f.use}</td><td>p${f.page}</td>
+        <td class="num">${fmt(f.gross)}</td>
+        <td class="num">−${fmt(f.ded)}</td>
+        <td class="num"><b>${fmt(f.gross-f.ded)}</b></td>
+      </tr>`).join('')}
+      <tr class="tot"><td colspan="3">รวม GFA</td>
+        <td class="num">${fmt(totGross)}</td>
+        <td class="num">−${fmt(totDed)}</td>
+        <td class="num"><b>${fmt(totNet)}</b></td>
+      </tr>
+    </table>
+
+    <h2>4. ตัวเลขควบคุม (Derived) — FAR / OSR</h2>
+    <div class="calc">
+      <div class="row"><span>FAR (Floor Area Ratio) = GFA / ที่ดิน</span><b>${fmt(totNet)} / ${fmt(MEAS.landArea)} = ${FAR.toFixed(2)}</b></div>
+      <div class="row"><span>Coverage = อาคารปกคลุม / ที่ดิน × 100</span><b>${coverage.toFixed(2)} %</b></div>
+      <div class="row"><span>OSR = (ที่ว่าง / GFA) × 100</span><b>${OSR.toFixed(2)} %</b></div>
+      <div class="row tot"><span>หมายเหตุ</span><span style="font-weight:400">ค่าทั้งสามผูกกับ <code>reportVar</code> registry (LRV) — เปลี่ยน area ในหน้าใดก็ recompute อัตโนมัติ</span></div>
+    </div>
+
+    <h2>5. จำนวนนับ (Counts)</h2>
+    <table>
+      <tr><th>รายการ</th><th class="num" style="width:80px">จำนวน</th><th>หน้า</th></tr>
+      <tr><td>ห้องพัก (5 ชั้น × ~14 ห้อง)</td><td class="num">56</td><td>p12–p15</td></tr>
+      <tr><td>โถงลิฟต์</td><td class="num">6</td><td>p11–p16</td></tr>
+      <tr><td>ห้องน้ำส่วนกลาง</td><td class="num">5</td><td>p11–p15</td></tr>
+    </table>
+
+    <h2>6. หน้าที่ใช้คำนวณ — Traceability</h2>
+    <h3>หน้าที่นับ (${measPages.length} หน้า)</h3>
+    <div class="pl">${measPages.map(p=>`<span>p${p}</span>`).join('')}</div>
+    <h3>หน้าที่ <b>ไม่</b> นับ (${excPages.length} หน้า: cover/legend/section/detail/schedule/notes)</h3>
+    <div class="pl">${excPages.map(p=>`<span class="exc">p${p}</span>`).join('')}</div>
+
+    <footer>BMA-Plan Lite · spike report · ${new Date().toISOString().slice(0,10)}</footer>
+  `;
+}
+
+/* =========================================================================
+   7. Tab switching
+========================================================================= */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('act'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('act'));
+    b.classList.add('act');
+    document.querySelector(`.tab[data-tab="${b.dataset.tab}"]`).classList.add('act');
+  });
+});
+
+/* boot */
+renderLayers();
+renderFloorMap();
+renderPages();
+renderReport();
+</script>
+</body>
+</html>

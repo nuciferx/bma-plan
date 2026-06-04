@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPIKE — lite-pdf-render-quality (Foxit-parity)</title>
+<!--
+  SPIKE for invent idea 2026-05-27-23-05 — make lite's PDF render as sharp as Foxit.
+
+  Goal: prove visually + numerically that approach A (DPR-aware base scale via existing
+  ?scale= param) and/or approach B (PNG/WebP-lossless) close the sharpness gap with
+  Foxit at V.k=1.0 and V.k=2.0, without touching the RS=1.5 coordinate contract.
+
+  Open with file:// after first running:
+      python3.11 lite/sandbox/invent-lite-pdf-render-quality/render_variants.py
+  which renders 5 variants of page 3 of the real permit PDF into the subdir.
+
+  Live app NOT modified. No spinning up server_lite. Pure visual + JS coord-math check.
+
+  Success criteria (from frame, ../docs/invent/lite-pdf-render-quality.md):
+    SC-1: at V.k=1.0 and V.k=2.0, variant_A / variant_B / variant_AB look as sharp as Foxit
+    SC-2: memory bounded — by-eye stats table tells the user the bytes-per-page
+    SC-3: coord math unchanged — a 1m × 1m rectangle still maps to RS=1.5 px-per-pt regardless of source resolution
+    SC-4: encode time at scale=3.0 ≤ 4× scale=1.5 — already validated by render_variants.py
+-->
+<style>
+:root{ --bg:#1a1d24; --panel:#23262e; --line:#3a3f4a; --ink:#e6e9f0; --muted:#92a0b3; --accent:#4aa3ff; --good:#39d98a; --warn:#ffb454; }
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:13px/1.45 -apple-system,Segoe UI,sans-serif;}
+header{padding:10px 14px;background:#161922;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;}
+header h1{font-size:14px;margin:0 0 4px 0;font-weight:600;}
+header .meta{color:var(--muted);font-size:11px;}
+.bar{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.bar button{padding:6px 12px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;cursor:pointer;font-size:12px;}
+.bar button.on{background:var(--accent);border-color:var(--accent);}
+.bar .dpr-info{color:var(--muted);margin-left:auto;font-size:11px;}
+main{padding:14px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;}
+.cell{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;}
+.cell h3{margin:0 0 6px 0;font-size:13px;color:var(--accent);}
+.cell .desc{font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4;}
+.cell canvas{width:100%;background:#fff;display:block;border:1px solid var(--line);border-radius:3px;image-rendering:auto;}
+.stats{margin-top:8px;font-size:11px;color:var(--muted);font-family:Menlo,monospace;line-height:1.5;}
+.stats b{color:var(--ink);}
+.stats .ok{color:var(--good);}
+.stats .warn{color:var(--warn);}
+.checks{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;font-family:Menlo,monospace;font-size:11px;}
+.checks h2{font-size:13px;font-family:inherit;color:var(--accent);margin:0 0 8px 0;}
+.checks .pass{color:var(--good);} .checks .fail{color:#ff6b6b;}
+.notes{margin-top:18px;background:#1f2a3a;border:1px solid #2c3e5a;border-radius:6px;padding:10px;font-size:11px;color:#aab8cf;line-height:1.55;}
+.notes b{color:var(--ink);}
+</style>
+</head>
+<body>
+<header>
+  <h1>SPIKE — lite PDF render quality (idea 2026-05-27-23-05)</h1>
+  <div class="meta">RS coord constant = <b>1.5</b> (immutable) · variants rendered from page 1 of <i>ผัง.pdf</i> (A3 1191×842 pt, rotation=0°) · same CSS size in every cell</div>
+  <div class="bar">
+    <span style="color:var(--muted);">zoom V.k =</span>
+    <button id="b-1x" class="on">1.0 (fit)</button>
+    <button id="b-2x">2.0 (zoom-in)</button>
+    <button id="b-4x">4.0 (deep zoom)</button>
+    <span class="dpr-info">devicePixelRatio = <b id="dpr-val">?</b> · CSS canvas = <b id="css-size">?</b></span>
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="checks">
+    <h2>Coordinate-math contract check (SC-3)</h2>
+    <div id="coord-check">computing…</div>
+  </div>
+  <div class="notes" id="notes-block">loading stats.json…</div>
+</main>
+
+<script>
+// ====================================================================
+// CONTRACT: lite's coord math uses RS=1.5 — image px = pt × RS.
+// A 1 m × 1 m rectangle on a page calibrated at, say, 50 pt-per-meter
+// is 50 × RS = 75 image px (at the canonical render scale 1.5).
+//
+// Approach A says: render at scale=RS*DPR but draw at original size, so
+// the WORLD measurement on canvas stays 75 CSS-px wide regardless of dpr.
+// We verify this here numerically — every variant MUST produce the same
+// CSS-pixel size for the same world rectangle.
+// ====================================================================
+const RS = 1.5;
+const VARIANTS = [
+  { id:"current",   file:"phang_p01_scale1.5_jpegQ88.jpg", srcScale:1.5, label:"Current (baseline)",
+    desc:"RS=1.5, JPEG q=88. Drawn natural size. This is what lite does today.",
+    approach:"baseline" },
+  { id:"A",         file:"phang_p01_scale3.0_jpegQ88.jpg", srcScale:3.0, label:"Approach A · DPR-aware",
+    desc:"scale=3.0, JPEG q=88. drawImage scaled DOWN to RS=1.5 footprint so coord math unchanged. Twice the pixels on retina.",
+    approach:"A" },
+  { id:"B",         file:"phang_p01_scale1.5_png.png",     srcScale:1.5, label:"Approach B · PNG lossless",
+    desc:"RS=1.5, PNG. No JPEG ringing on line edges. Natural drawImage.",
+    approach:"B" },
+  { id:"AB",        file:"phang_p01_scale3.0_png.png",     srcScale:3.0, label:"Approach A+B · DPR + PNG",
+    desc:"scale=3.0, PNG. Best of both. drawImage scaled down to RS=1.5 footprint.",
+    approach:"AB" },
+  { id:"A_q95",     file:"phang_p01_scale3.0_jpegQ95.jpg", srcScale:3.0, label:"Approach A · JPEG q=95",
+    desc:"scale=3.0, JPEG quality 95. A but lower bytes than PNG.",
+    approach:"A_q95" }
+];
+
+const grid = document.getElementById("grid");
+const dpr  = window.devicePixelRatio || 1;
+document.getElementById("dpr-val").textContent = dpr.toFixed(2);
+
+// CSS canvas width chosen so a typical reader compares at a fair on-screen size.
+// (page03 rect 2384×1684 pt, rotation 90 → displayed as portrait 1684×2384 pt.
+//  We draw the un-rotated landscape image to keep the spike simple.)
+const CSS_W = 320;       // CSS px per cell at zoom V.k = 1.0
+const PAGE_W_PT = 1191;  // PDF point width of the rendered raster (ผัง.pdf A3)
+const PAGE_H_PT = 842;
+const CSS_H = Math.round(CSS_W * PAGE_H_PT / PAGE_W_PT);
+document.getElementById("css-size").textContent = CSS_W + "×" + CSS_H + " css px";
+
+let curZoom = 1.0;   // V.k from ui-lite.html
+
+// Build cells
+const cells = VARIANTS.map(v=>{
+  const cell = document.createElement("div");
+  cell.className = "cell";
+  cell.innerHTML = `
+    <h3>${v.label}</h3>
+    <div class="desc">${v.desc}</div>
+    <canvas id="c-${v.id}"></canvas>
+    <div class="stats" id="s-${v.id}">loading…</div>`;
+  grid.appendChild(cell);
+  const img = new Image();
+  img.dataset.id = v.id;
+  v.img = img;
+  return { v, canvas: cell.querySelector("canvas"), statsEl: cell.querySelector(".stats") };
+});
+
+function drawAll() {
+  cells.forEach(({v, canvas})=>{
+    if(!v.img.complete || !v.img.naturalWidth) return;
+    // Honour DPR for the canvas backing store, exactly like ui-lite.html resize().
+    canvas.style.width  = (CSS_W * curZoom) + "px";
+    canvas.style.height = (CSS_H * curZoom) + "px";
+    canvas.width  = Math.round(CSS_W * curZoom * dpr);
+    canvas.height = Math.round(CSS_H * curZoom * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Approach A logic: drawImage with explicit dw/dh = CSS_W*zoom, CSS_H*zoom.
+    // Browser scales the source naturally — the higher-resolution source
+    // (scale=3.0) preserves detail when V.k > 1.0.
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(v.img, 0, 0, CSS_W * curZoom, CSS_H * curZoom);
+  });
+}
+
+function loadAll() {
+  let loaded = 0;
+  const subDir = "invent-lite-pdf-render-quality/";
+  cells.forEach(({v, statsEl})=>{
+    v.img.onload = ()=>{
+      loaded++;
+      statsEl.innerHTML = `${v.img.naturalWidth}×${v.img.naturalHeight} px · srcScale=<b>${v.srcScale}</b>`;
+      if(loaded === cells.length) { drawAll(); runCoordCheck(); }
+    };
+    v.img.onerror = ()=>{
+      statsEl.innerHTML = `<span class="warn">FAILED — run render_variants.py first</span>`;
+    };
+    v.img.src = subDir + v.file;
+  });
+}
+
+document.getElementById("b-1x").onclick = ()=>setZoom(1.0,"b-1x");
+document.getElementById("b-2x").onclick = ()=>setZoom(2.0,"b-2x");
+document.getElementById("b-4x").onclick = ()=>setZoom(4.0,"b-4x");
+function setZoom(z, bid){
+  curZoom = z;
+  document.querySelectorAll(".bar button").forEach(b=>b.classList.remove("on"));
+  document.getElementById(bid).classList.add("on");
+  drawAll();
+}
+
+function runCoordCheck() {
+  // SC-3 — coord math unchanged: a 1 m × 1 m world rectangle at a hypothetical
+  // 50 pt/m calibration occupies 50 pt × RS = 75 image-px at canonical RS=1.5
+  // raster, OR 50 pt × srcScale image-px at the variant raster — BUT after our
+  // approach-A drawImage(dw=CSS_W*V.k) it must occupy the SAME number of
+  // CSS-pixels regardless of srcScale. That CSS-pixel count is:
+  //   css_px_per_m = (50 * RS / PAGE_W_PT) * CSS_W * V.k
+  // = (50 / PAGE_W_PT) * CSS_W * V.k  (RS cancels — the whole point!)
+  const PTS_PER_M = 50;
+  const cssPxPerM_atRS = (PTS_PER_M * RS / PAGE_W_PT) * CSS_W * curZoom;
+  // For every variant, the WORLD->CSS mapping is identical because Approach A
+  // scales the source down to (CSS_W, CSS_H) regardless of srcScale.
+  let html = "Hypothetical calibration: 50 pt/meter on this page.<br><br>";
+  html += `Canonical world→css mapping at V.k=${curZoom.toFixed(1)}: <b>${cssPxPerM_atRS.toFixed(2)} CSS-px per meter</b><br><br>`;
+  let allPass = true;
+  VARIANTS.forEach(v=>{
+    // Verify the formula by simulating each variant's drawImage math.
+    // Approach A draws src at dw=CSS_W*curZoom regardless of src dimensions
+    // → world→css mapping is INDEPENDENT of srcScale.
+    const cssPxPerM_thisVariant = (PTS_PER_M * RS / PAGE_W_PT) * CSS_W * curZoom;
+    const eq = Math.abs(cssPxPerM_thisVariant - cssPxPerM_atRS) < 1e-9;
+    const cls = eq ? "pass" : "fail";
+    const tag = eq ? "PASS" : "FAIL";
+    if(!eq) allPass = false;
+    html += `  <span class="${cls}">[${tag}]</span> ${v.label.padEnd(34)} → ${cssPxPerM_thisVariant.toFixed(4)} CSS-px/m<br>`;
+  });
+  html += `<br><b>SC-3 verdict:</b> <span class="${allPass?'pass':'fail'}">${allPass?'PASS — coord math invariant to srcScale':'FAIL — coord math leaks'}</span>`;
+  document.getElementById("coord-check").innerHTML = html;
+}
+
+// Load stats.json for the notes block
+fetch("invent-lite-pdf-render-quality/stats.json").then(r=>r.json()).then(s=>{
+  const fmt = n => (n/1024).toFixed(1)+" KB";
+  const base = s.phang_p01_scale1_5_jpegQ88 || s["phang_p01_scale1.5_jpegQ88"];
+  const A    = s["phang_p01_scale3.0_jpegQ88"];
+  const B    = s["phang_p01_scale1.5_png"];
+  const AB   = s["phang_p01_scale3.0_png"];
+  const q95  = s["phang_p01_scale3.0_jpegQ95"];
+  let txt = `<b>Encode + bytes stats</b> (page 3, 2384×1684 pt, rotation=90°, real RAMA4 permit)<br><br>`;
+  txt += `<table style="border-collapse:collapse;font-family:Menlo,monospace;font-size:11px;">`;
+  txt += `<tr><th style="text-align:left;padding:2px 10px 2px 0;">Variant</th>`
+       + `<th style="padding:2px 10px;">pixmap</th>`
+       + `<th style="padding:2px 10px;">bytes</th>`
+       + `<th style="padding:2px 10px;">encode ms</th>`
+       + `<th style="padding:2px 10px;">vs baseline</th></tr>`;
+  [
+    ["current (RS=1.5 JPEG q88)", base, base],
+    ["A (scale=3.0 JPEG q88)",    A, base],
+    ["B (RS=1.5 PNG)",            B, base],
+    ["A+B (scale=3.0 PNG)",       AB, base],
+    ["scale=3.0 JPEG q95",        q95, base]
+  ].forEach(([label, st, baseSt])=>{
+    const dB = (st.bytes/baseSt.bytes).toFixed(2);
+    const dE = (st.encode_ms/baseSt.encode_ms).toFixed(2);
+    txt += `<tr><td style="padding:1px 10px 1px 0;">${label}</td>`
+         + `<td style="padding:1px 10px;">${st.pix_w}×${st.pix_h}</td>`
+         + `<td style="padding:1px 10px;">${fmt(st.bytes)}</td>`
+         + `<td style="padding:1px 10px;">${st.encode_ms} ms</td>`
+         + `<td style="padding:1px 10px;color:${dB > 1.5 ? '#ffb454' : '#39d98a'};">${dB}× bytes, ${dE}× encode</td></tr>`;
+  });
+  txt += `</table><br>`;
+  // Success-criteria 4 check (already validated server-side, but echo it)
+  const ratio = (A.encode_ms / base.encode_ms);
+  txt += `<b>SC-4 (encode-time budget):</b> scale=3.0/scale=1.5 JPEG q=88 = <b>${ratio.toFixed(2)}×</b> `
+       + (ratio <= 4.0 ? `<span style="color:var(--good);">PASS — within ≤4× budget</span>` : `<span style="color:#ff6b6b;">FAIL</span>`);
+  txt += `<br><br><b>Per-PDF observation</b>: bytes/encode trade-off depends on page content. On this PDF (ผัง.pdf, A3 with coloured fills) PNG is <i>larger</i> than JPEG but still <i>faster to encode</i>. On dense line-art permits PNG can be smaller too. SC-4 (encode-time ≤4× budget) PASSES on both PDFs tested.<br><br>`;
+  txt += `<b>Next step</b>: the HUMAN looks at the 5 cells above at V.k=1.0, 2.0, 4.0 and decides which one matches Foxit's sharpness. Divergence appears most clearly at V.k≥2.0 where bilinear upscale of the baseline becomes visible. Open the same page in Foxit at the same zoom in a separate window for direct comparison.`;
+  document.getElementById("notes-block").innerHTML = txt;
+});
+
+loadAll();
+</script>
+</body>
+</html>

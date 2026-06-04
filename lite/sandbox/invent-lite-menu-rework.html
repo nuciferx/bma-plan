@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Lite Menu Rework — Picker Mockup</title>
+<style>
+  :root{
+    --bg:#1e1e22; --panel:#26262c; --panel2:#2e2e36;
+    --line:#3a3a44; --text:#e7e7ec; --mute:#8b8b95; --hi:#6ea8ff;
+    --keep:#3ecf8e; --skip:#ef6363; --port:#ffb547; --new:#c490ff;
+    --hover:#3a3a44;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--text); font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;}
+  header{padding:14px 18px; border-bottom:1px solid var(--line); background:var(--panel);}
+  header h1{margin:0 0 4px; font-size:15px;}
+  header p{margin:0; color:var(--mute); font-size:12px;}
+  .legend{margin-top:8px; display:flex; gap:14px; flex-wrap:wrap; font-size:11px;}
+  .legend span{display:inline-flex; align-items:center; gap:4px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .dot.exists{background:var(--keep)}
+  .dot.port{background:var(--port)}
+  .dot.new{background:var(--new)}
+
+  main{display:grid; grid-template-columns: 1fr 1fr; gap:1px; background:var(--line); min-height:calc(100vh - 96px);}
+  .pane{background:var(--bg); padding:14px 18px; overflow:auto;}
+  .pane h2{margin:0 0 10px; font-size:13px; color:var(--mute); text-transform:uppercase; letter-spacing:.5px;}
+
+  /* picker */
+  details.menu{margin-bottom:8px; background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  details.menu>summary{padding:8px 12px; cursor:pointer; font-weight:600; user-select:none; display:flex; align-items:center; gap:8px;}
+  details.menu>summary::-webkit-details-marker{display:none}
+  details.menu>summary::before{content:'▸'; transition:transform .15s; color:var(--mute); font-size:10px;}
+  details.menu[open]>summary::before{transform:rotate(90deg);}
+  details.menu>summary .count{margin-left:auto; color:var(--mute); font-size:11px; font-weight:400;}
+  .menu-body{padding:6px 10px 10px;}
+
+  .row{display:grid; grid-template-columns: 22px 1fr 110px 50px; align-items:center; gap:6px; padding:3px 6px; border-radius:4px; font-size:12.5px;}
+  .row:hover{background:var(--hover);}
+  .row.indent{padding-left:22px;}
+  .row.indent2{padding-left:42px;}
+  .row.disabled{opacity:.4;}
+  .row.disabled label{text-decoration:line-through;}
+  .row input[type=checkbox]{accent-color:var(--hi); cursor:pointer;}
+  .row .lbl{display:flex; align-items:center; gap:6px;}
+  .row .lbl .dot{flex:none}
+  .row .shortcut{color:var(--mute); font-size:11px; font-family:ui-monospace,monospace; text-align:right;}
+  .row .tag{font-size:10px; padding:1px 5px; border-radius:3px; text-align:center;}
+  .row .tag.exists{background:rgba(62,207,142,.15); color:var(--keep);}
+  .row .tag.port{background:rgba(255,181,71,.15); color:var(--port);}
+  .row .tag.new{background:rgba(196,144,255,.15); color:var(--new);}
+  .submenu-label{font-style:italic; color:var(--mute);}
+
+  .group-actions{display:flex; gap:6px; padding:4px 0 8px; border-bottom:1px dashed var(--line); margin-bottom:6px;}
+  .group-actions button{font-size:10.5px; padding:3px 8px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:3px; cursor:pointer;}
+  .group-actions button:hover{background:var(--hover);}
+
+  /* preview */
+  .preview-bar{display:flex; gap:0; background:#16161a; border:1px solid var(--line); border-radius:6px; padding:0; height:34px; align-items:stretch; overflow:hidden;}
+  .preview-menu{position:relative;}
+  .preview-menu>.btn{padding:0 14px; height:100%; display:flex; align-items:center; cursor:pointer; font-size:12.5px; border:none; background:transparent; color:var(--text);}
+  .preview-menu>.btn:hover, .preview-menu.open>.btn{background:var(--hover);}
+  .preview-dd{display:none; position:absolute; top:34px; left:0; min-width:240px; background:#1a1a1f; border:1px solid var(--line); border-radius:0 0 6px 6px; box-shadow:0 6px 24px rgba(0,0,0,.4); z-index:10;}
+  .preview-menu.open>.preview-dd{display:block;}
+  .preview-item{display:flex; align-items:center; padding:6px 12px; cursor:pointer; font-size:12px; position:relative; gap:10px;}
+  .preview-item:hover{background:var(--hover);}
+  .preview-item .sk{margin-left:auto; color:var(--mute); font-size:11px; font-family:ui-monospace,monospace;}
+  .preview-item .arrow{margin-left:auto; color:var(--mute);}
+  .preview-item.has-sub .sk{margin-left:6px; margin-right:14px;}
+  .preview-sep{height:1px; background:var(--line); margin:4px 0;}
+  .preview-sub{display:none; position:absolute; top:-1px; left:100%; min-width:220px; background:#1a1a1f; border:1px solid var(--line); border-radius:6px; box-shadow:0 6px 24px rgba(0,0,0,.4);}
+  .preview-item.has-sub:hover>.preview-sub{display:block;}
+
+  /* output bar */
+  footer{border-top:1px solid var(--line); background:var(--panel); padding:12px 18px;}
+  footer .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:8px;}
+  footer button.primary{background:var(--hi); color:#06122a; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-weight:600; font-size:12px;}
+  footer button.primary:hover{filter:brightness(1.1);}
+  footer button.sec{background:var(--panel2); color:var(--text); border:1px solid var(--line); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px;}
+  footer button.sec:hover{background:var(--hover);}
+  textarea#out{width:100%; min-height:200px; background:#101013; color:var(--text); border:1px solid var(--line); border-radius:4px; padding:10px; font-family:ui-monospace,monospace; font-size:12px; resize:vertical;}
+  .notes{display:flex; gap:8px; margin-top:8px; align-items:flex-start;}
+  .notes label{font-size:11px; color:var(--mute); padding-top:6px; flex:none;}
+  .notes textarea{flex:1; min-height:50px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:4px; padding:6px 8px; font-size:12px; font-family:inherit;}
+  .copied{color:var(--keep); font-size:11px; margin-left:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Lite Menu Rework — เลือกว่าจะเอา/ตัดอะไร</h1>
+  <p>ติ๊กออก = ตัดทิ้ง. คลิกเมนูฝั่งขวาเพื่อ preview ว่าโผล่จริงเป็นแบบไหน. กดปุ่ม <b>Generate text</b> ด้านล่างแล้ว copy ส่งกลับให้ผม</p>
+  <div class="legend">
+    <span><i class="dot exists"></i>มีใน lite วันนี้แล้ว</span>
+    <span><i class="dot port"></i>ต้อง port จาก proto</span>
+    <span><i class="dot new"></i>ใหม่ทั้งก้อน (chrome / pattern)</span>
+  </div>
+</header>
+
+<main>
+  <section class="pane" id="picker">
+    <h2>1 — Picker (ติ๊กออก = ตัด)</h2>
+    <div id="menus"></div>
+  </section>
+  <section class="pane" id="previewPane">
+    <h2>2 — Preview (เฉพาะที่ติ๊กไว้)</h2>
+    <div class="preview-bar" id="previewBar"></div>
+    <p style="color:var(--mute); font-size:11px; margin-top:10px;">คลิกชื่อเมนูเพื่อเปิด dropdown · hover รายการที่มี ▸ เพื่อดู submenu</p>
+  </section>
+</main>
+
+<footer>
+  <div class="toolbar">
+    <button class="primary" onclick="generate()">Generate text</button>
+    <button class="sec" onclick="checkAll(true)">ติ๊กทั้งหมด</button>
+    <button class="sec" onclick="checkAll(false)">ตัดทั้งหมด</button>
+    <button class="sec" onclick="copyOut()">📋 Copy</button>
+    <span id="copyHint" class="copied" style="display:none;">copied ✓</span>
+  </div>
+  <textarea id="out" readonly placeholder="กด Generate text แล้วผลจะมาที่นี่ — copy ส่งกลับให้ผมได้เลย"></textarea>
+  <div class="notes">
+    <label for="userNotes">หมายเหตุ:</label>
+    <textarea id="userNotes" placeholder="อะไรที่อยากเพิ่ม/แก้/ถาม เขียนตรงนี้ จะติดไปกับ output ด้วย"></textarea>
+  </div>
+</footer>
+
+<script>
+// === Menu plan data ===========================================================
+// status: exists | port | new
+// sub: nested submenu items (same shape)
+const MENUS = [
+  { name: 'File', items: [
+    { label: 'Open PDF', key: 'Ctrl+O', status: 'exists' },
+    { label: 'Open Project', key: 'Ctrl+Shift+O', status: 'exists' },
+    { sep:true },
+    { label: 'Save Project', key: 'Ctrl+S', status: 'exists' },
+    { label: 'Save Project As', status: 'exists' },
+    { sep:true },
+    { label: 'Export', status: 'new', sub: [
+      { label: 'Report HTML', status: 'exists' },
+      { label: 'XLSX Summary', status: 'port' },
+      { label: 'CSV', status: 'port' },
+      { label: 'JSON', status: 'port' },
+    ]},
+  ]},
+
+  { name: 'Edit', items: [
+    { label: 'Undo', key: 'Ctrl+Z', status: 'exists' },
+    { label: 'Redo', key: 'Ctrl+Y', status: 'exists' },
+    { sep:true },
+    { label: 'Rename Selected', key: 'F2', status: 'port' },
+    { label: 'Delete Selected', key: 'Del', status: 'exists' },
+  ]},
+
+  { name: 'View', items: [
+    { label: 'Zoom In', key: 'Ctrl++', status: 'exists' },
+    { label: 'Zoom Out', key: 'Ctrl+−', status: 'exists' },
+    { label: 'Fit to Window', key: 'Ctrl+0', status: 'exists' },
+    { label: 'Actual Size', key: 'Ctrl+1', status: 'exists' },
+    { sep:true },
+    { label: 'Rotate Page Left 90°', status: 'port' },
+    { label: 'Rotate Page Right 90°', status: 'port' },
+    { sep:true },
+    { label: 'Focus Mode', key: 'F', status: 'exists' },
+    { label: 'Overview', key: 'F12', status: 'exists' },
+    { label: 'Pages Search', key: 'Ctrl+K', status: 'exists' },
+  ]},
+
+  { name: 'Measure', items: [
+    { label: 'Select', key: 'V', status: 'exists' },
+    { label: 'Pan', key: 'H / hold Space', status: 'exists' },
+    { sep:true },
+    { label: 'Set Scale…', key: 'S', status: 'exists' },
+    { sep:true },
+    { label: 'Area', status: 'new', sub: [
+      { label: 'Polygon', key: 'A', status: 'exists' },
+      { label: 'Polygon + Arc edges', key: 'A → A ระหว่างวาด', status: 'port' },
+      { label: 'Rectangle', key: 'Shift+R', status: 'port' },
+      { label: 'Circle', key: 'Shift+C', status: 'port' },
+      { label: 'Ellipse', key: 'Shift+E', status: 'port' },
+    ]},
+    { label: 'Opening / Deduction', key: 'O', status: 'port' },
+    { label: 'Distance', status: 'new', sub: [
+      { label: 'Single segment', key: 'D', status: 'exists' },
+      { label: 'Continuous path', key: 'Shift+D', status: 'exists' },
+    ]},
+    { label: 'Reference Line', key: 'R', status: 'exists' },
+    { label: 'Count Marker', key: 'N', status: 'exists' },
+    { sep:true },
+    { label: 'Snap Modes', status: 'new', sub: [
+      { label: 'Endpoint', key: 'E', status: 'port' },
+      { label: 'Midpoint', key: 'M', status: 'port' },
+      { label: 'Center', key: 'C', status: 'port' },
+      { label: 'Intersection', status: 'port' },
+      { label: 'Disable All', status: 'exists' },
+    ]},
+    { label: 'Loupe Magnifier', key: 'Shift+L', status: 'exists' },
+    { label: 'Ortho Mode', key: 'Shift+O', status: 'port' },
+    { sep:true },
+    { label: 'Finish Drawing', key: 'Enter', status: 'exists' },
+    { label: 'Cancel Drawing', key: 'Esc', status: 'exists' },
+  ]},
+
+  { name: 'Annotate', items: [
+    { label: 'Comment 💬', status: 'exists' },
+    { label: 'Sticky 📌', status: 'exists' },
+    { label: 'Free Text 𝕋', status: 'exists' },
+    { label: 'Highlight 🖍', status: 'exists' },
+    { label: 'Rectangle Frame ▭', status: 'exists' },
+    { label: 'Circle Frame ◯', status: 'exists' },
+    { label: 'Cloud ☁', status: 'exists' },
+    { label: 'Arrow ➜', status: 'exists' },
+  ]},
+];
+
+// === Build picker ============================================================
+function uid(){ return 'id'+Math.random().toString(36).slice(2,9); }
+function attachId(items){
+  for(const it of items){
+    if(it.sep) continue;
+    it._id = uid();
+    if(it.sub) attachId(it.sub);
+  }
+}
+MENUS.forEach(m => { m._id = uid(); attachId(m.items); });
+
+function renderPicker(){
+  const root = document.getElementById('menus');
+  root.innerHTML = '';
+  for(const m of MENUS){
+    const det = document.createElement('details');
+    det.className = 'menu'; det.open = true;
+    const total = countLeaves(m.items);
+    det.innerHTML = `<summary>
+      <input type="checkbox" id="${m._id}" checked onclick="toggleGroup('${m._id}', this.checked); event.stopPropagation();">
+      <label for="${m._id}" onclick="event.stopPropagation();" style="cursor:pointer;">${m.name}</label>
+      <span class="count" id="cnt-${m._id}"></span>
+    </summary>
+    <div class="menu-body">
+      <div class="group-actions">
+        <button onclick="setGroup('${m._id}', true)">เอาทั้งหมด</button>
+        <button onclick="setGroup('${m._id}', false)">ตัดทั้งหมด</button>
+      </div>
+      ${renderItems(m.items, m._id, 0)}
+    </div>`;
+    root.appendChild(det);
+  }
+  updateAllCounts();
+  rebuildPreview();
+}
+function renderItems(items, groupId, depth){
+  let html = '';
+  for(const it of items){
+    if(it.sep){ html += '<div style="height:6px;"></div>'; continue; }
+    const cls = depth===0 ? 'row' : (depth===1 ? 'row indent' : 'row indent2');
+    const subLabel = it.sub ? `<span class="submenu-label">(submenu ▸ ${it.sub.length})</span>` : '';
+    html += `<div class="${cls}" data-group="${groupId}" data-id="${it._id}">
+      <input type="checkbox" id="${it._id}" checked onchange="onChange('${groupId}')">
+      <label for="${it._id}" class="lbl"><i class="dot ${it.status}"></i>${it.label} ${subLabel}</label>
+      <span class="shortcut">${it.key||''}</span>
+      <span class="tag ${it.status}">${it.status}</span>
+    </div>`;
+    if(it.sub) html += renderItems(it.sub, groupId, depth+1);
+  }
+  return html;
+}
+function countLeaves(items){
+  let n=0;
+  for(const it of items){ if(it.sep) continue; n++; if(it.sub) n+=countLeaves(it.sub); }
+  return n;
+}
+function countChecked(items){
+  let n=0;
+  for(const it of items){ if(it.sep) continue; if(document.getElementById(it._id)?.checked) n++; if(it.sub) n+=countChecked(it.sub); }
+  return n;
+}
+function updateAllCounts(){
+  for(const m of MENUS){
+    const total = countLeaves(m.items);
+    const on = countChecked(m.items);
+    const el = document.getElementById('cnt-'+m._id);
+    if(el) el.textContent = `${on}/${total}`;
+  }
+}
+function toggleGroup(groupId, on){
+  // toggle the whole group's items
+  const m = MENUS.find(x=>x._id===groupId); if(!m) return;
+  applyAll(m.items, on);
+  updateAllCounts(); rebuildPreview();
+}
+function setGroup(groupId, on){
+  document.getElementById(groupId).checked = on;
+  toggleGroup(groupId, on);
+}
+function applyAll(items, on){
+  for(const it of items){
+    if(it.sep) continue;
+    const cb = document.getElementById(it._id); if(cb) cb.checked = on;
+    if(it.sub) applyAll(it.sub, on);
+  }
+}
+function onChange(groupId){ updateAllCounts(); rebuildPreview(); }
+function checkAll(on){
+  for(const m of MENUS){
+    document.getElementById(m._id).checked = on;
+    applyAll(m.items, on);
+  }
+  updateAllCounts(); rebuildPreview();
+}
+
+// === Preview =================================================================
+function rebuildPreview(){
+  const bar = document.getElementById('previewBar');
+  bar.innerHTML = '';
+  for(const m of MENUS){
+    if(!document.getElementById(m._id).checked) continue;
+    const liveItems = filterChecked(m.items);
+    if(liveItems.length===0) continue;
+    const menu = document.createElement('div');
+    menu.className = 'preview-menu';
+    menu.innerHTML = `<button class="btn" onclick="togglePreview(this.parentElement)">${m.name}</button>
+      <div class="preview-dd">${renderPreviewItems(liveItems)}</div>`;
+    bar.appendChild(menu);
+  }
+  if(bar.childElementCount===0){
+    bar.innerHTML = '<div style="padding:8px 12px; color:var(--mute);">— ตัดหมดทุกอัน —</div>';
+  }
+}
+function filterChecked(items){
+  const out = [];
+  for(const it of items){
+    if(it.sep){ out.push({sep:true}); continue; }
+    const cb = document.getElementById(it._id);
+    if(!cb || !cb.checked) continue;
+    if(it.sub){
+      const subFiltered = filterChecked(it.sub).filter(x=>!x.sep);
+      if(subFiltered.length===0) continue;
+      out.push({...it, sub: subFiltered});
+    }else{
+      out.push(it);
+    }
+  }
+  // collapse leading / consecutive seps
+  const cleaned = [];
+  for(const it of out){
+    if(it.sep && (cleaned.length===0 || cleaned[cleaned.length-1].sep)) continue;
+    cleaned.push(it);
+  }
+  while(cleaned.length && cleaned[cleaned.length-1].sep) cleaned.pop();
+  return cleaned;
+}
+function renderPreviewItems(items){
+  let html='';
+  for(const it of items){
+    if(it.sep){ html += '<div class="preview-sep"></div>'; continue; }
+    if(it.sub){
+      html += `<div class="preview-item has-sub">
+        <span>${it.label}</span>
+        <span class="arrow">▸</span>
+        <div class="preview-sub">${renderPreviewItems(it.sub)}</div>
+      </div>`;
+    }else{
+      html += `<div class="preview-item">
+        <span>${it.label}</span>
+        ${it.key ? `<span class="sk">${it.key}</span>` : ''}
+      </div>`;
+    }
+  }
+  return html;
+}
+function togglePreview(el){
+  const opened = el.classList.contains('open');
+  document.querySelectorAll('.preview-menu.open').forEach(x=>x.classList.remove('open'));
+  if(!opened) el.classList.add('open');
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.preview-menu')){
+    document.querySelectorAll('.preview-menu.open').forEach(x=>x.classList.remove('open'));
+  }
+});
+
+// === Generate text ===========================================================
+function generate(){
+  const today = new Date().toISOString().slice(0,10);
+  const lines = [];
+  lines.push(`# Lite menu plan — ${today}`);
+  lines.push(`# legend: [K]=keep  [S]=skip  · status: ✓=exists  P=port  N=new`);
+  lines.push('');
+
+  let kept=0, skipped=0;
+  for(const m of MENUS){
+    const groupOn = document.getElementById(m._id).checked;
+    const subTotal = countLeaves(m.items);
+    const subKept  = groupOn ? countChecked(m.items) : 0;
+    const tag = !groupOn ? '[SKIP ENTIRE DROPDOWN]' : (subKept===0 ? '[empty → skip]' : `[${subKept}/${subTotal} items]`);
+    lines.push(`## ${m.name}  ${tag}`);
+    if(!groupOn || subKept===0){
+      skipped += subTotal;
+    }else{
+      emitItems(m.items, 0, lines, c=>{ if(c) kept++; else skipped++; });
+    }
+    lines.push('');
+  }
+
+  lines.push(`# total: ${kept} kept, ${skipped} skipped`);
+  const notes = document.getElementById('userNotes').value.trim();
+  if(notes){
+    lines.push('');
+    lines.push('## Notes from user');
+    notes.split(/\r?\n/).forEach(l=>lines.push('  '+l));
+  }
+  document.getElementById('out').value = lines.join('\n');
+}
+function emitItems(items, depth, lines, tick){
+  for(const it of items){
+    if(it.sep){ continue; }
+    const cb = document.getElementById(it._id);
+    const on = cb && cb.checked;
+    tick(on);
+    const status = it.status==='exists' ? '✓' : it.status==='port' ? 'P' : 'N';
+    const mark = on ? '[K]' : '[S]';
+    const indent = '  '.repeat(depth);
+    const key = it.key ? `  ⌨ ${it.key}` : '';
+    const subLabel = it.sub ? `  ▸submenu` : '';
+    lines.push(`${indent}${mark} ${status}  ${it.label}${subLabel}${key}`);
+    if(it.sub) emitItems(it.sub, depth+1, lines, tick);
+  }
+}
+function copyOut(){
+  const ta = document.getElementById('out');
+  if(!ta.value){ generate(); }
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    const hint = document.getElementById('copyHint');
+    hint.style.display = 'inline';
+    setTimeout(()=>hint.style.display='none', 1800);
+  });
+}
+
+renderPicker();
+</script>
+</body>
+</html>
