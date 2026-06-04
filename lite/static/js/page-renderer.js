@@ -82,18 +82,37 @@ function _stateKey() {
 var _pdfjsLib    = null;
 var _pdfjsPromise = null;
 
-var PDFJS_VER = "4.0.379";
+var PDFJS_VER  = "4.0.379";
+var LOCAL_BASE = "/static/js/vendor/pdfjs";
 
-function _loadPdfjsLib() {
+async function _loadPdfjsLib() {
   if (_pdfjsPromise) return _pdfjsPromise;
-  _pdfjsPromise = import(
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VER + "/build/pdf.min.mjs"
-  ).then(function(lib) {
-    lib.GlobalWorkerOptions.workerSrc =
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VER + "/build/pdf.worker.min.mjs";
-    _pdfjsLib = lib;
-    return lib;
-  });
+  _pdfjsPromise = (async function() {
+    // 1. Try local vendored copy first (works offline / no CDN)
+    try {
+      var lib = await import(LOCAL_BASE + "/pdf.min.mjs");
+      lib.GlobalWorkerOptions.workerSrc = LOCAL_BASE + "/pdf.worker.min.mjs";
+      _pdfjsLib = lib;
+      console.info("[page-renderer] pdfjs loaded from local vendor");
+      return lib;
+    } catch (err) {
+      console.warn("[page-renderer] local pdfjs failed, falling back to CDN:", err);
+    }
+    // 2. CDN fallback
+    try {
+      var lib = await import(
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VER + "/build/pdf.min.mjs"
+      );
+      lib.GlobalWorkerOptions.workerSrc =
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + PDFJS_VER + "/build/pdf.worker.min.mjs";
+      _pdfjsLib = lib;
+      return lib;
+    } catch (err2) {
+      // Both paths failed — reset so next page navigation can retry
+      _pdfjsPromise = null;
+      throw new Error("ไม่สามารถโหลดตัวแสดงผล PDF (pdfjs) ได้ — ทั้งจากเครื่องและ CDN");
+    }
+  })();
   return _pdfjsPromise;
 }
 
@@ -244,7 +263,7 @@ async function loadPage(n) {
     afterPage();
   } catch (err) {
     hideLoading();
-    alert("โหลดหน้า " + n + " ไม่ได้: " + err.message);
+    alert("โหลดหน้า " + n + " ไม่ได้\n" + (err && err.message ? err.message : err));
   }
 }
 
