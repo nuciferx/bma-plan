@@ -25,3 +25,6 @@ Every future test/hunt run **seeds from this file first** — "you have already 
 
 ## Seeded history (2026-05-30 full-program hunt)
 10 bugs from the post-INV-2026-05-29-LPM hunt. **10 fixed — ALL closed (2026-05-31)** (lpm-1..9 + cfss-guard) with permanent guards — metamorphic MRs (`MR-save-roundtrip`/`MR-save-pending`/`MR-render-source`/`MR-dirty`/`MR-undo-consistency`), server `test_apply_page_mutations.py` T1–T7, EVOLT-3 cap-check, `test_pm_modal_hotkeys.py` (lpm-9), `test_pm_thumb_lazy.py` (lpm-8), `test_pm_apply_flush_unified.py` (lpm-7). **0 open.** The 42-green unit suite missed all 10 — which is exactly why this archive + the metamorphic/PBT layer (`test_metamorphic_pages.py`, `test_pbt_measure.py`) now exist. Every BROKEN/data-loss bug from the hunt is now closed + guarded.
+
+## Later finds
+- **`BUG-20260604-pdfjs-cdn`** (BROKEN, fixed `c5a2a5e`) — lite's sole renderer (`page-renderer.js _loadPdfjsLib`) imported pdfjs from `cdn.jsdelivr.net` only, so offline / proxy-blocked CDN meant **no page rendered at all** ("Failed to fetch dynamically imported module"). Fix: vendor pdfjs 4.0.379 into `lite/static/js/vendor/pdfjs/`, import same-origin first, CDN fallback. Guard: `test_pdfjs_offline.py` (`LITE_PDFJS_OFFLINE_OK`) — blocks jsdelivr, asserts render from local vendor. **0 open.**
