@@ -4,7 +4,52 @@
 
 ---
 
-# Latest: BUG-20260526-lite-stale-pf-folder-cleanup
+# Latest: SLICE report-edit-1 — Editable lite report
+
+Branch: main
+Date: 2026-06-05
+
+## Result: PASS (lite tests only — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this sprint made zero changes to `proto/` source files. Lite-only sprint; no forbidden-trigger surface (export, rotation, save/load, real-PDF, snap, layer) touched in proto. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python lite/tests/test_report_edit.py  →  LITE_REPORT_EDIT_OK 7/7  PASS
+```
+
+## Lite — LITE_REPORT_EDIT_OK (7/7 cases)
+
+| Case | Description | Result |
+|---|---|---|
+| PICKER regression | =B1+B2 formula evaluates to 86.93 via DOM-driven cell-click picker | PASS |
+| STABLE delete-unreferenced | delete row 2 (B2 was =B1+B3), re-project → =B1+B2, value 76.61 preserved | PASS |
+| STABLE delete-referenced | delete a row whose ref is used in formula → term dropped + red flag, value 50.45 | PASS |
+| STABLE multi-op | =B1+B2+B3-B4; delete referenced row → re-project 66.61 correct | PASS |
+| GUARD label-col click | clicking the label column (A) never injects A2 ref into formula | PASS |
+| PERSIST | semantic subMeta survives save-reopen cycle via localStorage v1 | PASS |
+| NaN-GUARD | entering "abc" in a numeric cell reverts to previous value 50.45 | PASS |
+
+## Reference Baseline (from previous sprint BUG-20260526-lite-stale-pf-folder-cleanup)
+
+```
+python -m py_compile lite/server_lite.py                   → OK
+python lite/tests/test_pf_cleanup_on_exclude.py            → PF_CLEANUP_OK 4/4
+python lite/tests/test_page_folder_model.py                → LITE_PAGE_FOLDER_MODEL_OK
+python lite/tests/test_page_folder_persist.py              → LITE_PAGE_FOLDER_PERSIST_OK
+python lite/tests/test_pf_kind_folders.py                  → LITE_PF_KIND_OK 11/11
+python lite/tests/test_custom_layer_persist.py             → LITE_LAYER_PERSIST_OK
+python lite/tests/test_tree_persist.py                     → LITE_TREE_PERSIST_OK
+```
+
+Proto baseline: `python3.11 proto/e2e_ui_test.py full` → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+
+---
+
+# Previous: BUG-20260526-lite-stale-pf-folder-cleanup
 
 Branch: main
 Date: 2026-05-26

@@ -1,6 +1,6 @@
 # CURRENT_STATUS.md — BMA-Plan Current Status
 
-Date: 2026-05-28 (invent `lite-pdf-render-quality` (id `2026-05-27-23-05`) COMPLETED — Sprint #1 + spike v4 + Sprint #2 shipped in 4 commits. PDF.js viewport-clipped now the default lite render path. SMOKE_PDFJS_LIVE_OK 8/8. Previous ship: BUG-20260526-lite-stale-pf-folder-cleanup.)
+Date: 2026-06-05 (SLICE report-edit-1 — Editable lite report SHIPPED. LITE_REPORT_EDIT_OK 7/7. jspreadsheet-ce grid + custom formula picker + stable-row-id mapper + NaN-guard. Zero proto/ edits. Previous ship: invent lite-pdf-render-quality COMPLETED 2026-05-28.)
 
 > Full status details: [docs/status/LATEST_STATUS.md](docs/status/LATEST_STATUS.md)
 > Next actions: [docs/status/NEXT_ACTIONS.md](docs/status/NEXT_ACTIONS.md)
@@ -8,14 +8,13 @@ Date: 2026-05-28 (invent `lite-pdf-render-quality` (id `2026-05-27-23-05`) COMPL
 
 ## One-Line Status
 
-2026-05-28 (continued): invent `lite-pdf-render-quality` RESUMED + COMPLETED — 4 commits shipped: b9cda6c (invent docs + spike v1/v2/v3), f53d239 (Sprint #1 extract page-renderer + export-annotate), 8fca51a (spike v4 — PDF.js ↔ lite's ptToScreen contract PASS 24/24), 382b30a (Sprint #2 PDFJS-VIEWPORT-CLIPPED-INTEGRATION — Chrome-grade sharp at any zoom, mem constant ~13 MB). All forbidden surfaces (ptToScreen / screenToPt / RS / polyAreaM2 / polyMetrics / .bmaplan schema) UNTOUCHED. 8/8 named tests + smoke probe PASS. arcHUDText debt found pre-resolved (no fix needed). Tech debt: curImg compat shim in 6 test files (cleanup follow-up).
+2026-06-05: SLICE report-edit-1 SHIPPED — editable lite report with jspreadsheet-ce grid, custom cell-click formula picker, stable-row-id subtotal mapper, NaN-guard, and localStorage v1 persistence. LITE_REPORT_EDIT_OK 7/7. Zero proto/ edits. Grid behind #re-toggle dev gate; next sprint = production wire-up.
 
-2026-05-28: invent `lite-pdf-render-quality` PAUSED — spike v3 PDF.js viewport-clipped PASS on 95-page A1 (mem constant 13.6 MB across zoom 1×→100×), sprint #1 PDFJS-PREP-EXTRACT-RENDERER WIP uncommitted (ui-lite.html 1195→1100, page-renderer.js + export-annotate.js extracted). Sprint #2 design captured. Pre-existing `arcHUDText` debt blocks lite tests. Resume: see `docs/status/NEXT_ACTIONS.md`.
-
-2026-05-26: BUG-20260526-lite-stale-pf-folder-cleanup SHIPPED. Stale PF_floor_N folders + seed layers now pruned on re-tag (user-object preservation guard active). PF_CLEANUP_OK 4/4 + 5 regressions GREEN. Proto baseline unchanged (22 markers).
+2026-05-28 (continued): invent `lite-pdf-render-quality` RESUMED + COMPLETED — 4 commits shipped: b9cda6c (invent docs + spike v1/v2/v3), f53d239 (Sprint #1 extract page-renderer + export-annotate), 8fca51a (spike v4 — PDF.js ↔ lite's ptToScreen contract PASS 24/24), 382b30a (Sprint #2 PDFJS-VIEWPORT-CLIPPED-INTEGRATION — Chrome-grade sharp at any zoom, mem constant ~13 MB). All forbidden surfaces UNTOUCHED. 8/8 named tests + smoke probe PASS.
 
 ## Latest Sprint
 
+- SLICE report-edit-1 — Editable lite report: PASS (2026-06-05) — shipped jspreadsheet-ce grid + custom cell-click formula picker + stable-row-id subtotal mapper + NaN-guard + localStorage v1 persistence; report-edit.js NEW 404 LOC; lite-report.html +46; ~440 KB vendor bundle (MIT offline); LITE_REPORT_EDIT_OK 7/7; proto NOT TOUCHED; grid behind #re-toggle dev gate.
 - BUG-20260526-lite-stale-pf-folder-cleanup: PASS (2026-05-26) — fixed seedPageFolders() never removing stale PF_floor_N folders+seed layers when floor pages re-tagged; added _pflFolderHasUserDrawnObjects + _pflPrunePF helpers; safety guard preserves folders with user objects; PF_CLEANUP_OK 4/4 (basic cleanup / safety preservation / idempotency / PF_excluded never pruned); 5 regressions GREEN; page-folder-layers.js 743→790; proto NOT TOUCHED.
 - Centerline Snap arc (invent 2026-05-24-22-14 → INV-002a proto → INV-002b lite → 2 post-ship bugfixes): PASS (2026-05-25) — user problem "วัดที่ดินเส้นปะได้ 3 ค่าต่างกัน" → /bma-invent 7-phase pipeline (commit 0208314) → Approach A (Otsu + Zhang-Suen + PCA corner refine, maxDelta=0.185% PASS 4/4) → proto: NEW proto/static/js/centerline-snap.js 208 LOC + ui.html +15 net lines + e2e_ui_test.py +162 lines; PHASE_CENTERLINE_SNAP_OK 10/10 (maxDelta=0.140%) → lite: NEW lite/static/js/centerline-snap.js 306 LOC (Section A byte-identical proto, Section B lite glue) + ui-lite.html 1197→1199; LITE_CENTERLINE_SNAP_OK 8/8 (maxDelta=0.1778%) → 2 user-reported bugs fixed same day: DPR coord mismatch (commits ff3f9fe) + button overlap (5783df4); additive schema obj.traceMode; MEASURE_PARITY_OK GREEN; zero server changes.
 - SIM-2 — /bma-simulate regression-probe hardening: PASS (2026-05-24) — regression_probes.json (tracked, curated per sprint) added as hard memory channel; 2 probes (LITE-BUG-MODAL-NEST evaluate-type 860ms + LITE-BUG-DBLCLICK-OVER-POP mouse_sequence-type 2919ms) prepended to every SCENARIO_PLAN; REGRESSION severity (above CRASH) + SIM_REGRESSION stop condition; SKILL.md + bma-sim-driver.md updated; zero lite/proto runtime edits.
@@ -38,7 +37,7 @@ python proto/e2e_ui_test.py full                           # PASS (22 total: 21 
 ```
 
 Last proto full run: 2026-05-25 (Centerline Snap arc; 22 proto _OK total; all markers retained).
-Last lite test run: 2026-05-26 (BUG-20260526-lite-stale-pf-folder-cleanup; PF_CLEANUP_OK 4/4 + 5 regressions GREEN).
+Last lite test run: 2026-06-05 (SLICE report-edit-1; LITE_REPORT_EDIT_OK 7/7).
 Full test detail: [docs/status/TEST_BASELINE.md](docs/status/TEST_BASELINE.md)
 
 ## Latest Commits

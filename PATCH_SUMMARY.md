@@ -4,7 +4,67 @@
 
 ---
 
-# Latest: BUG-20260526-lite-stale-pf-folder-cleanup
+# Latest: SLICE report-edit-1 — Editable lite report
+
+Branch: main
+
+Date: 2026-06-05
+
+## Outcome: PASS — Editable lite report shipped — vendored jspreadsheet-ce grid + custom Excel-style cell-click formula picker + stable-row-id subtotal mapper + NaN-guard; LITE_REPORT_EDIT_OK 7/7.
+
+## Summary
+
+New module `lite/static/js/report-edit.js` (404 LOC) wraps jspreadsheet-ce CE with a custom formula picker (cell-click-while-editing UX that CE lacks), a stable-row-id subtotal mapper (deleting a referenced row drops the term + raises a red flag instead of silently shifting), and render/persist/provenance helpers (stale detection, NaN-guard, localStorage v1). jspreadsheet-ce + jsuites vendored offline (~440 KB, MIT). `lite/lite-report.html` gains 46 lines for the override-overlay toggle and grid mount. Full test suite: LITE_REPORT_EDIT_OK 7/7. Zero proto/ edits; all forbidden surfaces untouched.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/report-edit.js` | NEW 404 LOC — formula picker + stable-row-id mapper + render/persist/provenance + NaN-guard |
+| `lite/lite-report.html` | +46 lines — override-overlay toggle, grid mount, 4 vendor tags |
+| `lite/static/js/vendor/jspreadsheet.min.js` | NEW vendored MIT jspreadsheet-ce |
+| `lite/static/js/vendor/jspreadsheet.min.css` | NEW vendored MIT |
+| `lite/static/js/vendor/jsuites.min.js` | NEW vendored MIT jsuites peer dep |
+| `lite/static/js/vendor/jsuites.min.css` | NEW vendored MIT |
+| `lite/tests/test_report_edit.py` | NEW 245 LOC — 7-case Playwright, marker LITE_REPORT_EDIT_OK |
+| `docs/invent/lite-editable-report.md` | NEW — full invent record (PICK/RESEARCH/FRAME/DIVERGE/SCORE/SPIKE + 3 RESHAPE) |
+| `.claude/skills/lite-spike-iterate/SKILL.md` | NEW — SPIKE→EVAL→fix iteration loop skill |
+| `docs/status/PHASE_INDEX.md` | +11 lines — 2 idea entries under ### ideas 2026-06-04 |
+| `lite/sandbox/invent-lite-editable-report*.{html,py}` | NEW spike artifacts (5 HTML + 5 eval scripts) |
+| `lite/sandbox/vendor/*` | NEW vendor copies for sandbox reproducibility |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only sprint; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema — NO change at all; persistence = localStorage v1 only
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+- `lite/ui-lite.html` — UNCHANGED (stays at cap)
+
+## Tests Run
+
+```
+python lite/tests/test_report_edit.py  →  LITE_REPORT_EDIT_OK 7/7  PASS
+```
+
+Proto py_compile + smoke + full NOT re-run. Lite-only sprint; proto zero edits; no forbidden-trigger surface touched.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `.bmaplan` schema — no change; persistence = localStorage v1 only
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ `lite/static/js/measure-engine.js` UNCHANGED (drift-locked vendored copy)
+- ✅ `lite/ui-lite.html` UNCHANGED (stays at cap)
+- ✅ Size caps: report-edit.js 404/1000
+
+---
+
+# Previous: BUG-20260526-lite-stale-pf-folder-cleanup
 
 Branch: main
 

@@ -67,8 +67,13 @@
     .sheet:last-child{page-break-after:auto}
     [contenteditable]{background:none !important;box-shadow:none !important}
     .left{background:#fff;border-color:#999}
+    #re-wrap{display:none !important}
   }
+  /* report-edit toggle host */
+  #re-host{background:#fff;width:297mm;padding:12mm 12mm 10mm;box-shadow:0 6px 26px rgba(0,0,0,.45);border-radius:4px}
 </style>
+<link rel="stylesheet" href="static/js/vendor/jsuites.min.css">
+<link rel="stylesheet" href="static/js/vendor/jspreadsheet.min.css">
 </head>
 <body class="editable-mark">
 
@@ -77,10 +82,14 @@
   <span class="src" id="srcTag">…</span>
   <span class="hint">คลิกหัวกระดาษ / ชื่อรายการ / หมายเหตุ เพื่อแก้ — ตัวเลขพื้นที่ล็อก (จากการวัด)</span>
   <span class="sp"></span>
+  <button id="re-toggle" class="sec">✏️ ตารางแก้ไขได้ (beta)</button>
   <button id="print">🖨 พิมพ์ / บันทึก PDF</button>
 </div>
 
 <div class="sheetwrap" id="sheets"></div>
+<div class="sheetwrap" id="re-wrap" style="display:none">
+  <div id="re-host"></div>
+</div>
 
 <script>
 /* ===========================================================================
@@ -225,6 +234,43 @@ function render(){
 }
 document.getElementById("print").onclick=function(){ window.print(); };
 render();
+</script>
+<script src="static/js/vendor/jsuites.min.js"></script>
+<script src="static/js/vendor/jspreadsheet.min.js"></script>
+<script src="static/js/report-edit.js"></script>
+<script>
+/* ---------- report-edit toggle (beta) ---------- */
+(function(){
+  var btn=document.getElementById("re-toggle");
+  var wrap=document.getElementById("re-wrap");
+  var host=document.getElementById("re-host");
+  var on=false;
+  btn.addEventListener("click",function(){
+    on=!on;
+    if(on){
+      /* flatten first measurable page's groups rows into [{name,area}] */
+      var payload=null;
+      try{ var raw=sessionStorage.getItem("bmaReportPayload"); if(raw) payload=JSON.parse(raw); }catch(e){}
+      if(!payload) payload=window.__SAMPLE_PAYLOAD||null;
+      var rows=[];
+      if(payload&&payload.pages&&payload.pages.length){
+        var p=payload.pages[0];
+        (p.groups||[]).forEach(function(g){
+          (g.rows||[]).forEach(function(r){ rows.push({name:r.name,area:r.area}); });
+        });
+      }
+      wrap.style.display="";
+      ReportEdit.mount(host, rows.length?rows:null);
+      btn.style.background="#1d4ed8";
+    } else {
+      ReportEdit.unmount();
+      wrap.style.display="none";
+      btn.style.background="";
+    }
+  });
+  /* expose SAMPLE payload reference for toggle fallback */
+  window.__SAMPLE_PAYLOAD=SAMPLE;
+})();
 </script>
 </body>
 </html>

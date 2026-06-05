@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE D2 — jspreadsheet-CE + CUSTOM Excel cell-click picker</title>
+<link rel="stylesheet" href="vendor/jspreadsheet.min.css">
+<link rel="stylesheet" href="vendor/jsuites.min.css">
+<style>
+  body{font:14px/1.5 "Segoe UI",system-ui;margin:0;background:#f4f5f7;color:#1a1d21}
+  .wrap{max-width:780px;margin:22px auto;background:#fff;padding:20px 24px;border:1px solid #e3e6ea;border-radius:10px}
+  h1{font-size:16px;margin:0 0 2px} .sub{color:#6b7280;font-size:12px;margin-bottom:14px}
+  .bar{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap}
+  .bar button{font:13px "Segoe UI";padding:6px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer}
+  .bar button:hover{background:#eef2f7}
+  .ops{display:inline-flex;gap:4px;align-items:center;margin-left:8px;padding-left:10px;border-left:1px solid #e3e6ea}
+  .ops button{font:600 13px;padding:5px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer;min-width:34px}
+  .ops button:disabled{opacity:.35;cursor:not-allowed}
+  .hint{background:#f0f6ff;border:1px solid #d6e4ff;border-radius:8px;padding:9px 12px;font-size:12.5px;color:#274b8f;margin-bottom:10px}
+  .hint.live{background:#fffbe6;border-color:#f5d76e;color:#7a5d00}
+  .status{font-size:12px;min-height:16px;margin-top:6px;color:#b45454}
+  .legend{font-size:11px;color:#9aa3ad;margin-top:10px}
+  .stale-cell{background:#ffedd5 !important}
+  /* picker highlight on hover-target cells while formula active */
+  body.picker-mode .jss td.picker-hot{outline:2px solid #2d6cdf;outline-offset:-2px;cursor:cell}
+  body.picker-mode .jss td.picker-hot:hover{background:#eff6ff !important}
+  /* editor input visible */
+  .jexcel_container td.editor input, .jss td.editor input, td.editor input, td.editor textarea{
+    background:#fffbe6 !important;border:2px solid #2d6cdf !important;color:#1a1d21 !important;
+    font:14px "Segoe UI" !important;width:100% !important;box-sizing:border-box !important;padding:2px 4px !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>D2 — รายงานพื้นที่ · Excel-style cell-click picker (เขียนเองบน CE)</h1>
+  <div class="sub">ดับเบิลคลิกช่องพื้นที่ของแถว Subtotal → พิมพ์ <b>=</b> → <b>คลิก cell ตัวเลขจริง</b> → กดปุ่ม <b>+</b>/<b>−</b> หรือพิมพ์ → คลิก cell ต่อไป → Enter</div>
+
+  <div class="hint" id="hint">picker จะ active เมื่อ value ใน editor ขึ้นต้นด้วย <b>=</b> · ตอนนั้นคลิก cell ใด ๆ ในคอลัมน์พื้นที่ = แทรก <code>B&lt;row&gt;</code> ลงสูตรอัตโนมัติ (ไม่ commit ไม่ย้ายช่อง)</div>
+
+  <div class="bar">
+    <button id="btn-sub">+ แทรกแถว Subtotal</button>
+    <button id="btn-net">+ แถวรวมสุทธิ (auto =B1+B2+B3−B4)</button>
+    <button id="btn-recompute">↻ จำลอง geometry recompute</button>
+    <button id="btn-save">💾 บันทึก (localStorage)</button>
+    <button id="btn-reopen">📂 จำลองเปิดใหม่</button>
+    <span class="ops" id="ops" title="ใส่เครื่องหมายระหว่างพิมพ์สูตร">
+      <button data-op="+" disabled>+</button>
+      <button data-op="-" disabled>−</button>
+      <button data-op="*" disabled>×</button>
+      <button data-op="/" disabled>÷</button>
+    </span>
+  </div>
+
+  <div id="grid"></div>
+  <div id="status" class="status"></div>
+  <div class="legend">น้ำเงินหนา = ค่าที่แก้เอง (override) · ส้ม = ⚠ ค่าวัดเปลี่ยนหลังคุณแก้ (stale) · picker active = cell คอลัมน์ B มีกรอบน้ำเงิน</div>
+</div>
+
+<script src="vendor/jsuites.min.js"></script>
+<script src="vendor/jspreadsheet.min.js"></script>
+<script>
+/* ---------- seed (same as -d.html so eval is comparable) ---------- */
+var SEED = [
+  ['หลังคา A', 50.45],
+  ['หลังคา B', 36.48],
+  ['ทางเดิน', 26.16],
+  ['ช่องลิฟต์ (หัก)', 10.00]
+];
+var NAREA = SEED.length;
+var baseline = SEED.map(function(r){return r[1];});
+var jss = null;
+var host = null;
+
+/* ---------- picker state ---------- */
+var pickerActive = false;
+var editorInput = null;
+var editorCellX = -1, editorCellY = -1;
+
+function colCell(y){ return 'B'+(y+1); }
+function isAreaRow(y){ return y < NAREA; }
+
+/* refresh override styling (blue bold if numeric != baseline) */
+function refreshOverrideStyles(){
+  if(!jss) return;
+  for(var i=0;i<NAREA;i++){
+    var raw = jss.getValueFromCoords(1,i);
+    var isFormula = typeof raw==='string' && raw.charAt(0)==='=';
+    var num = parseFloat(raw);
+    var overridden = !isFormula && isFinite(num) && Math.abs(num-baseline[i])>1e-9;
+    jss.setStyle(colCell(i), 'color', overridden?'#1d4ed8':'');
+    jss.setStyle(colCell(i), 'font-weight', overridden?'700':'');
+  }
+}
+
+/* ---------- the Excel cell-click picker ----------
+   On oneditionstart: capture the editor <input>, install input listener that
+   toggles picker mode whenever editor value starts with '='.
+
+   On host mousedown (capture phase): if picker active AND target is a real cell
+   (td[data-x]) AND it's not the editor cell itself, then:
+     - preventDefault + stopImmediatePropagation (so jss doesn't close editor)
+     - compute ref like "B3" from data-x/data-y
+     - insert at editor cursor position
+     - refocus editor
+   On oneditionend: reset state, disable operator buttons.
+*/
+function colLetter(x){ /* 0->A, 1->B, ... 25->Z; sufficient for 2-col spike */ return String.fromCharCode(65 + x); }
+
+function setPickerActive(on){
+  pickerActive = on;
+  document.body.classList.toggle('picker-mode', on);
+  [].forEach.call(document.querySelectorAll('#ops button'), function(b){ b.disabled = !on; });
+  /* highlight the formula-input column B (x=1) so the user sees which cells are clickable */
+  if(!host) return;
+  [].forEach.call(host.querySelectorAll('td.picker-hot'), function(td){ td.classList.remove('picker-hot'); });
+  if(on){
+    [].forEach.call(host.querySelectorAll('td[data-x="1"]'), function(td){
+      var y = parseInt(td.getAttribute('data-y'),10);
+      if(y!==editorCellY) td.classList.add('picker-hot');
+    });
+  }
+}
+
+function insertAtCaret(text){
+  if(!editorInput) return;
+  var s = editorInput.selectionStart || editorInput.value.length;
+  var e = editorInput.selectionEnd   || editorInput.value.length;
+  var v = editorInput.value;
+  editorInput.value = v.slice(0,s) + text + v.slice(e);
+  var pos = s + text.length;
+  editorInput.selectionStart = editorInput.selectionEnd = pos;
+  editorInput.focus();
+  /* fire input event so picker-state recompute runs */
+  editorInput.dispatchEvent(new Event('input', {bubbles:true}));
+}
+
+function bindHostPicker(){
+  /* capture phase so we run BEFORE jss's own mousedown handler that closes editor */
+  host.addEventListener('mousedown', function(e){
+    if(!pickerActive || !editorInput) return;
+    var td = e.target.closest && e.target.closest('td');
+    if(!td) return;
+    var xs = td.getAttribute('data-x'), ys = td.getAttribute('data-y');
+    if(xs===null || ys===null) return;
+    var x = parseInt(xs,10), y = parseInt(ys,10);
+    if(x !== 1) return;                              /* only column B is the value column */
+    if(x === editorCellX && y === editorCellY) return; /* clicking the editor cell itself = normal behaviour */
+    /* suppress jss handlers — keep editor open */
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var ref = colLetter(x) + (y+1);
+    insertAtCaret(ref);
+  }, true);
+}
+
+function init(saved){
+  var data = saved && saved.data ? saved.data : SEED.map(function(r){return r.slice();});
+  if(saved && saved.baseline) baseline = saved.baseline.slice();
+  host = document.getElementById('grid'); host.innerHTML='';
+
+  jss = jspreadsheet(host, {
+    data: data,
+    columns: [
+      {type:'text', title:'ประเภท', width:240},
+      {type:'numeric', title:'พื้นที่ (ตร.ม.)', width:160, align:'right'}
+    ],
+    allowInsertRow:true, allowDeleteRow:true, allowInsertColumn:false,
+    editable:true, about:false, tableOverflow:false,
+
+    oneditionstart: function(el, cell, x, y){
+      editorCellX = parseInt(x,10); editorCellY = parseInt(y,10);
+      /* input is created AFTER this event — use oncreateeditor for sync grab */
+    },
+    oncreateeditor: function(el, cell, x, y, inputEl){
+      /* inputEl is the freshly created <input> / <textarea> in the cell.
+         Capture it in a LOCAL closure (not the outer editorInput which gets nulled
+         on oneditionend) so listeners fired during teardown don't NPE on
+         editorInput.value. */
+      var inp = inputEl || cell.querySelector('input,textarea');
+      if(!inp) return;
+      editorInput = inp;
+      var update = function(){
+        if(!inp) return;
+        var v = inp.value || '';
+        setPickerActive(v.charAt(0) === '=');
+      };
+      inp.addEventListener('input', update);
+      inp.addEventListener('keyup', update);
+      update();
+    },
+    oneditionend: function(){
+      setPickerActive(false);
+      editorInput = null; editorCellX = -1; editorCellY = -1;
+    },
+    onchange: function(){
+      document.getElementById('status').style.color='#b45454';
+      document.getElementById('status').textContent='';
+      refreshOverrideStyles();
+    },
+    onload: refreshOverrideStyles
+  });
+
+  bindHostPicker();
+  refreshOverrideStyles();
+}
+
+/* ---------- operator buttons (insert into editor at caret) ---------- */
+document.getElementById('ops').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-op]'); if(!b || b.disabled) return;
+  var op = b.getAttribute('data-op');
+  insertAtCaret(op);
+});
+
+/* ---------- toolbar ---------- */
+document.getElementById('btn-sub').onclick = function(){
+  jss.insertRow(['รวม (พิมพ์ = แล้วคลิก cell)','']);
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='แถว Subtotal เพิ่มแล้ว — ดับเบิลคลิกช่องพื้นที่แถวใหม่ → พิมพ์ = → คลิก cell ตัวเลข';
+};
+document.getElementById('btn-net').onclick = function(){
+  jss.insertRow(['รวมสุทธิ', '=B1+B2+B3-B4']);
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='แถวรวมสุทธิ =B1+B2+B3−B4 (คำนวณสด)';
+};
+document.getElementById('btn-recompute').onclick = function(){
+  var newComp = baseline.slice(); newComp[0]=48.20; newComp[2]=27.30;
+  for(var i=0;i<NAREA;i++){
+    var raw=jss.getValueFromCoords(1,i);
+    var isF=typeof raw==='string' && raw.charAt(0)==='=';
+    var num=parseFloat(raw);
+    var overridden = !isF && isFinite(num) && Math.abs(num-baseline[i])>1e-9;
+    if(overridden){
+      if(Math.abs(newComp[i]-baseline[i])>1e-9){
+        jss.setStyle(colCell(i),'background-color','#ffedd5');
+        jss.setComments(colCell(i),'ค่าวัดเปลี่ยน: เดิม '+baseline[i].toFixed(2)+' → ตอนนี้ '+newComp[i].toFixed(2));
+      }
+    } else {
+      jss.setValueFromCoords(1,i,newComp[i],true);
+    }
+  }
+  baseline = newComp; refreshOverrideStyles();
+  document.getElementById('status').style.color='#d97706';
+  document.getElementById('status').textContent='geometry recompute แล้ว — cell ที่คุณแก้เองขึ้น ⚠ ส้ม (ไม่ถูกทับ)';
+};
+document.getElementById('btn-save').onclick = function(){
+  try{ localStorage.setItem('cmpD2', JSON.stringify({data:jss.getData(), baseline:baseline})); }catch(e){}
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='บันทึกลง localStorage แล้ว';
+};
+document.getElementById('btn-reopen').onclick = function(){
+  var s=null; try{ s=JSON.parse(localStorage.getItem('cmpD2')); }catch(e){}
+  init(s);
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='เปิดใหม่ — ค่าที่บันทึกกลับมาครบ';
+};
+
+/* ---------- eval API — same shape as -d.html so the old eval also runs;
+   PLUS new picker-driven APIs so we can prove cell-click works under Playwright */
+window.JSSAPI = {
+  reset: function(){
+    baseline = SEED.map(function(r){return r[1];});
+    try{localStorage.removeItem('cmpD2');}catch(e){}
+    init(null);
+  },
+  setCell: function(cell,val){ jss.setValue(cell,val); },
+  get:    function(cell){ return parseFloat(jss.getValue(cell,true)); },
+  rawGet: function(cell){ return jss.getValue(cell,false); },
+  insertSubtotalFormula: function(label,formula){ jss.insertRow([label,formula]); },
+  recompute: function(map){
+    for(var k in map){
+      var i=parseInt(k,10);
+      var raw=jss.getValueFromCoords(1,i);
+      var isF=typeof raw==='string'&&raw.charAt(0)==='=';
+      var num=parseFloat(raw);
+      var ovr=!isF&&isFinite(num)&&Math.abs(num-baseline[i])>1e-9;
+      if(ovr){ if(Math.abs(map[k]-baseline[i])>1e-9){ jss.setStyle(colCell(i),'background-color','#ffedd5'); } }
+      else { jss.setValueFromCoords(1,i,map[k],true); }
+    }
+    for(var k2 in map){ baseline[parseInt(k2,10)]=map[k2]; }
+    refreshOverrideStyles();
+  },
+  isStale: function(cell){
+    var st=jss.getStyle(cell);
+    return /ffedd5|255,\s*237,\s*213/.test((st&&st['background-color'])||(typeof st==='string'?st:'')||'');
+  },
+  deleteRow: function(idx){ jss.deleteRow(idx,1); },
+  data:      function(){ return jss.getData(); },
+
+  /* ---- NEW: picker-driven APIs that ACTUALLY drive DOM events (not string injection) ---- */
+  openEditor: function(x,y){
+    /* jss-CE exposes obj.openEditor(td) — call it directly so the editor opens
+       deterministically under Playwright. The PICKER itself is still validated
+       via real DOM mousedown dispatches on the value cells (clickCell below). */
+    var td = host.querySelector('td[data-x="'+x+'"][data-y="'+y+'"]');
+    if(!td) return false;
+    jss.openEditor(td);
+    return !!editorInput;
+  },
+  typeIntoEditor: function(text){
+    if(!editorInput) return false;
+    var s = editorInput.selectionStart, e = editorInput.selectionEnd;
+    if(s==null) s = editorInput.value.length;
+    if(e==null) e = editorInput.value.length;
+    editorInput.value = editorInput.value.slice(0,s) + text + editorInput.value.slice(e);
+    var pos = s + text.length;
+    editorInput.selectionStart = editorInput.selectionEnd = pos;
+    editorInput.dispatchEvent(new Event('input',{bubbles:true}));
+    return true;
+  },
+  clickCell: function(x,y){
+    /* fire a real mousedown on the cell — picker should intercept and insert the ref */
+    var td = host.querySelector('td[data-x="'+x+'"][data-y="'+y+'"]');
+    if(!td) return false;
+    var rect = td.getBoundingClientRect();
+    var ev = new MouseEvent('mousedown', {bubbles:true, cancelable:true,
+      clientX:rect.left+5, clientY:rect.top+5, button:0});
+    td.dispatchEvent(ev);
+    return true;
+  },
+  clickOp: function(op){
+    var b = document.querySelector('#ops button[data-op="'+op+'"]');
+    if(!b || b.disabled) return false;
+    b.click(); return true;
+  },
+  editorValue: function(){ return editorInput ? editorInput.value : null; },
+  pickerActive: function(){ return pickerActive; },
+  commitEditor: function(){
+    if(!editorInput) return false;
+    /* dispatch Enter keydown which jss listens for to commit */
+    var inp = editorInput;
+    inp.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Enter',code:'Enter',keyCode:13,which:13}));
+    inp.dispatchEvent(new KeyboardEvent('keyup',  {bubbles:true,cancelable:true,key:'Enter',code:'Enter',keyCode:13,which:13}));
+    /* fallback: blur input to force commit */
+    try{ inp.blur(); }catch(e){}
+    return true;
+  }
+};
+
+init(null);
+</script>
+</body>
+</html>

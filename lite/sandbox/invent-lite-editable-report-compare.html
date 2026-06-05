@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE COMPARE — Editable lite report · 5 approaches (A–E)</title>
+<link rel="stylesheet" href="vendor/jspreadsheet.min.css">
+<link rel="stylesheet" href="vendor/jsuites.min.css">
+<style>
+  body{font:14px/1.5 "Segoe UI",system-ui;margin:0;background:#f4f5f7;color:#1a1d21}
+  .wrap{max-width:860px;margin:20px auto;background:#fff;padding:20px 24px;border:1px solid #e3e6ea;border-radius:10px}
+  h1{font-size:16px;margin:0 0 2px} .sub{color:#6b7280;font-size:12px;margin-bottom:14px}
+  .modes{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+  .modes button{font:13px "Segoe UI";padding:6px 12px;border:1px solid #c7ccd3;background:#fff;border-radius:7px;cursor:pointer}
+  .modes button.on{background:#2d6cdf;color:#fff;border-color:#2d6cdf}
+  .desc{background:#f0f6ff;border:1px solid #d6e4ff;border-radius:8px;padding:9px 12px;font-size:12.5px;margin:8px 0 14px;color:#274b8f;min-height:18px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:#6b7280;font-size:11px;border-bottom:1px solid #e3e6ea;padding:6px 8px}
+  td{padding:5px 8px;border-bottom:1px solid #f0f1f3}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .area-cell{position:relative;text-align:right}
+  .cv{color:#9aa3ad} .area-cell.ovd .cv{text-decoration:line-through;font-size:11px}
+  .ov{display:inline-block;min-width:46px;border-bottom:1px dashed #b9c0c9;outline:none;font-weight:600}
+  .ov:focus{border-bottom:1px solid #2d6cdf;background:#f0f6ff}
+  .stale{color:#d97706;cursor:help;margin-left:3px}
+  tr.subtotal{background:#fbfbe8;font-weight:600} tr.subtotal .lbl{color:#7a5d00}
+  tr.deduction td{color:#b45454}
+  .grand{font-weight:700;border-top:2px solid #1a1d21}
+  .bar{margin:12px 0 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .bar button{font:13px;padding:5px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer}
+  .bar button:hover{background:#f0f2f5}
+  .panel{border:1px solid #e3e6ea;border-radius:8px;padding:10px;margin:8px 0;display:none;background:#fafbfc;font-size:12px}
+  .panel.show{display:block}
+  .panel label{display:inline-flex;gap:5px;align-items:center;margin:3px 10px 3px 0}
+  .tok{display:inline-block;background:#eef1f5;border:1px solid #d6dbe1;border-radius:5px;padding:2px 6px;margin:2px;font-size:12px}
+  .status{font-size:12px;color:#b45454;min-height:16px;margin-top:4px}
+  .note{font-size:11px;color:#9aa3ad;margin-top:12px}
+  #jss{margin-top:8px}
+  .scoretag{font-size:11px;color:#6b7280;margin-left:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>เทียบ 5 แนวทาง — รายงานพื้นที่แก้ได้แบบ spreadsheet</h1>
+  <div class="sub">ข้อมูลชุดเดียวกันทุกโหมด · คลิกค่าพื้นที่เพื่อแก้ · build params ที่เลือกไว้: <b>localStorage + Formula builder</b> = ผสม B(persist)+C(subtotal UX)</div>
+
+  <div class="modes" id="modes">
+    <button data-m="A">A · session-only</button>
+    <button data-m="B">B · localStorage+stale</button>
+    <button data-m="C">C · formula subtotal</button>
+    <button data-m="D">D · jspreadsheet grid</button>
+    <button data-m="E">E · .bmaplan round-trip</button>
+    <span class="scoretag" id="scoretag"></span>
+  </div>
+  <div class="desc" id="desc"></div>
+
+  <div class="bar" id="bar"></div>
+  <div id="panel" class="panel"></div>
+
+  <div id="htmlview">
+    <table id="tbl"><thead><tr><th>#</th><th>ประเภท</th><th style="text-align:right">พื้นที่ (ตร.ม.)</th></tr></thead>
+      <tbody id="body"></tbody><tfoot id="foot"></tfoot></table>
+  </div>
+  <div id="jss" style="display:none"></div>
+
+  <div id="status" class="status"></div>
+  <div class="note" id="note"></div>
+</div>
+
+<script src="vendor/jsuites.min.js"></script>
+<script src="vendor/jspreadsheet.min.js"></script>
+<script>
+/* ---------- shared sample data (r3 = deduction) ---------- */
+function freshRows(){ return [
+  {id:'r0',name:'หลังคา A',area:50.45,sign:1},{id:'r1',name:'หลังคา B',area:36.48,sign:1},
+  {id:'r2',name:'ทางเดิน',area:26.16,sign:1},{id:'r3',name:'ช่องลิฟต์ (หัก)',area:10.00,sign:-1} ]; }
+var PAGE={id:'p26',rows:freshRows()};
+var overrides={}, subtotals=[], deleted={}, MODE='A', jssObj=null;
+
+var META={
+ A:{score:'27/30', desc:'แก้ค่า inline (override-overlay). <b>ไม่ persist</b> — กด "จำลองปิด-เปิด" แล้วค่าที่แก้หายหมด. เบาสุด แต่ตก eval edge (provenance).'},
+ B:{score:'26/30 ★#1', desc:'A + <b>localStorage</b> + <b>stale-flag</b>. ค่าที่แก้อยู่หลังปิด-เปิด. กด "↻ geometry recompute" → cell ที่ override ขึ้น ⚠ ว่าค่าวัดเปลี่ยน (ไม่ทับเงียบ). ผ่าน eval 3/3.'},
+ C:{score:'24/30', desc:'subtotal เป็น <b>formula builder</b> (token +/−). รวมแบบ "หลังคาA + หลังคาB − ทางเดิน" ได้ในแถวเดียว. ยืดหยุ่นสุด แต่ UI ซับซ้อนกว่า.'},
+ D:{score:'21/30', desc:'<b>jspreadsheet-ce</b> (vendored 282KB). grid จริง — แก้ cell, แทรกแถว, สูตร =A1+A2. คุ้นมือ Excel แต่หนัก + แทนที่ table renderer ทั้งก้อน + เสี่ยง print CSS.'},
+ E:{score:'23/30', desc:'A + <b>persist ลง .bmaplan</b> (จำลอง). "บันทึกลงโปรเจกต์" → "เปิดโปรเจกต์ใหม่" ค่าที่แก้ยังอยู่ (round-trip จริง). robust สุด แต่แตะ 3 ไฟล์ + save/load path.'}
+};
+
+function rowById(id){ for(var i=0;i<PAGE.rows.length;i++) if(PAGE.rows[i].id===id) return PAGE.rows[i]; return null; }
+function computedArea(id){ var r=rowById(id); return r?r.area:null; }
+function valueOf(id){ if(deleted[id]||!rowById(id)) return null; if(overrides[id]) return overrides[id].val; return computedArea(id); }
+function signOf(id){ var r=rowById(id); return r?r.sign:1; }
+function isStale(id){ return MODE==='B' && !!(overrides[id]&&rowById(id)&&Math.abs(overrides[id].computedAt-computedArea(id))>1e-9); }
+function subVal(st){ var s=0; (st.expr||st.members.map(function(m){return{id:m,op:'+'};})).forEach(function(t){ var v=valueOf(t.id); if(v==null)return; var sg=signOf(t.id)*(t.op==='-'?-1:1); s+=sg*v; }); return s; }
+function grand(){ var s=0; PAGE.rows.forEach(function(r){ if(deleted[r.id])return; var v=valueOf(r.id); if(v==null)return; s+=r.sign*v; }); return s; }
+function setOverride(id,raw){ var n=(typeof raw==='number')?raw:parseFloat(String(raw).replace(/,/g,'').trim());
+  if(!isFinite(n)) return {ok:false}; overrides[id]={val:n,computedAt:computedArea(id)}; persist(); return {ok:true}; }
+
+/* persistence per mode */
+function pKey(){ return 'cmp.'+MODE; }
+function persist(){ if(MODE==='B'){ try{localStorage.setItem(pKey(),JSON.stringify({overrides:overrides,subtotals:subtotals}));}catch(e){} } }
+function restore(){ overrides={};subtotals={}&&[];subtotals=[];deleted={};
+  if(MODE==='B'){ try{var s=localStorage.getItem(pKey()); if(s){var d=JSON.parse(s);overrides=d.overrides||{};subtotals=d.subtotals||[];}}catch(e){} } }
+
+function fmt(v){ return v==null?'—':v.toFixed(2); }
+
+/* ---------- HTML table renderer (A/B/C/E) ---------- */
+function renderHtml(){
+  document.getElementById('htmlview').style.display='';
+  document.getElementById('jss').style.display='none';
+  var body=document.getElementById('body'); body.innerHTML='';
+  PAGE.rows.forEach(function(r,i){ if(deleted[r.id])return;
+    var tr=document.createElement('tr'); if(r.sign<0)tr.className='deduction';
+    var ovd=!!overrides[r.id];
+    var stale=isStale(r.id)?'<span class="stale" title="ค่าวัดเปลี่ยน: เดิม '+overrides[r.id].computedAt.toFixed(2)+' → ตอนนี้ '+computedArea(r.id).toFixed(2)+'">⚠</span>':'';
+    tr.innerHTML='<td>'+(i+1)+'</td><td>'+r.name+'</td>'+
+      '<td class="num area-cell'+(ovd?' ovd':'')+'"><span class="cv">'+fmt(computedArea(r.id))+'</span> '+
+      '<span class="ov" contenteditable="true" data-id="'+r.id+'">'+(ovd?overrides[r.id].val.toFixed(2):'')+'</span>'+stale+'</td>';
+    body.appendChild(tr);
+  });
+  subtotals.forEach(function(st){ var tr=document.createElement('tr'); tr.className='subtotal';
+    var n=(st.expr?st.expr.length:st.members.length);
+    tr.innerHTML='<td></td><td class="lbl">'+st.label+' <span style="font-weight:400;font-size:11px;color:#9aa3ad">('+n+' แถว)</span></td><td class="num">'+fmt(subVal(st))+'</td>';
+    body.appendChild(tr); });
+  document.getElementById('foot').innerHTML='<tr class="grand"><td></td><td>รวมสุทธิ</td><td class="num">'+fmt(grand())+' ตร.ม.</td></tr>';
+  document.querySelectorAll('.ov').forEach(function(el){
+    el.onblur=function(){ var id=el.getAttribute('data-id'),raw=el.textContent.trim(),st=document.getElementById('status');
+      if(raw===''){ delete overrides[id]; persist(); renderHtml(); return; }
+      if(!setOverride(id,raw).ok){ st.textContent='ค่าไม่ถูกต้อง (ต้องเป็นตัวเลข) — คงค่าเดิม'; el.textContent=overrides[id]?overrides[id].val.toFixed(2):''; return; }
+      st.textContent=''; renderHtml(); };
+    el.onkeydown=function(e){ if(e.key==='Enter'){e.preventDefault();el.blur();} };
+  });
+}
+
+/* ---------- jspreadsheet renderer (D) ---------- */
+function renderJss(){
+  document.getElementById('htmlview').style.display='none';
+  var host=document.getElementById('jss'); host.style.display=''; host.innerHTML='';
+  var data=PAGE.rows.filter(function(r){return !deleted[r.id];}).map(function(r){ return [r.name, valueOf(r.id)]; });
+  jssObj=jspreadsheet(host,{ data:data, columns:[
+    {type:'text',title:'ประเภท',width:220},
+    {type:'numeric',title:'พื้นที่ (ตร.ม.)',width:140,mask:'0.00'} ],
+    allowInsertRow:true, allowInsertColumn:false,
+    onchange:function(){ document.getElementById('status').textContent=''; }
+  });
+}
+
+/* ---------- toolbars + panels per mode ---------- */
+function buildBar(){
+  var bar=document.getElementById('bar'), p=document.getElementById('panel'); p.classList.remove('show'); p.innerHTML='';
+  var btns=[];
+  if(MODE==='C'){ btns.push(['+ แทรก Subtotal (สูตร +/−)', openFormula]); }
+  else if(MODE!=='D'){ btns.push(['+ แทรก Subtotal (เลือกแถว)', openPicker]); }
+  btns.push(['ล้างค่าที่แก้', function(){ overrides={};subtotals=[];deleted={};persist(); rerender(); }]);
+  if(MODE==='B'){ btns.push(['↻ จำลอง geometry recompute', function(){ PAGE.rows[0].area-=2.25; PAGE.rows[2].area+=1.10; rerender(); }]);
+                  btns.push(['🔄 จำลองปิด-เปิดหน้า', function(){ rerender(); /* B restores from localStorage */ }]); }
+  if(MODE==='A'){ btns.push(['🔄 จำลองปิด-เปิดหน้า', function(){ overrides={};subtotals=[];deleted={}; rerender(); }]); }
+  if(MODE==='E'){ btns.push(['💾 บันทึกลงโปรเจกต์', function(){ try{sessionStorage.setItem('mockBmaplan',JSON.stringify({overrides:overrides,subtotals:subtotals}));}catch(e){} document.getElementById('status').style.color='#1a7f37'; document.getElementById('status').textContent='บันทึกลง .bmaplan (จำลอง) แล้ว'; }]);
+                  btns.push(['📂 เปิดโปรเจกต์ใหม่ (reopen)', function(){ overrides={};subtotals=[];deleted={}; try{var s=sessionStorage.getItem('mockBmaplan'); if(s){var d=JSON.parse(s);overrides=d.overrides||{};subtotals=d.subtotals||[];}}catch(e){} document.getElementById('status').style.color='#1a7f37'; document.getElementById('status').textContent='เปิดโปรเจกต์ใหม่ — ค่าที่แก้ยังอยู่ (round-trip)'; rerender(); }]); }
+  if(MODE==='D'){ btns.push(['+ แทรกแถว subtotal (=A1+A2 ใน grid)', function(){ if(jssObj){ jssObj.insertRow(['รวม','']); document.getElementById('status').textContent='พิมพ์สูตร =B1+B2 ในช่องพื้นที่ของแถวใหม่ได้เลย'; } }]); }
+  bar.innerHTML=''; btns.forEach(function(b){ var el=document.createElement('button'); el.textContent=b[0]; el.onclick=b[1]; bar.appendChild(el); });
+}
+function openPicker(){ var p=document.getElementById('panel'); p.classList.toggle('show'); if(!p.classList.contains('show'))return;
+  var h='<div style="margin-bottom:6px">เลือกแถวที่ต้องการรวม:</div>';
+  PAGE.rows.forEach(function(r){ if(deleted[r.id])return; h+='<label><input type="checkbox" value="'+r.id+'"> '+r.name+' ('+fmt(valueOf(r.id))+(r.sign<0?' หัก':'')+')</label>'; });
+  h+='<div style="margin-top:8px"><input id="sl" placeholder="ชื่อแถวรวม" style="padding:4px 6px;width:150px"> <button id="sok">เพิ่ม</button></div>'; p.innerHTML=h;
+  document.getElementById('sok').onclick=function(){ var m=[].slice.call(p.querySelectorAll('input:checked')).map(function(c){return c.value;}); if(!m.length)return;
+    subtotals.push({id:'st'+Date.now(),label:document.getElementById('sl').value||'รวมบางส่วน',members:m}); persist(); p.classList.remove('show'); renderHtml(); }; }
+function openFormula(){ var p=document.getElementById('panel'); p.classList.toggle('show'); if(!p.classList.contains('show'))return;
+  var expr=[]; var h='<div style="margin-bottom:6px">สร้างสูตร subtotal (เลือกแถว + เครื่องหมาย):</div><div id="exprbox" style="min-height:26px;margin-bottom:6px"></div>'+
+    '<select id="frow">'+PAGE.rows.filter(function(r){return !deleted[r.id];}).map(function(r){return '<option value="'+r.id+'">'+r.name+'</option>';}).join('')+'</select> '+
+    '<button id="fplus">+ บวก</button> <button id="fminus">− ลบ</button> &nbsp; '+
+    '<input id="fl" placeholder="ชื่อแถวรวม" style="padding:4px 6px;width:130px"> <button id="fok">เพิ่มแถวรวม</button>'; p.innerHTML=h;
+  function redraw(){ document.getElementById('exprbox').innerHTML = expr.length? expr.map(function(t,i){ return (i?'<span class="tok">'+(t.op==='-'?'−':'+')+'</span>':'')+'<span class="tok">'+rowById(t.id).name+'</span>'; }).join(' ') : '<span style="color:#9aa3ad">ยังไม่มี token</span>'; }
+  document.getElementById('fplus').onclick=function(){ expr.push({id:document.getElementById('frow').value,op:'+'}); redraw(); };
+  document.getElementById('fminus').onclick=function(){ expr.push({id:document.getElementById('frow').value,op:'-'}); redraw(); };
+  document.getElementById('fok').onclick=function(){ if(!expr.length)return; subtotals.push({id:'st'+Date.now(),label:document.getElementById('fl').value||'รวมสูตร',expr:expr.slice()}); persist(); p.classList.remove('show'); renderHtml(); };
+  redraw(); }
+
+function rerender(){ if(MODE==='D') renderJss(); else renderHtml(); }
+function setMode(m){ MODE=m; PAGE.rows=freshRows(); restore();
+  [].forEach.call(document.querySelectorAll('#modes button'),function(b){ b.classList.toggle('on', b.getAttribute('data-m')===m); });
+  document.getElementById('desc').innerHTML=META[m].desc;
+  document.getElementById('scoretag').textContent='score '+META[m].score;
+  document.getElementById('status').style.color='#b45454'; document.getElementById('status').textContent='';
+  document.getElementById('note').textContent = (m==='B'?'ลอง: แก้ค่า → กดปิด-เปิด (ยังอยู่) → กด recompute (ขึ้น ⚠)':
+    m==='A'?'ลอง: แก้ค่า → กดปิด-เปิด (หายหมด = ตก provenance)':
+    m==='C'?'ลอง: + บวก/− ลบ ทีละแถว แล้วเพิ่มแถวรวม — รวมแบบผสมเครื่องหมายได้':
+    m==='D'?'jspreadsheet grid จริง — แก้ cell + แทรกแถว + สูตร =B1+B2':
+    'ลอง: แก้ค่า → บันทึกลงโปรเจกต์ → เปิดใหม่ (ค่ายังอยู่)');
+  buildBar(); rerender(); }
+
+[].forEach.call(document.querySelectorAll('#modes button'),function(b){ b.onclick=function(){ setMode(b.getAttribute('data-m')); }; });
+setMode('B');  /* default to recommended #1 */
+</script>
+</body>
+</html>

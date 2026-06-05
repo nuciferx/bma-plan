@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE — Editable lite report (Approach B: override-overlay + stale-flag + localStorage)</title>
+<style>
+  body{font:14px/1.5 "Segoe UI",system-ui;margin:0;background:#f4f5f7;color:#1a1d21}
+  .wrap{max-width:820px;margin:24px auto;background:#fff;padding:22px 26px;border:1px solid #e3e6ea;border-radius:10px}
+  h1{font-size:17px;margin:0 0 4px} .sub{color:#6b7280;font-size:12px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:#6b7280;font-size:11px;border-bottom:1px solid #e3e6ea;padding:6px 8px}
+  td{padding:5px 8px;border-bottom:1px solid #f0f1f3}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .area-cell{position:relative;text-align:right}
+  .cv{color:#9aa3ad}                         /* computed value, dimmed when overridden */
+  .area-cell.ovd .cv{text-decoration:line-through;font-size:11px}
+  .ov{display:inline-block;min-width:46px;border-bottom:1px dashed #b9c0c9;outline:none;color:#1a1d21;font-weight:600}
+  .ov:focus{border-bottom:1px solid #2d6cdf;background:#f0f6ff}
+  .stale{color:#d97706;cursor:help;margin-left:4px}
+  tr.subtotal{background:#fbfbe8;font-weight:600}
+  tr.subtotal .lbl{color:#7a5d00}
+  tr.deduction td{color:#b45454}
+  .grand{font-weight:700;border-top:2px solid #1a1d21}
+  .bar{margin:14px 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button{font:13px "Segoe UI";padding:5px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer}
+  button:hover{background:#f0f2f5}
+  .pick{border:1px solid #e3e6ea;border-radius:8px;padding:10px;margin:8px 0;display:none;background:#fafbfc}
+  .pick.show{display:block}
+  .pick label{display:inline-flex;gap:5px;align-items:center;margin:3px 10px 3px 0;font-size:12px}
+  .status{font-size:12px;color:#b45454;min-height:16px;margin-top:4px}
+  .note{font-size:11px;color:#9aa3ad;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>รายงานพื้นที่ — หน้า 26 (SPIKE: แก้ได้แบบ spreadsheet)</h1>
+  <div class="sub">Approach B — override-overlay + stale provenance + localStorage. คลิกค่าพื้นที่เพื่อแก้ · แทรกแถวรวมเลือกเองได้</div>
+
+  <div class="bar">
+    <button id="btn-addsub">+ แทรก Subtotal (เลือกแถวรวมเอง)</button>
+    <button id="btn-clear">ล้างค่าที่แก้ไว้</button>
+    <button id="btn-refresh">↻ จำลอง geometry recompute</button>
+  </div>
+  <div id="pick" class="pick"></div>
+
+  <table id="tbl">
+    <thead><tr><th>#</th><th>ประเภท</th><th style="text-align:right">พื้นที่ (ตร.ม.)</th></tr></thead>
+    <tbody id="body"></tbody>
+    <tfoot id="foot"></tfoot>
+  </table>
+  <div id="status" class="status"></div>
+  <div class="note">ค่าที่แก้เองจะขีดทับค่าคำนวณเดิม · ⚠ = ค่าวัดเปลี่ยนหลังคุณแก้ (provenance) · บันทึกอัตโนมัติใน localStorage</div>
+</div>
+
+<script>
+/* ---------------- baked sample payload (1 page) ----------------
+   r3 is a deduction (sign -1) for the edge eval case. */
+var PAGE = { id:'p26', generated: 1717500000000, rows: [
+  {id:'r0', name:'หลังคา A',        area:50.45, sign:1},
+  {id:'r1', name:'หลังคา B',        area:36.48, sign:1},
+  {id:'r2', name:'ทางเดิน',         area:26.16, sign:1},
+  {id:'r3', name:'ช่องลิฟต์ (หัก)', area:10.00, sign:-1}
+]};
+
+/* ---------------- edit state (Approach B) ---------------- */
+var overrides = {};   // rowId -> {val:Number, computedAt:Number}
+var subtotals = [];   // {id, label, members:[rowId]}
+var deleted   = {};   // rowId -> true (row removed from payload)
+
+function payloadHash(){ // djb2 on generated + ids — file-scoped-ish key
+  var s = PAGE.id+'|'+PAGE.generated+'|'+PAGE.rows.map(function(r){return r.id;}).join(',');
+  var h=5381; for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return 'bmaReportEdit.'+(h>>>0);
+}
+function save(){ try{ localStorage.setItem(payloadHash(), JSON.stringify({overrides:overrides,subtotals:subtotals})); }catch(e){} }
+function load(){ try{ var s=localStorage.getItem(payloadHash()); if(s){ var d=JSON.parse(s); overrides=d.overrides||{}; subtotals=d.subtotals||[]; } }catch(e){} }
+
+function rowById(id){ for(var i=0;i<PAGE.rows.length;i++) if(PAGE.rows[i].id===id) return PAGE.rows[i]; return null; }
+function computedArea(id){ var r=rowById(id); return r?r.area:null; }
+/* value used in every sum: manual override supersedes computed; missing row -> null (skipped) */
+function valueOf(id){ if(deleted[id]||!rowById(id)) return null; if(overrides[id]) return overrides[id].val; return computedArea(id); }
+function signOf(id){ var r=rowById(id); return r?r.sign:1; }
+function isStale(id){ return !!(overrides[id] && rowById(id) && Math.abs(overrides[id].computedAt - computedArea(id))>1e-9); }
+
+/* core compute — un-gameable: pure arithmetic over override-or-computed, signed */
+function subtotalValue(stId){
+  var st=null; for(var i=0;i<subtotals.length;i++) if(subtotals[i].id===stId) st=subtotals[i];
+  if(!st) return null; var sum=0;
+  st.members.forEach(function(id){ var v=valueOf(id); if(v==null) return; /* deleted -> skip */ sum += signOf(id)*v; });
+  return sum;
+}
+function grandTotal(){ var sum=0; PAGE.rows.forEach(function(r){ if(deleted[r.id]) return; var v=valueOf(r.id); if(v==null) return; sum += r.sign*v; }); return sum; }
+
+/* adversarial-safe override setter: rejects non-numeric, never NaN-poisons */
+function setOverride(id, raw){
+  var n = (typeof raw==='number') ? raw : parseFloat(String(raw).replace(/,/g,'').trim());
+  if(!isFinite(n)){ return {ok:false, reason:'not-a-number'}; }
+  overrides[id] = {val:n, computedAt: computedArea(id)};
+  save(); return {ok:true, val:n};
+}
+function clearOverride(id){ delete overrides[id]; save(); }
+function insertSubtotal(id, label, members){ subtotals.push({id:id,label:label||'รวมบางส่วน',members:members.slice()}); save(); }
+function deleteRow(id){ deleted[id]=true; save(); }
+function refreshPayload(newAreas){ // simulate geometry recompute; overrides survive, stale detected
+  Object.keys(newAreas).forEach(function(id){ var r=rowById(id); if(r) r.area=newAreas[id]; }); render();
+}
+function clearAll(){ overrides={}; subtotals=[]; deleted={}; save(); render(); }
+
+/* ---------------- render ---------------- */
+function fmt(v){ return v==null?'—':v.toFixed(2); }
+function render(){
+  var body=document.getElementById('body'); body.innerHTML='';
+  PAGE.rows.forEach(function(r,i){ if(deleted[r.id]) return;
+    var tr=document.createElement('tr'); if(r.sign<0) tr.className='deduction';
+    var ovd = !!overrides[r.id];
+    var staleHtml = isStale(r.id)?'<span class="stale" title="ค่าวัดเปลี่ยน: เดิม '+overrides[r.id].computedAt.toFixed(2)+' → ปัจจุบัน '+computedArea(r.id).toFixed(2)+'">⚠</span>':'';
+    tr.innerHTML='<td>'+(i+1)+'</td><td>'+r.name+'</td>'+
+      '<td class="num area-cell'+(ovd?' ovd':'')+'" data-id="'+r.id+'">'+
+        '<span class="cv">'+fmt(computedArea(r.id))+'</span> '+
+        '<span class="ov" contenteditable="true" data-id="'+r.id+'">'+(ovd?overrides[r.id].val.toFixed(2):'')+'</span>'+
+        staleHtml+'</td>';
+    body.appendChild(tr);
+  });
+  // subtotal rows
+  subtotals.forEach(function(st){
+    var tr=document.createElement('tr'); tr.className='subtotal';
+    tr.innerHTML='<td></td><td class="lbl">'+st.label+' <span style="font-weight:400;font-size:11px;color:#9aa3ad">('+st.members.filter(function(m){return !deleted[m]&&rowById(m);}).length+' แถว)</span></td>'+
+      '<td class="num">'+fmt(subtotalValue(st.id))+'</td>';
+    body.appendChild(tr);
+  });
+  var foot=document.getElementById('foot');
+  foot.innerHTML='<tr class="grand"><td></td><td>รวมสุทธิทั้งหน้า</td><td class="num">'+fmt(grandTotal())+' ตร.ม.</td></tr>';
+  wireCells();
+}
+function wireCells(){
+  document.querySelectorAll('.ov').forEach(function(el){
+    el.onblur=function(){ var id=el.getAttribute('data-id'); var raw=el.textContent.trim();
+      var st=document.getElementById('status');
+      if(raw===''){ clearOverride(id); st.textContent=''; render(); return; }
+      var r=setOverride(id, raw);
+      if(!r.ok){ st.textContent='ค่าไม่ถูกต้อง (ต้องเป็นตัวเลข) — คงค่าเดิมไว้'; el.textContent=overrides[id]?overrides[id].val.toFixed(2):''; return; }
+      st.textContent=''; render();
+    };
+    el.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); el.blur(); } };
+  });
+}
+
+/* subtotal picker UI */
+document.getElementById('btn-addsub').onclick=function(){
+  var p=document.getElementById('pick'); p.classList.toggle('show'); if(!p.classList.contains('show')) return;
+  var html='<div style="font-size:12px;margin-bottom:6px">เลือกแถวที่ต้องการรวม:</div>';
+  PAGE.rows.forEach(function(r){ if(deleted[r.id]) return;
+    html+='<label><input type="checkbox" value="'+r.id+'"> '+r.name+' ('+fmt(valueOf(r.id))+(r.sign<0?' หัก':'')+')</label>'; });
+  html+='<div style="margin-top:8px"><input id="sub-label" placeholder="ชื่อแถวรวม" style="padding:4px 6px;font-size:12px;width:160px"> '+
+        '<button id="sub-ok">เพิ่มแถวรวม</button></div>';
+  p.innerHTML=html;
+  document.getElementById('sub-ok').onclick=function(){
+    var members=[].slice.call(p.querySelectorAll('input[type=checkbox]:checked')).map(function(c){return c.value;});
+    if(!members.length) return;
+    insertSubtotal('st_'+Date.now(), document.getElementById('sub-label').value||'รวมบางส่วน', members);
+    p.classList.remove('show'); render();
+  };
+};
+document.getElementById('btn-clear').onclick=clearAll;
+document.getElementById('btn-refresh').onclick=function(){ // demo: nudge two areas
+  refreshPayload({r0: computedArea('r0')-2.25, r2: computedArea('r2')+1.10});
+};
+
+/* ---------------- SpikeAPI (deterministic eval surface) ---------------- */
+window.SpikeAPI = {
+  reset:function(){ PAGE.rows=[ {id:'r0',name:'หลังคา A',area:50.45,sign:1},{id:'r1',name:'หลังคา B',area:36.48,sign:1},
+                                {id:'r2',name:'ทางเดิน',area:26.16,sign:1},{id:'r3',name:'ช่องลิฟต์ (หัก)',area:10.00,sign:-1} ];
+                    overrides={}; subtotals=[]; deleted={}; try{localStorage.removeItem(payloadHash());}catch(e){} render(); },
+  value:valueOf, setOverride:setOverride, insertSubtotal:insertSubtotal,
+  subtotal:subtotalValue, grand:grandTotal, refresh:refreshPayload, isStale:isStale,
+  deleteRow:deleteRow, overrideRaw:function(id){return overrides[id]?overrides[id].val:null;}
+};
+
+load(); render();
+</script>
+</body>
+</html>

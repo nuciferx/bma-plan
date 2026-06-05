@@ -189,6 +189,17 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
 
+### ideas 2026-06-04
+
+- [ ] **Inline-editable area values in lite report area list** — `invent-queued` — from /idea 2026-06-04
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-06-04 15:18
+    - Tags: bma-plan, lite, report, p-med
+    - Scope: lite `/report` page (`lite/lite-report.html`) — make the per-area rows in the area-list table inline-editable (currently read-only). Open Qs: session-only vs persist to `.bmaplan`; visual indicator for manually-overridden vs computed values.
+- [ ] **User-defined subtotal rows in lite report tables (Excel-style)** — `invent-queued` — from /idea 2026-06-04
+    - Source: ~/.claude/ideas/IDEAS.md @ 2026-06-04 15:18
+    - Tags: bma-plan, lite, report, p-med
+    - Scope: lite `/report` page — let users insert custom subtotal rows per table and choose which rows sum together (not all-or-nothing). Excel/Sheet-style row selection + insert-subtotal. Open Qs: persist to `.bmaplan` vs view-only; checkbox-per-row vs shift-click range.
+
 ### ideas 2026-05-29
 
 - [x] **Permanently add or remove pages from an uploaded PDF** — `invent-done-go (→ INV-2026-05-29-LPM)` — from /idea 2026-05-29 → `/lite-invent` 2026-05-29 → spike 6/6 PASS → user GO (approach D) → **re-pass 2026-05-29 (`/lite-invent` again): spike v2 6/6 adds edge+adversarial (folders/multi-save/render-source/merge/guards); 5 corruption gaps closed** → **re-pass #2 2026-05-29 (Opus 4.8 "ตรวจอีกครั้ง"): spike v3 5/5 — corrected the folder model (re-derive via reseed, not id-remap) + found NEW silent-data-loss bug B-DIRTY (`_docSnap` omits page order); card stays GO, build follows v2+v3**

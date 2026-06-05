@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE (RESHAPE) — Editable lite report · Approach D: jspreadsheet + Excel-style formula</title>
+<link rel="stylesheet" href="vendor/jspreadsheet.min.css">
+<link rel="stylesheet" href="vendor/jsuites.min.css">
+<style>
+  body{font:14px/1.5 "Segoe UI",system-ui;margin:0;background:#f4f5f7;color:#1a1d21}
+  .wrap{max-width:760px;margin:22px auto;background:#fff;padding:20px 24px;border:1px solid #e3e6ea;border-radius:10px}
+  h1{font-size:16px;margin:0 0 2px} .sub{color:#6b7280;font-size:12px;margin-bottom:14px}
+  .bar{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap}
+  .bar button{font:13px "Segoe UI";padding:6px 11px;border:1px solid #c7ccd3;background:#fff;border-radius:6px;cursor:pointer}
+  .bar button:hover{background:#eef2f7}
+  .hint{background:#f0f6ff;border:1px solid #d6e4ff;border-radius:8px;padding:9px 12px;font-size:12.5px;color:#274b8f;margin-bottom:10px}
+  .status{font-size:12px;min-height:16px;margin-top:6px;color:#b45454}
+  .legend{font-size:11px;color:#9aa3ad;margin-top:10px}
+  .stale-cell{background:#ffedd5 !important}
+  .ovr-cell{font-weight:700;color:#1d4ed8}
+  /* make the in-cell editor obviously visible */
+  .jexcel_container td.editor input, .jss td.editor input, td.editor input, td.editor textarea{
+    background:#fffbe6 !important;border:2px solid #2d6cdf !important;color:#1a1d21 !important;
+    font:14px "Segoe UI" !important;width:100% !important;box-sizing:border-box !important;padding:2px 4px !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>รายงานพื้นที่ — หน้า 26 · Excel-style (jspreadsheet)</h1>
+  <div class="sub">คลิกค่าพื้นที่เพื่อแก้ (override สีน้ำเงิน) · แทรกแถว Subtotal แล้วพิมพ์ <b>=</b> แล้ว <b>คลิกเซลล์ + ใส่ +/−</b> เหมือน Excel</div>
+
+  <div class="hint" id="hint">วิธีใส่สูตร: ดับเบิลคลิกช่องพื้นที่ของแถว Subtotal → พิมพ์ <b>=</b> → คลิกเซลล์ตัวเลข → พิมพ์ <b>+</b> หรือ <b>−</b> → คลิกเซลล์ถัดไป → Enter</div>
+
+  <div class="bar">
+    <button id="btn-sub">+ แทรกแถว Subtotal</button>
+    <button id="btn-net">+ แถวรวมสุทธิ (auto =B1+B2+B3−B4)</button>
+    <button id="btn-recompute">↻ จำลอง geometry recompute</button>
+    <button id="btn-save">💾 บันทึก (localStorage)</button>
+    <button id="btn-reopen">📂 จำลองเปิดใหม่</button>
+  </div>
+
+  <div id="grid"></div>
+  <div id="status" class="status"></div>
+  <div class="legend">น้ำเงินหนา = ค่าที่แก้เอง (override) · ส้ม = ⚠ ค่าวัดเปลี่ยนหลังคุณแก้ (provenance/stale) · แถวสูตรคำนวณสดเหมือน Excel</div>
+</div>
+
+<script src="vendor/jsuites.min.js"></script>
+<script src="vendor/jspreadsheet.min.js"></script>
+<script>
+/* original computed area rows (B-column = col index 1). r3 = deduction. */
+var SEED = [
+  ['หลังคา A', 50.45],
+  ['หลังคา B', 36.48],
+  ['ทางเดิน', 26.16],
+  ['ช่องลิฟต์ (หัก)', 10.00]
+];
+var NAREA = SEED.length;                 // # of original area rows
+var baseline = SEED.map(function(r){return r[1];});  // computed baseline per area row (index)
+var jss=null;
+
+function colCell(rowIdx){ return 'B'+(rowIdx+1); } // jss 1-based row, col B = area
+
+function isAreaRow(rowIdx){ return rowIdx < NAREA; }
+/* a value cell is "overridden" if it is a plain number != its computed baseline */
+function refreshOverrideStyles(){
+  if(!jss) return;
+  for(var i=0;i<NAREA;i++){
+    var cell=colCell(i);
+    var raw=jss.getValueFromCoords(1,i);          // stored (could be number or formula)
+    var isFormula = typeof raw==='string' && raw.charAt(0)==='=';
+    var num = parseFloat(raw);
+    var overridden = !isFormula && isFinite(num) && Math.abs(num-baseline[i])>1e-9;
+    jss.setStyle(cell, 'color', overridden?'#1d4ed8':'');
+    jss.setStyle(cell, 'font-weight', overridden?'700':'');
+  }
+}
+
+function init(saved){
+  var data = saved && saved.data ? saved.data : SEED.map(function(r){return r.slice();});
+  if(saved && saved.baseline) baseline = saved.baseline.slice();
+  var host=document.getElementById('grid'); host.innerHTML='';
+  jss = jspreadsheet(host, {
+    data: data,
+    columns: [
+      {type:'text', title:'ประเภท', width:240},
+      {type:'numeric', title:'พื้นที่ (ตร.ม.)', width:150, align:'right'}
+    ],
+    allowInsertRow:true, allowDeleteRow:true, allowInsertColumn:false,
+    editable:true, about:false, tableOverflow:false,
+    onchange:function(){ document.getElementById('status').style.color='#b45454'; document.getElementById('status').textContent=''; refreshOverrideStyles(); },
+    onload: refreshOverrideStyles
+  });
+  refreshOverrideStyles();
+}
+
+document.getElementById('btn-sub').onclick=function(){
+  jss.insertRow(['รวม (พิมพ์สูตร =B1+B2)','']);
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='แถว Subtotal เพิ่มแล้ว — ดับเบิลคลิกช่องพื้นที่ → = → คลิกเซลล์ + ใส่ +/−';
+};
+document.getElementById('btn-net').onclick=function(){
+  // auto subtotal: GFA rows + minus deduction (Excel formula, live)
+  jss.insertRow(['รวมสุทธิ', '=B1+B2+B3-B4']);
+  document.getElementById('status').style.color='#1a7f37';
+  document.getElementById('status').textContent='แถวรวมสุทธิ =B1+B2+B3−B4 (คำนวณสด)';
+};
+document.getElementById('btn-recompute').onclick=function(){
+  // geometry recompute: B1 50.45->48.20, B3 26.16->27.30. Overridden cells keep value but go stale.
+  var newComp = baseline.slice(); newComp[0]=48.20; newComp[2]=27.30;
+  for(var i=0;i<NAREA;i++){
+    var raw=jss.getValueFromCoords(1,i); var isF=typeof raw==='string'&&raw.charAt(0)==='='; var num=parseFloat(raw);
+    var overridden = !isF && isFinite(num) && Math.abs(num-baseline[i])>1e-9;
+    if(overridden){ // keep user value, flag stale if its computed baseline moved
+      if(Math.abs(newComp[i]-baseline[i])>1e-9){ jss.setStyle(colCell(i),'background-color','#ffedd5');
+        jss.setComments(colCell(i),'ค่าวัดเปลี่ยน: เดิม '+baseline[i].toFixed(2)+' → ตอนนี้ '+newComp[i].toFixed(2)); }
+    } else { // not overridden: adopt new computed value
+      jss.setValueFromCoords(1,i,newComp[i],true);
+    }
+  }
+  baseline = newComp; refreshOverrideStyles();
+  document.getElementById('status').style.color='#d97706';
+  document.getElementById('status').textContent='geometry recompute แล้ว — cell ที่คุณแก้เองขึ้น ⚠ ส้ม (ไม่ถูกทับ)';
+};
+document.getElementById('btn-save').onclick=function(){
+  try{ localStorage.setItem('cmpD', JSON.stringify({data:jss.getData(), baseline:baseline})); }catch(e){}
+  document.getElementById('status').style.color='#1a7f37'; document.getElementById('status').textContent='บันทึกลง localStorage แล้ว';
+};
+document.getElementById('btn-reopen').onclick=function(){
+  var s=null; try{ s=JSON.parse(localStorage.getItem('cmpD')); }catch(e){}
+  init(s); document.getElementById('status').style.color='#1a7f37'; document.getElementById('status').textContent='เปิดใหม่ — ค่าที่บันทึกกลับมาครบ';
+};
+
+/* ---- eval API (deterministic) ---- */
+window.JSSAPI = {
+  reset:function(){ baseline=SEED.map(function(r){return r[1];}); try{localStorage.removeItem('cmpD');}catch(e){} init(null); },
+  setCell:function(cell,val){ jss.setValue(cell,val); },           // override or formula
+  get:function(cell){ return parseFloat(jss.getValue(cell,true)); },// processed (computed) value
+  rawGet:function(cell){ return jss.getValue(cell,false); },
+  insertSubtotalFormula:function(label,formula){ jss.insertRow([label,formula]); },
+  recompute:function(map){ for(var k in map){ var i=parseInt(k,10);
+      var raw=jss.getValueFromCoords(1,i); var isF=typeof raw==='string'&&raw.charAt(0)==='='; var num=parseFloat(raw);
+      var ovr=!isF&&isFinite(num)&&Math.abs(num-baseline[i])>1e-9;
+      if(ovr){ if(Math.abs(map[k]-baseline[i])>1e-9){ jss.setStyle(colCell(i),'background-color','#ffedd5'); } }
+      else { jss.setValueFromCoords(1,i,map[k],true); } }
+      for(var k2 in map){ baseline[parseInt(k2,10)]=map[k2]; } refreshOverrideStyles(); },
+  isStale:function(cell){ var st=jss.getStyle(cell); return /ffedd5|255,\s*237,\s*213/.test((st&&st['background-color'])||(typeof st==='string'?st:'')||''); },
+  deleteRow:function(idx){ jss.deleteRow(idx,1); },
+  data:function(){ return jss.getData(); }
+};
+init(null);
+</script>
+</body>
+</html>
