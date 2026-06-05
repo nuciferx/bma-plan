@@ -189,6 +189,15 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 **2026-05-15 (post I-B2b human-test):** filed as `HT-1` … `HT-5` directly into the active queue above (BROKEN at top, FRICTION/COSMETIC after Phase I row). Source: `bma-human-journey-tester` after iteration 2 (I-B2b). XLSX 404 noted by tester was a script-side endpoint mismatch (it is POST, tester used GET) — NOT an app issue, not filed.
 
+### bugs 2026-06-05
+
+- [ ] **BUG-20260605-lite-load-color-null** — `NEEDS-REPRO` — lite — source=bug-report (user)
+    - Symptom: opening `.bmaplan` (lite, app=`bma-plan-lite`) raised `ไฟล์ .bmaplan ไม่ถูกต้อง: Cannot read properties of null (reading 'color')`. Repro files: `PLOT B Floor Plan_Rev.2.bmaplan` + `.pdf` (21pg A1, native /Rotate=90).
+    - **Investigation 2026-06-05 (Opus):** could NOT reproduce on HEAD. Drove the real file-load path (set `#file-bma`) + `loadProto`+`afterPage`+`openReport`, both with and without the PDF opened, in headless lite via `server_lite.py` — all 6 cases loaded "21 หน้ามีข้อมูล", **0 page errors**. The `.bmaplan` is fully valid: `liteLayers` (6, all have `color`), `liteGroups` (PF_excluded), `reportVars` (3), all `pageStore` object arrays EMPTY (scale+tags only, nothing drawn).
+    - Secondary symptom "image rotated 90°" = **NOT a bug** — PyMuPDF confirms the PDF carries native `/Rotate 90` on every page; lite renders it faithfully.
+    - **Build confirmed:** user runs `lite/run.bat` → `python server_lite.py` from the live repo (NOT a frozen binary), so the running code == HEAD == the code proven to load this file cleanly. Therefore the fault is NOT in the in-repo source.
+    - **Revised hypothesis:** runtime-state, most likely (a) browser cached an OLDER `static/js/*.js` (the documented "E2E pass ≠ browser renders correctly / Chromium cached assets" anti-pattern) so the user's Chrome ran pre-fix JS, or (b) the `.bmaplan` on disk at error-time was an earlier corrupt version since overwritten by the good 2026-06-05 11:01 save. Next: user hard-refreshes (Ctrl+Shift+R) and retries; if it still throws, capture the real DevTools (F12) console stack so the exact `.color` line is known → only then escalate to a code sprint. No speculative code patch until a stack or a real repro exists.
+
 ### ideas 2026-06-04
 
 - [ ] **Inline-editable area values in lite report area list** — `invent-queued` — from /idea 2026-06-04
