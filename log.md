@@ -1,8 +1,46 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004) · [docs/archive/log-2026-05-21.md](docs/archive/log-2026-05-21.md) (BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series) · [docs/archive/log-2026-05-22.md](docs/archive/log-2026-05-22.md) (LITE-REPORT INV-2026-05-21-002) · [docs/archive/log-2026-05-24.md](docs/archive/log-2026-05-24.md) (LITE-BUG-2-OPUS47-FINDINGS) · [docs/archive/log-2026-05-25.md](docs/archive/log-2026-05-25.md) (LOVS-1 + LPFL-1 + INV-2026-05-25-001 + Centerline Snap arc + SIM-2) · [docs/archive/log-2026-07-02.md](docs/archive/log-2026-07-02.md) (SLICE report-edit-1 + invent lite-pdf-render-quality resumed+completed + paused / BUG-20260526-lite-stale-pf-folder-cleanup / LOVS-1 Lite Overview Setup wizard)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004) · [docs/archive/log-2026-05-21.md](docs/archive/log-2026-05-21.md) (BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series) · [docs/archive/log-2026-05-22.md](docs/archive/log-2026-05-22.md) (LITE-REPORT INV-2026-05-21-002) · [docs/archive/log-2026-05-24.md](docs/archive/log-2026-05-24.md) (LITE-BUG-2-OPUS47-FINDINGS) · [docs/archive/log-2026-05-25.md](docs/archive/log-2026-05-25.md) (LOVS-1 + LPFL-1 + INV-2026-05-25-001 + Centerline Snap arc + SIM-2) · [docs/archive/log-2026-07-02.md](docs/archive/log-2026-07-02.md) (BUG-20260702-lite-arc-summary / SLICE report-edit-1 + invent lite-pdf-render-quality resumed+completed + paused / BUG-20260526-lite-stale-pf-folder-cleanup / LOVS-1 Lite Overview Setup wizard)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-07-02 — AUDIT-20260702-infra-bundle (runner-preflight + export-caps + render-engine review) — PASS (branch: main)
+
+**What changed:** Same-day follow-on to the 2-bug measurement-accuracy audit (arc-summary + cfss-summary, both shipped earlier today). Three pieces of work, batched as one docs update: **Sprint A — AUDIT-20260702-runner-preflight** (commit `9c4c36e`): NEW `lite/tests/run_all_tests.py`, an aggregate test runner that discovers every `test_*.py` in `lite/tests/`, runs each standalone with a per-test timeout (default 420s), prints a summary table, and exits `LITE_RUN_ALL_OK`/`LITE_RUN_ALL_FAIL`. Options `--filter`/`--fail-fast`/`--timeout`. PREFLIGHT step fails fast on low disk (<2 GB on both the repo drive and the system drive — hardening from the 2026-07-02 `ENOSPC` incident where a full C: made Google Drive File Stream unable to hydrate any repo file, which had silently broken editing mid-session), missing `uvicorn`/`playwright`/`fitz`, or missing `node`. First full run: 60/60 tests PASS in 8.5 minutes (log at `artifacts/run_all_tests_20260702.log`). This closes the "no aggregate runner" gap flagged as follow-up item (4) in both audit bugs' `log.md` entries — previously every lite test had to be invoked individually, raising the risk of a silently-skipped regression test. **Sprint B — AUDIT-20260702-export-caps** (commit `60d424a`): `lite/server_lite.py` — S1: `/export-pdf-overlay` now validates the payload BEFORE rendering with 5 caps (`MAX_EXPORT_PAGES=2000`, `MAX_OBJECTS_PER_PAGE=500`, `MAX_ANNOTS_PER_PAGE=500`, `MAX_PTS_PER_OBJECT=2000`, `MAX_COORD_ABS=20000` — rejects NaN/inf coordinates), returning HTTP 400 with a detail message rather than silently truncating output or hanging; every cap set ≥10x the realistic worst case observed on the real 45-page permit PDF so no legitimate flow is blocked. Bonus find: this validation pass also fixes a latent HTTP 500 where a non-numeric page-key crashed `sorted(key=int)` before any cap check ran. S5: `/export-xlsx` gets a row cap `MAX_XLSX_ROWS=20000`. S2 (partial): `wb.save()` offloaded via `run_in_threadpool` — provably safe because it only touches pure local objects; the overlay-render offload was deliberately DEFERRED to a new card (`AUDIT-20260702-s2-fitz-lock`, filed below) because `/page/{n}` and `/thumb/{n}` are already `sync def` (threadpooled by FastAPI itself) and PyMuPDF `Document` objects are not thread-safe — naively wrapping the overlay-render endpoint the same way would allow concurrent `get_pixmap()` calls on the same `doc`, which is unsafe; the correct fix needs a per-case lock first. NEW `lite/tests/test_export_endpoints.py` (marker `LITE_EXPORT_ENDPOINTS_OK`, 14 checks) — the first real HTTP tests of either export endpoint (previously only client-side `dlPost` stubs existed, never exercising the server route): XLSX bytes are openable by `openpyxl` with sheet+row assertions, overlay output is a valid `%PDF` with the correct page count, oversize payloads (too many pages / points / objects) all return 400, malformed payloads (unknown `case_id`, non-numeric page key, a `1e12` coordinate) all return 400, and the XLSX row cap returns 400. The patch plan for both S1/S2/S5 was authored by an Opus reviewer agent (read-only) including a cap-justification table; the main agent applied the edits. **Review C — PDF render-engine accuracy review** (read-only, Opus agent; findings filed to `PHASE_INDEX.md`, zero code change): verdict is that the `PDFJS-VIEWPORT-CLIPPED` architecture (shipped 2026-05-28 via the `lite-pdf-render-quality` invent) is sound — the coordinate contract between the raster canvas and `ptToScreen`/`screenToPt` is algebraically exact when `V.rot` and `pgRot` are both 0 (residual ≈ ±0.5 device px, roughly 1 mm at working zoom or 30 mm at fit-to-page on a 1:100 A1 sheet — this is the click-precision floor of a mouse-driven canvas UI, not a measured-value error); intrinsic PDF `/Rotate` metadata is handled correctly; the stale-render token guard (`_renderToken`) is solid against race conditions; vector sharpness holds to roughly 4320 DPI effective, versus proto's fixed 108 DPI raster. The review surfaced one real BROKEN bug and filed one bundle of follow-up hardening cards (both below).
+
+**Why:** The two audit bugs fixed earlier today (arc-summary, cfss-summary) both independently flagged "no all-tests runner exists" and "export caps not stress-tested" as follow-up risks in their own `log.md` entries — this sprint closes both gaps same-day while the context was still fresh, rather than letting them queue indefinitely. The render-engine review was prompted by the same audit's broader theme (silent correctness bugs that don't show up as crashes) — since `lite`'s render path was substantially rewritten in the 2026-05-28 PDF.js migration, a focused accuracy review of the coordinate contract was due, and it surfaced a real registration bug (page rotation) that no existing test guards.
+
+**Files touched:**
+- `lite/tests/run_all_tests.py`: NEW — aggregate test runner, discovers + runs every `test_*.py`, per-test timeout, summary table, `LITE_RUN_ALL_OK`/`FAIL`, `--filter`/`--fail-fast`/`--timeout` options, disk/dependency PREFLIGHT
+- `lite/server_lite.py`: `/export-pdf-overlay` — pre-render payload validation (5 caps, HTTP 400 on violation, fixes latent 500 on non-numeric page key); `/export-xlsx` — `MAX_XLSX_ROWS=20000` row cap; `wb.save()` offloaded via `run_in_threadpool`
+- `lite/tests/test_export_endpoints.py`: NEW — `LITE_EXPORT_ENDPOINTS_OK` (14 checks), first real HTTP tests of both export endpoints
+- `docs/status/PHASE_INDEX.md`: bug `BUG-20260702-lite-pagerot-registration` filed + card `AUDIT-20260702-render-followups` filed + card `AUDIT-20260702-s2-fitz-lock` filed — already updated by the review/bug-filing step, not by this write
+
+**Tests:**
+```
+python lite/tests/test_export_endpoints.py           → LITE_EXPORT_ENDPOINTS_OK  PASS (NEW, 14/14 checks)
+python lite/tests/run_all_tests.py                    → LITE_RUN_ALL_OK          PASS (60/60 tests, 8.5 min, first full run)
+```
+Regression (partial full-suite run + targeted subset, both green): a partial full-suite pass covering 11 files, plus a targeted 9-file subset — `test_apply_page_mutations.py`, `test_pm_apply_flush_unified.py`, `test_metamorphic_pages.py`, `test_pdfjs_offline.py`, `test_summary_arc_parity.py`, `test_summary_cfss_parity.py`, `test_measure_parity.py`, `test_export_submenu.py`, `test_report.py` — all exit 0. `MEASURE_PARITY_OK` green confirms no vendored-math touch. Proto E2E n/a (lite-only sprint; zero `proto/` edits).
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `lite/static/js/measure-engine.js` (drift-locked vendored copy) UNCHANGED
+- ✅ `.bmaplan` schema version stays 1; no schema fields touched
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ Export caps set ≥10x realistic worst case — no legitimate flow blocked; caps reject with clear HTTP 400, never silently truncate
+- ✅ Review C is read-only — zero code changes; findings filed as tracked backlog cards, not applied directly
+
+**Known gaps / follow-ups:**
+- **BUG-20260702-lite-pagerot-registration (BROKEN, top priority, filed by Review C):** manual page rotate rotates the raster canvas but `ptToScreen`/`screenToPt` ignore `pgRot` — pre-existing geometry detaches from the visible plan by up to a page diagonal; geometry drawn while the page is rotated is stored bound to the un-rotated frame (correct area value, wrong on-screen location); export does not apply `pageRot` either. No test currently guards this. Needs `/bma-check-forbidden` before fixing — the fix likely touches `ptToScreen`/`screenToPt`, both coordinate-critical.
+- **AUDIT-20260702-render-followups (bundle, filed by Review C):** (1) no fallback from PDF.js failure to the legacy `/page/{n}` JPEG raster path — canvas goes blank today if PDF.js fails to load/render; (2) pan uses a single shared `_offCanvas` double-buffer cleared before the async render completes — likely blanks the canvas mid-drag on slow renders; (3) no scanned-PDF detection — vector sharpness gain is real for vector PDFs but a raster-scanned PDF gets zero benefit and no messaging tells the user; (4) the "13 MB" memory footprint claim in existing docs excludes the whole-PDF resident buffer plus an unbounded `pageCache` — needs correction; (5) no real overlay-registration Playwright test exists — the render-quality spike's 24/24 PASS was measured within PDF.js's own coordinate space only, never cross-checked against `ptToScreen`.
+- **AUDIT-20260702-s2-fitz-lock (filed by Sprint B):** the overlay-render offload for `/export-pdf-overlay` was deliberately deferred — needs a per-case `fitz` lock added first (PyMuPDF `Document` is not thread-safe) before the render step can safely move to a threadpool.
+- Export PDF output is still a 108-DPI PyMuPDF raster (unchanged from proto) even though the on-screen canvas is now vector-sharp via PDF.js — noted by Review C as a follow-on, not filed as its own card yet.
+- Older still-queued audit follow-on cards (calibration multi-sample / Verify-Scale port, `ptToScreen`/`screenToPt` into the drift-lock contract) remain queued below the 3 new items in `NEXT_ACTIONS.md`.
 
 ---
 
@@ -59,55 +97,8 @@ python lite/tests/test_overview_setup.py       → LITE_OVERVIEW_SETUP_OK    PAS
 
 ---
 
-## 2026-07-02 — BUG-20260702-lite-arc-summary — PASS (branch: main)
-
-**What changed:** Fixed a silent measurement-accuracy bug in lite where arc-edge polygon areas were correct in the per-object canvas label (`areaOf`, which uses `polyMetricsAnyShape`) but wrong in EVERY rollup consumer downstream — summary panel, XLSX export rows + summary sheet, annotated-PDF overlay labels, report rows/subtotal/net, layer-panel per-layer totals, and site-setup layer rollup. Root cause: 6 call sites passed `{pts:o.pts}` (a bare-pts stub, dropping `o.edges`) into `polyMetrics`, which computes the straight-chord polygon area instead of the arc-corrected area. Fix swaps the callee to `polyMetricsAnyShape(o,pg)` at all 6 sites: `lite/ui-lite.html:1049` (`computeSummary`), `lite/static/js/export-annotate.js:14` (`buildExportData`), `:27` (`exportPdfOverlay`), `:58` (`buildReportPayload`), `lite/static/js/layer-tree.js:62` (`_ltOwnArea`), `lite/static/js/overview-setup.js:642` (`_lovsLayerArea`). Zero edits to the drift-locked vendored `measure-engine.js`; `polyMetricsAnyShape` falls through to `polyMetrics` for non-arc polygons, so behavior for every non-arc object is byte-identical to before. Bug was found by `bma-bug-triager` (4 of the 6 sites) then widened to 6 by `bma-path-geometry-reviewer` specialist review (caught the 2 layer-panel sites). New guard test `lite/tests/test_summary_arc_parity.py` (marker `LITE_SUMMARY_ARC_OK`) asserts the invariant "every rollup consumer == Σ areaOf labels (arc-inclusive)" across all 6 consumers, using an independent closed-form fixture (10000 + 1250π ≈ 13926.99 m² arc room + plain 2000 m² room). Proven RED on pre-fix code via `git stash` (old code returned chord totals of 12000 while the per-object label still showed the correct 10000 for the arc room alone) then GREEN after the fix. Shipped as commit `e5264e2` on `main`.
-
-**Why:** User-facing measurement accuracy is the single most load-bearing property of this app (Phase 1 = raster measurement assistant). Curved rooms (any polygon using `o.edges` arc segments) were silently under-counted in every summary/export/report path while looking correct on the canvas — the worst kind of bug because there was no error, warning, or visual signal; only the final numbers were wrong. This is bug 1 of 2 filed from the 2026-07-02 measurement-accuracy audit; bug 2 (`BUG-20260702-lite-cfss-summary` — CFSS shared-shape instances excluded from totals) runs next via `/bma-bug-report`.
-
-**Files touched:**
-- `lite/ui-lite.html:1049`: `computeSummary` — `polyMetrics({pts:o.pts})` → `polyMetricsAnyShape(o,pg)`
-- `lite/static/js/export-annotate.js:14`: `buildExportData` — same callee swap
-- `lite/static/js/export-annotate.js:27`: `exportPdfOverlay` — same callee swap
-- `lite/static/js/export-annotate.js:58`: `buildReportPayload` — same callee swap
-- `lite/static/js/layer-tree.js:62`: `_ltOwnArea` — same callee swap (found by specialist review, not triage)
-- `lite/static/js/overview-setup.js:642`: `_lovsLayerArea` — same callee swap (found by specialist review, not triage)
-- `lite/tests/test_summary_arc_parity.py`: NEW — `LITE_SUMMARY_ARC_OK` guard test, independent closed-form fixture, proven RED→GREEN across the fix
-- `lite/tests/bug-archive.jsonl`: entry appended (fixed_commit `e5264e2`, status `fixed`) — already updated by the bug-report pipeline, not by this write
-- `docs/status/PHASE_INDEX.md`: row updated to ✅ done — already updated by the bug-report pipeline, not by this write
-
-**Tests:**
-```
-python lite/tests/test_summary_arc_parity.py   → LITE_SUMMARY_ARC_OK        PASS
-python lite/tests/test_measure_parity.py       → MEASURE_PARITY_OK          PASS (drift-lock intact)
-python lite/tests/test_arc_edge.py             → LITE_ARC_EDGE_OK           PASS
-python lite/tests/test_report.py               → PASS
-python lite/tests/test_report_vars.py          → LITE_REPORT_VARS_OK        PASS
-python lite/tests/test_report_vars_rollup.py   → LITE_REPORT_VARS_ROLLUP_OK PASS
-python lite/tests/test_export_submenu.py       → LITE_EXPORT_SUBMENU_OK     PASS
-python lite/tests/test_tree_rollup.py          → LITE_TREE_ROLLUP_OK        PASS
-python lite/tests/test_overview_setup.py       → LITE_OVERVIEW_SETUP_OK     PASS
-```
-All exit 0. Proto `py_compile + smoke + full` NOT re-run — lite-only change, zero `proto/` edits, no forbidden-trigger surface touched in proto (no-test rationale for the proto side).
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged (callee swap only, no edits to the functions themselves)
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
-- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
-- ✅ `lite/static/js/measure-engine.js` (drift-locked vendored copy) UNCHANGED
-- ✅ `.bmaplan` schema version stays 1; no schema fields touched
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ `lite/ui-lite.html` stayed within line cap (callee swap only, net-zero lines; cap 1,154/1,200)
-- ✅ MEASURE_SCOPE_OK verdict (geometry-core + export-impact, same single defect, atomic — not split)
-
-**Known gaps / follow-ups:**
-- **BUG-20260702-lite-cfss-summary** (queued next, same audit): CFSS shared-shape instances have no `.pts` of their own → skipped entirely by `computeSummary` → promoting a shared shape removes its source polygon from totals with no replacement. Runs next via `/bma-bug-report`.
-- Broader 2026-07-02 measurement-accuracy audit findings still to be filed as queued cards: (1) calibration relies on a single sample point with no multi-point averaging safety net, (2) export payload size caps not stress-tested against very large multi-page projects, (3) `ptToScreen` sits outside the drift-lock contract despite being coordinate-critical, (4) no single "run all lite tests" runner exists — each test file is invoked individually, raising the risk of a silently-skipped regression test.
-
----
-
-<!-- BUG-20260702-lite-cfss-summary + BUG-20260702-lite-arc-summary are the 2 sessions kept in this file -->
-<!-- SLICE report-edit-1 + invent lite-pdf-render-quality (resumed+completed) + invent lite-pdf-render-quality (paused) + BUG-20260526-lite-stale-pf-folder-cleanup + LOVS-1 archived to docs/archive/log-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint) -->
+<!-- AUDIT-20260702-infra-bundle + BUG-20260702-lite-cfss-summary are the 2 sessions kept in this file -->
+<!-- BUG-20260702-lite-arc-summary + SLICE report-edit-1 + invent lite-pdf-render-quality (resumed+completed) + invent lite-pdf-render-quality (paused) + BUG-20260526-lite-stale-pf-folder-cleanup + LOVS-1 archived to docs/archive/log-2026-07-02.md on 2026-07-02 (AUDIT-20260702-infra-bundle sprint) -->
 <!-- LPFL-1 + INV-2026-05-25-001 + Centerline Snap arc + SIM-2 archived to docs/archive/log-2026-05-25.md on 2026-05-26 -->
 <!-- LITE-BUG-2-OPUS47-FINDINGS (2026-05-24) archived to docs/archive/log-2026-05-24.md on 2026-05-25 (Centerline Snap sprint) -->
 <!-- LITE-REPORT (INV-2026-05-21-002, 2026-05-22) archived to docs/archive/log-2026-05-22.md on 2026-05-24 (SIM-2 sprint) -->

@@ -1,6 +1,71 @@
 # PATCH_SUMMARY.md Archive — 2026-06 sessions (archived 2026-07-02)
 
-> Archived from root PATCH_SUMMARY.md on 2026-07-02 (BUG-20260702-lite-arc-summary sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint) to keep root at Latest + 1 Previous.
+> Archived from root PATCH_SUMMARY.md on 2026-07-02 (BUG-20260702-lite-arc-summary sprint archived 2026-07-02 during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint) to keep root at Latest + 1 Previous.
+
+---
+
+# Previous: BUG-20260702-lite-arc-summary — Arc-edge polygon areas excluded from every rollup consumer
+
+Branch: main
+
+Date: 2026-07-02
+
+## Outcome: PASS — 6 rollup call sites (summary panel, XLSX export, annotated-PDF overlay, report, layer totals, site-setup rollup) were computing straight-chord area instead of arc-corrected area for arc-edge polygons; fixed by swapping to `polyMetricsAnyShape`; new guard test `LITE_SUMMARY_ARC_OK` proven RED→GREEN across the fix.
+
+## Summary
+
+Arc-edge polygon areas were correct on the per-object canvas label (`areaOf`, uses `polyMetricsAnyShape`) but silently wrong in EVERY downstream rollup — 6 call sites passed `{pts:o.pts}` (dropping `o.edges`) into `polyMetrics`, computing the straight-chord area instead. Fix swaps the callee to `polyMetricsAnyShape(o,pg)` at all 6 sites: `lite/ui-lite.html:1049` (`computeSummary`), `export-annotate.js:14/27/58`, `layer-tree.js:62`, `overview-setup.js:642`. Triage (`bma-bug-triager`) found 4 sites; specialist review (`bma-path-geometry-reviewer`) widened to 6. Zero edits to the drift-locked vendored `measure-engine.js`; non-arc behavior byte-identical. New `LITE_SUMMARY_ARC_OK` guard test asserts "every rollup consumer == Σ areaOf labels (arc-inclusive)" via an independent closed-form fixture, proven RED on pre-fix code (git stash) then GREEN after. Shipped commit `e5264e2`.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/ui-lite.html:1049` | `computeSummary` — `polyMetrics({pts:o.pts})` → `polyMetricsAnyShape(o,pg)` |
+| `lite/static/js/export-annotate.js:14` | `buildExportData` — same callee swap |
+| `lite/static/js/export-annotate.js:27` | `exportPdfOverlay` — same callee swap |
+| `lite/static/js/export-annotate.js:58` | `buildReportPayload` — same callee swap |
+| `lite/static/js/layer-tree.js:62` | `_ltOwnArea` — same callee swap (found by specialist review) |
+| `lite/static/js/overview-setup.js:642` | `_lovsLayerArea` — same callee swap (found by specialist review) |
+| `lite/tests/test_summary_arc_parity.py` | NEW — `LITE_SUMMARY_ARC_OK` guard test, closed-form fixture, RED→GREEN proof |
+| `lite/tests/bug-archive.jsonl` | Appended (fixed_commit `e5264e2`, status `fixed`) — via bug-report pipeline |
+| `docs/status/PHASE_INDEX.md` | Row updated to ✅ done — via bug-report pipeline |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only sprint; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED (callee swap only, function bodies untouched)
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `.bmaplan` schema version stays 1; no fields touched
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+- `lite/ui-lite.html` — stays within line cap (1,154/1,200)
+
+## Tests Run
+
+```
+python lite/tests/test_summary_arc_parity.py   → LITE_SUMMARY_ARC_OK        PASS
+python lite/tests/test_measure_parity.py       → MEASURE_PARITY_OK          PASS (drift-lock intact)
+python lite/tests/test_arc_edge.py             → LITE_ARC_EDGE_OK           PASS
+python lite/tests/test_report.py               → PASS
+python lite/tests/test_report_vars.py          → LITE_REPORT_VARS_OK        PASS
+python lite/tests/test_report_vars_rollup.py   → LITE_REPORT_VARS_ROLLUP_OK PASS
+python lite/tests/test_export_submenu.py       → LITE_EXPORT_SUBMENU_OK     PASS
+python lite/tests/test_tree_rollup.py          → LITE_TREE_ROLLUP_OK        PASS
+python lite/tests/test_overview_setup.py       → LITE_OVERVIEW_SETUP_OK     PASS
+```
+
+All exit 0. Proto py_compile + smoke + full NOT re-run. Lite-only sprint; proto zero edits; no forbidden-trigger surface touched.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged (callee swap only)
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `.bmaplan` schema — no change; version stays 1
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ `lite/static/js/measure-engine.js` UNCHANGED (drift-locked vendored copy)
+- ✅ `lite/ui-lite.html` stayed within line cap (1,154/1,200)
+- ✅ MEASURE_SCOPE_OK verdict (geometry-core + export-impact, atomic, not split)
 
 ---
 

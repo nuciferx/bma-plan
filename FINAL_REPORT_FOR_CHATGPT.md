@@ -4,7 +4,37 @@
 
 ---
 
-# Latest: BUG-20260702-lite-cfss-summary — PASS
+# Latest: AUDIT-20260702-infra-bundle — PASS
+
+**Date:** 2026-07-02
+**Branch:** main
+
+## Outcome
+
+PASS. Same-day follow-on to the 2-bug 2026-07-02 measurement-accuracy audit (both bugs already shipped earlier today, see Previous below). Three pieces batched into one docs update. **Sprint A (`9c4c36e`, AUDIT-20260702-runner-preflight):** NEW aggregate `lite/tests/run_all_tests.py` — discovers + runs every `test_*.py` with per-test timeout, summary table, `LITE_RUN_ALL_OK`/`FAIL`; PREFLIGHT fails fast on low disk (<2 GB, hardened after the 2026-07-02 ENOSPC incident) or missing dependencies. First full run: 60/60 PASS in 8.5 min. **Sprint B (`60d424a`, AUDIT-20260702-export-caps):** `/export-pdf-overlay` and `/export-xlsx` now validate payloads BEFORE rendering (5 caps, HTTP 400, no silent truncation, ≥10x realistic worst case; bonus fix for a latent 500). NEW `test_export_endpoints.py` (`LITE_EXPORT_ENDPOINTS_OK` 14/14) is the first real HTTP test of either export endpoint. **Review C (read-only, Opus agent):** render-engine coordinate contract verdict SOUND for the common case, but surfaces a real BROKEN bug (`BUG-20260702-lite-pagerot-registration` — manual page rotation desyncs stored geometry from the raster) plus a hardening bundle, both filed to `PHASE_INDEX.md` with zero code applied.
+
+## What was delivered
+
+- `lite/tests/run_all_tests.py` (NEW) — aggregate test runner with disk/dependency PREFLIGHT
+- `lite/server_lite.py` — export payload validation caps on `/export-pdf-overlay` + `/export-xlsx`; `wb.save()` offloaded via `run_in_threadpool`
+- `lite/tests/test_export_endpoints.py` (NEW) — first real HTTP tests of both export endpoints, `LITE_EXPORT_ENDPOINTS_OK` 14/14
+- `docs/status/PHASE_INDEX.md` — `BUG-20260702-lite-pagerot-registration` (BROKEN) + `AUDIT-20260702-render-followups` (bundle) + `AUDIT-20260702-s2-fitz-lock` filed by Review C / Sprint B
+- Shipped as commits `9c4c36e` + `60d424a` on `main`
+
+## What's next
+
+- **(1, top priority) `BUG-20260702-lite-pagerot-registration`** — manual page rotate desyncs stored geometry from the raster because `ptToScreen`/`screenToPt` ignore `pgRot`. Needs `/bma-check-forbidden` first — fix likely touches coordinate-critical functions.
+- **(2) `AUDIT-20260702-render-followups` bundle** — pdfjs-fail → JPEG fallback / pan double-buffer blanking / scanned-PDF detection messaging / memory-claim correction / real overlay-registration Playwright test.
+- **(3) `AUDIT-20260702-s2-fitz-lock`** — per-case PyMuPDF lock needed before the overlay-render step of `/export-pdf-overlay` can safely move to a threadpool.
+- Older queued audit follow-ons (calibration multi-sample, `ptToScreen`/`screenToPt` into the drift-lock set) remain queued below the 3 new items.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track, test/render infrastructure sub-track. Direct same-day follow-on to the 2-bug audit (arc-summary + cfss-summary, both shipped earlier 2026-07-02). No forbidden surface touched by Sprint A/B; Review C is read-only. `BUG-20260702-lite-pagerot-registration` is now the top of the queue — a real, previously-unguarded correctness bug in the 2026-05-28 PDF.js render migration.
+
+---
+
+# Previous: BUG-20260702-lite-cfss-summary — PASS
 
 **Date:** 2026-07-02
 **Branch:** main
@@ -29,37 +59,9 @@ PASS. Fixed bug 2 of 2 from the 2026-07-02 measurement-accuracy audit. CFSS (cro
 
 ## Position in Plan
 
-Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track. This closes the 2-bug audit initiated 2026-07-02 (bug 1 = `BUG-20260702-lite-arc-summary`, commits `e5264e2`+`e1a8e1c`; bug 2 = this sprint, commit `02e35af`). Bug-report pipeline (triage → specialist patch plan on Opus → fix → regression → this write-up) ran end-to-end without a stop-condition. No forbidden surface touched; no Phase 2 scope crossed. Next sprint: file the 5 remaining audit follow-on findings as individually scoped cards.
+Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track. This closes the 2-bug audit initiated 2026-07-02 (bug 1 = `BUG-20260702-lite-arc-summary`, commits `e5264e2`+`e1a8e1c`; bug 2 = this sprint, commit `02e35af`). Bug-report pipeline (triage → specialist patch plan on Opus → fix → regression → this write-up) ran end-to-end without a stop-condition. No forbidden surface touched; no Phase 2 scope crossed. Both items (2) and (4) of "what's next" here are now SHIPPED same-day by `AUDIT-20260702-infra-bundle` (see Latest above).
 
 ---
 
-# Previous: BUG-20260702-lite-arc-summary — PASS
-
-**Date:** 2026-07-02
-**Branch:** main
-
-## Outcome
-
-PASS. Fixed a silent measurement-accuracy bug: arc-edge polygon areas were correct on the per-object canvas label but wrong in EVERY downstream rollup — summary panel, XLSX export, annotated-PDF overlay, report, layer totals, and site-setup rollup all under-counted curved rooms because 6 call sites dropped `o.edges` when calling the area function. Fixed by swapping all 6 sites to the arc-aware `polyMetricsAnyShape`. A new guard test proves the bug was real (RED on pre-fix code) and that the fix is complete (GREEN post-fix, all 6 consumers now agree with the canvas label). Zero edits to the drift-locked vendored geometry engine; non-arc measurements are byte-identical to before. Bug 1 of 2 from the 2026-07-02 measurement-accuracy audit — bug 2 (CFSS shared-shape instances excluded from totals) shipped next as `BUG-20260702-lite-cfss-summary`.
-
-## What was delivered
-
-- `lite/ui-lite.html:1049`, `lite/static/js/export-annotate.js:14/27/58`, `lite/static/js/layer-tree.js:62`, `lite/static/js/overview-setup.js:642` — 6 callee swaps: `polyMetrics({pts:o.pts})` → `polyMetricsAnyShape(o,pg)`
-- `lite/tests/test_summary_arc_parity.py` (NEW) — `LITE_SUMMARY_ARC_OK` guard test, independent closed-form fixture, proven RED→GREEN across the fix
-- `lite/tests/bug-archive.jsonl` — entry appended (fixed_commit `e5264e2`, status `fixed`) via the bug-report pipeline
-- `docs/status/PHASE_INDEX.md` — row updated to ✅ done via the bug-report pipeline
-- Shipped as commit `e5264e2` on `main`
-
-## What's next
-
-- **(1)** `BUG-20260702-lite-cfss-summary` — CFSS shared-shape instances have no `.pts` of their own, so `computeSummary` skips them entirely; promoting a shared shape removes its source polygon from totals with no replacement. SHIPPED same day (see Latest above).
-- **(2)** File the remaining 2026-07-02 measurement-accuracy audit findings as queued cards: calibration single-sample risk, export payload size stress-testing, `ptToScreen` outside the drift-lock contract, no all-tests runner for lite.
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track. Part of a 2-bug audit initiated 2026-07-02; this is bug 1 of 2. Bug-report pipeline (triage → specialist review widened scope from 4 to 6 sites → fix → regression → this write-up) ran end-to-end without a stop-condition. No forbidden surface touched; no Phase 2 scope crossed.
-
----
-
-<!-- SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint) -->
+<!-- BUG-20260702-lite-arc-summary (2026-07-02) + SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (AUDIT-20260702-infra-bundle sprint) -->
 <!-- SIM-2 (2026-05-24) and older reports archived to docs/archive/reports-2026-05-09.md -->
