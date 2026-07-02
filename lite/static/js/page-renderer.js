@@ -148,6 +148,63 @@ async function _loadPdfjsLib() {
   return _pdfjsPromise;
 }
 
+/* ---- raster fallback (render-followups (a)) ----
+ * If PDF.js is unavailable (both local vendor and CDN fail, or the doc is
+ * one PyMuPDF opens but PDF.js rejects), fall back to the server JPEG path
+ * instead of a blank canvas + alert. curImg (HTMLImageElement) holds the
+ * server-rendered raster; _drawImage gets a dedicated branch for it.
+ * Measurement stays fully functional — only zoom sharpness is raster-limited. */
+var _forceRasterFallback = false;   // test hook via PageRenderer._test_forceRasterFallback
+
+async function _rasterFallbackLoad(n, sn) {
+  if (!caseId) throw new Error("no case for raster fallback");
+  var info = await (await fetch(api("/pageinfo/" + sn))).json();
+  if (!info || !info.w_pt) throw new Error("pageinfo failed");
+  var rot = pageRot[n] || 0;
+  var img = new Image();
+  await new Promise(function (res, rej) {
+    img.onload = res;
+    img.onerror = function () { rej(new Error("raster fetch failed")); };
+    img.src = api("/page/" + sn) + "&rot=" + rot;
+  });
+  curImg = img;
+  pageDims[n] = { w: info.w_pt, h: info.h_pt };
+  pageData = { size: { orig_w_pt: info.w_pt, orig_h_pt: info.h_pt } };
+  console.warn("[page-renderer] pdfjs unavailable — raster fallback for page " + n);
+}
+
+/* ---- scanned-page detection + re-render scale cap (render-followups (c)) ----
+ * Image-only pages gain no sharpness from PDF.js re-render beyond the embedded
+ * image's native resolution — but they DO pay the full re-raster CPU at every
+ * zoom. Detect image-only pages from the (already cached post-render) operator
+ * list and cap the render scale; the transform compensates (up = want/use) so
+ * raster↔overlay registration is unchanged, only resolution is capped. */
+var _scanned = {};                          // n -> true | false | null(pending)
+var _scannedHinted = {};
+var SCANNED_MAX_SCALE = RS * 4;             // ≈ 432 DPI — above typical 300 DPI scans
+
+async function _detectScanned(n) {
+  if (!pageCache[n] || !_pdfjsLib) { _scanned[n] = undefined; return; }
+  try {
+    var ops = await pageCache[n].getOperatorList();   // cached after first render
+    var OPS = _pdfjsLib.OPS;
+    var imgs = 0, paths = 0, texts = 0;
+    for (var i = 0; i < ops.fnArray.length; i++) {
+      var f = ops.fnArray[i];
+      if (f === OPS.paintImageXObject || f === OPS.paintInlineImageXObject ||
+          f === OPS.paintJpegXObject) imgs++;
+      else if (f === OPS.constructPath) paths++;
+      else if (f === OPS.showText || f === OPS.showSpacedText) texts++;
+    }
+    _scanned[n] = (imgs >= 1 && paths === 0 && texts === 0);
+    if (_scanned[n] && !_scannedHinted[n]) {
+      _scannedHinted[n] = true;
+      showLoading("หน้านี้เป็นภาพสแกน — ความคมจำกัดที่ความละเอียดต้นฉบับ");
+      setTimeout(hideLoading, 2200);
+    }
+  } catch (_) { _scanned[n] = false; }
+}
+
 /* ---- warm-up: preload pdf.js + spin the worker at idle (PERF-20260702) ----
  * The first real open pays a flat ~1.2 s for library import + worker fetch/
  * compile. Firing it at app-idle moves that cost off the user's open action.
@@ -336,6 +393,7 @@ async function loadPage(n) {
   }
   showLoading("กำลังโหลดหน้า " + n + " / " + pageCount + "…");
   try {
+    if (_forceRasterFallback) throw new Error("forced raster fallback (test hook)");
     var lib = await _loadPdfjsLib();
     // Reload PDF document if case changed or not yet loaded
     if (!pdfDoc || pdfDocCaseId !== caseId) {
@@ -371,8 +429,18 @@ async function loadPage(n) {
       requestIdleCallback(function () { _prefetchAdjacent(n); }, { timeout: 2000 });
     else setTimeout(function () { _prefetchAdjacent(n); }, 250);
   } catch (err) {
-    hideLoading();
-    alert("โหลดหน้า " + n + " ไม่ได้\n" + (err && err.message ? err.message : err));
+    try {
+      await _rasterFallbackLoad(n, sn);
+      hideLoading();
+      fit();
+      afterPage();
+      showLoading("โหมดภาพสำรอง (ตัวแสดงผล PDF หลักใช้ไม่ได้) — วัดได้ตามปกติ");
+      setTimeout(hideLoading, 2000);
+      return;
+    } catch (err2) {
+      hideLoading();
+      alert("โหลดหน้า " + n + " ไม่ได้\n" + (err && err.message ? err.message : err));
+    }
   }
 }
 
@@ -396,11 +464,15 @@ async function _render(myToken) {
   // user/page rotation via the rotation arg. T is translate-only — places
   // the rendering at canvas (V.ox, V.oy).
   var thetaUser = ((Vsnap.rot + pgRot) % 360 + 360) % 360;
-  var scale     = RS * Vsnap.k;
+  var want      = RS * Vsnap.k;
+  // Scanned pages: cap the raster scale; compensate in T (up) so geometry/
+  // registration is IDENTICAL — only resolution is capped (it's a scan).
+  var scale     = (_scanned[curPage] === true && want > SCANNED_MAX_SCALE) ? SCANNED_MAX_SCALE : want;
+  var up        = want / scale;
   var viewport  = cp.getViewport({ scale: scale, rotation: thetaUser });
 
   var dpr = window.devicePixelRatio || 1;
-  var T = [dpr, 0, 0, dpr, Vsnap.ox * dpr, Vsnap.oy * dpr];
+  var T = [dpr * up, 0, 0, dpr * up, Vsnap.ox * dpr, Vsnap.oy * dpr];
 
   if (myToken !== _renderToken) return; // stale
 
@@ -428,6 +500,11 @@ async function _render(myToken) {
 
   _cachedV = { k: Vsnap.k, ox: Vsnap.ox, oy: Vsnap.oy, rot: Vsnap.rot, pgRot: pgRot, page: curPage };
   _cachedKey = _stateKey();
+
+  if (_scanned[curPage] === undefined) {
+    _scanned[curPage] = null;                       // pending — no re-entry
+    _detectScanned(curPage);
+  }
 
   requestAnimationFrame(function() { if (typeof draw === "function") draw(); });
 }
@@ -457,6 +534,22 @@ async function _render(myToken) {
 function _drawImage(ctx_ignored) {
   if (!_ready()) return;
   var dpr = window.devicePixelRatio || 1;
+
+  // Raster-fallback branch: server JPEG in curImg (image px = pt*RS with pgRot
+  // baked via ?rot) drawn with the same view transform ptToScreen uses.
+  // instanceof guard keeps legacy test shims (curImg = dummy truthy) harmless.
+  if (!pdfDoc && typeof HTMLImageElement !== "undefined" && curImg instanceof HTMLImageElement) {
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(V.ox, V.oy);
+    ctx.rotate(V.rot * Math.PI / 180);
+    ctx.scale(V.k, V.k);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(curImg, 0, 0);
+    ctx.restore();
+    return;
+  }
 
   // ---- Phase 1: blit cached _offCanvas with diff-transform (smooth) ----
   //
@@ -526,6 +619,9 @@ function _resetCache() {
   pageDims     = {};
   _pageLru     = [];
   pageRot      = {};
+  curImg       = null;
+  _scanned     = {};
+  _scannedHinted = {};
   _cachedV     = null;
   _cachedKey   = null;
   if (_offCanvas) {
@@ -543,5 +639,7 @@ window.PageRenderer = {
   ready:      _ready,
   openLocal:  _openLocal,
   adoptCase:  _adoptCase,
-  warmThumbs: _warmThumbs
+  warmThumbs: _warmThumbs,
+  _test_forceRasterFallback: function (v) { _forceRasterFallback = !!v; },
+  _test_scanned: function () { return _scanned; }
 };
