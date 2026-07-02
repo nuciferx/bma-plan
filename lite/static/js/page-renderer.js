@@ -48,6 +48,19 @@ var pdfDocCaseId = null;   // caseId for which pdfDoc was loaded
 var pageCache    = {};     // n → PDFPageProxy
 var pageDims     = {};     // n → {w, h}  (PDF-pt dimensions, un-rotated) — tiny, never evicted
 
+/* ---- worker-recycle state (PERF-20260703) ----
+ * _docWorker is the explicit pdf.js PDFWorker that owns pdfDoc — created
+ * explicitly (rather than letting getDocument spin up an implicit one) so
+ * recycleDocWorker() can terminate it deterministically. _docSource retains
+ * a cheap re-open handle WITHOUT keeping the big buffer resident: the local
+ * File/Blob for the local-first path (zero-network reinit), or just the
+ * caseId for the /raw path (reinit = one refetch). See recycleDocWorker()
+ * and _reinitDoc() below for the full rationale. */
+var _docWorker = null;   // explicit PDFWorker instance owning pdfDoc
+var _docSource = null;   // {kind:"blob", blob} | {kind:"url", caseId} | null
+var _recycled  = false;  // true after recycleDocWorker(), cleared by _reinitDoc
+var _recycling = false;  // guard: a recycle is already in progress
+
 /* ---- page-cache LRU (PERF-20260702) ----
  * PDFPageProxy retains operator lists + decoded images per page; measured
  * ~75 MB/page on a real 91 MB A1 binder (766 MB heap after 10 of 95 pages).
@@ -243,6 +256,92 @@ function _prefetchAdjacent(n) {
   });
 }
 
+/* ---- worker recycle: PERF-20260703 memory release ----
+ * Spike (docs/invent/lite-range-streaming.md, 2026-07-03; artifacts in
+ * lite/sandbox/invent-range-streaming/) confirmed pdf.js bug #10730 on
+ * 4.0.379: pdfDoc.destroy() frees the MAIN-THREAD heap only — the worker
+ * thread's commonObjs/render heap (~1.5 GB measured on a 95 MB binder)
+ * survives destroy() and is reclaimed ONLY by terminating the worker
+ * itself. Range-streaming was spiked as the memory fix and rejected
+ * (-10% RSS vs the -50% GO bar; see results.md) — this is the named
+ * RESHAPE fallback: recycle pdfDoc + the explicit worker on idle / tab-away,
+ * then lazily reinit via _reinitDoc() on the next page visit.
+ *
+ * recycleDocWorker() KEEPS pageDims/pageRot/_scanned — cheap metadata, not
+ * pdf.js-owned memory — so fit()/registration/scanned-cap stay correct
+ * across a recycle with no re-detection needed. It does NOT touch
+ * measurement state (PS lives in ui-lite.html).
+ *
+ * Guards (all return false / no-op, never throw): a render in flight
+ * (_pendingRenderTask — never interrupts a live paint), a recycle already
+ * running, nothing loaded, or no _docSource to reinit from later (recycling
+ * would strand the app with no way back).
+ */
+async function recycleDocWorker() {
+  if (_recycling) return false;
+  if (_pendingRenderTask) return false;      // never interrupt a live render
+  if (!pdfDoc && !_docWorker) return false;  // nothing loaded to recycle
+  if (!_docSource) return false;             // no way to reinit later — skip
+  _recycling = true;
+  try {
+    if (pdfDoc) { try { await pdfDoc.destroy(); } catch (_) {} }
+    if (_docWorker) { try { _docWorker.destroy(); } catch (_) {} }
+    pdfDoc       = null;
+    _docWorker   = null;
+    pdfDocCaseId = null;
+    pageCache    = {};
+    _pageLru     = [];
+    _cachedV     = null;
+    _cachedKey   = null;
+    _recycled    = true;
+    if (_offCanvas) _offCanvas.width = 0;   // drop the stale bitmap too
+    _clearIdleTimer();
+    _clearHiddenTimer();
+  } finally {
+    _recycling = false;
+  }
+  return true;
+}
+
+/* ---- recycle triggers ----
+ * (a) tab hidden ≥60 s        — a background/minimized tab gains nothing
+ *     from holding the worker heap.
+ * (b) idle ≥5 min AND pageCount>20 — small docs aren't worth the reinit
+ *     cost; only worth it on the big binders the spike targeted.
+ * Timers are armed lazily (only while pdfDoc is loaded) and cancelled on
+ * real activity/visibility events rather than polling — cheap by design.
+ */
+var IDLE_RECYCLE_MS   = 5 * 60 * 1000;   // 5 min
+var HIDDEN_RECYCLE_MS = 60 * 1000;       // 60 s
+var IDLE_MIN_PAGES    = 20;              // small docs not worth recycling
+
+var _idleTimer   = null;
+var _hiddenTimer = null;
+
+function _clearIdleTimer() { if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; } }
+function _clearHiddenTimer() { if (_hiddenTimer) { clearTimeout(_hiddenTimer); _hiddenTimer = null; } }
+
+function _armIdleTimer() {
+  _clearIdleTimer();
+  if (!pdfDoc || pageCount <= IDLE_MIN_PAGES) return;
+  _idleTimer = setTimeout(function () { recycleDocWorker(); }, IDLE_RECYCLE_MS);
+}
+
+// loadPage()/_render() call this on real activity — re-arms the idle timer.
+function _touchActivity() { _armIdleTimer(); }
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      _clearHiddenTimer();
+      _hiddenTimer = setTimeout(function () { recycleDocWorker(); }, HIDDEN_RECYCLE_MS);
+    } else {
+      _clearHiddenTimer();
+      _touchActivity();
+    }
+  });
+}
+
 /* ---- thumbnail warm (PERF-20260702 companion 6) ----
  * After the case lands on the server, fetch thumbs SEQUENTIALLY at low
  * priority so the overview opens hot (measured ~200 ms/thumb cold, instant
@@ -364,14 +463,52 @@ function fit() {
  * during the background-upload window; loadPage's guard accepts a loaded
  * pdfDoc as ready. adoptCase(cid) binds the already-loaded doc to the case
  * id once the upload completes so the next loadPage does NOT refetch /raw. */
-async function _openLocal(buf) {
+async function _openLocal(buf, srcBlob) {
   var lib = await _loadPdfjsLib();
   _resetCache();
-  pdfDoc       = await lib.getDocument({ data: buf }).promise;
+  _docWorker   = new lib.PDFWorker({ name: "bma-doc" });
+  pdfDoc       = await lib.getDocument({ data: buf, worker: _docWorker }).promise;
   pdfDocCaseId = caseId || null;   // null while the background upload is in flight
+  // srcBlob (the original File) lets a later recycle reinit with ZERO network
+  // fetch. Backward-compat: callers that omit srcBlob still recycle fine once
+  // adoptCase(cid) supplies a caseId to fall back to /raw for reinit.
+  _docSource   = srcBlob ? { kind: "blob", blob: srcBlob }
+               : (caseId ? { kind: "url", caseId: caseId } : null);
+  _recycled    = false;
   return pdfDoc.numPages;
 }
-function _adoptCase(cid) { if (pdfDoc) pdfDocCaseId = cid; }
+function _adoptCase(cid) {
+  if (pdfDoc) pdfDocCaseId = cid;
+  if (!_docSource) _docSource = { kind: "url", caseId: cid };
+  else if (_docSource.kind === "url") _docSource.caseId = cid;
+}
+
+/* ---- _reinitDoc: (re)build pdfDoc + a fresh explicit worker (PERF-20260703) ----
+ * Used both for the FIRST /raw load and to lazily reinit after
+ * recycleDocWorker() tore the worker down. Prefers the retained local Blob
+ * (_docSource.kind==="blob" — zero network, the whole point of local-first)
+ * and falls back to a /raw refetch when only a caseId is known. Deliberately
+ * does NOT touch pageDims/pageRot/_scanned — those are cheap metadata kept
+ * across a recycle so fit()/registration stay correct without a re-fetch.
+ */
+async function _reinitDoc(lib) {
+  _docWorker = new lib.PDFWorker({ name: "bma-doc" });
+  var buf;
+  if (_docSource && _docSource.kind === "blob") {
+    buf = await _docSource.blob.arrayBuffer();
+  } else {
+    var cid = (_docSource && _docSource.kind === "url") ? _docSource.caseId : caseId;
+    var resp = await fetch("/raw?case_id=" + cid);
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    buf = await resp.arrayBuffer();
+  }
+  pdfDoc       = await lib.getDocument({ data: buf, worker: _docWorker }).promise;
+  pdfDocCaseId = caseId;
+  pageCache    = {};
+  _pageLru     = [];
+  _recycled    = false;
+  if (!_docSource) _docSource = caseId ? { kind: "url", caseId: caseId } : null;
+}
 
 /* ---- loadPage: fetch PDF via /raw, render with PDF.js, call afterPage ----
  * FIX-B3: display index n maps to server page via pageMgr.serverNum(n) when
@@ -395,16 +532,11 @@ async function loadPage(n) {
   try {
     if (_forceRasterFallback) throw new Error("forced raster fallback (test hook)");
     var lib = await _loadPdfjsLib();
-    // Reload PDF document if case changed or not yet loaded
+    // Reload PDF document if case changed, recycled away, or not yet loaded.
+    // _reinitDoc prefers the retained local blob (zero /raw fetch) and only
+    // falls back to a /raw refetch when no blob was kept — see _docSource.
     if (!pdfDoc || pdfDocCaseId !== caseId) {
-      var resp = await fetch("/raw?case_id=" + caseId);
-      if (!resp.ok) throw new Error("HTTP " + resp.status);
-      var buf  = await resp.arrayBuffer();
-      pdfDoc       = await lib.getDocument({ data: buf }).promise;
-      pdfDocCaseId = caseId;
-      pageCache    = {};
-      pageDims     = {};
-      _pageLru     = [];
+      await _reinitDoc(lib);
     }
     // Cache the PDFPageProxy — keyed by SERVER page number (sn), not display index
     if (!pageCache[sn]) {
@@ -422,6 +554,7 @@ async function loadPage(n) {
     _touchPage(sn);
     if (n !== sn) _touchPage(n);
     pageData = { size: { orig_w_pt: pageDims[n].w, orig_h_pt: pageDims[n].h } };
+    _touchActivity();  // PERF-20260703: page visits reset the idle-recycle timer
     hideLoading();
     fit();
     afterPage();
@@ -456,6 +589,7 @@ async function loadPage(n) {
 async function _render(myToken) {
   var cp = pageCache[curPage];
   if (!cp || !pageDims[curPage] || !_offCanvas) return;
+  _touchActivity();  // PERF-20260703: renders reset the idle-recycle timer
 
   var Vsnap = { k: V.k, ox: V.ox, oy: V.oy, rot: V.rot };
   var pgRot = pageRot[curPage] || 0;
@@ -613,8 +747,16 @@ function _resetCache() {
   }
   _renderToken++;
   _thumbWarmToken++;
+  // PERF-20260703: we now own an explicit worker per doc — tear it down here
+  // too, or every new upload/loadProject would orphan one (worse than the
+  // implicit-worker leak this whole sprint exists to fix).
+  if (pdfDoc) { try { pdfDoc.destroy(); } catch (_) {} }
+  if (_docWorker) { try { _docWorker.destroy(); } catch (_) {} }
   pdfDoc       = null;
   pdfDocCaseId = null;
+  _docWorker   = null;
+  _docSource   = null;
+  _recycled    = false;
   pageCache    = {};
   pageDims     = {};
   _pageLru     = [];
@@ -624,6 +766,8 @@ function _resetCache() {
   _scannedHinted = {};
   _cachedV     = null;
   _cachedKey   = null;
+  _clearIdleTimer();
+  _clearHiddenTimer();
   if (_offCanvas) {
     _offCanvas.width = 0;  // also clears
   }
@@ -640,6 +784,7 @@ window.PageRenderer = {
   openLocal:  _openLocal,
   adoptCase:  _adoptCase,
   warmThumbs: _warmThumbs,
+  recycleNow: recycleDocWorker,   // PERF-20260703: manual/test trigger for worker recycle
   _test_forceRasterFallback: function (v) { _forceRasterFallback = !!v; },
   _test_scanned: function () { return _scanned; }
 };

@@ -380,7 +380,7 @@ async function uploadPdf(file){
   // server upload runs in the background (thumbs/export/mutations need it).
   var localOk=false;
   try{ showLoading("กำลังเปิด PDF…");
-    var n=await PageRenderer.openLocal(await file.arrayBuffer());
+    var n=await PageRenderer.openLocal(await file.arrayBuffer(), file);
     if(n>0){ pdfName=file.name; pageCount=n; PS={}; excluded={};
       document.getElementById("empty").style.display="none";
       curPage=1; await loadPage(1); _pmSeed(undefined); localOk=true; }
