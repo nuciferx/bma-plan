@@ -4,7 +4,77 @@
 
 ---
 
-# Latest: BUG-20260702-lite-arc-summary — Arc-edge polygon areas excluded from every rollup consumer
+# Latest: BUG-20260702-lite-cfss-summary — CFSS shared-shape instances excluded from every rollup consumer + export crash
+
+Branch: main
+
+Date: 2026-07-02
+
+## Outcome: PASS — Bug 2 of 2 from the 2026-07-02 measurement-accuracy audit. CFSS shared-shape instances (`{kind:'instance', masterId, offsetPt}`) had no `.pts`/`.catId` and were skipped by every area rollup — promoting a poly to a shared shape silently removed its area from all totals. Worse: `buildExportData`/`exportPdfOverlay` called `catOf(o.catId)` BEFORE the kind guard → TypeError → XLSX and annotated-PDF export crashed outright on any page with an instance. Fixed by passing `{catId, semanticTag}` into `addMaster` at promote time + new `rollupAreaM2`/`rollupCatId` dispatch helpers; new guard test `LITE_SUMMARY_CFSS_OK` proven RED→GREEN.
+
+## Summary
+
+Root cause: `cfssCommitPromote` called `addMaster()` without the `opts` arg, so masters never captured `catId`/`semanticTag`. Fix (commit `02e35af`): (1) promote passes `{catId, semanticTag}` to `addMaster` — additive master schema, persists for free via existing masters serialization in `cfssWrapSave`/`cfssWrapLoad`; legacy pre-fix masters → `rollupCatId` returns `null` → instance skipped from bucket totals safely with a one-time `console.warn`, no crash, no migration UI. (2) NEW helpers `rollupAreaM2(o,pg)` + `rollupCatId(o)` in `cross-floor-shapes.js` co-located with `instanceAreaM2` (single dispatch helper instead of 6 per-site branches — the arc-bug postmortem lesson); `typeof`-guarded at every consumer because `cross-floor-shapes.js` is dynamically injected AFTER `layer-tree.js`/`export-annotate.js` load. (3) Rewired 6 rollup sites — `computeSummary`, `buildExportData`, `exportPdfOverlay` (instances now export as resolved-pts poly overlays via `resolveInstancePts`), `buildReportPayload`, `_ltOwnArea`, `_lovsLayerArea` — and fixed the 2 crash sites (`catOf` moved after `catId` resolution, null-safe). Patch plan by `bma-path-geometry-reviewer` running on Opus (user-requested model override). New guard test `lite/tests/test_summary_cfss_parity.py` (`LITE_SUMMARY_CFSS_OK`) exercises the REAL promote flow (`__cfssTestPromote`) then asserts all 6 consumers report ground truth 2100 m² and both export builders do not throw; proven RED on pre-fix code via `git stash` (totals 2000, `master_has_catId` false, `edThrew`/`ovThrew` true).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/cross-floor-shapes.js` | `cfssCommitPromote` passes `{catId, semanticTag}` to `addMaster`; NEW `rollupAreaM2(o,pg)` + `rollupCatId(o)` helpers |
+| `lite/ui-lite.html:1049` | `computeSummary` — rewired to rollup helpers, line-neutral |
+| `lite/static/js/export-annotate.js` | `buildExportData`/`exportPdfOverlay` — rewired + crash fix (catOf moved after catId resolution); `buildReportPayload` — instances in rows/subtotal/net |
+| `lite/static/js/layer-tree.js` | `_ltOwnArea` — rewired to rollup helpers |
+| `lite/static/js/overview-setup.js` | `_lovsLayerArea` — rewired to rollup helpers |
+| `lite/tests/test_summary_cfss_parity.py` | NEW — `LITE_SUMMARY_CFSS_OK` guard test, real promote flow, RED→GREEN proof |
+| `lite/tests/bug-archive.jsonl` | Appended (fixed_commit `02e35af`) — via bug-report pipeline |
+| `docs/status/PHASE_INDEX.md` | Row updated to ✅ done — via bug-report pipeline |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only sprint; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
+- `.bmaplan` schema version stays 1; master `catId`/`semanticTag` is additive only
+- `lite/ui-lite.html` — stays under line cap (line-neutral edit)
+
+## Tests Run
+
+```
+python lite/tests/test_summary_cfss_parity.py  → LITE_SUMMARY_CFSS_OK       PASS (NEW)
+python lite/tests/test_cfss_model.py           → LITE_CFSS_MODEL_OK        PASS
+python lite/tests/test_cfss_persist.py         → LITE_CFSS_PERSIST_OK      PASS
+python lite/tests/test_cfss_drag.py            → LITE_CFSS_DRAG_OK         PASS
+python lite/tests/test_cfss_edit.py            → LITE_CFSS_EDIT_OK         PASS
+python lite/tests/test_cfss_ui.py              → LITE_CFSS_UI_OK           PASS
+python lite/tests/test_cfss_rightclick_menu.py → LITE_CFSS_RIGHTCLICK_MENU_OK PASS
+python lite/tests/test_summary_arc_parity.py   → LITE_SUMMARY_ARC_OK       PASS (bug-1 guard stays green)
+python lite/tests/test_measure_parity.py       → MEASURE_PARITY_OK         PASS (drift-lock intact)
+python lite/tests/test_arc_edge.py             → LITE_ARC_EDGE_OK          PASS
+python lite/tests/test_report.py               → PASS
+python lite/tests/test_report_vars_rollup.py   → LITE_REPORT_VARS_ROLLUP_OK PASS
+python lite/tests/test_export_submenu.py       → LITE_EXPORT_SUBMENU_OK    PASS
+python lite/tests/test_tree_rollup.py          → LITE_TREE_ROLLUP_OK       PASS
+python lite/tests/test_overview_setup.py       → LITE_OVERVIEW_SETUP_OK    PASS
+```
+
+14/14 exit 0. Proto py_compile + smoke + full NOT re-run. Lite-only sprint; proto zero edits; no forbidden-trigger surface touched.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `.bmaplan` schema — additive only (master `catId`/`semanticTag`); version stays 1
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ `lite/static/js/measure-engine.js` UNCHANGED (drift-locked vendored copy)
+- ✅ `lite/ui-lite.html` stays under line cap (line-neutral edit)
+- ✅ MEASURE_SCOPE_OK verdict (geometry-core + export-impact + additive schema, atomic, not split)
+
+---
+
+# Previous: BUG-20260702-lite-arc-summary — Arc-edge polygon areas excluded from every rollup consumer
 
 Branch: main
 
@@ -69,65 +139,5 @@ All exit 0. Proto py_compile + smoke + full NOT re-run. Lite-only sprint; proto 
 
 ---
 
-# Previous: SLICE report-edit-1 — Editable lite report
-
-Branch: main
-
-Date: 2026-06-05
-
-## Outcome: PASS — Editable lite report shipped — vendored jspreadsheet-ce grid + custom Excel-style cell-click formula picker + stable-row-id subtotal mapper + NaN-guard; LITE_REPORT_EDIT_OK 7/7.
-
-## Summary
-
-New module `lite/static/js/report-edit.js` (404 LOC) wraps jspreadsheet-ce CE with a custom formula picker (cell-click-while-editing UX that CE lacks), a stable-row-id subtotal mapper (deleting a referenced row drops the term + raises a red flag instead of silently shifting), and render/persist/provenance helpers (stale detection, NaN-guard, localStorage v1). jspreadsheet-ce + jsuites vendored offline (~440 KB, MIT). `lite/lite-report.html` gains 46 lines for the override-overlay toggle and grid mount. Full test suite: LITE_REPORT_EDIT_OK 7/7. Zero proto/ edits; all forbidden surfaces untouched.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/static/js/report-edit.js` | NEW 404 LOC — formula picker + stable-row-id mapper + render/persist/provenance + NaN-guard |
-| `lite/lite-report.html` | +46 lines — override-overlay toggle, grid mount, 4 vendor tags |
-| `lite/static/js/vendor/jspreadsheet.min.js` | NEW vendored MIT jspreadsheet-ce |
-| `lite/static/js/vendor/jspreadsheet.min.css` | NEW vendored MIT |
-| `lite/static/js/vendor/jsuites.min.js` | NEW vendored MIT jsuites peer dep |
-| `lite/static/js/vendor/jsuites.min.css` | NEW vendored MIT |
-| `lite/tests/test_report_edit.py` | NEW 245 LOC — 7-case Playwright, marker LITE_REPORT_EDIT_OK |
-| `docs/invent/lite-editable-report.md` | NEW — full invent record (PICK/RESEARCH/FRAME/DIVERGE/SCORE/SPIKE + 3 RESHAPE) |
-| `.claude/skills/lite-spike-iterate/SKILL.md` | NEW — SPIKE→EVAL→fix iteration loop skill |
-| `docs/status/PHASE_INDEX.md` | +11 lines — 2 idea entries under ### ideas 2026-06-04 |
-| `lite/sandbox/invent-lite-editable-report*.{html,py}` | NEW spike artifacts (5 HTML + 5 eval scripts) |
-| `lite/sandbox/vendor/*` | NEW vendor copies for sandbox reproducibility |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (lite-only sprint; zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `.bmaplan` schema — NO change at all; persistence = localStorage v1 only
-- `lite/static/js/measure-engine.js` (drift-locked vendored copy) — UNCHANGED
-- `lite/ui-lite.html` — UNCHANGED (stays at cap)
-
-## Tests Run
-
-```
-python lite/tests/test_report_edit.py  →  LITE_REPORT_EDIT_OK 7/7  PASS
-```
-
-Proto py_compile + smoke + full NOT re-run. Lite-only sprint; proto zero edits; no forbidden-trigger surface touched.
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
-- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
-- ✅ `.bmaplan` schema — no change; persistence = localStorage v1 only
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ `lite/static/js/measure-engine.js` UNCHANGED (drift-locked vendored copy)
-- ✅ `lite/ui-lite.html` UNCHANGED (stays at cap)
-- ✅ Size caps: report-edit.js 404/1000
-
----
-
-<!-- BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/patch-history-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-arc-summary sprint) -->
+<!-- SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/patch-history-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint) -->
 <!-- SIM-2 (2026-05-24) and older entries archived to docs/archive/patch-history-2026-05-09.md -->

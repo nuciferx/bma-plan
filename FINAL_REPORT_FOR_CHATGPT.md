@@ -4,14 +4,43 @@
 
 ---
 
-# Latest: BUG-20260702-lite-arc-summary — PASS
+# Latest: BUG-20260702-lite-cfss-summary — PASS
 
 **Date:** 2026-07-02
 **Branch:** main
 
 ## Outcome
 
-PASS. Fixed a silent measurement-accuracy bug: arc-edge polygon areas were correct on the per-object canvas label but wrong in EVERY downstream rollup — summary panel, XLSX export, annotated-PDF overlay, report, layer totals, and site-setup rollup all under-counted curved rooms because 6 call sites dropped `o.edges` when calling the area function. Fixed by swapping all 6 sites to the arc-aware `polyMetricsAnyShape`. A new guard test proves the bug was real (RED on pre-fix code) and that the fix is complete (GREEN post-fix, all 6 consumers now agree with the canvas label). Zero edits to the drift-locked vendored geometry engine; non-arc measurements are byte-identical to before. Bug 1 of 2 from the 2026-07-02 measurement-accuracy audit — bug 2 (CFSS shared-shape instances excluded from totals) is queued next.
+PASS. Fixed bug 2 of 2 from the 2026-07-02 measurement-accuracy audit. CFSS (cross-floor shared shapes) instances — `{kind:'instance', masterId, offsetPt}`, no `.pts`, no `.catId` — were skipped by every area rollup, so promoting a polygon into a shared shape silently REMOVED its area from all totals. Triage widened this to a CRASH finding: `buildExportData` and `exportPdfOverlay` called `catOf(o.catId).name`/`.color` BEFORE the `kind` guard, throwing `TypeError` on any page holding an instance — XLSX and annotated-PDF export crashed outright, not just under-counted. Root cause: `cfssCommitPromote` called `addMaster()` without the `opts` arg, so masters never captured `catId`/`semanticTag`. Fixed by passing `{catId, semanticTag}` into `addMaster` at promote time (additive schema, free persistence via existing masters serialization) plus new `rollupAreaM2`/`rollupCatId` dispatch helpers used at all 6 rollup sites — replacing the "swap the callee 6 times" pattern from bug 1 with a single reusable helper, per that bug's postmortem lesson. New guard test proves the bug was real (RED, totals 2000 instead of 2100, exports threw) and the fix is complete (GREEN, all 6 consumers agree, exports do not throw). Legacy pre-fix `.bmaplan` saves degrade safely (instance skipped + one-time warning, no crash). Both bugs from the 2026-07-02 audit are now shipped.
+
+## What was delivered
+
+- `lite/static/js/cross-floor-shapes.js` — `cfssCommitPromote` now passes `{catId, semanticTag}` to `addMaster`; NEW `rollupAreaM2(o,pg)` + `rollupCatId(o)` dispatch helpers
+- 6 rollup sites rewired: `computeSummary` (`ui-lite.html:1049`), `buildExportData`, `exportPdfOverlay`, `buildReportPayload` (`export-annotate.js`), `_ltOwnArea` (`layer-tree.js`), `_lovsLayerArea` (`overview-setup.js`)
+- 2 crash sites fixed: `catOf` resolution moved after `catId` resolution, made null-safe, in `buildExportData` + `exportPdfOverlay`
+- `lite/tests/test_summary_cfss_parity.py` (NEW) — `LITE_SUMMARY_CFSS_OK` guard test, exercises the REAL promote flow, proven RED→GREEN
+- `lite/tests/bug-archive.jsonl` — entry appended (fixed_commit `02e35af`) via the bug-report pipeline
+- `docs/status/PHASE_INDEX.md` — row updated to ✅ done via the bug-report pipeline
+- Shipped as commit `02e35af` on `main`
+
+## What's next
+
+- Both bugs from the 2026-07-02 measurement-accuracy audit are SHIPPED. File the remaining audit findings as queued cards: (1) calibration relies on a single sample point with no multi-point averaging safety net — port Verify-Scale to lite; (2) export payload size caps not stress-tested against very large multi-page projects — add real export-endpoint tests; (3) `ptToScreen`/`screenToPt` sit outside the drift-lock contract despite being coordinate-critical — fold into the parity-locked set; (4) no single "run all lite tests" runner exists — each test file is invoked individually; (5) no free-space preflight check before large exports/renders.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track. This closes the 2-bug audit initiated 2026-07-02 (bug 1 = `BUG-20260702-lite-arc-summary`, commits `e5264e2`+`e1a8e1c`; bug 2 = this sprint, commit `02e35af`). Bug-report pipeline (triage → specialist patch plan on Opus → fix → regression → this write-up) ran end-to-end without a stop-condition. No forbidden surface touched; no Phase 2 scope crossed. Next sprint: file the 5 remaining audit follow-on findings as individually scoped cards.
+
+---
+
+# Previous: BUG-20260702-lite-arc-summary — PASS
+
+**Date:** 2026-07-02
+**Branch:** main
+
+## Outcome
+
+PASS. Fixed a silent measurement-accuracy bug: arc-edge polygon areas were correct on the per-object canvas label but wrong in EVERY downstream rollup — summary panel, XLSX export, annotated-PDF overlay, report, layer totals, and site-setup rollup all under-counted curved rooms because 6 call sites dropped `o.edges` when calling the area function. Fixed by swapping all 6 sites to the arc-aware `polyMetricsAnyShape`. A new guard test proves the bug was real (RED on pre-fix code) and that the fix is complete (GREEN post-fix, all 6 consumers now agree with the canvas label). Zero edits to the drift-locked vendored geometry engine; non-arc measurements are byte-identical to before. Bug 1 of 2 from the 2026-07-02 measurement-accuracy audit — bug 2 (CFSS shared-shape instances excluded from totals) shipped next as `BUG-20260702-lite-cfss-summary`.
 
 ## What was delivered
 
@@ -23,7 +52,7 @@ PASS. Fixed a silent measurement-accuracy bug: arc-edge polygon areas were corre
 
 ## What's next
 
-- **(1)** `BUG-20260702-lite-cfss-summary` — CFSS shared-shape instances have no `.pts` of their own, so `computeSummary` skips them entirely; promoting a shared shape removes its source polygon from totals with no replacement. Runs next via `/bma-bug-report`.
+- **(1)** `BUG-20260702-lite-cfss-summary` — CFSS shared-shape instances have no `.pts` of their own, so `computeSummary` skips them entirely; promoting a shared shape removes its source polygon from totals with no replacement. SHIPPED same day (see Latest above).
 - **(2)** File the remaining 2026-07-02 measurement-accuracy audit findings as queued cards: calibration single-sample risk, export payload size stress-testing, `ptToScreen` outside the drift-lock contract, no all-tests runner for lite.
 
 ## Position in Plan
@@ -32,37 +61,5 @@ Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track. Part of a 
 
 ---
 
-# Previous: SLICE report-edit-1 — Editable lite report — PASS
-
-**Date:** 2026-06-05
-**Branch:** main
-
-## Outcome
-
-PASS. The lite report is now editable. Users can enter custom subtotals using Excel-style formulas (=B1+B2), click area cells to inject row references while typing, and override computed values — overridden cells are flagged orange when the underlying geometry changes. Deleting a row that a formula references drops that term and raises a red flag instead of silently producing the wrong number. All 7 test cases pass. Zero proto/ edits; all forbidden surfaces untouched.
-
-## What was delivered
-
-- `lite/static/js/report-edit.js` (NEW 404 LOC) — custom formula picker, stable-row-id subtotal mapper, render/persist/provenance, NaN-guard
-- `lite/lite-report.html` (+46) — override-overlay toggle markup, grid mount, 4 vendor tags
-- `lite/static/js/vendor/jspreadsheet.min.{js,css}` + `jsuites.min.{js,css}` (NEW ~440 KB, MIT, offline-vendored)
-- `lite/tests/test_report_edit.py` (NEW 245 LOC) — LITE_REPORT_EDIT_OK 7/7
-- `docs/invent/lite-editable-report.md` (NEW) — full invent record with 3 RESHAPE sections
-- `.claude/skills/lite-spike-iterate/SKILL.md` (NEW) — SPIKE→EVAL→fix loop skill
-- `docs/status/PHASE_INDEX.md` (+11) — 2 idea entries under ### ideas 2026-06-04
-- `lite/sandbox/invent-lite-editable-report*` (NEW spike artifacts for reproducibility)
-
-## What's next
-
-- **(1)** Wire report-edit into the production lite report flow (currently behind `#re-toggle` dev gate)
-- **(2)** Promote persistence from localStorage v1 to additive `.bmaplan reportEditState` (Approach E; semantic ids proven to serialize cleanly by the PERSIST eval case)
-- **(3)** Re-validate print-to-PDF CSS for the jss grid renderer (`@page` rules applied to HTML `<table>` may not translate to jss grid without a dedicated print sprint)
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic, report sub-system. This sprint completes the BUILD phase of the invent pipeline started 2026-06-04 (ideas: inline-edit area values + Excel-style user-defined subtotal rows). Invent went through 3 RESHAPE rounds before arriving at Approach D3. The editable report feature is behind a dev gate; the next sprint wires it to production. LITE-7 (PyInstaller .exe) remains the only deferred epic item.
-
----
-
-<!-- BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-arc-summary sprint) -->
+<!-- SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint) -->
 <!-- SIM-2 (2026-05-24) and older reports archived to docs/archive/reports-2026-05-09.md -->
