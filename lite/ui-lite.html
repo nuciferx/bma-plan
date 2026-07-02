@@ -1046,7 +1046,7 @@ function computeSummary(){ var cur={},all={},curCnt={},allCnt={},pagesWith=0;
   Object.keys(PS).forEach(function(k){ var pg=+k, has=false;
     PS[k].objects.forEach(function(o){
       if(o.counting){ allCnt[o.catId]=(allCnt[o.catId]||0)+1; if(pg===curPage)curCnt[o.catId]=(curCnt[o.catId]||0)+1; has=true; return; }
-      if(o.kind!=="poly")return; var a=polyMetrics({pts:o.pts},pg).area; if(a==null)return; // vendored, per-page scale
+      if(o.kind!=="poly")return; var a=polyMetricsAnyShape(o,pg).area; if(a==null)return; // vendored, per-page scale (arc-inclusive — BUG-20260702-lite-arc-summary)
       all[o.catId]=(all[o.catId]||0)+a; if(pg===curPage)cur[o.catId]=(cur[o.catId]||0)+a; has=true; });
     if(has)pagesWith++; });
   return {cur:cur,all:all,curCnt:curCnt,allCnt:allCnt,pagesWith:pagesWith}; }

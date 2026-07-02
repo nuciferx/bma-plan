@@ -628,9 +628,9 @@ function _lovsClearFloors() {
 ============================================================ */
 
 /* Sum poly object areas for a single layerId across all NON-excluded pages.
-   Uses vendored polyMetrics + per-page scale. Returns 0 if no data. */
+   Uses vendored polyMetricsAnyShape (arc-inclusive) + per-page scale. Returns 0 if no data. */
 function _lovsLayerArea(layerId) {
-  if (typeof PS === "undefined" || typeof polyMetrics !== "function") return 0;
+  if (typeof PS === "undefined" || typeof polyMetricsAnyShape !== "function") return 0;
   var total = 0;
   Object.keys(PS).forEach(function(k) {
     var pg = +k;
@@ -639,7 +639,7 @@ function _lovsLayerArea(layerId) {
     for (var i = 0; i < objs.length; i++) {
       var o = objs[i];
       if (o.catId !== layerId || o.counting || o.kind !== "poly") continue;
-      var a = polyMetrics({pts: o.pts}, pg).area;
+      var a = polyMetricsAnyShape(o, pg).area;
       if (a != null && isFinite(a)) total += a;
     }
   });

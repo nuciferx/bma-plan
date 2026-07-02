@@ -59,7 +59,7 @@ function _ltOwnArea(layerId) {
       if (o.catId !== layerId) continue;
       if (o.counting) continue;
       if (o.kind !== "poly") continue;
-      var m = polyMetrics({pts: o.pts}, pg);
+      var m = polyMetricsAnyShape(o, pg);
       total += (m && m.area != null) ? m.area : 0;
     }
   });
