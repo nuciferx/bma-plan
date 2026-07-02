@@ -148,6 +148,44 @@ async function _loadPdfjsLib() {
   return _pdfjsPromise;
 }
 
+/* ---- warm-up: preload pdf.js + spin the worker at idle (PERF-20260702) ----
+ * The first real open pays a flat ~1.2 s for library import + worker fetch/
+ * compile. Firing it at app-idle moves that cost off the user's open action.
+ * Fire-and-forget; failures are ignored (the real open path retries loading).
+ * window.__pdfjsWarmed is a test observability flag only. */
+function _warmup() {
+  _loadPdfjsLib().then(function(lib) {
+    try {
+      var w = new lib.PDFWorker({ name: "bma-warmup" });
+      return w.promise.then(function() {
+        try { w.destroy(); } catch (_) {}
+        window.__pdfjsWarmed = true;
+      });
+    } catch (_) { window.__pdfjsWarmed = true; }
+  }).catch(function () {});
+}
+if (typeof requestIdleCallback === "function") requestIdleCallback(_warmup, { timeout: 3000 });
+else setTimeout(_warmup, 500);
+
+/* ---- adjacent-page prefetch (PERF-20260702) ----
+ * After a page lands, fetch the n±1 PDFPageProxy at idle so the next page
+ * switch skips the worker getPage round-trip. Respects the LRU: prefetched
+ * pages count toward MAX_PAGE_CACHE and curPage stays protected. */
+function _prefetchAdjacent(n) {
+  if (!pdfDoc) return;
+  [n + 1, n - 1].forEach(function (m) {
+    if (m < 1 || m > pageCount || pageCache[m]) return;
+    var sn = (typeof pageMgr !== "undefined" && pageMgr) ? pageMgr.serverNum(m) : m;
+    if (sn === null) return;
+    if (pageCache[sn]) { pageCache[m] = pageCache[sn]; _touchPage(m); return; }
+    pdfDoc.getPage(sn).then(function (p) {
+      if (!pdfDoc) return;                    // reset while in flight
+      if (!pageCache[sn]) { pageCache[sn] = p; _touchPage(sn); }
+      if (m !== sn && !pageCache[m]) { pageCache[m] = pageCache[sn]; _touchPage(m); }
+    }).catch(function () {});
+  });
+}
+
 /* ---- ready(): true when current page is available for rendering ----
  * Production: pdfDoc loaded + page in pageCache.
  * Test-shim compat: if a test sets window.curImg to a truthy dummy value,
@@ -312,6 +350,9 @@ async function loadPage(n) {
     hideLoading();
     fit();
     afterPage();
+    if (typeof requestIdleCallback === "function")
+      requestIdleCallback(function () { _prefetchAdjacent(n); }, { timeout: 2000 });
+    else setTimeout(function () { _prefetchAdjacent(n); }, 250);
   } catch (err) {
     hideLoading();
     alert("โหลดหน้า " + n + " ไม่ได้\n" + (err && err.message ? err.message : err));
