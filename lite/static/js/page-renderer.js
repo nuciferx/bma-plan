@@ -245,6 +245,22 @@ function fit() {
   draw();
 }
 
+/* ---- openLocal / adoptCase: PERF-20260702 local-first open ----
+ * openLocal(buf) renders from the user's local file bytes IMMEDIATELY —
+ * first paint no longer waits for the server upload (measured 80 ms/MB;
+ * 7.5 s of a 9.6 s cold open on a 91 MB binder). caseId may still be null
+ * during the background-upload window; loadPage's guard accepts a loaded
+ * pdfDoc as ready. adoptCase(cid) binds the already-loaded doc to the case
+ * id once the upload completes so the next loadPage does NOT refetch /raw. */
+async function _openLocal(buf) {
+  var lib = await _loadPdfjsLib();
+  _resetCache();
+  pdfDoc       = await lib.getDocument({ data: buf }).promise;
+  pdfDocCaseId = caseId || null;   // null while the background upload is in flight
+  return pdfDoc.numPages;
+}
+function _adoptCase(cid) { if (pdfDoc) pdfDocCaseId = cid; }
+
 /* ---- loadPage: fetch PDF via /raw, render with PDF.js, call afterPage ----
  * FIX-B3: display index n maps to server page via pageMgr.serverNum(n) when
  * pending mutations exist (duplicate/reorder not yet flushed to server).
@@ -252,7 +268,7 @@ function fit() {
  * If serverNum returns null (merged page not yet flushed), show placeholder.
  */
 async function loadPage(n) {
-  if (!caseId || n < 1 || n > pageCount) return;
+  if ((!caseId && !pdfDoc) || n < 1 || n > pageCount) return;  // pdfDoc-only = local-first window
   curPage = n;
   // FIX-B3: resolve display index to server page number
   var sn = (typeof pageMgr !== 'undefined' && pageMgr) ? pageMgr.serverNum(n) : n;
@@ -465,5 +481,7 @@ window.PageRenderer = {
   fit:        fit,
   resize:     resize,
   resetCache: _resetCache,
-  ready:      _ready
+  ready:      _ready,
+  openLocal:  _openLocal,
+  adoptCase:  _adoptCase
 };

@@ -375,16 +375,28 @@ function showLoading(t){ var e=document.getElementById("loading"); document.getE
 function hideLoading(){ document.getElementById("loading").style.display="none"; }
 async function uploadPdf(file){
   var mb=(file.size/1048576).toFixed(0);
-  showLoading("กำลังอัปโหลด PDF ("+mb+" MB)… ไฟล์ใหญ่อาจใช้เวลาสักครู่");
+  // PERF-20260702 local-first: PDF.js opens the local bytes immediately; the
+  // server upload runs in the background (thumbs/export/mutations need it).
+  var localOk=false;
+  try{ showLoading("กำลังเปิด PDF…");
+    var n=await PageRenderer.openLocal(await file.arrayBuffer());
+    if(n>0){ pdfName=file.name; pageCount=n; PS={}; excluded={};
+      document.getElementById("empty").style.display="none";
+      curPage=1; await loadPage(1); _pmSeed(undefined); localOk=true; }
+  }catch(e){ console.warn("[open] local-first failed, upload-first fallback:", e); }
+  if(!localOk) showLoading("กำลังอัปโหลด PDF ("+mb+" MB)… ไฟล์ใหญ่อาจใช้เวลาสักครู่");
   try{
     var fd=new FormData(); fd.append("file",file);
     var res=await fetch("/upload",{method:"POST",body:fd});
     var j=await res.json(); if(j.error){hideLoading();alert("เปิดไม่ได้: "+j.error);return;}
-    caseId=j.case_id; pdfName=j.name; pageCount=j.pages; PS={}; excluded={}; PageRenderer.resetCache();
-    document.getElementById("empty").style.display="none";
-    curPage=1; await loadPage(1);
-    _pmSeed(undefined); // LPM slice 3: seed pageMgr after upload (no pageIdentities yet)
-  }catch(err){ hideLoading(); alert("อัปโหลดล้มเหลว: "+err.message); }
+    caseId=j.case_id; pdfName=j.name; pageCount=j.pages; PageRenderer.adoptCase(caseId);
+    if(!localOk){ PS={}; excluded={}; PageRenderer.resetCache();
+      document.getElementById("empty").style.display="none";
+      curPage=1; await loadPage(1);
+      _pmSeed(undefined); } // LPM slice 3: seed pageMgr after upload (no pageIdentities yet)
+  }catch(err){ hideLoading();
+    if(!localOk){ alert("อัปโหลดล้มเหลว: "+err.message); }
+    else{ alert("เปิดดูและวัดได้ แต่อัปโหลดขึ้นเซิร์ฟเวอร์ไม่สำเร็จ — thumbnail/export จะใช้ไม่ได้: "+err.message); } }
 }
 // loadPage() lives in static/js/page-renderer.js (slice-1 extraction).
 /* LPM-SLICE3: plumbing helpers — wires pageMgr to app globals. No behavior change until slice 5. */
