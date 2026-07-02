@@ -1,6 +1,6 @@
 # TEST_RESULT.md Archive — 2026-06 sessions (archived 2026-07-02)
 
-> Archived from root TEST_RESULT.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint archived during BUG-20260702-lite-pagerot-registration sprint; BUG-20260702-lite-arc-summary sprint archived during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint; AUDIT-20260702-infra-bundle archived 2026-07-02 during the PERF-20260702-lite-foxit-smoothness sprint block) to keep root at Latest + 1 Previous.
+> Archived from root TEST_RESULT.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint archived during BUG-20260702-lite-pagerot-registration sprint; BUG-20260702-lite-arc-summary sprint archived during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint; AUDIT-20260702-infra-bundle archived 2026-07-02 during the PERF-20260702-lite-foxit-smoothness sprint block; BUG-20260702-lite-pagerot-registration archived 2026-07-03 during the BLOCK-20260703-clear-queue session) to keep root at Latest + 1 Previous.
 
 ---
 
@@ -328,4 +328,75 @@ python lite/tests/test_tree_persist.py                     → LITE_TREE_PERSIST
 ```
 
 Proto baseline: `python3.11 proto/e2e_ui_test.py full` → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+
+---
+
+# Archived: BUG-20260702-lite-pagerot-registration — Manual page rotate desyncs geometry from raster + export
+
+Branch: main
+Date: 2026-07-02
+
+## Result: PASS (lite tests only — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this sprint made zero changes to `proto/` source files. Lite-only sprint; no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python lite/tests/test_pagerot_registration.py
+python lite/tests/test_page_rotate.py
+python lite/tests/test_metamorphic_pages.py
+python lite/tests/test_snap_types.py
+python lite/tests/test_arc_edge.py
+python lite/tests/test_ortho.py
+python lite/tests/test_cfss_drag.py
+python lite/tests/test_cfss_ui.py
+python lite/tests/test_centerline_snap.py
+python lite/tests/test_annot_label.py
+python lite/tests/test_live_overlay.py
+python lite/tests/test_measure_parity.py
+python lite/tests/test_pbt_measure.py
+python lite/tests/test_export_endpoints.py
+python lite/tests/test_summary_arc_parity.py
+python lite/tests/test_summary_cfss_parity.py
+python lite/tests/run_all_tests.py
+```
+
+## Lite — Results (16 at-risk files + 26-file partial `run_all_tests.py` subset, all exit 0)
+
+| Test | Marker | Result |
+|---|---|---|
+| test_pagerot_registration.py | LITE_PAGEROT_REG_OK (NEW) | PASS (5/5 checks; RED→GREEN proven) |
+| test_page_rotate.py | — | PASS (regression, at-risk) |
+| test_metamorphic_pages.py | — | PASS (regression, at-risk) |
+| test_snap_types.py | — | PASS (regression, at-risk) |
+| test_arc_edge.py | LITE_ARC_EDGE_OK | PASS (regression, at-risk) |
+| test_ortho.py | — | PASS (regression, at-risk) |
+| test_cfss_drag.py | LITE_CFSS_DRAG_OK | PASS (regression, at-risk) |
+| test_cfss_ui.py | LITE_CFSS_UI_OK | PASS (regression, at-risk) |
+| test_centerline_snap.py | LITE_CENTERLINE_SNAP_OK | PASS (regression, at-risk) |
+| test_annot_label.py | — | PASS (regression, at-risk) |
+| test_live_overlay.py | — | PASS (regression, at-risk) |
+| test_measure_parity.py | MEASURE_PARITY_OK | PASS (drift-lock intact — confirms `measure-engine.js` vendored math untouched) |
+| test_pbt_measure.py | — | PASS (regression, at-risk) |
+| test_export_endpoints.py | LITE_EXPORT_ENDPOINTS_OK | PASS (regression — export path also touched this sprint) |
+| test_summary_arc_parity.py | LITE_SUMMARY_ARC_OK | PASS (bug-1 guard stays green) |
+| test_summary_cfss_parity.py | LITE_SUMMARY_CFSS_OK | PASS (bug-2 guard stays green) |
+
+Plus 26 more files green from a partial `run_all_tests.py` pass (not individually enumerated here). Total: 42 distinct files green this sprint.
+
+## LITE_PAGEROT_REG_OK — 5 checks
+
+Guard test proving the registration bug and the fix: (i) 4-angle screen-coordinate mapping vs. a closed-form quadrant transform; (ii) `screenToPt` is the exact inverse of `ptToScreen` (tolerance 1e-9); (iii) area is invariant under rotate (confirms stored points are never mutated); (iv) `pageRotations` round-trip through a real `loadProto` save/load cycle; (v) export: output page dimensions swap correctly (600×450) and stroke pixels are found at the expected rotated vertex (585,15).
+
+- **RED (pre-fix, via `git stash`):** mapping produced (15,15) instead of (585,15); `rotRestored` false; export output un-rotated at 450×600.
+- **GREEN (post-fix):** all 5 checks pass.
+
+## Reference Baseline (proto, unchanged this sprint)
+
+```
+python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+```
 

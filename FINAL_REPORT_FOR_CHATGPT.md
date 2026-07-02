@@ -4,7 +4,42 @@
 
 ---
 
-# Latest: PERF-20260702-lite-foxit-smoothness — PASS
+# Latest: BLOCK-20260703-clear-queue — PASS
+
+**Date:** 2026-07-03
+**Branch:** main
+
+## Outcome
+
+PASS. Five same-session ships, cleared back-to-back overnight under a user directive to close out the entire remaining queue ("ทำทั้งหมด"). **Ship 1 — `AUDIT-20260702-s2-fitz-lock` (`d0a5dde`):** per-case `threading.Lock` now serializes all `fitz.Document` access in `lite/server_lite.py`, including moving `/export-pdf-overlay`'s render off the event loop entirely (completing the S2 threadpool goal deferred from `AUDIT-20260702-infra-bundle`). NEW `LITE_CASE_LOCK_OK` hammer test (96 requests / 8 threads / mid-flight doc-swap / concurrent overlay export), zero 5xx — honestly recorded as a hardening test, not a deterministic RED-before-fix proof, since native races are probabilistic. **Ship 2 — render-followups (a)+(c) (`aec375b`):** PDF.js-unavailable no longer blanks the canvas (falls back to server JPEG raster); scanned/image-only pages get a capped re-render scale (saves wasted CPU, zero accuracy change) plus a one-time hint. **Ship 3 (`13054b6`):** tiered test runner (`--tier t0/t1/t2`, part of the new V2 migration blueprint), and — most notably — the first PIXEL-level proof (not just exact-inverse math) that the raster canvas and exported overlay stay registered (max offset 0.50 device px), closing an evidence gap the 2026-05-28 render-quality spike never closed. Range-streaming research was also completed and correctly HALTED at the human decision checkpoint rather than shipped, per this project's invention discipline. **Ship 4 — `ACC-20260703-verify-scale-port` (`bea2119`):** ported Verify-Scale from proto to lite, closing the single remaining accuracy gap vs. Foxit identified by the 2026-07-02 competitive comparison. **Ship 5:** wrote down the day's operating lessons as two new process docs (`DEVELOPMENT_PILLARS.md`, `DEVELOPMENT_V2_BLUEPRINT.md`) before they were lost. Full lite test suite validated at 70/70 files green (grown from 60 across the two days); `MEASURE_PARITY_OK` stayed green through every ship. Zero `proto/` edits across the whole block.
+
+## What was delivered
+
+- `lite/server_lite.py` — per-case `_case_lock` guarding all `fitz.Document` access; `/export-pdf-overlay` now threadpool-offloaded (Ship 1)
+- `lite/ui-lite.html` — raster fallback when PDF.js fails to load (Ship 2); new Verify Scale menu item + `Shift+S` shortcut, +3 net lines (Ship 4)
+- render module — scanned-page detection + capped re-render scale with transform compensation (Ship 2)
+- `lite/tests/run_all_tests.py` — `--tier t0/t1/t2` flag, `t0` (measure math) runs in 1.26s (Ship 3)
+- `lite/tests/test_overlay_registration.py` (NEW) — pixel-level raster↔overlay registration proof, `LITE_OVERLAY_REG_OK` (Ship 3)
+- `docs/invent/lite-range-streaming.md` (NEW) — Range-streaming research, verdict `PRIOR_ART_PARTIAL`, HALTED at human checkpoint (Ship 3)
+- `lite/static/js/verify-scale.js` (NEW, 225 lines) — ported from proto's `INV-2026-05-20-001` (Ship 4)
+- `docs/process/DEVELOPMENT_PILLARS.md` + `docs/process/DEVELOPMENT_V2_BLUEPRINT.md` (NEW) — process doctrine (Ship 5)
+- 5 NEW guard tests total: `LITE_CASE_LOCK_OK` / `LITE_RENDER_FB_SCAN_OK` / (tier flag, no dedicated marker) / `LITE_OVERLAY_REG_OK` / `LITE_VERIFY_SCALE_OK`
+- Shipped as commits `d0a5dde` + `aec375b` + `13054b6` + `bea2119` + `16e6495` + `b676652` on `main`
+
+## What's next
+
+- **(1) HUMAN DECISION: Range-streaming spike GO/NOGO/RESHAPE** (`docs/invent/lite-range-streaming.md`) — the only item in the whole cleared queue still awaiting anything, and it specifically awaits a human call, not more agent work.
+- **(2) V2 migration continuation** — `INVARIANTS.md` (U1), roadmap split + reconcile (U4), `SHIPS.jsonl` ledger (U3) remain queued from `docs/process/DEVELOPMENT_V2_BLUEPRINT.md`; the tiered test runner (U2) is partially landed via Ship 3.
+- **(3) `ptToScreen`/`screenToPt` into the parity fixture** — last drift-lock nicety carried over from `BUG-20260702-lite-pagerot-registration`.
+- **(4) Stale `PHASE_INDEX.md` rows** — `lpm-1..9` show `queued` but `bug-archive.jsonl` says fixed; needs a reconciliation pass.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic. This block spans three tracks at once: reliability hardening (fitz lock), rendering robustness (fallback + scan detection + registration proof), and measurement-accuracy parity with the competitive benchmark (Verify-Scale port) — plus capturing the day's process lessons as durable doctrine. With the queue now cleared, the only forward motion pending is the human GO/NOGO decision on Range-streaming; everything else is either shipped or explicitly queued for a future sprint. No forbidden surface touched.
+
+---
+
+# Previous: PERF-20260702-lite-foxit-smoothness — PASS
 
 **Date:** 2026-07-02
 **Branch:** main
@@ -23,11 +58,11 @@ PASS. Four same-day lite performance sprints, driven by an empirical perf probe 
 
 ## What's next
 
-- **(1) `PERF-20260702-open-streaming` (queued invent, `/lite-invent`)** — the only remaining perf piece. CHH's remaining ~600 MB doc-level heap needs Range-streaming (`PDFDataRangeTransport`), which touches the page-renderer's buffer-ownership contract and has documented quirks — correctly routed to the invent pipeline.
-- **(2) `AUDIT-20260702-render-followups` remainder** — pdfjs-fail → JPEG fallback, scanned-PDF detection messaging, memory-claim doc correction, real overlay-registration Playwright test. Pan double-buffer item is CLOSED-no-bug per this block's probe.
-- **(3) `AUDIT-20260702-s2-fitz-lock`** — per-case PyMuPDF lock needed before Sprint 4's thumbnail warm (or the overlay-render step) can safely go concurrent.
-- **(4) Calibration multi-sample / Verify-Scale port to lite** — accuracy gap vs. Foxit, unrelated to this perf block.
-- **(5) `ptToScreen`/`screenToPt` parity-fixture addition** — remains queued from the pagerot-registration sprint.
+- **(1) `PERF-20260702-open-streaming` (queued invent, `/lite-invent`)** — the only remaining perf piece. CHH's remaining ~600 MB doc-level heap needs Range-streaming (`PDFDataRangeTransport`), which touches the page-renderer's buffer-ownership contract and has documented quirks — correctly routed to the invent pipeline. **(Resolved by BLOCK-20260703-clear-queue Ship 3: research complete, HALTED at human checkpoint.)**
+- **(2) `AUDIT-20260702-render-followups` remainder** — pdfjs-fail → JPEG fallback, scanned-PDF detection messaging, memory-claim doc correction, real overlay-registration Playwright test. Pan double-buffer item is CLOSED-no-bug per this block's probe. **(Resolved by BLOCK-20260703-clear-queue Ships 2+3.)**
+- **(3) `AUDIT-20260702-s2-fitz-lock`** — per-case PyMuPDF lock needed before Sprint 4's thumbnail warm (or the overlay-render step) can safely go concurrent. **(Resolved by BLOCK-20260703-clear-queue Ship 1.)**
+- **(4) Calibration multi-sample / Verify-Scale port to lite** — accuracy gap vs. Foxit, unrelated to this perf block. **(Resolved by BLOCK-20260703-clear-queue Ship 4.)**
+- **(5) `ptToScreen`/`screenToPt` parity-fixture addition** — remains queued from the pagerot-registration sprint. **(Still queued after BLOCK-20260703-clear-queue.)**
 
 ## Position in Plan
 
@@ -35,38 +70,7 @@ Phase 1 — BMA-Plan Lite epic, performance hardening track ("Foxit-grade open s
 
 ---
 
-# Previous: BUG-20260702-lite-pagerot-registration — PASS
-
-**Date:** 2026-07-02
-**Branch:** main
-
-## Outcome
-
-PASS. Fixed the top-priority BROKEN bug filed earlier today by the `AUDIT-20260702-infra-bundle` render-engine accuracy review. Manual page rotation (`pageRot`) rotated the PDF.js raster canvas but the coordinate contract `ptToScreen`/`screenToPt` ignored `pgRot` (`getRot()` was hardcoded to 0) — pre-existing geometry detached from the visible plan by up to a page diagonal (~84 m at 1:100 A1), geometry drawn while a page was rotated stored bound to the wrong feature (correct area value, wrong location — the classic "right value, wrong location" measurement bug), and `/export-pdf-overlay` never applied `pageRot` at all. Intrinsic PDF `/Rotate` was always correct — only manual rotate was broken. Fixed by commit `9f4b298` ("Fix A — proto-parity" over "Fix B — geometry-baking", per an Opus specialist patch plan): `getRot()` now returns the real per-page rotation; `ptToScreen`/`screenToPt` route through the vendored, parity-tested `pdfToC`/`cToPdf` rotation branches (net 0 lines, zero geometry mutation, no migration); `/export-pdf-overlay` now prerotates the raster and maps all coordinates through a new `_rp` helper. New guard test `LITE_PAGEROT_REG_OK` proven RED→GREEN; 42 distinct regression files green.
-
-## What was delivered
-
-- `lite/static/js/measure-engine.js` — `getRot()` host contract function now returns `pageRot[pg]||0`
-- `lite/ui-lite.html` — `ptToScreen`/`screenToPt` rewired through vendored rotation-aware `pdfToC`/`cToPdf`, net 0 lines
-- `lite/static/js/export-annotate.js` — export payload includes per-page rotation
-- `lite/server_lite.py` — `/export-pdf-overlay` prerotates raster + maps coordinates via new `_rp` helper
-- `lite/tests/test_pagerot_registration.py` (NEW) — `LITE_PAGEROT_REG_OK` guard test, RED→GREEN proven
-- `docs/status/PHASE_INDEX.md` — row updated to ✅ done via the bug-report pipeline
-- Shipped as commit `9f4b298` on `main`
-
-## What's next
-
-- **(1) `AUDIT-20260702-render-followups` bundle** — pdfjs-fail → JPEG fallback / pan double-buffer blanking / scanned-PDF detection messaging / memory-claim correction / real overlay-registration Playwright test (item (e) would add visual coverage for the combined `V.rot≠0` + `pgRot≠0` case, still only exact-inverse-tested).
-- **(2) `AUDIT-20260702-s2-fitz-lock`** — per-case PyMuPDF lock needed before the overlay-render step of `/export-pdf-overlay` can safely move to a threadpool.
-- **(3) Calibration multi-sample / Verify-Scale port to lite** — the 2026-07-02 Foxit comparison identified this as the single remaining accuracy gap vs. competitors.
-- **(4) `ptToScreen`/`screenToPt` into the drift-lock parity fixture** — partially resolved by this fix (runtime now routes through the vendored kernel); remaining work is only adding the functions themselves to `test_measure_parity.py`.
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track, render-registration sub-track. This closes the top-priority BROKEN bug filed same-day by `AUDIT-20260702-infra-bundle`'s render-engine accuracy review, resolving the last real correctness gap left by the 2026-05-28 PDF.js render migration. No forbidden surface touched.
-
----
-
+<!-- BUG-20260702-lite-pagerot-registration archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (BLOCK-20260703-clear-queue session) -->
 <!-- AUDIT-20260702-infra-bundle archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (PERF-20260702-lite-foxit-smoothness sprint block) -->
 <!-- BUG-20260702-lite-cfss-summary + BUG-20260702-lite-arc-summary (2026-07-02) + SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-pagerot-registration sprint) -->
 <!-- SIM-2 (2026-05-24) and older reports archived to docs/archive/reports-2026-05-09.md -->

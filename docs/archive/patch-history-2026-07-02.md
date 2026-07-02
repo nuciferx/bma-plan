@@ -380,3 +380,55 @@ Proto py_compile + smoke + full NOT re-run. Lite-only sprint; proto zero edits; 
 - ✅ `lite/ui-lite.html` UNCHANGED (stays at cap)
 - ✅ Size caps: report-edit.js 404/1000
 
+---
+
+# Archived: BUG-20260702-lite-pagerot-registration — Manual page rotate desyncs geometry from raster + export
+
+Branch: main
+
+Date: 2026-07-02
+
+## Outcome: PASS — Fixed the top-priority BROKEN bug filed earlier that day by the AUDIT-20260702-infra-bundle render-engine accuracy review. Manual page rotation (`pageRot`) rotated the PDF.js raster canvas but `ptToScreen`/`screenToPt` ignored `pgRot` (`getRot()` hardcoded to 0) — pre-existing geometry detached from the visible plan by up to a page diagonal (~84 m at 1:100 A1), geometry drawn while rotated bound itself to the wrong feature, and `/export-pdf-overlay` never applied `pageRot` either. Fixed (commit `9f4b298`, "Fix A — proto-parity" over "Fix B — geometry-baking"): `getRot()` now returns `pageRot[pg]||0`; `ptToScreen`/`screenToPt` route through the vendored, parity-tested `pdfToC`/`cToPdf` rotation branches (net 0 lines, zero geometry mutation, no migration needed); server `/export-pdf-overlay` now prerotates the raster and maps every coordinate through a new `_rp` helper mirroring `pdfToC`. New guard test `LITE_PAGEROT_REG_OK` proven RED→GREEN; 16 at-risk regression files + 26 more from a partial full-suite run = 42 distinct files green.
+
+## Summary
+
+Fixed `BUG-20260702-lite-pagerot-registration`, filed BROKEN/top-priority earlier that day by the `AUDIT-20260702-infra-bundle` render-engine accuracy review (Review C). Manual page rotate (`pageRot`) rotated the PDF.js `getViewport({rotation: V.rot + pgRot})` raster, but the coordinate contract `ptToScreen`/`screenToPt` ignored `pgRot` entirely — `getRot()` was hardcoded to return 0. Effect: pre-existing geometry detached from the visible plan by up to a page diagonal (~84 m at 1:100 A1) on manual rotate; geometry drawn WHILE a page was rotated stored bound to the un-rotated frame (correct area value, wrong on-screen location — a "right value, wrong location" bug); `/export-pdf-overlay` did not apply `pageRot` at all, so exported PDFs never matched the screen when `pgRot≠0`. Intrinsic PDF `/Rotate` was always correct — only manual rotate was broken. The vendored rotation-aware `pdfToC`/`cToPdf` already existed in `measure-engine.js` (drift-locked, parity-tested) but were dead code at runtime. Fix (commit `9f4b298`, "Fix A — proto-parity", chosen over "Fix B — geometry-baking" by an Opus specialist patch plan): (1) `getRot()` (host contract function, editable per `measure-engine.js`'s own header) now returns `pageRot[pg]||0`; (2) `ptToScreen`/`screenToPt` route through the vendored, parity-tested `pdfToC`/`cToPdf` rotation branches — net 0 lines in `ui-lite.html`, zero user-geometry mutation, no undo interaction, no float drift, old `.bmaplan` files (which already persisted `pageRotations`) just start rendering correctly with no migration; side effect: closes the "un-vendored coordinate math" drift-lock gap flagged by the same audit — lite runtime coords now run through the tested kernel; (3) export WYSIWYG: `export-annotate.js` sends per-page rotation, server `/export-pdf-overlay` prerotates the raster via `Matrix(RS,RS).prerotate(rot)` and maps all coordinates (objects, labels, annotations) through a new `_rp` helper mirroring `pdfToC` — prerotate direction verified EMPIRICALLY against all 4 angles with a standalone pixel test before wiring it in. Fix B (transform stored points at rotate time) rejected: mutates ~6 geometry stores, needs undo snapshotting, causes float drift on repeated rotate, and needs a save-format migration the additive-only schema can't express. New guard test `lite/tests/test_pagerot_registration.py` (marker `LITE_PAGEROT_REG_OK`) covers 4-angle mapping vs. closed-form transform, exact-inverse round-trip, area invariance under rotate, real save/load round-trip, and export dimension/pixel checks — proven RED on pre-fix code via `git stash`, GREEN after.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/measure-engine.js` | `getRot()` (host contract fn only) now returns `pageRot[pg]||0` instead of hardcoded 0 |
+| `lite/ui-lite.html` | `ptToScreen`/`screenToPt` rewired to route through vendored `pdfToC`/`cToPdf` rotation branches — net 0 lines |
+| `lite/static/js/export-annotate.js` | export payload now includes per-page rotation |
+| `lite/server_lite.py` | `/export-pdf-overlay` — raster prerotated via `Matrix(RS,RS).prerotate(rot)`; NEW `_rp` coordinate-mapping helper (mirrors `pdfToC`) applied to objects/labels/annotations |
+| `lite/tests/test_pagerot_registration.py` | NEW — `LITE_PAGEROT_REG_OK` guard test, proven RED→GREEN |
+| `docs/status/PHASE_INDEX.md` | row updated to ✅ done — via the bug-report pipeline |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only sprint; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED (routed through, not edited)
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `lite/static/js/measure-engine.js` drift-locked vendored math — UNCHANGED; only the host contract function `getRot()` (explicitly editable per the file's own header) was changed
+- `.bmaplan` schema version stays 1; `pageRotations` was already persisted, zero migration needed
+
+## Tests Run
+
+```
+python lite/tests/test_pagerot_registration.py → LITE_PAGEROT_REG_OK  PASS (NEW)
+```
+
+Regression: 16 at-risk files green + 26 more files green from a partial `run_all_tests.py` pass = 42 distinct files green. `MEASURE_PARITY_OK` green confirms the drift-locked vendored math is untouched.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged (routed through, not edited)
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `.bmaplan` schema version stays 1; `pageRotations` already persisted, zero migration needed
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ MEASURE_SCOPE_OK equivalent (inline check): `ptToScreen`/`screenToPt` are lite-owned, not forbidden, but are the de-facto coordinate contract — heavy regression run and green
+- ✅ Prerotate direction verified empirically with a standalone pixel test before wiring into the export endpoint
+
