@@ -17,6 +17,7 @@ Anti-pattern guards (AGENTS.md §8): static dir from Path(__file__).resolve();
 app.mount NOT guarded by if-exists (would swallow the aiofiles RuntimeError).
 """
 import io
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -72,8 +73,19 @@ def _prune():
 def _make_case(doc, path):
     _prune()
     cid = uuid.uuid4().hex
-    CASES[cid] = {"doc": doc, "path": path, "image_cache": {}, "touched": time.time()}
+    CASES[cid] = {"doc": doc, "path": path, "image_cache": {}, "touched": time.time(),
+                  "lock": threading.Lock()}
     return cid
+
+
+def _case_lock(case):
+    """Per-case lock serializing ALL fitz access on the shared Document
+    (S2 hardening, 2026-07-02 audit). PyMuPDF Documents are not thread-safe;
+    /page and /thumb are sync `def` (threadpooled by Starlette) and the client
+    thumb-warm makes concurrent /thumb + /page routine, so unserialized
+    get_pixmap on the same doc — or a doc close/swap during a render — can
+    crash the MuPDF C layer."""
+    return case.setdefault("lock", threading.Lock())
 
 
 def _get_case(cid):
@@ -163,12 +175,14 @@ def get_page(n: int, case_id: str, scale: float = RS, rot: int = 0):
     cache = case["image_cache"]
     key = ("page", n, rs, rot)
     if key not in cache:
-        page = doc[n - 1]
-        mat = fitz.Matrix(rs, rs).prerotate(rot)
-        pix = page.get_pixmap(matrix=mat)
-        cache[key] = pix.tobytes("jpeg", jpg_quality=88)
-        if len(cache) > MAX_IMAGE_CACHE:
-            cache.pop(next(iter(cache)))
+        with _case_lock(case):
+            if key not in cache:                      # re-check under lock
+                page = doc[n - 1]
+                mat = fitz.Matrix(rs, rs).prerotate(rot)
+                pix = page.get_pixmap(matrix=mat)
+                cache[key] = pix.tobytes("jpeg", jpg_quality=88)
+                if len(cache) > MAX_IMAGE_CACHE:
+                    cache.pop(next(iter(cache)))
     return Response(cache[key], media_type="image/jpeg")
 
 
@@ -190,8 +204,10 @@ def pageinfo(n: int, case_id: str):
     doc = case["doc"]
     if n < 1 or n > len(doc):
         return JSONResponse({"error": "page out of range"}, 404)
-    r = doc[n - 1].rect
-    return {"w_pt": r.width, "h_pt": r.height, "rot": doc[n - 1].rotation,
+    with _case_lock(case):
+        r = doc[n - 1].rect
+        rot = doc[n - 1].rotation
+    return {"w_pt": r.width, "h_pt": r.height, "rot": rot,
             "render_scale": RS}
 
 
@@ -332,7 +348,27 @@ async def export_pdf_overlay(req: Request):
     if err:
         print(f"[lite][export] rejected /export-pdf-overlay: {err}")
         return JSONResponse({"error": f"export payload rejected: {err}"}, 400)
+    # S2: render off the event loop; per-case lock inside serializes fitz access
+    data_bytes = await run_in_threadpool(_render_overlay, case, pages)
+    return Response(data_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": "attachment; filename=bma-lite-overlay.pdf"})
+
+
+def _render_overlay(case, pages):
+    """Sync worker for /export-pdf-overlay — holds the per-case lock for the
+    whole render so no concurrent get_pixmap/doc-swap can touch the doc."""
+    doc = case["doc"]
     out = fitz.open()
+    with _case_lock(case):
+        _render_overlay_locked(doc, pages, out)
+    if len(out) == 0:
+        out.new_page()
+    data_bytes = out.tobytes()
+    out.close()
+    return data_bytes
+
+
+def _render_overlay_locked(doc, pages, out):
     for n in sorted(pages.keys(), key=lambda k: int(k)):
         idx = int(n) - 1
         if idx < 0 or idx >= len(doc):
@@ -403,12 +439,6 @@ async def export_pdf_overlay(req: Request):
             elif t == "ann_cloud":
                 _cloud(sh, x, y, w, h); sh.finish(color=col, width=1.4)
         sh.commit()
-    if len(out) == 0:
-        out.new_page()
-    data_bytes = out.tobytes()
-    out.close()
-    return Response(data_bytes, media_type="application/pdf",
-                    headers={"Content-Disposition": "attachment; filename=bma-lite-overlay.pdf"})
 
 
 def _apply_page_mutations(doc, order_1based):
@@ -496,6 +526,8 @@ async def apply_page_mutations(req: Request):
     old_path = case["path"]
     tmp_path = None
     new_doc_mem = None
+    _lk = _case_lock(case)   # S2: no render may touch old_doc during copy/close/swap
+    _lk.acquire()
     try:
         new_doc_mem, renumber_map, new_count = _apply_page_mutations(old_doc, order_int)
 
@@ -551,6 +583,8 @@ async def apply_page_mutations(req: Request):
             except Exception:
                 pass
         return JSONResponse({"error": f"mutation failed: {exc}"}, 500)
+    finally:
+        _lk.release()
 
 
 def _merge_pdf(doc, src_doc):
@@ -659,6 +693,8 @@ async def merge_pages(req: Request, file: UploadFile = File(...)):
     old_path = case["path"]
     merge_tmp_path = None
     new_doc_mem = None
+    _lk = _case_lock(case)   # S2: no render may touch old_doc during copy/close/swap
+    _lk.acquire()
     try:
         new_doc_mem, old_count, added_count = _merge_pdf(old_doc, src_doc)
         src_doc.close()
@@ -716,6 +752,7 @@ async def merge_pages(req: Request, file: UploadFile = File(...)):
                 pass
         return JSONResponse({"error": f"merge failed: {exc}"}, 500)
     finally:
+        _lk.release()
         # Always clean up the src temp file
         if src_tmp_path:
             try:
@@ -735,8 +772,10 @@ def get_thumb(n: int, case_id: str, rot: int = 0):
     cache = case["image_cache"]
     key = ("thumb", n, rot)
     if key not in cache:
-        page = doc[n - 1]
-        mat = fitz.Matrix(0.18, 0.18).prerotate(rot)
-        pix = page.get_pixmap(matrix=mat)
-        cache[key] = pix.tobytes("jpeg", jpg_quality=80)
+        with _case_lock(case):
+            if key not in cache:                      # re-check under lock
+                page = doc[n - 1]
+                mat = fitz.Matrix(0.18, 0.18).prerotate(rot)
+                pix = page.get_pixmap(matrix=mat)
+                cache[key] = pix.tobytes("jpeg", jpg_quality=80)
     return Response(cache[key], media_type="image/jpeg")
