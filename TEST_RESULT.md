@@ -1,10 +1,64 @@
 # TEST_RESULT.md — Latest Test Result
 
-> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md)
+> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md)
 
 ---
 
-# Latest: SLICE report-edit-1 — Editable lite report
+# Latest: BUG-20260702-lite-arc-summary — Arc-edge polygon areas excluded from every rollup consumer
+
+Branch: main
+Date: 2026-07-02
+
+## Result: PASS (lite tests only — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this sprint made zero changes to `proto/` source files. Lite-only sprint; no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python lite/tests/test_summary_arc_parity.py
+python lite/tests/test_measure_parity.py
+python lite/tests/test_arc_edge.py
+python lite/tests/test_report.py
+python lite/tests/test_report_vars.py
+python lite/tests/test_report_vars_rollup.py
+python lite/tests/test_export_submenu.py
+python lite/tests/test_tree_rollup.py
+python lite/tests/test_overview_setup.py
+```
+
+## Lite — Results (9 commands, all exit 0)
+
+| Test | Marker | Result |
+|---|---|---|
+| test_summary_arc_parity.py | LITE_SUMMARY_ARC_OK (NEW) | PASS |
+| test_measure_parity.py | MEASURE_PARITY_OK | PASS (drift-lock intact) |
+| test_arc_edge.py | LITE_ARC_EDGE_OK | PASS |
+| test_report.py | (no named marker) | PASS |
+| test_report_vars.py | LITE_REPORT_VARS_OK | PASS |
+| test_report_vars_rollup.py | LITE_REPORT_VARS_ROLLUP_OK | PASS |
+| test_export_submenu.py | LITE_EXPORT_SUBMENU_OK | PASS |
+| test_tree_rollup.py | LITE_TREE_ROLLUP_OK | PASS |
+| test_overview_setup.py | LITE_OVERVIEW_SETUP_OK | PASS |
+
+## LITE_SUMMARY_ARC_OK — Bug Reproduction Proof
+
+`test_summary_arc_parity.py` asserts the invariant "every rollup consumer == Σ areaOf labels (arc-inclusive)" across all 6 fixed call sites, using an independent closed-form fixture (10000 + 1250π ≈ 13926.99 m² arc room + plain 2000 m² room).
+
+- **RED (pre-fix, via `git stash`):** old code returned chord-area totals (e.g. 12000 instead of 13926.99) at all 6 rollup consumers while the per-object canvas label still showed the correct arc-inclusive value — confirming the bug was real and isolated to the rollup path.
+- **GREEN (post-fix):** all 6 consumers now match Σ areaOf labels exactly.
+
+## Reference Baseline (proto, unchanged this sprint)
+
+```
+python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+```
+
+---
+
+# Previous: SLICE report-edit-1 — Editable lite report
 
 Branch: main
 Date: 2026-06-05
@@ -49,155 +103,5 @@ Proto baseline: `python3.11 proto/e2e_ui_test.py full` → PASS 22 markers (PHAS
 
 ---
 
-# Previous: BUG-20260526-lite-stale-pf-folder-cleanup
-
-Branch: main
-Date: 2026-05-26
-
-## Result: PASS (lite tests only — proto NOT TOUCHED)
-
-## No Proto-Test Rationale
-
-Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this sprint made zero changes to `proto/` source files. Lite-only sprint. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
-
-## Commands
-
-```bash
-python -m py_compile lite/server_lite.py
-python lite/tests/test_pf_cleanup_on_exclude.py
-python lite/tests/test_page_folder_model.py
-python lite/tests/test_page_folder_persist.py
-python lite/tests/test_pf_kind_folders.py
-python lite/tests/test_custom_layer_persist.py
-python lite/tests/test_tree_persist.py
-# /bma-simulate verify re-run (manual)
-# verify_dblclick_manual.py (manual Playwright)
-```
-
-## Lite — PF_CLEANUP_OK (4/4 cases)
-
-| Case | Description | Result |
-|---|---|---|
-| A — basic cleanup | tag p1=B1, p2=floor1, p3=floor2 → seed → re-tag p2 excluded → re-seed → assert PF_floor_1 gone + layers gone + PF_excluded gained p2 | PASS |
-| B — safety preservation | same as A but push user-drawn object onto "GFA ชั้น 1" before re-tag → assert PF_floor_1 PRESERVED | PASS |
-| C — idempotency | 5x back-to-back seedPageFolders produces same FOLDERS state as 1x | PASS |
-| D — PF_excluded never pruned | PF_excluded is never pruned even when empty | PASS |
-
-## Lite — Regression Suite (5 markers GREEN)
-
-| Marker | Result |
-|---|---|
-| LITE_PAGE_FOLDER_MODEL_OK | PASS |
-| LITE_PAGE_FOLDER_PERSIST_OK | PASS |
-| LITE_PF_KIND_OK (11/11) | PASS |
-| LITE_LAYER_PERSIST_OK | PASS |
-| LITE_TREE_PERSIST_OK | PASS |
-
-## /bma-simulate Verify Re-run
-
-```
-stale_PF_floor_1_exists = false
-dom_render_order = [PF_basement_1, PF_floor_2, PF_excluded]
-Result: VERIFIED PASS
-```
-
-## Manual E2E
-
-```
-verify_dblclick_manual.py → DBLCLICK_OK (objects=1, pts=4)
-```
-
----
-
-# Previous: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes)
-
-Branch: main
-Date: 2026-05-25
-
-## Result: PASS
-
-Proto full E2E PASS (21/21 + NEW PHASE_CENTERLINE_SNAP_OK 10/10). Lite LITE_CENTERLINE_SNAP_OK 8/8 PASS. MEASURE_PARITY_OK GREEN. All prior baseline markers retained. Commits: `0208314` `6db0461` `ad920c6` `916d379` `ff3f9fe` `5783df4`.
-
-## Commands
-
-```bash
-# Proto
-python -m py_compile proto/server.py proto/e2e_ui_test.py
-python proto/e2e_ui_test.py smoke
-python proto/e2e_ui_test.py full
-
-# Lite
-python lite/tests/test_centerline_snap.py
-python lite/tests/test_measure_parity.py
-```
-
-## Proto — Smoke (18 baseline markers)
-
-| Marker | Result |
-|---|---|
-| CACHE_OK | PASS |
-| SETUP_OK | PASS |
-| MAIN_UI_OK | PASS |
-| VECTOR_OK | PASS |
-| RECAL_OK | PASS |
-| SITE_UI_OK | PASS |
-| XLSX_OK | PASS |
-| PROJECT_OK | PASS |
-| RASTER_OK | PASS |
-| WHEEL_OK | PASS |
-| SNAP_OK | PASS |
-| SELECT_OK | PASS |
-| SETBACK_OK | PASS |
-| EXT_MEASURE_OK | PASS |
-| MENU_OK | PASS |
-| PATH_GEOMETRY_OK | PASS |
-| PHASE_I_A_OK | PASS |
-| PHASE_I_B1_OK | PASS |
-
-## Proto — Full (3 additional markers + NEW centerline marker)
-
-| Marker | Result |
-|---|---|
-| ANNOT_OK | PASS |
-| PERSIST_OK | PASS |
-| REAL_OK | PASS |
-| **PHASE_CENTERLINE_SNAP_OK (10/10 sub-checks)** | **PASS — NEW** |
-
-Sub-checks for PHASE_CENTERLINE_SNAP_OK:
-- fnsExist, versionExists, toggleExists, stateExists, buttonExists, prefDefault: all PASS
-- sanity: PASS (skeleton pixels found on synthetic dashed canvas)
-- accuracy: PASS (maxDelta=0.140%, target ≤0.5%)
-- subFnsExist: PASS (CL_snapCanvasToCenterline + CL_refineCornersOnSkeleton)
-- refineHookInFinish: PASS (finishCurrentArea calls refine for poly branch)
-
-Note: PROJECT_OK + PERSIST_OK confirm `obj.traceMode = "centerline-roi"` additive field round-trips through save/load without breaking existing .bmaplan files.
-
-## Lite — LITE_CENTERLINE_SNAP_OK (8/8 sub-checks)
-
-| Sub-check | Result |
-|---|---|
-| jsFnsExist | PASS (CL_snapCanvasToCenterline + CL_litePolyClick + CL_litePolyFinish present) |
-| toggleBtnInstalled | PASS (floating toggle button self-installs on page load) |
-| localStoragePersist | PASS (centerlineSnapOn state persists across page reload) |
-| accuracy | PASS (maxDelta=0.1778% ≤0.5% on synthetic dashed pentagon) |
-| skeletonFound | PASS (algorithm finds dark pixels on synthetic canvas) |
-| refineHookInFinish | PASS (finishDraft calls CL_litePolyFinish for poly branch) |
-| dprBridge | PASS (source scan confirms both glue functions reference `dpr` for coord conversion) |
-| activeCssRule | PASS (.active CSS rule present: green background + glow when toggle ON) |
-
-## Lite — MEASURE_PARITY_OK
-
-```bash
-python lite/tests/test_measure_parity.py  → GREEN
-```
-
-16 functions + 2 constants in `lite/static/js/measure-engine.js` are byte-identical to proto.
-`centerline-snap.js` Section A is byte-identical to `proto/static/js/centerline-snap.js` per drift-locked vendoring contract.
-
-## TEST-H Rationale (Skipped)
-
-Per AGENTS.md: feature defaults OFF; user must opt-in via "⊙ CL" Helpers ribbon button (proto) or floating toggle (lite). The existing `bma-human-journey-tester` does not toggle Helpers ribbon options. The full E2E with 10/8 sub-check synthetic proof (including accuracy gate, hook wiring, DPR bridge, and active CSS verification) constitutes sufficient verification. TEST-H will be relevant when the feature is promoted to default-ON.
-
----
-
+<!-- BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/test-history-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-arc-summary sprint) -->
 <!-- SIM-2 (2026-05-24) and older test results archived to docs/archive/test-history-2026-05-09.md -->

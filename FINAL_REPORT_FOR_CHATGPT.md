@@ -1,10 +1,38 @@
 # FINAL_REPORT_FOR_CHATGPT.md — Sprint Outcome Report
 
-> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md)
+> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md)
 
 ---
 
-# Latest: SLICE report-edit-1 — Editable lite report — PASS
+# Latest: BUG-20260702-lite-arc-summary — PASS
+
+**Date:** 2026-07-02
+**Branch:** main
+
+## Outcome
+
+PASS. Fixed a silent measurement-accuracy bug: arc-edge polygon areas were correct on the per-object canvas label but wrong in EVERY downstream rollup — summary panel, XLSX export, annotated-PDF overlay, report, layer totals, and site-setup rollup all under-counted curved rooms because 6 call sites dropped `o.edges` when calling the area function. Fixed by swapping all 6 sites to the arc-aware `polyMetricsAnyShape`. A new guard test proves the bug was real (RED on pre-fix code) and that the fix is complete (GREEN post-fix, all 6 consumers now agree with the canvas label). Zero edits to the drift-locked vendored geometry engine; non-arc measurements are byte-identical to before. Bug 1 of 2 from the 2026-07-02 measurement-accuracy audit — bug 2 (CFSS shared-shape instances excluded from totals) is queued next.
+
+## What was delivered
+
+- `lite/ui-lite.html:1049`, `lite/static/js/export-annotate.js:14/27/58`, `lite/static/js/layer-tree.js:62`, `lite/static/js/overview-setup.js:642` — 6 callee swaps: `polyMetrics({pts:o.pts})` → `polyMetricsAnyShape(o,pg)`
+- `lite/tests/test_summary_arc_parity.py` (NEW) — `LITE_SUMMARY_ARC_OK` guard test, independent closed-form fixture, proven RED→GREEN across the fix
+- `lite/tests/bug-archive.jsonl` — entry appended (fixed_commit `e5264e2`, status `fixed`) via the bug-report pipeline
+- `docs/status/PHASE_INDEX.md` — row updated to ✅ done via the bug-report pipeline
+- Shipped as commit `e5264e2` on `main`
+
+## What's next
+
+- **(1)** `BUG-20260702-lite-cfss-summary` — CFSS shared-shape instances have no `.pts` of their own, so `computeSummary` skips them entirely; promoting a shared shape removes its source polygon from totals with no replacement. Runs next via `/bma-bug-report`.
+- **(2)** File the remaining 2026-07-02 measurement-accuracy audit findings as queued cards: calibration single-sample risk, export payload size stress-testing, `ptToScreen` outside the drift-lock contract, no all-tests runner for lite.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic, measurement-accuracy hardening track. Part of a 2-bug audit initiated 2026-07-02; this is bug 1 of 2. Bug-report pipeline (triage → specialist review widened scope from 4 to 6 sites → fix → regression → this write-up) ran end-to-end without a stop-condition. No forbidden surface touched; no Phase 2 scope crossed.
+
+---
+
+# Previous: SLICE report-edit-1 — Editable lite report — PASS
 
 **Date:** 2026-06-05
 **Branch:** main
@@ -36,64 +64,5 @@ Phase 1 — BMA-Plan Lite epic, report sub-system. This sprint completes the BUI
 
 ---
 
-# Previous: BUG-20260526-lite-stale-pf-folder-cleanup — PASS
-
-**Date:** 2026-05-26
-**Branch:** main
-
-## Outcome
-
-PASS. The stale PF folder accumulation bug in lite is fixed. `seedPageFolders()` now prunes `PF_floor_N` folders (+ their 3 seed layers) when their source pages are re-tagged away from floor/basement. A safety guard preserves any folder that still contains user-drawn objects, so no measurement work is silently deleted. Discovery was via `/bma-simulate` run `basement-order-exclude-stale-20260526T173000` which confirmed BUG-HYP-2 (`stale_PF_floor_1_exists=true`, 3 lingering layers). All 4 test cases PASS + 5 regression markers GREEN. Proto untouched.
-
-## What was delivered
-
-- `lite/static/js/page-folder-layers.js` (+47/-2, 743→790 lines) — `_pflFolderHasUserDrawnObjects(folderId)` + `_pflPrunePF(activeFolderIds)` helpers + wiring into `seedPageFolders`; return shape adds `pruned` count (in-memory, not serialized)
-- `lite/tests/test_pf_cleanup_on_exclude.py` (NEW, 168 lines) — 4-case Playwright: basic cleanup / safety preservation / idempotency / PF_excluded never pruned; marker `PF_CLEANUP_OK`
-- `.claude/skills/bma-simulate/regression_probes.json` — setup_js for LITE-BUG-DBLCLICK-OVER-POP probe updated to handle wizard auto-open (partial workaround; full probe rewrite deferred)
-
-## What's next
-
-- **LITE-PROBE-DBLCLICK-REWRITE** (test-infra, medium priority): Rewrite `LITE-BUG-DBLCLICK-OVER-POP` probe from `mouse_sequence` to `evaluate`-only — directly inject `state.draft` points then dispatch synthetic dblclick event on `cv`. Makes probe robust against future UI workflow changes (wizard auto-open, modal overlays) that block real mouse events. Current setup_js workaround (dismissing lwiz lock) is partial.
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic, page-folder-layers sub-system hardening. This bug existed since LPFL-1 (first ship of seedPageFolders, 2026-05-25) — the `removeFolder` function was imported but never called. Fix is surgical and additive; no forbidden surface touched; proto baseline unchanged. LITE-7 (PyInstaller .exe) remains the only deferred epic item.
-
----
-
-# Previous: Centerline Snap arc (invent → INV-002a proto → INV-002b lite → 2 post-ship bugfixes) — PASS
-
-**Date:** 2026-05-25
-**Branch:** main
-**Commits:** `0208314` (invent spike GO) · `6db0461` (INV-002a proto) · `ad920c6` (INV-002b lite) · `916d379` (roadmap chore) · `ff3f9fe` (DPR bugfix) · `5783df4` (button position bugfix)
-
-## Outcome
-
-PASS. Centerline snap is now available in both proto and lite as an opt-in feature. Users who trace the outer, inner, or centerline of a thick dashed cadastral boundary will now all get the same m² result when "⊙ CL" is toggled ON. The full invent pipeline (7 phases, commit `0208314`) ran from user problem report to SPIKE PASS 4/4 in one day. Two user-reported post-ship bugs in lite (silent no-op on HiDPI displays and CL button overlapping zoom controls) were filed and fixed within hours of the lite ship. PHASE_CENTERLINE_SNAP_OK 10/10 (accuracy maxDelta=0.140%). LITE_CENTERLINE_SNAP_OK 8/8 (accuracy maxDelta=0.1778%). All 21 prior proto markers GREEN. Zero server changes across the entire arc.
-
-## What was delivered
-
-- **`docs/invent/centerline-snap-dashed-boundary.md`** — full 7-phase invent record: research verdict PRIOR_ART_PARTIAL (Zhang-Suen 1984 exists; no incumbent exposes it as user choice); 5 approaches scored; Approach A 27/30 wins; 3 spike passes; CHECKPOINT: user GO + "ทำลง lite ด้วย"
-- **`proto/static/js/centerline-snap.js`** (208 LOC, commit `6db0461`) — Otsu adaptive threshold + Zhang-Suen thinning + CL_snapCanvasToCenterline (click-time, ~4ms) + CL_refineCornersOnSkeleton (post-draw PCA, ~6ms); no CDN dependency; IIFE
-- **`proto/ui.html`** (+15 lines net, commit `6db0461`) — "⊙ CL" Helpers ribbon button; feature defaults OFF; click-hook fires only when no vector snap matched; `obj.traceMode = "centerline-roi"` additive schema field
-- **`proto/e2e_ui_test.py`** (+162 lines, commit `6db0461`) — PHASE_CENTERLINE_SNAP_OK 10/10 sub-checks including accuracy gate (maxDelta=0.140% ≤ 0.5%)
-- **`lite/static/js/centerline-snap.js`** (306 LOC, commit `ad920c6`) — Section A byte-identical to proto (drift-locked vendoring contract); Section B lite glue with toggle button + localStorage persistence
-- **`lite/ui-lite.html`** (+2 net lines, 1197→1199, commit `ad920c6` + `ff3f9fe` + `5783df4`) — DPR coord bridge (multiply/divide by devicePixelRatio) + inline `.active` CSS (green glow when ON) + CL button repositioned inside `#hud-br` flex-column (no overlap with zoom controls)
-- **`lite/tests/test_centerline_snap.py`** (235 LOC, 8/8 sub-checks) — LITE_CENTERLINE_SNAP_OK with accuracy gate + dprBridge + activeCssRule regression locks
-
-## What's next
-
-The invent pipeline for centerline snap is fully closed. Four follow-on candidates — user decides priority (none auto-promoted):
-
-- **(1) Real-user verification** — ask user to re-measure SCR_ผังต่อโฉนด.pdf with CL ON on both proto + lite; confirm 3 traces (outer/inner/center) converge to same m². Low-risk, high-confidence closure.
-- **(2) Vector PDF route (Approach E from diverge)** — extract stroke-width from `extract_snaps_typed()` server response, surface as additive field, client offset by w/2 when `snap.t==='nl'`. Separate sprint; does not depend on 002a/b.
-- **(3) Real-raster threshold robustness** — if contrast-faded scans misfire with Otsu, swap to adaptive Sauvola/Niblack. Wait for user reports before committing to this sprint.
-- **(4) Sharp corner < 60° fallback** — PCA fit from 5 samples can be unstable on very short edges; add step-1-only fallback when refine confidence is low.
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic + proto geometry/snap track. The centerline snap feature is a Phase 1 in-scope capability (geometry/snap, not auto-boundary-detection). Invent pipeline (Pack H) ran correctly: idea filed → 7-phase research+diverge+spike → human CHECKPOINT → two sprint cards → dev loop ships → bugs fixed. No Phase 2 scope boundary crossed. Proto/ server untouched. Lite size cap respected (1199/1200). LITE-7 (PyInstaller .exe) remains the only deferred epic item.
-
----
-
+<!-- BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-arc-summary sprint) -->
 <!-- SIM-2 (2026-05-24) and older reports archived to docs/archive/reports-2026-05-09.md -->
