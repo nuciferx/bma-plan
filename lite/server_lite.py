@@ -338,12 +338,26 @@ async def export_pdf_overlay(req: Request):
         if idx < 0 or idx >= len(doc):
             continue
         pg = pages[n]
-        pix = doc[idx].get_pixmap(matrix=fitz.Matrix(RS, RS))   # displayed orientation
+        rot = int(pg.get("rot", 0)) % 360
+        base_rect = doc[idx].rect                               # un-rotated image frame (intrinsic baked)
+        W, H = base_rect.width * RS, base_rect.height * RS
+        pix = doc[idx].get_pixmap(matrix=fitz.Matrix(RS, RS).prerotate(rot))  # WYSIWYG rotation
         page = out.new_page(width=pix.width, height=pix.height)
         page.insert_image(fitz.Rect(0, 0, pix.width, pix.height), pixmap=pix)
+
+        def _rp(x, y, _rot=rot, _W=W, _H=H):
+            # mirrors client pdfToC rotation branches; direction verified vs prerotate
+            if _rot == 90:
+                return (_H - y, x)
+            if _rot == 180:
+                return (_W - x, _H - y)
+            if _rot == 270:
+                return (y, _W - x)
+            return (x, y)
+
         sh = page.new_shape()
         for o in pg.get("objects", []):
-            pts = [(p["x"] * RS, p["y"] * RS) for p in o.get("pts", [])]
+            pts = [_rp(p["x"] * RS, p["y"] * RS) for p in o.get("pts", [])]
             col = _hex_rgb(o.get("color"))
             if o.get("counting"):
                 if pts:
@@ -367,7 +381,7 @@ async def export_pdf_overlay(req: Request):
                 pt = a.get("pt") or (a.get("pts") or [{}])[0]
                 if "x" in pt:
                     try:
-                        page.insert_text(fitz.Point(pt["x"] * RS, pt["y"] * RS),
+                        page.insert_text(fitz.Point(*_rp(pt["x"] * RS, pt["y"] * RS)),
                                          ("[!] " if t == "ann_comment" else "") + (a.get("text") or ""),
                                          fontsize=10, color=col)
                     except Exception:
@@ -376,7 +390,7 @@ async def export_pdf_overlay(req: Request):
             pp = a.get("pts") or []
             if len(pp) < 2:
                 continue
-            a0 = (pp[0]["x"] * RS, pp[0]["y"] * RS); a1 = (pp[1]["x"] * RS, pp[1]["y"] * RS)
+            a0 = _rp(pp[0]["x"] * RS, pp[0]["y"] * RS); a1 = _rp(pp[1]["x"] * RS, pp[1]["y"] * RS)
             x, y = min(a0[0], a1[0]), min(a0[1], a1[1]); w = abs(a1[0] - a0[0]); h = abs(a1[1] - a0[1])
             if t == "ann_arrow":
                 _arrow(sh, a0, a1, col); sh.finish(color=col, width=1.6)

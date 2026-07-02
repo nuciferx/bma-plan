@@ -36,7 +36,7 @@ function exportPdfOverlay(){ if(!caseId){alert("เปิด PDF ก่อน");
     var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetricsAnyShape(o,+k).area; label=o.semanticTag+(a==null?"":" "+a.toFixed(2)+" m2"); }
     return {kind:o.kind,counting:o.counting,pts:o.pts,color:col,label:label}; }).filter(function(x){return x!==null;});
     var anns=(PS[k].annotations||[]).map(function(a){ var st=annStyle(a); return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:st.color,opacity:st.opacity,fontSize:st.fontSize}; });
-    if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns}; });
+    if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns,rot:(typeof pageRot!=="undefined"&&pageRot&&pageRot[k])||0}; });
   dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); }
 
 /* LITE-REPORT: editable web report — opens /report in a new window, hands off

@@ -214,7 +214,7 @@
   var curPage = 1;
   var pageData = null;
   var canvas = document.getElementById("cv");
-  function getRot(pg){ return 0; }                 // view rotation handled separately; coord stays rot0
+  function getRot(pg){ return (typeof pageRot!=="undefined"&&pageRot&&pageRot[pg])||0; }  // page rotation drives coord transform (proto-parity — BUG-20260702-lite-pagerot-registration)
   function getScaleForPage(pg){ var s = (PS[pg]||{}).scale; return s || null; }
 </script>
 <script src="static/js/measure-engine.js"></script>
@@ -254,11 +254,11 @@ var ANN_TOOLS=["ann_text","ann_comment","ann_arrow","ann_highlight","ann_rect","
 function isAnnTool(t){return ANN_TOOLS.indexOf(t||state.tool)>=0;}
 
 /* ============================ TRANSFORM ============================ */
-// geometry stored in PDF points; image px = pt*RS (pdfToC rot0). View = rot+scale+pan.
-function ptToScreen(p){ var ix=p.x*RS, iy=p.y*RS, th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
-  var rx=ix*c-iy*s, ry=ix*s+iy*c; return {x:rx*V.k+V.ox, y:ry*V.k+V.oy}; }
+// geometry stored in PDF points; image px via vendored pdfToC (carries pgRot). View = rot+scale+pan.
+function ptToScreen(p){ var ci=pdfToC(p.x,p.y), th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
+  var rx=ci.x*c-ci.y*s, ry=ci.x*s+ci.y*c; return {x:rx*V.k+V.ox, y:ry*V.k+V.oy}; }
 function screenToPt(sx,sy){ var u=(sx-V.ox)/V.k, v=(sy-V.oy)/V.k, th=V.rot*Math.PI/180, c=Math.cos(th), s=Math.sin(th);
-  var ix=u*c+v*s, iy=-u*s+v*c; return {x:ix/RS, y:iy/RS}; }   // cToPdf rot0 = /RS
+  var ix=u*c+v*s, iy=-u*s+v*c; return cToPdf(ix,iy); }   // cToPdf undoes pgRot+RS
 
 // proto-parity zoom commands: zoom about viewport center / reset to 100% (1 img-px = 1 screen-px).
 // resize() and fit() live in static/js/page-renderer.js (slice-1 extraction).
