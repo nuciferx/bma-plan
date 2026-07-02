@@ -4,7 +4,58 @@
 
 ---
 
-# Latest: BLOCK-20260703-clear-queue — 5-ship "ทำทั้งหมด" session
+# Latest: GO-20260703-invariants-streaming-worker-recycle — V2-U1 invariants + Range-streaming spike (NOGO→RESHAPE) + worker-recycle build
+
+Branch: main
+Date: 2026-07-03
+
+## Result: PASS (lite tests only — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this block made zero changes to `proto/` source files. Lite-only block (invariants doc + spike + worker-recycle); no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python lite/tests/test_worker_recycle.py
+python lite/tests/run_all_tests.py --tier t0
+python lite/tests/test_measure_parity.py
+```
+
+## Lite — Results (1 new guard test + regression, all exit 0)
+
+| Test | Marker | Result |
+|---|---|---|
+| test_worker_recycle.py | LITE_WORKER_RECYCLE_OK (NEW) | PASS (7/7 checks: teardown state, transparent reinit repaint, zero-refetch when a local blob is retained, metadata survival, in-flight-render SKIP, heap-not-worse −0.8%; built by lite-builder subagent, independently verified via diff + targeted subset re-run + t0) |
+| run_all_tests.py --tier t0 | — | PASS (measure-math tier, <5s target) |
+| test_measure_parity.py | MEASURE_PARITY_OK | PASS (drift-lock intact — confirms `measure-engine.js` vendored math untouched across all 4 pieces of this block) |
+
+Regression: 6/6 targeted at-risk files green + `run_all_tests.py --tier t0` green. Lite suite now stands at 72 test files (up from 70). The V2-U1 invariant registry (`lite/tests/INVARIANTS.md`) and the Range-streaming spike (`lite/sandbox/invent-range-streaming/`) are docs/research, not app-code changes, and are covered by this same regression run rather than a dedicated guard marker.
+
+## Range-streaming spike — real measured results (not a pass/fail test; the spike's own acceptance criteria are recorded here for auditability)
+
+5-step spike run for real (not simulated) on RAMA4 (19 MB) + the real CHH customer binder (95 MB), in `lite/sandbox/invent-range-streaming/`:
+- (S1) both PDFs are NON-linearized yet stream fine — only 20% of bytes fetched; the standing linearization concern is moot.
+- (S2) Starlette's `/raw` route already serves `206 Partial Content` + `Content-Range` — zero backend changes needed.
+- (S3) streaming cut CHH's RSS by only 10% (1675→1503 MB) against a ≥50% GO criterion — **FAILS**.
+- pdf.js worker-heap bug #10730 CONFIRMED on the pinned 4.0.379 build: `doc.destroy()` frees the main document heap (409→98 MB) but the separate pdf.js WORKER heap survives untouched — this worker heap, not the document heap, is the real ~1.5 GB ceiling.
+- (S4) `PDFDataRangeTransport` over `Blob.slice` works mechanically (no full local copy required) but delivers no memory win given (S3).
+- **VERDICT: NOGO on streaming-as-a-memory-fix.** RESHAPE to worker-recycle, which was then built and independently guarded (see below).
+
+## Worker-recycle — LITE_WORKER_RECYCLE_OK honesty note
+
+The full "CHH RSS −50%" acceptance bar was measured in the spike's own pattern (S3 above), not re-measured against this specific shipped implementation. `LITE_WORKER_RECYCLE_OK`'s own heap check (−0.8%, "not worse") is a weaker, mechanically-verifiable claim proven on the test's own fixture. A production re-probe of the real worker-recycle build against the real CHH binder is recorded as queued follow-up measurement, not assumed to already match the spike's number.
+
+## Reference Baseline (proto, unchanged this block)
+
+```
+python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+```
+
+---
+
+# Previous: BLOCK-20260703-clear-queue — 5-ship "ทำทั้งหมด" session
 
 Branch: main
 Date: 2026-07-03
@@ -56,59 +107,8 @@ python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_
 
 ---
 
-# Previous: PERF-20260702-lite-foxit-smoothness — Foxit-grade open smoothness (4-sprint block)
-
-Branch: main
-Date: 2026-07-02
-
-## Result: PASS (lite tests only — proto NOT TOUCHED)
-
-## No Proto-Test Rationale
-
-Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this block made zero changes to `proto/` source files. Lite-only block (4 sprints); no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
-
-## Commands
-
-```bash
-python lite/tests/test_pagecache_lru.py
-python lite/tests/test_local_open.py
-python lite/tests/test_warm_prefetch.py
-python lite/tests/test_thumb_warm.py
-python lite/tests/test_measure_parity.py
-python lite/tests/run_all_tests.py
-```
-
-## Lite — Results (4 new guard tests + regression, all exit 0)
-
-| Test | Marker | Result |
-|---|---|---|
-| test_pagecache_lru.py | LITE_PAGECACHE_LRU_OK (NEW) | PASS (RED→GREEN proven; Sprint 1) |
-| test_local_open.py | LITE_LOCAL_OPEN_OK (NEW) | PASS (RED→GREEN proven; Sprint 2) |
-| test_warm_prefetch.py | LITE_WARM_PREFETCH_OK (NEW) | PASS (RED→GREEN proven; Sprint 3) |
-| test_thumb_warm.py | LITE_THUMB_WARM_OK (NEW) | PASS (Sprint 4) |
-| test_measure_parity.py | MEASURE_PARITY_OK | PASS (drift-lock intact at every step — confirms `measure-engine.js` vendored math untouched across all 4 sprints) |
-
-Per-sprint regression: Sprint 1 (page-cache LRU) 10/10 · Sprint 2 (local-first open) 10/10 · Sprint 3 (worker warm-up + prefetch) 9/9 · Sprint 4 (thumbnail warm) 8/8 — not individually enumerated here. Full lite test suite now stands at 67 files, all green.
-
-## Empirical Perf Probe (drove this block's scoping — not a pass/fail test, reference measurements)
-
-Source: `artifacts/perf/probe_results_20260702.txt`.
-
-- RAMA4 (18.3 MB): first-paint 3.9s cold.
-- CHH (90.8 MB real customer file): first-paint 9.6s cold; heap 766 MB after 10 pages viewed pre-fix → ~628 MB post Sprint-1 LRU (−18%).
-- PDF.js library+worker boot: flat ~1.2s floor on every open regardless of file size, now hidden behind Sprint 3's idle-time warm-up.
-- Time attribution: `UPLOAD` dominates at ~80ms/MB; `/raw` fetch is nearly free — motivated Sprint 2 (local-first open).
-- Pan-blank suspicion (from `AUDIT-20260702-render-followups`): REFUTED, 0/10 occurrences across 3 test files.
-- Overview thumbnails: earlier "0/0" report was a probe selector artifact — real measurement is 45/45 thumbnails in 9.2s cold (~200ms/thumb), instant on warm cache; confirms Sprint 4's approach is sound.
-
-## Reference Baseline (proto, unchanged this sprint)
-
-```
-python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
-```
-
----
-
+<!-- GO-20260703-invariants-streaming-worker-recycle + BLOCK-20260703-clear-queue are the 2 kept in this file -->
+<!-- PERF-20260702-lite-foxit-smoothness archived to docs/archive/test-history-2026-07-02.md on 2026-07-03 (GO-20260703-invariants-streaming-worker-recycle session) -->
 <!-- BUG-20260702-lite-pagerot-registration archived to docs/archive/test-history-2026-07-02.md on 2026-07-03 (BLOCK-20260703-clear-queue session) -->
 <!-- AUDIT-20260702-infra-bundle archived to docs/archive/test-history-2026-07-02.md on 2026-07-02 (PERF-20260702-lite-foxit-smoothness sprint block) -->
 <!-- BUG-20260702-lite-cfss-summary + BUG-20260702-lite-arc-summary (2026-07-02) + SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/test-history-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-pagerot-registration sprint) -->

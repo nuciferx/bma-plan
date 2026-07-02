@@ -1,6 +1,6 @@
 # TEST_RESULT.md Archive — 2026-06 sessions (archived 2026-07-02)
 
-> Archived from root TEST_RESULT.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint archived during BUG-20260702-lite-pagerot-registration sprint; BUG-20260702-lite-arc-summary sprint archived during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint; AUDIT-20260702-infra-bundle archived 2026-07-02 during the PERF-20260702-lite-foxit-smoothness sprint block; BUG-20260702-lite-pagerot-registration archived 2026-07-03 during the BLOCK-20260703-clear-queue session) to keep root at Latest + 1 Previous.
+> Archived from root TEST_RESULT.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint archived during BUG-20260702-lite-pagerot-registration sprint; BUG-20260702-lite-arc-summary sprint archived during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint; AUDIT-20260702-infra-bundle archived 2026-07-02 during the PERF-20260702-lite-foxit-smoothness sprint block; BUG-20260702-lite-pagerot-registration archived 2026-07-03 during the BLOCK-20260703-clear-queue session; PERF-20260702-lite-foxit-smoothness archived 2026-07-03 during the GO-20260703-invariants-streaming-worker-recycle session) to keep root at Latest + 1 Previous.
 
 ---
 
@@ -400,3 +400,56 @@ Guard test proving the registration bug and the fix: (i) 4-angle screen-coordina
 python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
 ```
 
+
+---
+
+# Archived: PERF-20260702-lite-foxit-smoothness — Foxit-grade open smoothness (4-sprint block)
+
+Branch: main
+Date: 2026-07-02
+
+## Result: PASS (lite tests only — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this block made zero changes to `proto/` source files. Lite-only block (4 sprints); no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python lite/tests/test_pagecache_lru.py
+python lite/tests/test_local_open.py
+python lite/tests/test_warm_prefetch.py
+python lite/tests/test_thumb_warm.py
+python lite/tests/test_measure_parity.py
+python lite/tests/run_all_tests.py
+```
+
+## Lite — Results (4 new guard tests + regression, all exit 0)
+
+| Test | Marker | Result |
+|---|---|---|
+| test_pagecache_lru.py | LITE_PAGECACHE_LRU_OK (NEW) | PASS (RED→GREEN proven; Sprint 1) |
+| test_local_open.py | LITE_LOCAL_OPEN_OK (NEW) | PASS (RED→GREEN proven; Sprint 2) |
+| test_warm_prefetch.py | LITE_WARM_PREFETCH_OK (NEW) | PASS (RED→GREEN proven; Sprint 3) |
+| test_thumb_warm.py | LITE_THUMB_WARM_OK (NEW) | PASS (Sprint 4) |
+| test_measure_parity.py | MEASURE_PARITY_OK | PASS (drift-lock intact at every step — confirms `measure-engine.js` vendored math untouched across all 4 sprints) |
+
+Per-sprint regression: Sprint 1 (page-cache LRU) 10/10 · Sprint 2 (local-first open) 10/10 · Sprint 3 (worker warm-up + prefetch) 9/9 · Sprint 4 (thumbnail warm) 8/8 — not individually enumerated here. Full lite test suite now stands at 67 files, all green.
+
+## Empirical Perf Probe (drove this block's scoping — not a pass/fail test, reference measurements)
+
+Source: `artifacts/perf/probe_results_20260702.txt`.
+
+- RAMA4 (18.3 MB): first-paint 3.9s cold.
+- CHH (90.8 MB real customer file): first-paint 9.6s cold; heap 766 MB after 10 pages viewed pre-fix → ~628 MB post Sprint-1 LRU (−18%).
+- PDF.js library+worker boot: flat ~1.2s floor on every open regardless of file size, now hidden behind Sprint 3's idle-time warm-up.
+- Time attribution: `UPLOAD` dominates at ~80ms/MB; `/raw` fetch is nearly free — motivated Sprint 2 (local-first open).
+- Pan-blank suspicion (from `AUDIT-20260702-render-followups`): REFUTED, 0/10 occurrences across 3 test files.
+- Overview thumbnails: earlier "0/0" report was a probe selector artifact — real measurement is 45/45 thumbnails in 9.2s cold (~200ms/thumb), instant on warm cache; confirms Sprint 4's approach is sound.
+
+## Reference Baseline (proto, unchanged this sprint)
+
+```
+python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+```

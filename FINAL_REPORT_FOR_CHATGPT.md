@@ -4,14 +4,46 @@
 
 ---
 
-# Latest: BLOCK-20260703-clear-queue — PASS
+# Latest: GO-20260703-invariants-streaming-worker-recycle — PASS
 
 **Date:** 2026-07-03
 **Branch:** main
 
 ## Outcome
 
-PASS. Five same-session ships, cleared back-to-back overnight under a user directive to close out the entire remaining queue ("ทำทั้งหมด"). **Ship 1 — `AUDIT-20260702-s2-fitz-lock` (`d0a5dde`):** per-case `threading.Lock` now serializes all `fitz.Document` access in `lite/server_lite.py`, including moving `/export-pdf-overlay`'s render off the event loop entirely (completing the S2 threadpool goal deferred from `AUDIT-20260702-infra-bundle`). NEW `LITE_CASE_LOCK_OK` hammer test (96 requests / 8 threads / mid-flight doc-swap / concurrent overlay export), zero 5xx — honestly recorded as a hardening test, not a deterministic RED-before-fix proof, since native races are probabilistic. **Ship 2 — render-followups (a)+(c) (`aec375b`):** PDF.js-unavailable no longer blanks the canvas (falls back to server JPEG raster); scanned/image-only pages get a capped re-render scale (saves wasted CPU, zero accuracy change) plus a one-time hint. **Ship 3 (`13054b6`):** tiered test runner (`--tier t0/t1/t2`, part of the new V2 migration blueprint), and — most notably — the first PIXEL-level proof (not just exact-inverse math) that the raster canvas and exported overlay stay registered (max offset 0.50 device px), closing an evidence gap the 2026-05-28 render-quality spike never closed. Range-streaming research was also completed and correctly HALTED at the human decision checkpoint rather than shipped, per this project's invention discipline. **Ship 4 — `ACC-20260703-verify-scale-port` (`bea2119`):** ported Verify-Scale from proto to lite, closing the single remaining accuracy gap vs. Foxit identified by the 2026-07-02 competitive comparison. **Ship 5:** wrote down the day's operating lessons as two new process docs (`DEVELOPMENT_PILLARS.md`, `DEVELOPMENT_V2_BLUEPRINT.md`) before they were lost. Full lite test suite validated at 70/70 files green (grown from 60 across the two days); `MEASURE_PARITY_OK` stayed green through every ship. Zero `proto/` edits across the whole block.
+PASS. Continuation of the same-day "GO" loop block, resumed right after `BLOCK-20260703-clear-queue` closed and the Range-streaming human checkpoint was cleared. **(1) V2-U1 invariant registry (`6d6e39b`):** NEW `lite/tests/INVARIANTS.md` — a canonical registry of 10 invariants (I1–I10), each mapped to its guard test + tier, plus the two mandatory SCOPE questions this project's own `DEVELOPMENT_V2_BLUEPRINT.md` U1 called for, born directly from the arc/CFSS-summary postmortem. Same commit reconciles 16 stale `PHASE_INDEX.md` rows with real `fixed_commit`, and closes the queued `ptToScreen` parity-fixture card with rationale rather than code (the behavioral lock already exists as invariant I7). **(2) Range-streaming SPIKE (`9466fe4`+`f8c2981`), GO received:** the 5-step spike was run for real on RAMA4 (19 MB) and the actual CHH customer binder (95 MB), not simulated. It found streaming cuts CHH's memory by only 10% against a ≥50% acceptance bar — **FAILS** — and confirmed the real ~1.5 GB memory ceiling is a pdf.js worker-heap defect (bug #10730), not a document-buffering problem Range-streaming could ever fix. **VERDICT: NOGO on streaming-as-a-memory-fix.** This is exactly what a spike is for: it prevented real engineering effort from being spent building the wrong fix. **(3) worker-recycle BUILT (`d52ddbb`), the RESHAPE:** explicit pdf.js worker lifecycle management — the worker is now recycled (torn down + transparently reinitialized) on tab-hidden or app-idle triggers, targeting the actual root cause the spike identified. New guard test `LITE_WORKER_RECYCLE_OK` (7/7 checks) passes; a production re-probe of the real memory-reduction number on the CHH binder is honestly recorded as a queued follow-up measurement, not assumed. **(4) Streaming-as-bandwidth deferred:** the spike's secondary "80% fewer bytes" benefit was explicitly NOT built — the current product is desktop-only over localhost, so there is no user who benefits from it today; revisit if/when a remote deployment exists. Lite suite now 72 files; `MEASURE_PARITY_OK` green throughout. Zero `proto/` edits.
+
+## What was delivered
+
+- `lite/tests/INVARIANTS.md` (NEW) — 10 invariants (I1–I10) + 2 mandatory SCOPE questions + new-object-kind fixture rule
+- `docs/status/PHASE_INDEX.md` — 16 stale rows reconciled; `ptToScreen` parity card closed with rationale; streaming-spike verdict + worker-recycle + bandwidth-deferral recorded
+- `docs/invent/lite-range-streaming.md` — updated with the real spike results and NOGO-as-memory-fix verdict
+- `lite/sandbox/invent-range-streaming/` (NEW) — spike scripts + raw results
+- `lite/static/js/page-renderer.js` — explicit `PDFWorker` ownership, `_docSource` re-open handle, `recycleDocWorker()`, hidden/idle/manual triggers
+- `lite/tests/test_worker_recycle.py` (NEW) — `LITE_WORKER_RECYCLE_OK`, 7/7 checks
+- Shipped as commits `6d6e39b` + `9466fe4` + `f8c2981` + `d52ddbb` on `main` (streaming-as-bandwidth deferral recorded as a documentation-only follow-on)
+
+## What's next
+
+- **(1) Production RSS re-probe of worker-recycle on the CHH binder** — the −50% acceptance bar was measured in the spike's pattern, not yet re-verified against the shipped implementation on the real 95 MB file. Small measurement task.
+- **(2) V2 migration continuation** — U1 (`INVARIANTS.md`) now DONE; U2 (tiered test runner) partially landed earlier. Remaining: U3 (`SHIPS.jsonl` ledger — the token-cost killer), U4 (full roadmap split ACTIVE/DONE + a reconcile script — this block's 16-row fix was done by hand).
+- **(3) proto backlog decision** — proto is de-facto in maintenance mode; decide whether to formally freeze it or schedule a hardening pass against its known issues (circle 32-gon storage bias, snap-radius zoom growth, soft-pass markers).
+- **(4) Release ritual per V2-U6** — tag + CHANGELOG + full 4-tier test run + `/lite-sandbox-test`, due before the next build hand-off.
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic. This block is the direct continuation of the invention discipline `BLOCK-20260703-clear-queue` Ship 3 halted at: the Range-streaming research reached a human checkpoint, work resumed once it cleared, a real spike caught that the memory problem was misdiagnosed, and the RESHAPE redirected the same acceptance bar at the real root cause instead. Process debt (invariant registry, roadmap reconciliation) was paid down opportunistically in the same session. No forbidden surface touched.
+
+---
+
+# Previous: BLOCK-20260703-clear-queue — PASS
+
+**Date:** 2026-07-03
+**Branch:** main
+
+## Outcome
+
+PASS. Five same-session ships, cleared back-to-back overnight under a user directive to close out the entire remaining queue ("ทำทั้งหมด"). **Ship 1 — `AUDIT-20260702-s2-fitz-lock` (`d0a5dde`):** per-case `threading.Lock` now serializes all `fitz.Document` access in `lite/server_lite.py`, including moving `/export-pdf-overlay`'s render off the event loop entirely (completing the S2 threadpool goal deferred from `AUDIT-20260702-infra-bundle`). NEW `LITE_CASE_LOCK_OK` hammer test (96 requests / 8 threads / mid-flight doc-swap / concurrent overlay export), zero 5xx — honestly recorded as a hardening test, not a deterministic RED-before-fix proof, since native races are probabilistic. **Ship 2 — render-followups (a)+(c) (`aec375b`):** PDF.js-unavailable no longer blanks the canvas (falls back to server JPEG raster); scanned/image-only pages get a capped re-render scale (saves wasted CPU, zero accuracy change) plus a one-time hint. **Ship 3 (`13054b6`):** tiered test runner (`--tier t0/t1/t2`, part of the new V2 migration blueprint), and — most notably — the first PIXEL-level proof (not just exact-inverse math) that the raster canvas and exported overlay stay registered (max offset 0.50 device px), closing an evidence gap the 2026-05-28 render-quality spike never closed. Range-streaming research was also completed and correctly HALTED at the human decision checkpoint rather than shipped, per this project's invention discipline. **Ship 4 — `ACC-20260703-verify-scale-port` (`bea2119`):** ported Verify-Scale from proto to lite, closing the single remaining accuracy gap vs. Foxit identified by the 2026-07-02 competitive comparison. **Ship 5:** wrote down the day's operating lessons as two new process docs (`DEVELOPMENT_PILLARS.md`, `DEVELOPMENT_V2_BLUEPRINT.md`) before they were lost. Full lite test suite validated at 70/70 files green (grown from 60 across the two days); `MEASURE_PARITY_OK` stayed green through every ship. Zero `proto/` edits across the whole block. **Ship 3's Range-streaming checkpoint was cleared and resolved by `GO-20260703-invariants-streaming-worker-recycle`.**
 
 ## What was delivered
 
@@ -26,12 +58,12 @@ PASS. Five same-session ships, cleared back-to-back overnight under a user direc
 - 5 NEW guard tests total: `LITE_CASE_LOCK_OK` / `LITE_RENDER_FB_SCAN_OK` / (tier flag, no dedicated marker) / `LITE_OVERLAY_REG_OK` / `LITE_VERIFY_SCALE_OK`
 - Shipped as commits `d0a5dde` + `aec375b` + `13054b6` + `bea2119` + `16e6495` + `b676652` on `main`
 
-## What's next
+## What's next (as recorded at the time; see GO-20260703-invariants-streaming-worker-recycle above for resolution)
 
-- **(1) HUMAN DECISION: Range-streaming spike GO/NOGO/RESHAPE** (`docs/invent/lite-range-streaming.md`) — the only item in the whole cleared queue still awaiting anything, and it specifically awaits a human call, not more agent work.
-- **(2) V2 migration continuation** — `INVARIANTS.md` (U1), roadmap split + reconcile (U4), `SHIPS.jsonl` ledger (U3) remain queued from `docs/process/DEVELOPMENT_V2_BLUEPRINT.md`; the tiered test runner (U2) is partially landed via Ship 3.
-- **(3) `ptToScreen`/`screenToPt` into the parity fixture** — last drift-lock nicety carried over from `BUG-20260702-lite-pagerot-registration`.
-- **(4) Stale `PHASE_INDEX.md` rows** — `lpm-1..9` show `queued` but `bug-archive.jsonl` says fixed; needs a reconciliation pass.
+- **(1) HUMAN DECISION: Range-streaming spike GO/NOGO/RESHAPE** (`docs/invent/lite-range-streaming.md`) — the only item in the whole cleared queue still awaiting anything, and it specifically awaits a human call, not more agent work. **(Resolved: GO received, spike ran, NOGO-as-memory-fix, RESHAPE shipped.)**
+- **(2) V2 migration continuation** — `INVARIANTS.md` (U1), roadmap split + reconcile (U4), `SHIPS.jsonl` ledger (U3) remain queued from `docs/process/DEVELOPMENT_V2_BLUEPRINT.md`; the tiered test runner (U2) is partially landed via Ship 3. **(U1 done; U3/U4 remainder still queued.)**
+- **(3) `ptToScreen`/`screenToPt` into the parity fixture** — last drift-lock nicety carried over from `BUG-20260702-lite-pagerot-registration`. **(Closed with rationale — registered as invariant I7.)**
+- **(4) Stale `PHASE_INDEX.md` rows** — `lpm-1..9` show `queued` but `bug-archive.jsonl` says fixed; needs a reconciliation pass. **(Resolved — 16 rows reconciled.)**
 
 ## Position in Plan
 
@@ -39,37 +71,8 @@ Phase 1 — BMA-Plan Lite epic. This block spans three tracks at once: reliabili
 
 ---
 
-# Previous: PERF-20260702-lite-foxit-smoothness — PASS
-
-**Date:** 2026-07-02
-**Branch:** main
-
-## Outcome
-
-PASS. Four same-day lite performance sprints, driven by an empirical perf probe (`artifacts/perf/probe_results_20260702.txt`) that measured real cold-open cost on RAMA4 (18.3 MB, 3.9s first-paint), CHH (90.8 MB real customer file, 9.6s first-paint + 766 MB heap after 10 pages), and found a flat ~1.2s PDF.js library+worker boot floor on every open. The probe also showed `UPLOAD` dominates at ~80ms/MB while `/raw` is nearly free, REFUTED a standing pan-blanking suspicion (0/10 across 3 files), and found the "overview thumbs 0/0" report was a probe selector artifact (real: 45/45 in 9.2s cold). Four sprints closed the highest-leverage, lowest-risk gaps this exposed: (1) page-cache LRU (`ae0f168`) — `MAX_PAGE_CACHE=4` with `.cleanup()` eviction, CHH heap 766→~628 MB (−18%); (2) local-first open (`3ec9239`) — paint happens on local bytes before the server upload lands, `/raw` never fetched, removes the dominant upload wait from the critical path on real binders; (3) worker warm-up + adjacent prefetch (`e0fb856`) — the flat 1.2s PDF.js boot is hidden behind idle time, page switches skip the worker round-trip; (4) sequential thumbnail warm (`a0c1152`) — overview grid opens hot, deliberately sequential (not parallel) pending the still-queued per-case `fitz` lock. All 4 guard tests RED→GREEN (or new), regression 10/10 + 10/10 + 9/9 + 8/8, `MEASURE_PARITY_OK` green throughout — zero vendored-math touch. Lite suite now 67 files, all green.
-
-## What was delivered
-
-- `lite/static/js/page-renderer.js` — `MAX_PAGE_CACHE=4` LRU eviction (S1); `openLocal()` + `adoptCase()` (S2); idle worker warm-up + n±1 prefetch (S3); `warmThumbs()` sequential thumbnail warm (S4)
-- `lite/ui-lite.html` — `uploadPdf()` opens local bytes immediately, backgrounds server upload, adopts case once it lands
-- `lite/tests/test_pagecache_lru.py`, `test_local_open.py`, `test_warm_prefetch.py`, `test_thumb_warm.py` (all NEW) — `LITE_PAGECACHE_LRU_OK` / `LITE_LOCAL_OPEN_OK` / `LITE_WARM_PREFETCH_OK` / `LITE_THUMB_WARM_OK`
-- `docs/status/PHASE_INDEX.md` — 4 sprint cards updated to ✅ done via the perf-sprint pipeline
-- Shipped as commits `ae0f168` + `3ec9239` + `e0fb856` + `a0c1152` on `main`
-
-## What's next
-
-- **(1) `PERF-20260702-open-streaming` (queued invent, `/lite-invent`)** — the only remaining perf piece. CHH's remaining ~600 MB doc-level heap needs Range-streaming (`PDFDataRangeTransport`), which touches the page-renderer's buffer-ownership contract and has documented quirks — correctly routed to the invent pipeline. **(Resolved by BLOCK-20260703-clear-queue Ship 3: research complete, HALTED at human checkpoint.)**
-- **(2) `AUDIT-20260702-render-followups` remainder** — pdfjs-fail → JPEG fallback, scanned-PDF detection messaging, memory-claim doc correction, real overlay-registration Playwright test. Pan double-buffer item is CLOSED-no-bug per this block's probe. **(Resolved by BLOCK-20260703-clear-queue Ships 2+3.)**
-- **(3) `AUDIT-20260702-s2-fitz-lock`** — per-case PyMuPDF lock needed before Sprint 4's thumbnail warm (or the overlay-render step) can safely go concurrent. **(Resolved by BLOCK-20260703-clear-queue Ship 1.)**
-- **(4) Calibration multi-sample / Verify-Scale port to lite** — accuracy gap vs. Foxit, unrelated to this perf block. **(Resolved by BLOCK-20260703-clear-queue Ship 4.)**
-- **(5) `ptToScreen`/`screenToPt` parity-fixture addition** — remains queued from the pagerot-registration sprint. **(Still queued after BLOCK-20260703-clear-queue.)**
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic, performance hardening track ("Foxit-grade open smoothness"). Closes the four highest-leverage perf gaps identified by the same-day empirical probe: open ~0.5-1.5s any size, page switch perceived-instant, zoom/pan at par, overview hot, memory page-level bounded. Doc-level memory (Range-streaming) is the one remaining piece, deliberately deferred to the invent pipeline rather than risked same-day. No forbidden surface touched.
-
----
-
+<!-- GO-20260703-invariants-streaming-worker-recycle + BLOCK-20260703-clear-queue are the 2 kept in this file -->
+<!-- PERF-20260702-lite-foxit-smoothness archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (GO-20260703-invariants-streaming-worker-recycle session) -->
 <!-- BUG-20260702-lite-pagerot-registration archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (BLOCK-20260703-clear-queue session) -->
 <!-- AUDIT-20260702-infra-bundle archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (PERF-20260702-lite-foxit-smoothness sprint block) -->
 <!-- BUG-20260702-lite-cfss-summary + BUG-20260702-lite-arc-summary (2026-07-02) + SLICE report-edit-1 (2026-06-05) + BUG-20260526-lite-stale-pf-folder-cleanup + Centerline Snap arc (2026-05-25) archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-pagerot-registration sprint) -->
