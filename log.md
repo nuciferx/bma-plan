@@ -1,8 +1,48 @@
 # BMA-Plan — Log (บันทึกเหตุการณ์)
 
 > ไฟล์นี้บันทึกเฉพาะ 2 session ล่าสุด
-> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004) · [docs/archive/log-2026-05-21.md](docs/archive/log-2026-05-21.md) (BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series) · [docs/archive/log-2026-05-22.md](docs/archive/log-2026-05-22.md) (LITE-REPORT INV-2026-05-21-002) · [docs/archive/log-2026-05-24.md](docs/archive/log-2026-05-24.md) (LITE-BUG-2-OPUS47-FINDINGS) · [docs/archive/log-2026-05-25.md](docs/archive/log-2026-05-25.md) (LOVS-1 + LPFL-1 + INV-2026-05-25-001 + Centerline Snap arc + SIM-2) · [docs/archive/log-2026-07-02.md](docs/archive/log-2026-07-02.md) (BUG-20260702-lite-arc-summary / SLICE report-edit-1 + invent lite-pdf-render-quality resumed+completed + paused / BUG-20260526-lite-stale-pf-folder-cleanup / LOVS-1 Lite Overview Setup wizard)
+> ประวัติเต็ม: [docs/archive/log-2026-05-09.md](docs/archive/log-2026-05-09.md) · [docs/archive/log-2026-05-14.md](docs/archive/log-2026-05-14.md) · [docs/archive/log-2026-05-15.md](docs/archive/log-2026-05-15.md) · [docs/archive/log-2026-05-18.md](docs/archive/log-2026-05-18.md) · [docs/archive/log-2026-05-19.md](docs/archive/log-2026-05-19.md) (BLOAT-1 + BLOAT-2 + 2026-05-19 bundle) · [docs/archive/log-2026-05-20.md](docs/archive/log-2026-05-20.md) (BLOAT-3 + BLOAT-4 + BLOAT-5 + BLOAT-FLAKE-1 + BUG-20260520-sel-midpan + INV-2026-05-20-001 + INV-2026-05-20-002/003/004) · [docs/archive/log-2026-05-21.md](docs/archive/log-2026-05-21.md) (BUG-20260521-lite-menu-clip + LITE-5 + LITE-SNAP/REVIEW/ANNOT/EXPORT/PAGESETUP + LITE-1..4 + LITE-0 + HT-ACC series) · [docs/archive/log-2026-05-22.md](docs/archive/log-2026-05-22.md) (LITE-REPORT INV-2026-05-21-002) · [docs/archive/log-2026-05-24.md](docs/archive/log-2026-05-24.md) (LITE-BUG-2-OPUS47-FINDINGS) · [docs/archive/log-2026-05-25.md](docs/archive/log-2026-05-25.md) (LOVS-1 + LPFL-1 + INV-2026-05-25-001 + Centerline Snap arc + SIM-2) · [docs/archive/log-2026-07-02.md](docs/archive/log-2026-07-02.md) (BUG-20260702-lite-cfss-summary / BUG-20260702-lite-arc-summary / SLICE report-edit-1 + invent lite-pdf-render-quality resumed+completed + paused / BUG-20260526-lite-stale-pf-folder-cleanup / LOVS-1 Lite Overview Setup wizard)
 > อัปเดตทุกครั้งที่: แก้โค้ด / เพิ่มฟีเจอร์ / แก้บั๊ก / รันทดสอบ / ตัดสินใจสำคัญ
+
+---
+
+## 2026-07-02 — BUG-20260702-lite-pagerot-registration — PASS (branch: main)
+
+**What changed:** Fixed `BUG-20260702-lite-pagerot-registration` (BROKEN, top priority, filed earlier today by the Review C render-engine accuracy review during `AUDIT-20260702-infra-bundle`). Manual page rotation (`pageRot`) rotated the PDF.js raster canvas (`getViewport({rotation: V.rot + pgRot})`) but the coordinate contract `ptToScreen`/`screenToPt` ignored `pgRot` entirely — `getRot()` was hardcoded to return 0. Effect: pre-existing geometry detached from the visible plan by up to a page diagonal (~84 m at 1:100 A1) whenever a user manually rotated a page; geometry drawn WHILE a page was rotated got stored bound to the un-rotated frame — correct area value, wrong on-screen location, the classic "right value, wrong location" measurement bug; `/export-pdf-overlay` did not apply `pageRot` at all, so exported annotated PDFs never matched what the user saw on screen whenever `pgRot≠0`. Intrinsic PDF `/Rotate` metadata was always handled correctly — only the manual rotate-page menu path was broken. The vendored rotation-aware `pdfToC`/`cToPdf` rotation branches already existed in `measure-engine.js` (drift-locked, parity-tested) but were dead code at runtime because the live `ptToScreen`/`screenToPt` in `ui-lite.html` never routed through them. Fix (commit `9f4b298`, "Fix A — proto-parity"; chosen over "Fix B — geometry-baking" by an Opus specialist patch plan): (1) `getRot()` (a host contract function, explicitly editable per `measure-engine.js`'s own header) now returns `pageRot[pg]||0` instead of a hardcoded 0; (2) `ptToScreen`/`screenToPt` route through the vendored, parity-tested `pdfToC`/`cToPdf` rotation branches — net 0 lines added to `ui-lite.html` (stays within the ~1128/1200 cap), zero user-geometry mutation, no undo interaction, no float drift, and old `.bmaplan` files (which already persisted `pageRotations`) simply start rendering correctly with no migration step; (3) side effect: closes the "un-vendored coordinate math" drift-lock gap flagged by the 2026-07-02 audit — lite runtime coords now run through the tested vendored kernel; (4) export WYSIWYG: `export-annotate.js` now sends the per-page rotation with the export payload, and the server `/export-pdf-overlay` prerotates the raster via `Matrix(RS,RS).prerotate(rot)` and maps every coordinate (objects, labels, annotations) through a new `_rp` helper mirroring `pdfToC` — the prerotate direction was verified EMPIRICALLY against all 4 angles with a standalone pixel test BEFORE wiring it into the endpoint. Fix B (transform stored points at rotate time) was rejected: it would mutate ~6 different geometry stores, require new undo snapshotting, introduce float drift on repeated rotate operations, and need a save-format migration the additive-only `.bmaplan` schema cannot express.
+
+**Why:** A "right value, wrong location" bug is the most dangerous class of measurement error for a raster PDF measurement assistant — the reported area/length numbers stay correct while the on-screen geometry silently drifts off the feature it was measuring, so nothing looks visibly wrong until a user compares against the plan. Filed as top priority (BROKEN) by the same-day render-engine accuracy review; fixing it same-day keeps the audit's momentum and closes the last real correctness gap left by the 2026-05-28 PDF.js render migration.
+
+**Files touched:**
+- `lite/static/js/measure-engine.js`: host contract function `getRot()` only (not the drift-locked vendored math) — now returns `pageRot[pg]||0` instead of hardcoded 0
+- `lite/ui-lite.html`: `ptToScreen`/`screenToPt` rewired to route through the vendored rotation-aware `pdfToC`/`cToPdf` branches — net 0 lines
+- `lite/static/js/export-annotate.js`: export payload now includes per-page rotation
+- `lite/server_lite.py`: `/export-pdf-overlay` — raster prerotated via `Matrix(RS,RS).prerotate(rot)`; new `_rp` coordinate-mapping helper (mirrors `pdfToC`) applied to objects/labels/annotations
+- `lite/tests/test_pagerot_registration.py`: NEW — guard test, marker `LITE_PAGEROT_REG_OK`, proven RED on pre-fix code via `git stash`
+- `lite/tests/bug-archive.jsonl`: entry appended (fixed_commit `9f4b298`) — via the bug-report pipeline, not this write
+- `docs/status/PHASE_INDEX.md`: row updated to ✅ done — via the bug-report pipeline, not this write
+
+**Tests:**
+```
+python lite/tests/test_pagerot_registration.py → LITE_PAGEROT_REG_OK  PASS (NEW)
+```
+5 checks: (i) 4-angle screen-coordinate mapping vs. a closed-form quadrant transform; (ii) `screenToPt` is the exact inverse of `ptToScreen` (tolerance 1e-9); (iii) area is invariant under rotate (confirms stored points are never mutated); (iv) `pageRotations` round-trip through a real `loadProto` save/load cycle; (v) export: output page dimensions swap correctly (600×450) and stroke pixels are found at the expected rotated vertex (585,15). Proven RED on pre-fix code via `git stash`: pre-fix mapped to (15,15) instead of (585,15), `rotRestored` was false, export output was un-rotated 450×600.
+
+Regression: 16 at-risk files green — `test_page_rotate.py`, `test_metamorphic_pages.py`, `test_snap_types.py`, `test_arc_edge.py`, `test_ortho.py`, `test_cfss_drag.py`, `test_cfss_ui.py`, `test_centerline_snap.py`, `test_annot_label.py`, `test_live_overlay.py`, `test_measure_parity.py`, `test_pbt_measure.py`, `test_export_endpoints.py`, `test_summary_arc_parity.py`, `test_summary_cfss_parity.py`, `test_pagerot_registration.py` — plus 26 more files green from a partial `run_all_tests.py` pass. Total: 42 distinct files green. `MEASURE_PARITY_OK` green confirms `measure-engine.js`'s drift-locked vendored math is untouched (only the host contract `getRot()` changed). Proto E2E n/a — lite-only sprint, zero `proto/` edits.
+
+**Phase 1 scope check:**
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged (routed through, not edited)
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
+- ✅ `lite/static/js/measure-engine.js` drift-locked vendored math unchanged — only the host contract function `getRot()` (explicitly editable per the file's own header) was changed
+- ✅ `.bmaplan` schema version stays 1; `pageRotations` was already persisted, zero migration needed
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ MEASURE_SCOPE_OK equivalent (inline check): `ptToScreen`/`screenToPt` are lite-owned, not forbidden, but are the de-facto coordinate contract — heavy regression run and green
+- ✅ Prerotate direction verified empirically with a standalone pixel test before wiring into the export endpoint
+
+**Known gaps / follow-ups:**
+- Combined `V.rot≠0` AND `pgRot≠0` is asserted only via exact-inverse round-trip, not raster-pixel alignment — per specialist analysis, `fit()`'s corner-min absorbs the translation. The queued `AUDIT-20260702-render-followups` bundle item (e) "real overlay-registration Playwright test" remains open and would add visual coverage for this combined case.
+- `lite/static/js/page-rotate.js` has a stale comment claiming the server handles rotation via `?rot=N` — actually client-side PDF.js rotation. Noted but not edited this sprint (out of scope for a bug fix).
+- `ptToScreen`/`screenToPt` themselves are still not literally inside the `test_measure_parity.py` fixture — this fix routes them through the vendored kernel at runtime, but adding them to the parity fixture directly is separate remaining work.
 
 ---
 
@@ -44,61 +84,8 @@ Regression (partial full-suite run + targeted subset, both green): a partial ful
 
 ---
 
-## 2026-07-02 — BUG-20260702-lite-cfss-summary — PASS (branch: main)
-
-**What changed:** Fixed bug 2 of 2 from the 2026-07-02 measurement-accuracy audit (bug 1 = `BUG-20260702-lite-arc-summary`, shipped earlier today, commits `e5264e2` + `e1a8e1c`). CFSS (cross-floor shared shapes) instances — objects of shape `{kind:'instance', masterId, offsetPt}` with no `.pts` and no `.catId` of their own — were skipped by every area rollup, so promoting a polygon to a shared shape silently REMOVED its area from all totals. Triage widened this to a CRASH sub-finding: `buildExportData` and `exportPdfOverlay` called `catOf(o.catId).name`/`.color` BEFORE the `kind` guard, throwing `TypeError` on any page holding an instance — XLSX and annotated-PDF export crashed outright, not just under-counted. Root cause: `cfssCommitPromote` called `addMaster()` without the `opts` arg, so masters never captured `catId`/`semanticTag` in the first place. Fix (commit `02e35af` on `main`): (1) promote now passes `{catId, semanticTag}` into `addMaster` — additive master schema field, persists for free via the existing masters serialization in `cfssWrapSave`/`cfssWrapLoad`; legacy pre-fix masters (saved before this fix) have no `catId` → `rollupCatId` returns `null` → instance is skipped from bucket totals safely with a one-time `console.warn`, no crash, no migration UI required. (2) New helpers `rollupAreaM2(o,pg)` + `rollupCatId(o)` added in `cross-floor-shapes.js` next to the existing `instanceAreaM2` (single dispatch helper instead of re-deriving the same kind-branch 6 times at each call site — the direct postmortem lesson from the arc-summary bug's 6 near-duplicate call sites); both helpers are `typeof`-guarded at every consumer because `cross-floor-shapes.js` is dynamically injected AFTER `layer-tree.js`/`export-annotate.js` load, so the guard is load-order-mandatory, not defensive boilerplate. (3) Rewired 6 rollup sites to use the new helpers and fixed the 2 crash sites: `computeSummary` (`ui-lite.html:1049`, line-neutral), `buildExportData`, `exportPdfOverlay` (instances now export as resolved-pts poly overlays with area labels via `resolveInstancePts`, `catOf` moved after `catId` resolution and made null-safe), `buildReportPayload` (instances included in rows/subtotal/net), `_ltOwnArea` (`layer-tree.js`), `_lovsLayerArea` (`overview-setup.js`). Patch plan authored by `bma-path-geometry-reviewer` running on Opus (user-requested model override).
-
-**Why:** Bug 1 of the 2026-07-02 audit fixed arc-edge areas being wrong in rollups; this bug is the same failure class (a whole geometry representation silently excluded from totals) but with an added CRASH severity — shared-shape instances are a core CFSS feature (draw once, reuse across floors), so any project using them could not export at all. User-facing measurement accuracy and export reliability are both load-bearing for a Phase 1 raster measurement assistant.
-
-**Files touched:**
-- `lite/static/js/cross-floor-shapes.js`: `cfssCommitPromote` now passes `{catId, semanticTag}` to `addMaster`; NEW `rollupAreaM2(o,pg)` + `rollupCatId(o)` dispatch helpers co-located with `instanceAreaM2`
-- `lite/ui-lite.html:1049`: `computeSummary` — rewired to `rollupAreaM2`/`rollupCatId` (typeof-guarded), line-neutral
-- `lite/static/js/export-annotate.js`: `buildExportData` — rewired + crash fix (catOf moved after catId resolution, null-safe); `exportPdfOverlay` — same crash fix, instances export as resolved-pts poly overlays via `resolveInstancePts`; `buildReportPayload` — instances included in rows/subtotal/net
-- `lite/static/js/layer-tree.js`: `_ltOwnArea` — rewired to rollup helpers
-- `lite/static/js/overview-setup.js`: `_lovsLayerArea` — rewired to rollup helpers
-- `lite/tests/test_summary_cfss_parity.py`: NEW — `LITE_SUMMARY_CFSS_OK` guard test, exercises the REAL promote flow (`__cfssTestPromote`), asserts all 6 consumers report ground truth 2100 m² (2000 plain + 100 instance) and both export builders do not throw; proven RED on pre-fix code via `git stash` (totals 2000, `master_has_catId` false, `edThrew`/`ovThrew` true)
-- `lite/tests/bug-archive.jsonl`: entry appended (fixed_commit `02e35af`) — already updated by the bug-report pipeline, not by this write
-- `docs/status/PHASE_INDEX.md`: row updated to ✅ done — already updated by the bug-report pipeline, not by this write
-
-**Tests:**
-```
-python lite/tests/test_summary_cfss_parity.py  → LITE_SUMMARY_CFSS_OK       PASS (NEW)
-python lite/tests/test_cfss_model.py           → LITE_CFSS_MODEL_OK        PASS
-python lite/tests/test_cfss_persist.py         → LITE_CFSS_PERSIST_OK      PASS
-python lite/tests/test_cfss_drag.py            → LITE_CFSS_DRAG_OK         PASS
-python lite/tests/test_cfss_edit.py            → LITE_CFSS_EDIT_OK         PASS
-python lite/tests/test_cfss_ui.py              → LITE_CFSS_UI_OK           PASS
-python lite/tests/test_cfss_rightclick_menu.py → LITE_CFSS_RIGHTCLICK_MENU_OK PASS
-python lite/tests/test_summary_arc_parity.py   → LITE_SUMMARY_ARC_OK       PASS (bug-1 guard stays green)
-python lite/tests/test_measure_parity.py       → MEASURE_PARITY_OK         PASS (drift-lock intact)
-python lite/tests/test_arc_edge.py             → LITE_ARC_EDGE_OK          PASS
-python lite/tests/test_report.py               → PASS
-python lite/tests/test_report_vars_rollup.py   → LITE_REPORT_VARS_ROLLUP_OK PASS
-python lite/tests/test_export_submenu.py       → LITE_EXPORT_SUBMENU_OK    PASS
-python lite/tests/test_tree_rollup.py          → LITE_TREE_ROLLUP_OK       PASS
-python lite/tests/test_overview_setup.py       → LITE_OVERVIEW_SETUP_OK    PASS
-```
-14/14 exit 0. Proto E2E NOT re-run — lite-only change, zero `proto/` edits, no forbidden-trigger surface touched in proto (no-test rationale for the proto side).
-
-**Phase 1 scope check:**
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
-- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only sprint)
-- ✅ `lite/static/js/measure-engine.js` (drift-locked vendored copy) UNCHANGED
-- ✅ `.bmaplan` schema version stays 1; master `catId`/`semanticTag` is additive; unknown keys already carried forward on load (zero persistence-layer edits needed)
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ `lite/ui-lite.html` stays under cap (line-neutral edit)
-- ✅ MEASURE_SCOPE_OK verdict (geometry-core + export-impact + additive schema, atomic, not split)
-
-**Known gaps / follow-ups:**
-- Legacy pre-fix `.bmaplan` saves with masters lacking `catId` keep instances out of bucket totals (safe, warned via one-time `console.warn`, documented) — a migration helper could be a future COSMETIC card.
-- Server `/export-pdf-overlay` draw path for instance-as-poly overlays verified only via payload shape, not a rendered-PDF pixel check.
-- Both bugs from the 2026-07-02 measurement-accuracy audit are now SHIPPED. Remaining audit findings still to be filed as queued cards: (1) calibration relies on a single sample point with no multi-point averaging safety net, (2) export payload size caps not stress-tested against very large multi-page projects, (3) `ptToScreen`/`screenToPt` sit outside the drift-lock contract despite being coordinate-critical, (4) no single "run all lite tests" runner exists, (5) no free-space preflight check before large exports/renders.
-
----
-
-<!-- AUDIT-20260702-infra-bundle + BUG-20260702-lite-cfss-summary are the 2 sessions kept in this file -->
-<!-- BUG-20260702-lite-arc-summary + SLICE report-edit-1 + invent lite-pdf-render-quality (resumed+completed) + invent lite-pdf-render-quality (paused) + BUG-20260526-lite-stale-pf-folder-cleanup + LOVS-1 archived to docs/archive/log-2026-07-02.md on 2026-07-02 (AUDIT-20260702-infra-bundle sprint) -->
+<!-- BUG-20260702-lite-pagerot-registration + AUDIT-20260702-infra-bundle are the 2 sessions kept in this file -->
+<!-- BUG-20260702-lite-cfss-summary + BUG-20260702-lite-arc-summary + SLICE report-edit-1 + invent lite-pdf-render-quality (resumed+completed) + invent lite-pdf-render-quality (paused) + BUG-20260526-lite-stale-pf-folder-cleanup + LOVS-1 archived to docs/archive/log-2026-07-02.md on 2026-07-02 (BUG-20260702-lite-pagerot-registration sprint) -->
 <!-- LPFL-1 + INV-2026-05-25-001 + Centerline Snap arc + SIM-2 archived to docs/archive/log-2026-05-25.md on 2026-05-26 -->
 <!-- LITE-BUG-2-OPUS47-FINDINGS (2026-05-24) archived to docs/archive/log-2026-05-24.md on 2026-05-25 (Centerline Snap sprint) -->
 <!-- LITE-REPORT (INV-2026-05-21-002, 2026-05-22) archived to docs/archive/log-2026-05-22.md on 2026-05-24 (SIM-2 sprint) -->
