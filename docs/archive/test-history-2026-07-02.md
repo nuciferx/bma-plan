@@ -1,6 +1,67 @@
 # TEST_RESULT.md Archive — 2026-06 sessions (archived 2026-07-02)
 
-> Archived from root TEST_RESULT.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint archived during BUG-20260702-lite-pagerot-registration sprint; BUG-20260702-lite-arc-summary sprint archived during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint) to keep root at Latest + 1 Previous.
+> Archived from root TEST_RESULT.md on 2026-07-02 (BUG-20260702-lite-cfss-summary sprint archived during BUG-20260702-lite-pagerot-registration sprint; BUG-20260702-lite-arc-summary sprint archived during AUDIT-20260702-infra-bundle sprint; SLICE report-edit-1 added 2026-07-02 during BUG-20260702-lite-cfss-summary sprint; AUDIT-20260702-infra-bundle archived 2026-07-02 during the PERF-20260702-lite-foxit-smoothness sprint block) to keep root at Latest + 1 Previous.
+
+---
+
+# Previous: AUDIT-20260702-infra-bundle — Test-Runner Preflight + Export Payload Caps + Render-Engine Review
+
+Branch: main
+Date: 2026-07-02
+
+## Result: PASS (lite tests + read-only review — proto NOT TOUCHED)
+
+## No Proto-Test Rationale
+
+Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this sprint made zero changes to `proto/` source files (Sprint A + B are `lite/`-only; Review C is read-only, zero code change anywhere). Reference baseline: proto full E2E = 22 _OK markers (PHASE_CENTERLINE_SNAP_OK 10/10, last run 2026-05-25, unchanged).
+
+## Commands
+
+```bash
+python lite/tests/test_export_endpoints.py
+python lite/tests/run_all_tests.py
+python lite/tests/test_apply_page_mutations.py
+python lite/tests/test_pm_apply_flush_unified.py
+python lite/tests/test_metamorphic_pages.py
+python lite/tests/test_pdfjs_offline.py
+python lite/tests/test_summary_arc_parity.py
+python lite/tests/test_summary_cfss_parity.py
+python lite/tests/test_measure_parity.py
+python lite/tests/test_export_submenu.py
+python lite/tests/test_report.py
+```
+
+## Lite — Results (all exit 0)
+
+| Test | Marker | Result |
+|---|---|---|
+| test_export_endpoints.py | LITE_EXPORT_ENDPOINTS_OK (NEW) | PASS (14/14 checks) |
+| run_all_tests.py | LITE_RUN_ALL_OK (NEW) | PASS (60/60 tests, 8.5 min, first full run) |
+| test_apply_page_mutations.py | — | PASS (regression subset) |
+| test_pm_apply_flush_unified.py | — | PASS (regression subset) |
+| test_metamorphic_pages.py | — | PASS (regression subset) |
+| test_pdfjs_offline.py | — | PASS (regression subset) |
+| test_summary_arc_parity.py | LITE_SUMMARY_ARC_OK | PASS (bug-1 guard stays green) |
+| test_summary_cfss_parity.py | LITE_SUMMARY_CFSS_OK | PASS (bug-2 guard stays green) |
+| test_measure_parity.py | MEASURE_PARITY_OK | PASS (drift-lock intact) |
+| test_export_submenu.py | LITE_EXPORT_SUBMENU_OK | PASS (regression subset) |
+| test_report.py | (no named marker) | PASS (regression subset) |
+
+Plus a partial full-suite run covering 11 additional files, all exit 0 (not individually enumerated here — see `artifacts/run_all_tests_20260702.log` for the complete 60/60 aggregate run).
+
+## LITE_EXPORT_ENDPOINTS_OK — 14 checks
+
+First real HTTP tests of `/export-xlsx` and `/export-pdf-overlay` (previously only client-side `dlPost` stubs existed, never exercising the server route). Covers: XLSX bytes openable by `openpyxl` with sheet+row assertions; overlay output is a valid `%PDF` with correct page count; oversize payloads (too many pages / points / objects) all return 400; malformed payloads (unknown `case_id`, non-numeric page key, a `1e12` coordinate) all return 400; XLSX row-cap violation returns 400.
+
+## Review C — Render-Engine Accuracy (read-only, no test markers — findings filed to PHASE_INDEX.md)
+
+Verdict: `PDFJS-VIEWPORT-CLIPPED` coordinate contract is algebraically exact for `V.rot`/`pgRot`=0 (residual ≈ ±0.5 device px, click-precision floor not a measured-value error). Real BROKEN bug found: `BUG-20260702-lite-pagerot-registration` — no existing test guards manual page-rotation registration; filed as top-priority next work. **Fixed same-day.**
+
+## Reference Baseline (proto, unchanged this sprint)
+
+```
+python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
+```
 
 ---
 
