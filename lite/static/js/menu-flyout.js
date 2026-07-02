@@ -164,6 +164,7 @@ function _rebuildMeasureMenu() {
   // Collect items we want to keep (flat, in order)
   var selectItem = dd.querySelector('[data-tool="select"]');
   var scaleItem  = dd.querySelector('[data-tool="scale"]');
+  var verifyItem = dd.querySelector('#mi-verify-scale');  // INV-2026-07-lite-verify
   var refItem    = dd.querySelector('[data-tool="ref"]');
   var countItem  = dd.querySelector('[data-tool="count"]');
   var sepBefore  = dd.querySelector('.sep');   // separator before snap/loupe
@@ -200,6 +201,7 @@ function _rebuildMeasureMenu() {
 
   if (selectItem) dd.appendChild(selectItem);
   if (scaleItem)  dd.appendChild(scaleItem);
+  if (verifyItem) dd.appendChild(verifyItem);
 
   var sep1 = document.createElement('div'); sep1.className = 'sep';
   dd.appendChild(sep1);

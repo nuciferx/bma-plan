@@ -130,6 +130,7 @@
     <div class="menu" data-m="measure"><button>Measure ▾</button><div class="dd">
       <div class="item" data-tool="select">เลือก/แก้ไข (Select)<span class="k">V</span></div>
       <div class="item" data-tool="scale">ตั้งสเกล (Set Scale)<span class="k">S</span></div>
+      <div class="item" id="mi-verify-scale" onclick="verifyScaleStart()">ตรวจสอบสเกล (Verify)<span class="k">⇧S</span></div>
       <div class="item" data-tool="poly">วัดพื้นที่ (Polygon)<span class="k">A</span></div>
       <div class="item" data-tool="dist">ระยะ (Distance)<span class="k">D</span></div>
       <div class="item" data-tool="path">ระยะต่อเนื่อง (Path)<span class="k">⇧D</span></div>
@@ -442,7 +443,7 @@ cv.addEventListener("mousedown",function(e){
   if((state.tool==="count"||state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref")&&state.catLock[state.activeCat]){
     var hintEl=document.getElementById("hint"); hintEl.innerHTML="🔒 layer นี้ถูกล็อก — ปลดล็อก 🔓 ใน picker ก่อนวาด"; return; }
   if(state.tool==="scale"){ state.draft=state.draft||[]; state.draft.push(p); state.dirty=true;
-    if(state.draft.length===2){ openCalib(); } draw(); return; }
+    if(state.draft.length===2){ if(state.verifyMode&&window.VerifyScale)VerifyScale.onTwoPoints(); else openCalib(); } draw(); return; }
   if(state.tool==="count"){ pushUndo(); PSpage().objects.push(mkObj([p],"count",true)); state.dirty=true; draw(); return; }
   if(state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref"){
     state.draft=state.draft||[];
@@ -844,7 +845,7 @@ document.querySelectorAll(".menu>button").forEach(function(b){ b.onclick=functio
 document.querySelectorAll(".dd .item[data-tool]").forEach(function(it){ it.onclick=function(){ setTool(it.dataset.tool); closeMenus(); };});
 function closeMenus(){document.querySelectorAll(".menu").forEach(function(x){x.classList.remove("open");});}
 window.addEventListener("click",closeMenus);
-function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; if(t==="count")state.activeCat="count"; state.draft=null; arcCancel(); /* LCURVE-1: clear arc sub-state on tool switch */ state.vertMode=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
+function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor(); if(typeof closeAnnStyle==="function")closeAnnStyle(); state.selAnn=null; state.selSet=[]; state.dragLabel=null; state.tool=t; state.panTool=false; state.verifyMode=false; /* INV-2026-07-lite-verify: any tool switch cancels an in-progress Verify Scale capture */ if(t==="count")state.activeCat="count"; state.draft=null; arcCancel(); /* LCURVE-1: clear arc sub-state on tool switch */ state.vertMode=null; if(!isDrawTool())state.snapHint=null; buildPicker(); setCursor(); draw(); }
 
 /* LITE-UNDO: snapshot-based history over the per-page document model.
    Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
@@ -1136,6 +1137,7 @@ window.addEventListener("keydown",function(e){
     if(state.tool==="poly"&&state.draft&&state.draft.length>=1){arcToggle();draw();}
     else{setTool("poly");}
     return; }
+  if(e.shiftKey&&e.key==="S"){e.preventDefault();if(typeof verifyScaleStart==="function")verifyScaleStart();return;} /* INV-2026-07-lite-verify: Shift+S = Verify Scale */
   var map={v:"select",s:"scale",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
@@ -1160,6 +1162,7 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 <script src="static/js/snap-types.js"></script>
 <script src="static/js/empty-hub.js"></script>
 <script src="static/js/cheatsheet.js"></script>
+<script src="static/js/verify-scale.js"></script>
 <script src="static/js/menu-flyout.js"></script>
 <script src="static/js/annot-style.js"></script>
 <script src="static/js/centerline-snap.js"></script>
