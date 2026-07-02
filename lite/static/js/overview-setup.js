@@ -638,8 +638,9 @@ function _lovsLayerArea(layerId) {
     var objs = (PS[k] && PS[k].objects) || [];
     for (var i = 0; i < objs.length; i++) {
       var o = objs[i];
-      if (o.catId !== layerId || o.counting || o.kind !== "poly") continue;
-      var a = polyMetricsAnyShape(o, pg).area;
+      var _cid = (typeof rollupCatId === "function") ? rollupCatId(o) : o.catId;
+      if (_cid !== layerId || o.counting || (o.kind !== "poly" && o.kind !== "instance")) continue;
+      var a = (typeof rollupAreaM2 === "function") ? rollupAreaM2(o, pg) : polyMetricsAnyShape(o, pg).area;
       if (a != null && isFinite(a)) total += a;
     }
   });

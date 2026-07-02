@@ -56,11 +56,13 @@ function _ltOwnArea(layerId) {
     var objs = (PS[k].objects || []);
     for (var i = 0; i < objs.length; i++) {
       var o = objs[i];
-      if (o.catId !== layerId) continue;
+      var _cid = (typeof rollupCatId === "function") ? rollupCatId(o) : o.catId;
+      if (_cid !== layerId) continue;
       if (o.counting) continue;
-      if (o.kind !== "poly") continue;
-      var m = polyMetricsAnyShape(o, pg);
-      total += (m && m.area != null) ? m.area : 0;
+      if (o.kind !== "poly" && o.kind !== "instance") continue;
+      var a = (typeof rollupAreaM2 === "function") ? rollupAreaM2(o, pg)
+              : (o.kind === "poly" ? (polyMetricsAnyShape(o, pg) || {}).area : null);
+      total += (a != null) ? a : 0;
     }
   });
   return sign * total;

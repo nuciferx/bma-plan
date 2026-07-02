@@ -234,6 +234,44 @@ function instanceAreaM2(instance, ppm) {
 }
 
 /* ================================================================== */
+/* Rollup dispatch — unify area + category across poly & instance      */
+/* (BUG-20260702-lite-cfss-summary). NEW fns; never edit polyAreaM2 /  */
+/* polyMetricsAnyShape. Exposed on window for the 6 rollup consumers   */
+/* (which must guard with typeof — this file is dynamically injected). */
+/* ================================================================== */
+
+/** rollupAreaM2(o, pg) — poly → arc-inclusive metric area; instance →
+ *  ppm-independent metric shoelace; else null. Never throws. */
+function rollupAreaM2(o, pg) {
+  if (!o) return null;
+  if (o.kind === 'instance') return instanceAreaM2(o);            // ppm unused
+  if (o.kind === 'poly') {
+    if (typeof window.polyMetricsAnyShape !== 'function') return null;
+    var m = window.polyMetricsAnyShape(o, pg);
+    return (m && m.area != null) ? m.area : null;
+  }
+  return null;
+}
+
+/** rollupCatId(o) — o.catId if present, else the master's catId for an
+ *  instance, else null (legacy pre-fix master → null, skipped safely). */
+function rollupCatId(o) {
+  if (!o) return null;
+  if (o.catId != null) return o.catId;
+  if (o.kind === 'instance') {
+    var m = masterById(o.masterId);
+    if (m && m.catId == null && !window.__cfssLegacyWarned) {
+      window.__cfssLegacyWarned = true;
+      try { console.warn('[cfss] master ' + o.masterId + ' has no catId (pre-fix save); instance excluded from bucket totals'); } catch (e) {}
+    }
+    return (m && m.catId != null) ? m.catId : null;
+  }
+  return null;
+}
+window.rollupAreaM2 = rollupAreaM2;
+window.rollupCatId = rollupCatId;
+
+/* ================================================================== */
 /* Orphan-freeze                                                       */
 /* ================================================================== */
 
@@ -711,7 +749,8 @@ function cfssCommitPromote(sourcePoly, name, targetPageNumbers) {
     return {x_m: (p.x - minX) / ppm, y_m: (p.y - minY) / ppm};
   });
 
-  var masterId = addMaster(name || 'Master', metricPts, sourcePoly.color || '#888');
+  var masterId = addMaster(name || 'Master', metricPts, sourcePoly.color || '#888',
+                           {catId: sourcePoly.catId, semanticTag: sourcePoly.semanticTag});
   if (!masterId) return null;
 
   // Replace source poly with instance (offset = bbox min in pt-space)
