@@ -46,7 +46,39 @@ var curImg = null;
 var pdfDoc       = null;   // PDFDocumentProxy
 var pdfDocCaseId = null;   // caseId for which pdfDoc was loaded
 var pageCache    = {};     // n → PDFPageProxy
-var pageDims     = {};     // n → {w, h}  (PDF-pt dimensions, un-rotated)
+var pageDims     = {};     // n → {w, h}  (PDF-pt dimensions, un-rotated) — tiny, never evicted
+
+/* ---- page-cache LRU (PERF-20260702) ----
+ * PDFPageProxy retains operator lists + decoded images per page; measured
+ * ~75 MB/page on a real 91 MB A1 binder (766 MB heap after 10 of 95 pages).
+ * Keep only the last MAX_PAGE_CACHE pages hot; evicted proxies get
+ * proxy.cleanup() (releases resources; getPage() re-fetches on revisit).
+ * curPage (and any alias key pointing at its proxy) is never evicted —
+ * a render may be in flight on it. */
+var MAX_PAGE_CACHE = 4;
+var _pageLru = [];         // cache keys, most-recent last
+
+function _touchPage(key) {
+  var i = _pageLru.indexOf(key);
+  if (i >= 0) _pageLru.splice(i, 1);
+  _pageLru.push(key);
+  while (_pageLru.length > MAX_PAGE_CACHE) {
+    var idx = -1;
+    for (var j = 0; j < _pageLru.length - 1; j++) {           // never the most-recent
+      var cand = _pageLru[j];
+      if (cand !== curPage && pageCache[cand] !== pageCache[curPage]) { idx = j; break; }
+    }
+    if (idx < 0) break;                                       // everything protected
+    var old = _pageLru.splice(idx, 1)[0];
+    var proxy = pageCache[old];
+    delete pageCache[old];
+    if (proxy) {
+      var stillRef = false;
+      for (var k in pageCache) { if (pageCache[k] === proxy) { stillRef = true; break; } }
+      if (!stillRef) { try { proxy.cleanup(); } catch (_) {} }
+    }
+  }
+}
 
 /* ---- render concurrency guards ---- */
 var _pendingRenderTask = null;  // PDF.js RenderTask
@@ -243,6 +275,7 @@ async function loadPage(n) {
       pdfDocCaseId = caseId;
       pageCache    = {};
       pageDims     = {};
+      _pageLru     = [];
     }
     // Cache the PDFPageProxy — keyed by SERVER page number (sn), not display index
     if (!pageCache[sn]) {
@@ -257,6 +290,8 @@ async function loadPage(n) {
     pageDims[n] = { w: natVp.width, h: natVp.height };
     // Also alias under sn so _render can find the proxy via curPage if needed
     pageCache[n] = pageCache[sn];
+    _touchPage(sn);
+    if (n !== sn) _touchPage(n);
     pageData = { size: { orig_w_pt: pageDims[n].w, orig_h_pt: pageDims[n].h } };
     hideLoading();
     fit();
@@ -414,6 +449,7 @@ function _resetCache() {
   pdfDocCaseId = null;
   pageCache    = {};
   pageDims     = {};
+  _pageLru     = [];
   pageRot      = {};
   _cachedV     = null;
   _cachedKey   = null;
