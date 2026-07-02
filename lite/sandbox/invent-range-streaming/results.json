@@ -1,0 +1,148 @@
+[
+  {
+    "file": "20250616_RAMA4 APARTMENT PERMIT rev 1.pdf",
+    "size_mb": 19.2,
+    "baseline_rss_mb": 238,
+    "A_baseline": {
+      "openMs": 353,
+      "numPages": 45,
+      "ttfr": 130,
+      "heapsMB": [
+        23,
+        28,
+        25,
+        46,
+        55,
+        65,
+        41,
+        52,
+        29,
+        29
+      ],
+      "rss_after_pages_mb": 734,
+      "bytes_transferred": 19207478,
+      "raw_reqs": 1,
+      "rss_after_destroy_mb": 647,
+      "heap_after_destroy_mb": 22
+    },
+    "fetchFull_bytes": 19207478,
+    "B_streaming": {
+      "openMs": 144,
+      "numPages": 45,
+      "ttfr": 153,
+      "heapsMB": [
+        4,
+        9,
+        10,
+        26,
+        24,
+        49,
+        46,
+        27,
+        30,
+        10
+      ],
+      "rss_after_pages_mb": 1023,
+      "bytes_transferred": 4920630,
+      "raw_reqs": 40,
+      "rss_after_destroy_mb": 944,
+      "heap_after_destroy_mb": 3
+    },
+    "T_transport": {
+      "supported": true,
+      "opened": true,
+      "openMs": 106,
+      "bytesServed": 4920630,
+      "ttfr": 141,
+      "heapsMB": [
+        23,
+        27,
+        35,
+        53,
+        49,
+        54,
+        65,
+        46,
+        50,
+        29
+      ],
+      "rss_after_pages_mb": 898,
+      "raw_reqs_during": 1,
+      "rss_after_destroy_mb": 826,
+      "heap_after_destroy_mb": 22
+    }
+  },
+  {
+    "file": "251121_CHH_Submission_REV2 - Copy.pdf",
+    "size_mb": 95.2,
+    "baseline_rss_mb": 262,
+    "A_baseline": {
+      "openMs": 114,
+      "numPages": 95,
+      "ttfr": 117,
+      "heapsMB": [
+        102,
+        153,
+        148,
+        177,
+        204,
+        135,
+        409,
+        367,
+        379,
+        126
+      ],
+      "rss_after_pages_mb": 1675,
+      "bytes_transferred": 95183213,
+      "raw_reqs": 1,
+      "rss_after_destroy_mb": 1568,
+      "heap_after_destroy_mb": 98
+    },
+    "fetchFull_bytes": 95183213,
+    "B_streaming": {
+      "openMs": 156,
+      "numPages": 95,
+      "ttfr": 147,
+      "heapsMB": [
+        7,
+        46,
+        80,
+        87,
+        104,
+        130,
+        289,
+        285,
+        276,
+        27
+      ],
+      "rss_after_pages_mb": 1503,
+      "bytes_transferred": 19292525,
+      "raw_reqs": 39,
+      "rss_after_destroy_mb": 1463,
+      "heap_after_destroy_mb": 3
+    },
+    "T_transport": {
+      "supported": true,
+      "opened": true,
+      "openMs": 99,
+      "bytesServed": 19292525,
+      "ttfr": 124,
+      "heapsMB": [
+        103,
+        147,
+        137,
+        172,
+        195,
+        98,
+        385,
+        376,
+        371,
+        111
+      ],
+      "rss_after_pages_mb": 1717,
+      "raw_reqs_during": 1,
+      "rss_after_destroy_mb": 1676,
+      "heap_after_destroy_mb": 111
+    }
+  }
+]

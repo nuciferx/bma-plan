@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>range-streaming spike</title></head>
+<body>
+<h3>BMA-Plan lite — Range-streaming spike harness</h3>
+<pre id="log">booting…</pre>
+<canvas id="cv" width="400" height="560" style="border:1px solid #ccc"></canvas>
+<script type="module">
+const LOCAL_BASE = "/static/js/vendor/pdfjs";
+let lib = null, fullBuf = null, doc = null, localFile = null;
+const logEl = document.getElementById("log");
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+function log(m){ logEl.textContent += "\n" + m; }
+
+function heap(){
+  // NOTE: performance.memory reports MAIN-thread JS heap only.
+  // The pdf.js worker heap (the ~600MB commonObjs) lives in the worker and is
+  // NOT captured here — the driver measures renderer-process RSS via psutil.
+  return (performance.memory && performance.memory.usedJSHeapSize) || 0;
+}
+async function nextRaf(){ return new Promise(r=>requestAnimationFrame(()=>r())); }
+
+window.loadLib = async () => {
+  lib = await import(LOCAL_BASE + "/pdf.min.mjs");
+  lib.GlobalWorkerOptions.workerSrc = LOCAL_BASE + "/pdf.worker.min.mjs";
+  log("lib loaded v" + lib.version);
+  return lib.version;
+};
+
+window.fetchFull = async (url) => {
+  const t0 = performance.now();
+  const resp = await fetch(url);
+  const ab = await resp.arrayBuffer();
+  fullBuf = ab;
+  const t1 = performance.now();
+  log("fetchFull " + ab.byteLength + " bytes in " + (t1-t0).toFixed(0) + "ms");
+  return { bytes: ab.byteLength, ms: t1 - t0 };
+};
+
+async function renderPage(pg){
+  const vp = pg.getViewport({ scale: 0.5 });
+  cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+  await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+}
+
+async function visitPages(npages){
+  const heaps = [];
+  let ttfr = null;
+  for (let i = 1; i <= npages; i++){
+    const t0 = performance.now();
+    const pg = await doc.getPage(i);
+    await renderPage(pg);
+    if (i === 1) ttfr = performance.now() - t0;
+    pg.cleanup && pg.cleanup();
+    await nextRaf();
+    heaps.push(Math.round(heap()/1e6));  // MB, main-thread only
+  }
+  return { ttfr: Math.round(ttfr), heapsMB: heaps };
+}
+
+// Scenario A — baseline: full ArrayBuffer (the live openLocal / {data:buf} path)
+window.scenarioA = async (npages) => {
+  const tOpen = performance.now();
+  doc = await lib.getDocument({ data: fullBuf.slice(0) }).promise;
+  const openMs = performance.now() - tOpen;
+  log("A: doc opened, pages=" + doc.numPages + " openMs=" + openMs.toFixed(0));
+  const r = await visitPages(npages);
+  return { openMs: Math.round(openMs), numPages: doc.numPages, ...r };
+};
+
+// Scenario B — streaming: {url, disableAutoFetch, disableStream, rangeChunkSize}
+window.scenarioB = async (url, npages) => {
+  const tOpen = performance.now();
+  doc = await lib.getDocument({
+    url, disableAutoFetch: true, disableStream: true, rangeChunkSize: 65536,
+  }).promise;
+  const openMs = performance.now() - tOpen;
+  log("B: doc opened, pages=" + doc.numPages + " openMs=" + openMs.toFixed(0));
+  const r = await visitPages(npages);
+  return { openMs: Math.round(openMs), numPages: doc.numPages, ...r };
+};
+
+// Scenario T (S4) — local-file transport via PDFDataRangeTransport + Blob.slice
+window.scenarioTransport = async (npages) => {
+  if (!lib.PDFDataRangeTransport){
+    log("T: PDFDataRangeTransport NOT exported in this build");
+    return { supported: false };
+  }
+  localFile = new File([fullBuf], "local.pdf", { type: "application/pdf" });
+  const length = localFile.size;
+  let bytesServed = 0;
+  const transport = new lib.PDFDataRangeTransport(length, new Uint8Array(0));
+  transport.requestDataRange = async (begin, end) => {
+    const blob = localFile.slice(begin, end);
+    const ab = await blob.arrayBuffer();
+    bytesServed += ab.byteLength;
+    transport.onDataRange(begin, new Uint8Array(ab));
+  };
+  const tOpen = performance.now();
+  try {
+    doc = await lib.getDocument({ range: transport, disableAutoFetch: true,
+                                 disableStream: true, rangeChunkSize: 65536 }).promise;
+  } catch (e){
+    log("T: getDocument failed: " + e);
+    return { supported: true, opened: false, error: String(e) };
+  }
+  const openMs = performance.now() - tOpen;
+  log("T: doc opened via transport, pages=" + doc.numPages);
+  const r = await visitPages(npages);
+  return { supported: true, opened: true, openMs: Math.round(openMs),
+           bytesServed, ...r };
+};
+
+window.destroyDoc = async () => {
+  if (!doc) return { heapMB: Math.round(heap()/1e6) };
+  await doc.destroy();
+  doc = null;
+  // force a GC opportunity
+  await new Promise(r=>setTimeout(r, 1200));
+  await nextRaf();
+  return { heapMB: Math.round(heap()/1e6) };
+};
+
+window.freeAll = () => { fullBuf = null; localFile = null; };
+window.__ready = true;
+log("harness ready");
+</script>
+</body>
+</html>
