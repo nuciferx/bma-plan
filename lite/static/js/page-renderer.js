@@ -186,6 +186,23 @@ function _prefetchAdjacent(n) {
   });
 }
 
+/* ---- thumbnail warm (PERF-20260702 companion 6) ----
+ * After the case lands on the server, fetch thumbs SEQUENTIALLY at low
+ * priority so the overview opens hot (measured ~200 ms/thumb cold, instant
+ * warm). Sequential on purpose: avoids concurrent get_pixmap on the shared
+ * fitz doc (S2 per-case lock not yet in place) and the 95-parallel burst
+ * that lpm-8 fixed. Token-cancelled on reset/new upload. */
+var _thumbWarmToken = 0;
+async function _warmThumbs() {
+  var tok = ++_thumbWarmToken;
+  if (!caseId || !pageCount) return;
+  for (var n = 1; n <= pageCount; n++) {
+    if (tok !== _thumbWarmToken || !caseId) return;
+    try { await fetch(api("/thumb/" + n)); } catch (_) { return; }
+    await new Promise(function (r) { setTimeout(r, 120); });
+  }
+}
+
 /* ---- ready(): true when current page is available for rendering ----
  * Production: pdfDoc loaded + page in pageCache.
  * Test-shim compat: if a test sets window.curImg to a truthy dummy value,
@@ -502,6 +519,7 @@ function _resetCache() {
     _pendingRenderTask = null;
   }
   _renderToken++;
+  _thumbWarmToken++;
   pdfDoc       = null;
   pdfDocCaseId = null;
   pageCache    = {};
@@ -524,5 +542,6 @@ window.PageRenderer = {
   resetCache: _resetCache,
   ready:      _ready,
   openLocal:  _openLocal,
-  adoptCase:  _adoptCase
+  adoptCase:  _adoptCase,
+  warmThumbs: _warmThumbs
 };

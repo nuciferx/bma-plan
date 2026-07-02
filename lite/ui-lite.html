@@ -394,6 +394,7 @@ async function uploadPdf(file){
       document.getElementById("empty").style.display="none";
       curPage=1; await loadPage(1);
       _pmSeed(undefined); } // LPM slice 3: seed pageMgr after upload (no pageIdentities yet)
+    PageRenderer.warmThumbs(); // PERF: overview opens hot (sequential, token-cancelled)
   }catch(err){ hideLoading();
     if(!localOk){ alert("อัปโหลดล้มเหลว: "+err.message); }
     else{ alert("เปิดดูและวัดได้ แต่อัปโหลดขึ้นเซิร์ฟเวอร์ไม่สำเร็จ — thumbnail/export จะใช้ไม่ได้: "+err.message); } }
