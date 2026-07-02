@@ -14,9 +14,16 @@ preflight fails fast with a clear message instead.
 
 Usage:
     py -3 lite/tests/run_all_tests.py                 # run everything
+    py -3 lite/tests/run_all_tests.py --tier t0       # math-only tier (~seconds, no browser)
+    py -3 lite/tests/run_all_tests.py --tier t1       # server-endpoint tier (requests, no Playwright)
     py -3 lite/tests/run_all_tests.py --filter cfss   # substring filter
     py -3 lite/tests/run_all_tests.py --fail-fast     # stop on first failure
     py -3 lite/tests/run_all_tests.py --timeout 600   # per-test seconds
+
+Tiers (DEVELOPMENT_V2_BLUEPRINT U2 — test pyramid):
+    t0 = pure measure-math via Node (parity + property-based) — run on EVERY change
+    t1 = HTTP endpoint tests (requests, no browser)
+    t2 = everything else (Playwright UI) — default `all` includes every tier
 
 Exit code: 0 only if preflight passes AND every test exits 0.
 Prints LITE_RUN_ALL_OK / LITE_RUN_ALL_FAIL as the last line.
@@ -34,6 +41,18 @@ TESTS_DIR = Path(__file__).resolve().parent
 MIN_FREE_GB = 2.0
 
 MARKER_RE = re.compile(r"\b[A-Z][A-Z0-9_]*_(?:OK|FAIL)\b")
+
+# V2 test pyramid (DEVELOPMENT_V2_BLUEPRINT U2). t2 = everything not listed.
+TIERS = {
+    "t0": {  # measure math through Node — no server, no browser
+        "test_measure_parity.py",
+        "test_pbt_measure.py",
+    },
+    "t1": {  # server endpoints via requests — uvicorn but no Playwright
+        "test_export_endpoints.py",
+        "test_case_lock.py",
+    },
+}
 
 
 def preflight():
@@ -81,8 +100,15 @@ def preflight():
     return problems
 
 
-def discover(filter_sub):
+def discover(filter_sub, tier="all"):
     tests = sorted(p for p in TESTS_DIR.glob("test_*.py"))
+    if tier == "t0":
+        tests = [p for p in tests if p.name in TIERS["t0"]]
+    elif tier == "t1":
+        tests = [p for p in tests if p.name in TIERS["t1"]]
+    elif tier == "t2":
+        known = TIERS["t0"] | TIERS["t1"]
+        tests = [p for p in tests if p.name not in known]
     if filter_sub:
         tests = [p for p in tests if filter_sub in p.name]
     return tests
@@ -111,6 +137,8 @@ def run_one(path, timeout_s):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--filter", default="", help="only run tests whose filename contains this substring")
+    ap.add_argument("--tier", default="all", choices=["all", "t0", "t1", "t2"],
+                    help="test-pyramid tier (t0=math/Node, t1=endpoints, t2=UI)")
     ap.add_argument("--timeout", type=int, default=420, help="per-test timeout in seconds")
     ap.add_argument("--fail-fast", action="store_true", help="stop at the first failing test")
     args = ap.parse_args()
@@ -124,13 +152,13 @@ def main():
         sys.exit(1)
     print("  ok (disk space / deps / node)")
 
-    tests = discover(args.filter)
+    tests = discover(args.filter, args.tier)
     if not tests:
-        print(f"no tests matched filter '{args.filter}'")
+        print(f"no tests matched filter '{args.filter}' tier '{args.tier}'")
         print("LITE_RUN_ALL_FAIL")
         sys.exit(1)
 
-    print(f"\n== RUNNING {len(tests)} TESTS (timeout {args.timeout}s each) ==")
+    print(f"\n== RUNNING {len(tests)} TESTS (tier {args.tier}, timeout {args.timeout}s each) ==")
     results = []
     t_start = time.time()
     for i, path in enumerate(tests, 1):
