@@ -25,6 +25,7 @@ import fitz  # PyMuPDF
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 LITE_VERSION = "0.2.0-LITE-1+2+3"
 SCHEMA_VERSION = 1
@@ -32,6 +33,19 @@ RS = 1.5                       # render scale — MUST match proto (coord contra
 MAX_UPLOAD_BYTES = 1024 * 1024 * 1024   # 1 GB — real permit binders run into the 100s of MB
 MAX_IMAGE_CACHE = 24                     # bounded per-case JPEG cache (only viewed pages render)
 CASE_TTL_SEC = 3600
+
+# --- Export payload caps (S1/S5 hardening, 2026-07-02 audit) -----------------
+# Reject (HTTP 400) crafted/oversized export payloads BEFORE rendering so a
+# malicious/huge body cannot pin CPU+RAM (unbounded get_pixmap/draw loops).
+# Values give >=10x headroom over the realistic worst case (lite handles ~95-page
+# permit binders; a heavy page carries ~50 objects; polygons rarely exceed
+# ~200 pts) so NO legitimate lite flow is ever blocked. Reject, never truncate.
+MAX_EXPORT_PAGES     = 2000     # distinct page keys per overlay payload (~10-20x a 95-200pp binder)
+MAX_OBJECTS_PER_PAGE = 500      # measured objects on one page (~10x the ~50 heavy case)
+MAX_ANNOTS_PER_PAGE  = 500      # annotations on one page (~10x heavy)
+MAX_PTS_PER_OBJECT   = 2000     # vertices per object/annotation (~10x the ~200-pt polygon case)
+MAX_COORD_ABS        = 20000    # PDF-point coord sanity (largest sheets ~3500pt); rejects NaN/inf/1e12
+MAX_XLSX_ROWS        = 20000    # measurement rows per XLSX export
 
 _BASE_DIR = Path(__file__).resolve().parent
 _STATIC_DIR = _BASE_DIR / "static"
@@ -196,19 +210,29 @@ async def export_xlsx(req: Request):
     """rows = [{page,category,semanticTag,kind,area,count}]; summary = [{category,total}]."""
     from openpyxl import Workbook
     data = await req.json()
+    rows = data.get("rows", [])
+    summary = data.get("summary", [])
+    if not isinstance(rows, list) or len(rows) > MAX_XLSX_ROWS:
+        n = len(rows) if isinstance(rows, list) else "?"
+        print(f"[lite][export] rejected /export-xlsx: rows={n} > {MAX_XLSX_ROWS}")
+        return JSONResponse({"error": f"too many rows: {n} > {MAX_XLSX_ROWS}"}, 400)
+    if not isinstance(summary, list) or len(summary) > MAX_XLSX_ROWS:
+        n = len(summary) if isinstance(summary, list) else "?"
+        print(f"[lite][export] rejected /export-xlsx: summary={n} > {MAX_XLSX_ROWS}")
+        return JSONResponse({"error": f"too many summary rows: {n} > {MAX_XLSX_ROWS}"}, 400)
     wb = Workbook()
     ws = wb.active
     ws.title = "Measurements"
     ws.append(["Page", "Category", "Semantic Tag", "Type", "Area (m²)", "Count"])
-    for r in data.get("rows", []):
+    for r in rows:
         ws.append([r.get("page"), r.get("category"), r.get("semanticTag"),
                    r.get("kind"), r.get("area"), r.get("count")])
     ws2 = wb.create_sheet("Summary")
     ws2.append(["Category", "Total Area (m²) — all pages"])
-    for s in data.get("summary", []):
+    for s in summary:
         ws2.append([s.get("category"), s.get("total")])
     buf = io.BytesIO()
-    wb.save(buf)
+    await run_in_threadpool(wb.save, buf)   # S2: pure openpyxl on local objects, no shared/fitz state → safe off-loop
     return Response(buf.getvalue(),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": "attachment; filename=bma-lite-export.xlsx"})
@@ -232,6 +256,67 @@ def _cloud(shape, x, y, w, h):
     bumps(x, y, x + w, y); bumps(x + w, y, x + w, y + h); bumps(x + w, y + h, x, y + h); bumps(x, y + h, x, y)
 
 
+def _coord_ok(v):
+    """True iff v is a finite number within the coord sanity band (rejects NaN/inf/1e12)."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return False
+    return v == v and -MAX_COORD_ABS <= v <= MAX_COORD_ABS   # v==v rejects NaN
+
+
+def _pts_ok(pts, kind):
+    """Cap vertex count + coord sanity for a pts list. Returns detail str on failure, else None."""
+    if not isinstance(pts, list):
+        return f"{kind} pts must be a list"
+    if len(pts) > MAX_PTS_PER_OBJECT:
+        return f"{kind} with {len(pts)} pts > {MAX_PTS_PER_OBJECT}"
+    for p in pts:
+        if not isinstance(p, dict) or not (_coord_ok(p.get("x")) and _coord_ok(p.get("y"))):
+            return f"bad coordinate in {kind} pts"
+    return None
+
+
+def _validate_overlay_pages(pages):
+    """Return an HTTP-400 detail string if *pages* violates any export cap, else None.
+    S1 hardening: reject (never truncate) crafted/oversized overlay payloads."""
+    if not isinstance(pages, dict):
+        return "pages must be an object"
+    if len(pages) > MAX_EXPORT_PAGES:
+        return f"too many pages: {len(pages)} > {MAX_EXPORT_PAGES}"
+    for n, pg in pages.items():
+        try:
+            int(n)
+        except (TypeError, ValueError):
+            return f"non-integer page key: {n!r}"
+        if not isinstance(pg, dict):
+            return f"page {n}: must be an object"
+        objs = pg.get("objects") or []
+        anns = pg.get("annotations") or []
+        if not isinstance(objs, list) or len(objs) > MAX_OBJECTS_PER_PAGE:
+            m = len(objs) if isinstance(objs, list) else "?"
+            return f"page {n}: too many objects: {m} > {MAX_OBJECTS_PER_PAGE}"
+        if not isinstance(anns, list) or len(anns) > MAX_ANNOTS_PER_PAGE:
+            m = len(anns) if isinstance(anns, list) else "?"
+            return f"page {n}: too many annotations: {m} > {MAX_ANNOTS_PER_PAGE}"
+        for o in objs:
+            if not isinstance(o, dict):
+                return f"page {n}: object must be an object"
+            e = _pts_ok(o.get("pts") or [], "object")
+            if e:
+                return f"page {n}: {e}"
+        for a in anns:
+            if not isinstance(a, dict):
+                return f"page {n}: annotation must be an object"
+            e = _pts_ok(a.get("pts") or [], "annotation")
+            if e:
+                return f"page {n}: {e}"
+            pt = a.get("pt")
+            if isinstance(pt, dict) and pt and not (_coord_ok(pt.get("x")) and _coord_ok(pt.get("y"))):
+                return f"page {n}: bad coordinate in annotation pt"
+    return None
+
+
 @app.post("/export-pdf-overlay")
 async def export_pdf_overlay(req: Request):
     """Rotation-PROOF overlay: render each measured page to a raster at its displayed
@@ -243,6 +328,10 @@ async def export_pdf_overlay(req: Request):
         return JSONResponse({"error": "invalid case"}, 400)
     doc = case["doc"]
     pages = data.get("pages", {})
+    err = _validate_overlay_pages(pages)
+    if err:
+        print(f"[lite][export] rejected /export-pdf-overlay: {err}")
+        return JSONResponse({"error": f"export payload rejected: {err}"}, 400)
     out = fitz.open()
     for n in sorted(pages.keys(), key=lambda k: int(k)):
         idx = int(n) - 1
