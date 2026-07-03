@@ -149,6 +149,29 @@ function mastersInOrder() {
 }
 
 /* ================================================================== */
+/* Undo/redo support — MASTERS snapshot / restore (B4 follow-up).      */
+/* The ui-lite undo system deep-copies the page store PS but has never */
+/* covered the MASTERS registry, so master mutations (promote /        */
+/* layer-move retarget / edit) could not round-trip under Ctrl+Z:      */
+/* undo restored PS while MASTERS kept the mutated state, leaving       */
+/* instances (which hold only a masterId string) pointing at a master  */
+/* whose catId/layer had changed. _docSnap()/_applyDoc() in ui-lite    */
+/* now call these two. Reassigning window.MASTERS wholesale is safe —  */
+/* every lookup (masterById / mastersInOrder / instance resolution)    */
+/* reads window.MASTERS fresh, so no live master reference goes stale. */
+window.CFSS = window.CFSS || {};
+/* Returns the live registry; the caller's JSON.stringify deep-clones  */
+/* it into the snapshot string (masters are tiny — a few shapes).      */
+window.CFSS.snapshotMasters = function() { return window.MASTERS || {}; };
+/* snap === undefined/null => pre-fix snapshot with no `masters` key:  */
+/* leave MASTERS untouched (graceful). Otherwise replace the registry  */
+/* with the parsed clone so instances resolve against restored state.  */
+window.CFSS.restoreMasters = function(snap) {
+  if (snap === undefined || snap === null) return;
+  window.MASTERS = (typeof snap === 'object') ? snap : {};
+};
+
+/* ================================================================== */
 /* Instance helpers                                                    */
 /* ================================================================== */
 
@@ -707,6 +730,8 @@ function cfssCommitEdit(masterId, patch) {
     computed.metricPts = [{x_m:0,y_m:0},{x_m:patch.widthM,y_m:0},
                           {x_m:patch.widthM,y_m:patch.heightM},{x_m:0,y_m:patch.heightM}];
   }
+  // Undo covers MASTERS (via CFSS.snapshotMasters): capture BEFORE the mutation.
+  if (typeof pushUndo === 'function') pushUndo();
   var updated = updateMaster(masterId, computed);
   if (updated && window.state) window.state.dirty = true;
   return updated;
@@ -749,6 +774,8 @@ function cfssCommitPromote(sourcePoly, name, targetPageNumbers) {
     return {x_m: (p.x - minX) / ppm, y_m: (p.y - minY) / ppm};
   });
 
+  // Undo covers MASTERS (via CFSS.snapshotMasters): capture BEFORE first mutation.
+  if (typeof pushUndo === 'function') pushUndo();
   var masterId = addMaster(name || 'Master', metricPts, sourcePoly.color || '#888',
                            {catId: sourcePoly.catId, semanticTag: sourcePoly.semanticTag});
   if (!masterId) return null;
