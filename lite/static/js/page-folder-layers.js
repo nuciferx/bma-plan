@@ -403,6 +403,8 @@ function isPageFolder(folderIdOrFolder) {
 }
 
 /* Remove all PF folders and layers parented under them. Splice in place.
+   B3 (H3 orphaned-catId fix): reassign each layer's objects/masters to its
+   role default BEFORE splicing, mirroring removeLayer()'s own ordering.
    Returns count of folders removed. */
 function resetPageFolders() {
   var removed = 0;
@@ -411,6 +413,9 @@ function resetPageFolders() {
     var l = LAYERS[i];
     if (l.parentId && typeof l.parentId === "string" &&
         l.parentId.indexOf(PAGE_FOLDER_PREFIX) === 0) {
+      if (typeof reassignObjectsOfLayer === "function") {
+        reassignObjectsOfLayer(l.id, defaultLayerIdForRole(l.role));
+      }
       LAYERS.splice(i, 1);
     }
   }

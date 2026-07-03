@@ -14,6 +14,10 @@
      layerById(id)      — returns LAYERS entry by id (or null)
      layersInOrder()    — sorted copy of LAYERS ascending by .order
      resolveSemanticTag(layerId) — roleSemanticTag(layerById(layerId).role)
+     reassignObjectsOfLayer(layerId,toLayerId) — B3: retarget PS objects + CFSS
+       masters' catId; used by removeLayer() before it splices
+     sweepOrphanCatIds() — B3: heal any catId with no resolving layer (PS +
+       CFSS masters), called once at the end of loadProto()
 
      -- Folder CRUD (LST-1) --
      nextFolderId()     — next collision-free "F"+n id
@@ -223,22 +227,99 @@ function reorderLayers(orderedIds) {
 }
 
 /**
+ * B3 (INV-20260703-layer-linkage, H3 orphaned-catId fix).
+ * Reassign every object (across all PS pages, if PS is loaded) and every
+ * CFSS master (window.MASTERS, if the module is loaded) whose catId ===
+ * layerId to toLayerId. Pure-ish: reads PS/window.MASTERS via typeof-guard
+ * so it is a harmless no-op in contexts where they don't exist yet (e.g.
+ * pure layer-model tests). Mutates matching objects/masters in place.
+ * Returns the count reassigned.
+ */
+function reassignObjectsOfLayer(layerId, toLayerId) {
+  if (!layerId || !toLayerId || layerId === toLayerId) return 0;
+  var n = 0;
+  if (typeof PS !== "undefined" && PS) {
+    Object.keys(PS).forEach(function (k) {
+      var objs = (PS[k] && PS[k].objects) || [];
+      for (var i = 0; i < objs.length; i++) {
+        if (objs[i].catId === layerId) { objs[i].catId = toLayerId; n++; }
+      }
+    });
+  }
+  if (typeof window !== "undefined" && window.MASTERS) {
+    Object.keys(window.MASTERS).forEach(function (mid) {
+      var m = window.MASTERS[mid];
+      if (m && m.catId === layerId) { m.catId = toLayerId; n++; }
+    });
+  }
+  return n;
+}
+
+/**
  * Remove a custom layer from LAYERS.
  * - Not found         → {removed:false, reason:"not_found"}
  * - Is default layer  → {removed:false, reason:"is_default"}
- * - Else              → removes from LAYERS, returns {removed:true, role:<role>,
- *                        reassignTo:<defaultLayerIdForRole(role)>}
- * NOTE: does NOT reassign objects — that is the caller's responsibility.
+ * - Else              → reassigns every object/master on this layer to the
+ *                        role's default layer FIRST (reassignObjectsOfLayer),
+ *                        THEN removes from LAYERS. Returns {removed:true,
+ *                        role:<role>, reassignTo:<defaultLayerIdForRole(role)>}
  */
 function removeLayer(id) {
   var l = layerById(id);
   if (!l) return {removed: false, reason: "not_found"};
   if (isDefaultLayer(id)) return {removed: false, reason: "is_default"};
   var savedRole = l.role;
+  var reassignTo = defaultLayerIdForRole(savedRole);
+  reassignObjectsOfLayer(id, reassignTo);
   // splice IN PLACE — never reassign LAYERS, or the `var CATS = LAYERS` alias in
   // ui-lite.html would keep pointing at the old array and silently diverge.
   for (var i = 0; i < LAYERS.length; i++) { if (LAYERS[i].id === id) { LAYERS.splice(i, 1); break; } }
-  return {removed: true, role: savedRole, reassignTo: defaultLayerIdForRole(savedRole)};
+  return {removed: true, role: savedRole, reassignTo: reassignTo};
+}
+
+/**
+ * B3 (H3 orphaned-catId fix) — load-time healing sweep.
+ * Scans every object across all PS pages plus every CFSS master
+ * (window.MASTERS) and reassigns any catId that no longer resolves to a
+ * layer in LAYERS (e.g. a legacy save referencing a since-deleted custom
+ * layer, or any other path that produced a stale catId before this sprint's
+ * removeLayer/resetPageFolders fixes existed). Fallback target: SEM_REV[
+ * o.semanticTag] (ui-lite.html global, typeof-guarded — absent in pure JS
+ * test contexts) else the 'use' role's default layer else the literal
+ * string 'use'. Idempotent; safe to call repeatedly (e.g. once at the end
+ * of every loadProto()). Returns the count of catIds healed.
+ */
+function sweepOrphanCatIds() {
+  var healed = 0;
+  var semRev = (typeof SEM_REV !== "undefined") ? SEM_REV : {};
+  function fallbackFor(semanticTag) {
+    return semRev[semanticTag] || defaultLayerIdForRole("use") || "use";
+  }
+  if (typeof PS !== "undefined" && PS) {
+    Object.keys(PS).forEach(function (k) {
+      var objs = (PS[k] && PS[k].objects) || [];
+      for (var i = 0; i < objs.length; i++) {
+        var o = objs[i];
+        if (o.catId != null && !layerById(o.catId)) {
+          o.catId = fallbackFor(o.semanticTag);
+          healed++;
+        }
+      }
+    });
+  }
+  if (typeof window !== "undefined" && window.MASTERS) {
+    Object.keys(window.MASTERS).forEach(function (mid) {
+      var m = window.MASTERS[mid];
+      if (m && m.catId != null && !layerById(m.catId)) {
+        m.catId = fallbackFor(m.semanticTag);
+        healed++;
+      }
+    });
+  }
+  if (healed > 0 && typeof console !== "undefined" && console.warn) {
+    console.warn("[layer-system] sweepOrphanCatIds healed " + healed + " orphaned catId(s)");
+  }
+  return healed;
 }
 
 /* ============================================================
