@@ -6,7 +6,23 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u6-changelog — process / release-tooling
+# Latest: UX-20260703-quickwins-batch3 — ui (lite)
+
+**Date:** 2026-07-03
+
+UX batch 3: F-8 (11 error messages gain Thai next-step) + annotate Shift-hotkeys x7 via guarded central keydown + Thai PM/wizard strings + NEW empty-state.js pre-open overlay + NEW page-scan-badge.js per-page scanned/fallback badge. Closes: UX-F8, UX-COSMETIC-1-4.
+
+---
+
+# Previous: PROC-20260703-probe-dblclick-rewrite — test-infra (simulate)
+
+**Date:** 2026-07-03
+
+LITE-BUG-DBLCLICK-OVER-POP probe rewritten mouse_sequence -> evaluate-only (modal/wizard-proof): injects state.draft [4 pts + 2 strays], synthetic dblclick on #cv, asserts 4-pt commit; validated live incl. old-bug emulation discriminating 3-pt. Closes: NEXT_ACTIONS-item-11.
+
+---
+
+# PROC-20260703-v2-u6-changelog — process / release-tooling
 
 **Date:** 2026-07-03
 
@@ -14,7 +30,7 @@ V2 U6 automated half: scripts/gen_changelog.py (SHIPS.jsonl -> docs/CHANGELOG.md
 
 ---
 
-# Previous: PROC-20260703-v2-u2-impact-map — process / test-infra
+# PROC-20260703-v2-u2-impact-map — process / test-infra
 
 **Date:** 2026-07-03
 

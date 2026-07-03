@@ -6,7 +6,37 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u6-changelog
+# Latest: UX-20260703-quickwins-batch3
+
+Date: 2026-07-03 · Area: ui (lite)
+
+UX batch 3: F-8 (11 error messages gain Thai next-step) + annotate Shift-hotkeys x7 via guarded central keydown + Thai PM/wizard strings + NEW empty-state.js pre-open overlay + NEW page-scan-badge.js per-page scanned/fallback badge.
+
+**Commits:**
+- `fcf5b23` — feat(lite): UX batch 3 — F-8 actionable errors + annotate hotkeys + Thai PM/wizard + empty state + scanned badge (UX-20260703)
+
+**Files touched:** `lite/static/js/cheatsheet.js`, `lite/static/js/empty-state.js`, `lite/static/js/export-annotate.js`, `lite/static/js/overview-setup.js`, `lite/static/js/page-manager-ui.js`, `lite/static/js/page-renderer.js`, `lite/static/js/page-scan-badge.js`, `lite/tests/test_ux_batch3.py`, `lite/ui-lite.html`
+
+**Closes:** UX-F8, UX-COSMETIC-1-4
+
+---
+
+# Previous: PROC-20260703-probe-dblclick-rewrite
+
+Date: 2026-07-03 · Area: test-infra (simulate)
+
+LITE-BUG-DBLCLICK-OVER-POP probe rewritten mouse_sequence -> evaluate-only (modal/wizard-proof): injects state.draft [4 pts + 2 strays], synthetic dblclick on #cv, asserts 4-pt commit; validated live incl. old-bug emulation discriminating 3-pt.
+
+**Commits:**
+- `707ed8f` — chore(test-infra): LITE-BUG-DBLCLICK-OVER-POP probe rewritten mouse_sequence -> evaluate-only
+
+**Files touched:** `.claude/skills/bma-simulate/regression_probes.json`
+
+**Closes:** NEXT_ACTIONS-item-11
+
+---
+
+# PROC-20260703-v2-u6-changelog
 
 Date: 2026-07-03 · Area: process / release-tooling
 
@@ -23,7 +53,7 @@ V2 U6 automated half: scripts/gen_changelog.py (SHIPS.jsonl -> docs/CHANGELOG.md
 
 ---
 
-# Previous: PROC-20260703-v2-u2-impact-map
+# PROC-20260703-v2-u2-impact-map
 
 Date: 2026-07-03 · Area: process / test-infra
 

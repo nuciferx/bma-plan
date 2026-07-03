@@ -6,7 +6,31 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u6-changelog
+# Latest: UX-20260703-quickwins-batch3
+
+Date: 2026-07-03 · Area: ui (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_UX_BATCH3_OK | PASS |
+
+Closes: UX-F8, UX-COSMETIC-1-4
+
+---
+
+# Previous: PROC-20260703-probe-dblclick-rewrite
+
+Date: 2026-07-03 · Area: test-infra (simulate)
+
+_No guard markers — docs / process / research ship (no dedicated marker)._
+
+Closes: NEXT_ACTIONS-item-11
+
+---
+
+# PROC-20260703-v2-u6-changelog
 
 Date: 2026-07-03 · Area: process / release-tooling
 
@@ -16,7 +40,7 @@ Closes: V2-U6-tooling
 
 ---
 
-# Previous: PROC-20260703-v2-u2-impact-map
+# PROC-20260703-v2-u2-impact-map
 
 Date: 2026-07-03 · Area: process / test-infra
 

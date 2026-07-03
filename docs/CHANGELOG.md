@@ -9,6 +9,12 @@ marker is hand-written and preserved.
 
 ## 2026-07-03
 
+- **UX-20260703-quickwins-batch3** _ui (lite)_
+  - UX batch 3: F-8 (11 error messages gain Thai next-step) + annotate Shift-hotkeys x7 via guarded central keydown + Thai PM/wizard strings + NEW empty-state.js pre-open overlay + NEW page-scan-badge.js per-page scanned/fallback badge.
+  - commits `fcf5b23` · guards LITE_UX_BATCH3_OK · closes UX-F8, UX-COSMETIC-1-4
+- **PROC-20260703-probe-dblclick-rewrite** _test-infra (simulate)_
+  - LITE-BUG-DBLCLICK-OVER-POP probe rewritten mouse_sequence -> evaluate-only (modal/wizard-proof): injects state.draft [4 pts + 2 strays], synthetic dblclick on #cv, asserts 4-pt commit; validated live incl. old-bug emulation discriminating 3-pt.
+  - commits `707ed8f` · closes NEXT_ACTIONS-item-11
 - **PROC-20260703-v2-u6-changelog** _process / release-tooling_
   - V2 U6 automated half: scripts/gen_changelog.py (SHIPS.jsonl -> docs/CHANGELOG.md, GEN-marker idempotent) + docs/process/RELEASE_RITUAL.md separating automated preflight from human-gated tag/sandbox-test/build steps.
   - commits `a42bde6` · closes V2-U6-tooling
