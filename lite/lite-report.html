@@ -67,27 +67,37 @@
     .sheet:last-child{page-break-after:auto}
     [contenteditable]{background:none !important;box-shadow:none !important}
     .left{background:#fff;border-color:#999}
+    /* print = CLASSIC report always (grid print CSS un-validated). Grid never prints;
+       classic is forced back on-screen even if the user is viewing grid mode. */
     #re-wrap{display:none !important}
+    #sheets{position:static !important;left:auto !important;top:auto !important}
   }
   /* report-edit toggle host */
   #re-host{background:#fff;width:297mm;padding:12mm 12mm 10mm;box-shadow:0 6px 26px rgba(0,0,0,.45);border-radius:4px}
+  .printhint{font-size:11px;color:#e8b84b;max-width:250px;line-height:1.3}
+  /* View switching (GRID is default). The inactive view is moved OFF-SCREEN rather
+     than display:none, so (a) #sheets innerText stays readable for tooling and
+     (b) the off-screen grid stays fully rendered → jspreadsheet editing keeps working. */
+  body.mode-grid #sheets{position:absolute;left:-99999px;top:0}
+  body.mode-classic #re-wrap{position:absolute;left:-99999px;top:0}
 </style>
 <link rel="stylesheet" href="static/js/vendor/jsuites.min.css">
 <link rel="stylesheet" href="static/js/vendor/jspreadsheet.min.css">
 </head>
-<body class="editable-mark">
+<body class="editable-mark mode-grid">
 
 <div class="toolbar">
   <b>📝 รายงานพื้นที่ (แก้ไขได้ก่อนพิมพ์)</b>
   <span class="src" id="srcTag">…</span>
   <span class="hint">คลิกหัวกระดาษ / ชื่อรายการ / หมายเหตุ เพื่อแก้ — ตัวเลขพื้นที่ล็อก (จากการวัด)</span>
   <span class="sp"></span>
-  <button id="re-toggle" class="sec">✏️ ตารางแก้ไขได้ (beta)</button>
+  <button id="re-toggle" class="sec">📄 โหมดคลาสสิก</button>
+  <span class="printhint" id="printHint">พิมพ์/บันทึก PDF แนะนำโหมดคลาสสิก (โหมดตารางยังไม่ปรับหน้า print)</span>
   <button id="print">🖨 พิมพ์ / บันทึก PDF</button>
 </div>
 
 <div class="sheetwrap" id="sheets"></div>
-<div class="sheetwrap" id="re-wrap" style="display:none">
+<div class="sheetwrap" id="re-wrap">
   <div id="re-host"></div>
 </div>
 
@@ -239,37 +249,66 @@ render();
 <script src="static/js/vendor/jspreadsheet.min.js"></script>
 <script src="static/js/report-edit.js"></script>
 <script>
-/* ---------- report-edit toggle (beta) ---------- */
+/* ---------- report view toggle: GRID is default, CLASSIC is the print escape hatch ----------
+   The editable grid is the default report view. The old contenteditable table stays
+   available as "โหมดคลาสสิก" fallback (used for printing until grid print CSS is validated).
+   The grid is mounted ONCE and never unmounted — the inactive view is only moved off-screen
+   via body.mode-* CSS, so ReportEdit / localStorage state persists across a toggle. */
 (function(){
   var btn=document.getElementById("re-toggle");
-  var wrap=document.getElementById("re-wrap");
   var host=document.getElementById("re-host");
-  var on=false;
-  btn.addEventListener("click",function(){
-    on=!on;
-    if(on){
-      /* flatten first measurable page's groups rows into [{name,area}] */
-      var payload=null;
-      try{ var raw=sessionStorage.getItem("bmaReportPayload"); if(raw) payload=JSON.parse(raw); }catch(e){}
-      if(!payload) payload=window.__SAMPLE_PAYLOAD||null;
-      var rows=[];
-      if(payload&&payload.pages&&payload.pages.length){
-        var p=payload.pages[0];
-        (p.groups||[]).forEach(function(g){
-          (g.rows||[]).forEach(function(r){ rows.push({name:r.name,area:r.area}); });
-        });
-      }
-      wrap.style.display="";
-      ReportEdit.mount(host, rows.length?rows:null);
-      btn.style.background="#1d4ed8";
-    } else {
-      ReportEdit.unmount();
-      wrap.style.display="none";
-      btn.style.background="";
-    }
-  });
-  /* expose SAMPLE payload reference for toggle fallback */
+  var hint=document.getElementById("printHint");
+  /* expose SAMPLE payload reference for grid seed fallback */
   window.__SAMPLE_PAYLOAD=SAMPLE;
+
+  function gridRows(){
+    /* flatten first measurable page's group rows into [{name,area}] */
+    var payload=null;
+    try{ var raw=sessionStorage.getItem("bmaReportPayload"); if(raw) payload=JSON.parse(raw); }catch(e){}
+    if(!payload) payload=window.__SAMPLE_PAYLOAD||null;
+    var rows=[];
+    if(payload&&payload.pages&&payload.pages.length){
+      var p=payload.pages[0];
+      (p.groups||[]).forEach(function(g){
+        (g.rows||[]).forEach(function(r){ rows.push({name:r.name,area:r.area}); });
+      });
+    }
+    return rows;
+  }
+
+  var mounted=false;
+  function ensureGrid(){
+    if(mounted) return;
+    var rows=gridRows();
+    ReportEdit.mount(host, rows.length?rows:null);
+    mounted=true;
+  }
+
+  function setMode(m){
+    if(m==="grid"){
+      ensureGrid();
+      document.body.classList.add("mode-grid");
+      document.body.classList.remove("mode-classic");
+      if(hint) hint.style.display="";
+      btn.textContent="📄 โหมดคลาสสิก";
+      btn.title="สลับไปโหมดคลาสสิก (เหมาะกับการพิมพ์)";
+      btn.style.background="";
+    } else {
+      document.body.classList.add("mode-classic");
+      document.body.classList.remove("mode-grid");
+      if(hint) hint.style.display="none";
+      btn.textContent="✏️ โหมดตาราง (แก้ไขได้)";
+      btn.title="สลับไปโหมดตารางแก้ไขได้";
+      btn.style.background="#1d4ed8";
+    }
+  }
+
+  btn.addEventListener("click",function(){
+    setMode(document.body.classList.contains("mode-grid")?"classic":"grid");
+  });
+
+  /* GRID is the default report view */
+  setMode("grid");
 })();
 </script>
 </body>
