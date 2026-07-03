@@ -32,21 +32,14 @@
       "id": "LITE-BUG-DBLCLICK-OVER-POP",
       "fixed_in_sprint": "LITE-BUG-2-OPUS47-FINDINGS",
       "fixed_in_commit": "2dae5c0",
-      "description": "Polygon dblclick at the same screen position as the last click MUST preserve the intentional vertex (final polygon has 4 pts, not 3). Asserts the pop-loop cap of 2 from cv.dblclick handler.",
-      "preconditions": "PDF loaded; the probe sets PS[1].scale + active layer + poly tool itself in setup_js. Also dismisses any active LWIZ wizard hard-block (added 2026-05-26 by BUG-20260526-lite-force-setup) so the mouse_sequence reaches cv. Setup is self-contained — does not depend on prior scenario state.",
+      "description": "Polygon dblclick at the same screen position as the last click MUST preserve the intentional vertex (final polygon has 4 pts, not 3). Asserts the bounded pop-loop cap of 2 — for(_np<2) — in the cv dblclick handler; the old unbounded while-loop also consumed the intentional 4th vertex (713 m2 quad silently saved as 356 m2 triangle).",
+      "preconditions": "PDF loaded (pageData/curImg set so ptToScreen works). Evaluate-only and self-contained: resets the CURRENT page's objects + scale + poly tool, injects a 6-pt draft (4 intentional vertices + the 2 stray points the dblclick's own mousedowns would have pushed at the dblclick spot), then dispatches a synthetic dblclick MouseEvent directly on #cv. No real mouse events, so modals/wizards/LWIZ overlays in front of the canvas cannot break it (rewritten 2026-07-03 from mouse_sequence for exactly that reason).",
       "trigger": {
-        "type": "mouse_sequence",
-        "setup_js": "() => { try { if(typeof _lwizAutoLiftLock==='function') _lwizAutoLiftLock(); window.__lwizAutoLockActive=false; window.__lwizAutoFired=true; var ov=document.getElementById('ov'); if(ov && ov.classList.contains('show')) ov.classList.remove('show'); } catch(_){} if(!PS[1])return; PS[1].objects=[]; PS[1].scale={pts_per_m:30.0}; setTool('poly'); state.draft=null; }",
-        "mouse_sequence": [
-          { "action": "click",    "pdf_pt": { "x": 84.2,  "y": 119.1  } },
-          { "action": "click",    "pdf_pt": { "x": 757.8, "y": 119.1  } },
-          { "action": "click",    "pdf_pt": { "x": 757.8, "y": 1071.9 } },
-          { "action": "click",    "pdf_pt": { "x": 84.2,  "y": 1071.9 } },
-          { "action": "dblclick", "pdf_pt": { "x": 84.2,  "y": 1071.9 } }
-        ]
+        "type": "evaluate",
+        "evaluate_js": "() => { var pg=PSpage(); pg.objects=[]; pg.scale={pts_per_m:30.0}; state.catLock[state.activeCat]=false; setTool('poly'); var p1={x:84.2,y:119.1},p2={x:757.8,y:119.1},p3={x:757.8,y:1071.9},p4={x:84.2,y:1071.9}; state.draft=[p1,p2,p3,p4,{x:p4.x,y:p4.y},{x:p4.x,y:p4.y}]; var sp=ptToScreen(p4), r=cv.getBoundingClientRect(); cv.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true,clientX:r.left+sp.x,clientY:r.top+sp.y})); var objs=PSpage().objects; var nPts=(objs.length===1&&objs[0].pts)?objs[0].pts.length:-1; return {pass:(objs.length===1&&nPts===4), nObjs:objs.length, nPts:nPts, draftCleared:(state.draft===null)}; }"
       },
-      "assertion_js": "() => { var objs=PS[1] && PS[1].objects; if(!objs || objs.length!==1)return false; return objs[0].pts && objs[0].pts.length===4; }",
-      "cleanup_js": "() => { if(PS[1]){ PS[1].objects=[]; } state.draft=null; setTool('select'); }"
+      "assertion_js": "() => { var pg=PSpage(); var objs=pg && pg.objects; if(!objs || objs.length!==1)return false; return !!(objs[0].pts && objs[0].pts.length===4); }",
+      "cleanup_js": "() => { PSpage().objects=[]; state.draft=null; setTool('select'); }"
     }
   ]
 }
