@@ -37,19 +37,15 @@ function _isLocked(id) {
 }
 
 /* ------------------------------------------------------------------
-   _ltOwnArea(layerId)
-   Compute the signed own area (m²) for a single layer across ALL pages.
-   - count layers always return 0 (no area).
-   - deduction layers (role "ded") return a NEGATIVE total — so rollupArea
-     subtracts them when aggregating. This sign is DISPLAY-ONLY and does
-     NOT affect buildExportData or .bmaplan schema.
-   - Returns a finite number (0 when no page has a calibrated scale or no
-     matching poly objects). Never throws.
+   _ltOwnAreaLegacyLoop(layerId)
+   Pre-B2 (INV-20260703-layer-linkage) implementation of _ltOwnArea's own-
+   area math: a direct PS-iteration loop. Kept as (a) the load-order-safety
+   fallback inside _ltOwnArea below when ObjectAgg hasn't executed yet, and
+   (b) a regression-guard comparator for test_b2_single_engine.py — proves
+   the tuple-sourced path (default, below) returns identical numbers for
+   ordinary filed layers. Unsigned total (sign applied by the caller).
    ------------------------------------------------------------------ */
-function _ltOwnArea(layerId) {
-  var lyr = layerById(layerId);
-  if (!lyr || lyr.counting) return 0;
-  var sign = (lyr.role === "ded") ? -1 : 1;
+function _ltOwnAreaLegacyLoop(layerId) {
   var total = 0;
   Object.keys(PS).forEach(function(k) {
     var pg = +k;
@@ -65,6 +61,43 @@ function _ltOwnArea(layerId) {
       total += (a != null) ? a : 0;
     }
   });
+  return total;
+}
+
+/* ------------------------------------------------------------------
+   _ltOwnArea(layerId)
+   Compute the signed own area (m²) for a single layer across ALL pages.
+   - count layers always return 0 (no area).
+   - deduction layers (role "ded") return a NEGATIVE total — so rollupArea
+     subtracts them when aggregating. This sign is DISPLAY-ONLY and does
+     NOT affect buildExportData or .bmaplan schema.
+   - Returns a finite number (0 when no page has a calibrated scale or no
+     matching poly objects). Never throws.
+
+   B2 (INV-20260703-layer-linkage, single-engine slice): now reduces over
+   ObjectAgg.objectTuples() filtered by catId===layerId (typeof-guarded),
+   instead of re-walking PS itself — retires the second aggregation engine
+   for this consumer. Falls back to _ltOwnAreaLegacyLoop when ObjectAgg
+   hasn't loaded yet (load-order safety; object-agg.js loads after this
+   file in ui-lite.html's <script> order). NOTE: objectTuples() skips
+   excluded[] pages while the legacy loop above did not — this layer-own-
+   area display now also skips excluded pages (same excluded-page decision
+   B1 made for report-vars/openSum; no test pins the old include-excluded
+   behavior here).
+   ------------------------------------------------------------------ */
+function _ltOwnArea(layerId) {
+  var lyr = layerById(layerId);
+  if (!lyr || lyr.counting) return 0;
+  var sign = (lyr.role === "ded") ? -1 : 1;
+  var total;
+  if (typeof window !== "undefined" && window.ObjectAgg && typeof window.ObjectAgg.objectTuples === "function") {
+    total = 0;
+    window.ObjectAgg.objectTuples().forEach(function(t) {
+      if (t.catId === layerId && t.area != null) total += t.area;
+    });
+  } else {
+    total = _ltOwnAreaLegacyLoop(layerId);
+  }
   return sign * total;
 }
 

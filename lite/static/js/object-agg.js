@@ -43,6 +43,25 @@
    floorReportRows()/floorKeyLabel() are rendering-agnostic: they return
    plain row data + Thai labels; ui-lite.html maps rows -> HTML.
 
+   --- slice B2 (INV-20260703-layer-linkage, final structural slice) ---
+   Retired the second (folder-scoped) aggregation engine for its remaining
+   consumers: layer-tree.js _ltOwnArea(layerId) and overview-setup.js
+   _lovsLayerArea(layerId) now reduce over objectTuples() filtered by
+   catId, instead of each re-walking PS with its own loop (old loops kept
+   as _ltOwnAreaLegacyLoop / _lovsLayerAreaLegacy — load-order-safety
+   fallback + regression-guard comparator). overview-setup.js's Review
+   step (Section 3, GFA Breakdown ต่อชั้น) now sources per-floor gfa/ded
+   from byFloorRole() (same floorKey semantics as the B1 Summary block)
+   instead of _lovsFolderArea(floorId, role) folder-membership sums — this
+   is the "M6" fix: a gfa/ded layer never filed into its PF_floor_<N>
+   folder (root-unfiled) is now correctly counted on that floor's Review
+   row too, where it was silently dropped before. Site+coverage (Section
+   2) intentionally stays folder-scoped (PF_site membership is the actual
+   intended semantics there, not a floor row). openSum-vs-Review
+   convergence (H2) is now structural: both read the same byFloorRole()
+   bucket, so assertEnginesAgree()'s new floorRole-partition check (c)
+   below covers the Review path without a separate comparison.
+
    Public API: window.ObjectAgg = {
      floorKeyOfPage, objectTuples, aggTuples, byRole, byFloor, byFloorRole,
      floorKeyLabel, floorReportRows, assertEnginesAgree
@@ -186,8 +205,13 @@ function floorReportRows(tuples) {
 
 /* TEST ORACLE (invariant I11 groundwork) — never throws, never alerts.
    Compares (a) byRole() role totals vs rollupAggByRole(computeSummary().all)
-   role totals, and (b) sum of all tuple areas vs sum of computeSummary().all
-   values. Returns {ok, diffs:[...]}. */
+   role totals, (b) sum of all tuple areas vs sum of computeSummary().all
+   values, and (c) [B2] byFloorRole()'s per-floorKey partition sums back to
+   byRole() exactly for every role — the identity overview-setup.js's Review
+   per-floor rows now rely on (B2 rerouted them onto byFloorRole()), proving
+   Review structurally agrees with the role-level engine already checked in
+   (a)/(b) with no separate "Review engine" left to diverge from (H2 closed).
+   Returns {ok, diffs:[...]}. */
 function assertEnginesAgree(epsilon) {
   var eps = (typeof epsilon === "number") ? epsilon : 1e-6;
   var diffs = [];
@@ -218,6 +242,21 @@ function assertEnginesAgree(epsilon) {
     var totalTol = eps * Math.max(1, Math.abs(summaryTotal));
     var totalDiff = Math.abs(tupleTotal - summaryTotal);
     if (totalDiff > totalTol) diffs.push({type: "total", tupleTotal: tupleTotal, summaryTotal: summaryTotal, diff: totalDiff});
+
+    var bfr = byFloorRole(tuples);
+    var floorRoleSums = {};
+    Object.keys(bfr).forEach(function(fk) {
+      Object.keys(bfr[fk]).forEach(function(role) {
+        floorRoleSums[role] = (floorRoleSums[role] || 0) + bfr[fk][role].area;
+      });
+    });
+    roleIds.forEach(function(role) {
+      var a2 = floorRoleSums[role] || 0;
+      var b2 = (br[role] && br[role].area) || 0;
+      var tol2 = eps * Math.max(1, Math.abs(b2));
+      var diff2 = Math.abs(a2 - b2);
+      if (diff2 > tol2) diffs.push({type: "floorRole", role: role, floorRoleTotal: a2, byRoleTotal: b2, diff: diff2});
+    });
 
     return {ok: diffs.length === 0, diffs: diffs};
   } catch (e) {

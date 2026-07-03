@@ -627,9 +627,11 @@ function _lovsClearFloors() {
    ที่ว่าง = ที่ดิน − ปกคลุม (derived, formula explicit).
 ============================================================ */
 
-/* Sum poly object areas for a single layerId across all NON-excluded pages.
-   Uses vendored polyMetricsAnyShape (arc-inclusive) + per-page scale. Returns 0 if no data. */
-function _lovsLayerArea(layerId) {
+/* Pre-B2 (INV-20260703-layer-linkage) implementation: direct PS-iteration
+   loop with a manual excluded[] check. Kept as (a) the load-order-safety
+   fallback inside _lovsLayerArea below and (b) a regression-guard
+   comparator for test_b2_single_engine.py. */
+function _lovsLayerAreaLegacy(layerId) {
   if (typeof PS === "undefined" || typeof polyMetricsAnyShape !== "function") return 0;
   var total = 0;
   Object.keys(PS).forEach(function(k) {
@@ -645,6 +647,24 @@ function _lovsLayerArea(layerId) {
     }
   });
   return total;
+}
+
+/* Sum poly object areas for a single layerId across all NON-excluded pages.
+   B2 (INV-20260703-layer-linkage, single-engine slice): reduces over
+   ObjectAgg.objectTuples() filtered by catId===layerId (typeof-guarded) —
+   tuples already skip excluded[] pages, so this keeps the exact same
+   excluded-page semantics as the pre-B2 manual check (below, kept as
+   _lovsLayerAreaLegacy for load-order-safety fallback + regression-guard
+   comparison). Returns 0 if no data. */
+function _lovsLayerArea(layerId) {
+  if (typeof window !== "undefined" && window.ObjectAgg && typeof window.ObjectAgg.objectTuples === "function") {
+    var total = 0;
+    window.ObjectAgg.objectTuples().forEach(function(t) {
+      if (t.catId === layerId && t.area != null) total += t.area;
+    });
+    return total;
+  }
+  return _lovsLayerAreaLegacy(layerId);
 }
 
 /* Sum areas of all descendant layers under folderId, optionally filtered by role.
@@ -699,10 +719,30 @@ function _lovsRenderReview() {
   var openArea  = Math.max(0, landArea - coverArea);
 
   /* === GFA PER-FLOOR BINDING ===
-     For each tag=floor page, build a row from its PF_floor_<N> folder
-     (gfa = gross, ded = deduction, both summed across pages in folder).
-     Falls back to "—" if LPFL mode OFF or no PF folder.
-  */
+     For each tag=floor page, build a row keyed by that page (row STRUCTURE
+     unchanged — one row per floor page, hasPF/pfId/label/kind all still
+     resolved exactly as before, for traceability + warning styling).
+
+     B2 (INV-20260703-layer-linkage, single-engine slice / "M6" fix): the
+     AREA SOURCE per row is rerouted from _lovsFolderArea(floorId, role)
+     (folder-MEMBERSHIP sum — only counts layers actually filed under
+     PF_floor_<N>) to ObjectAgg.byFloorRole()'s floorKey bucket for that
+     page (typeof-guarded; falls back to the old folder-based sum when
+     ObjectAgg hasn't loaded). floorKeyOfPage() buckets by page tag +
+     floor#/kind — the SAME semantics B1 already uses for the Summary
+     per-floor block (openSum) and floorReportRows() — so a gfa/ded layer
+     that was never dragged into its PF_floor_<N> folder (e.g. drawn on a
+     custom root-level layer) is now correctly counted on this row too.
+     This is a DELIBERATE semantics change vs the old folder-membership
+     sum whenever unfiled layers exist on a floor page; it is also what
+     makes Review structurally agree with the Summary block (H2 closed —
+     both now read the same tuple bucket instead of two separate engines).
+     Folder-scoped totals (_lovsFolderArea) remain the site+coverage
+     source in Section 2 above, unchanged — that section's "coverage ⊂
+     PF_site folder" semantics is intentionally still folder-based (see
+     comment above), not a floor row. */
+  var _bfr = (typeof window !== "undefined" && window.ObjectAgg && typeof window.ObjectAgg.byFloorRole === "function")
+    ? window.ObjectAgg.byFloorRole() : null;
   var rows = floorPages.map(function(p) {
     var fl = pageFloorNum[p];
     var kind = pageFloorKind[p] || (fl === "roof" ? "rooftop" : (fl != null ? "normal" : ""));
@@ -710,8 +750,15 @@ function _lovsRenderReview() {
     var hasFloor = (kind === "rooftop" || kind === "mechanical") || (fl != null && fl !== "roof");
     var floorId = "PF_floor_" + (fl != null ? fl : "?");
     var hasPF = (typeof folderById === "function") && !!folderById(floorId);
-    var gross = hasPF ? _lovsFolderArea(floorId, "gfa") : 0;
-    var ded   = hasPF ? _lovsFolderArea(floorId, "ded") : 0;
+    var gross, ded;
+    if (_bfr) {
+      var fk = (typeof floorKeyOfPage === "function") ? floorKeyOfPage(p) : "";
+      gross = (_bfr[fk] && _bfr[fk].gfa && _bfr[fk].gfa.area) || 0;
+      ded   = (_bfr[fk] && _bfr[fk].ded && _bfr[fk].ded.area) || 0;
+    } else {
+      gross = hasPF ? _lovsFolderArea(floorId, "gfa") : 0;
+      ded   = hasPF ? _lovsFolderArea(floorId, "ded") : 0;
+    }
     return {p: p, label: label, kind: kind, gross: gross, ded: ded, net: gross - ded, hasFloor: hasFloor, hasPF: hasPF, pfId: floorId};
   });
   var totG = 0, totD = 0; rows.forEach(function(rw) { totG += rw.gross; totD += rw.ded; });
