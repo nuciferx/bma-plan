@@ -64,6 +64,16 @@
   document.head.appendChild(s);
 })();
 
+/* B4-MOVE: dynamically load layer-move.js (avoids editing ui-lite.html which is at cap) */
+(function() {
+  if (document.getElementById('__lmove_script__')) return;
+  var s = document.createElement('script');
+  s.id = '__lmove_script__';
+  s.src = 'static/js/layer-move.js';
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
 var PAGE_FOLDER_PREFIX = "PF_";
 
 /* Return deterministic PF_* id for a page.
