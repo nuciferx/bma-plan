@@ -4,7 +4,41 @@
 
 ---
 
-# Latest: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — PASS
+# Latest: INV-20260703-layer-linkage (plan B complete) + UX-batch-1 + save-fix follow-up — PASS
+
+**Date:** 2026-07-03
+**Branch:** main
+
+## Outcome
+
+PASS. The layer↔measurement redesign that reached its human GO checkpoint earlier the same day (`INV-20260703-layer-linkage`, Approach B "one aggregation engine") shipped end-to-end across a staged B0→B5 rollout of 6 commits, plus a first UX quick-wins batch and the bug-archive follow-up bookkeeping for the same-day CRASH-tier save-wipe fix. **B0 (`edc89ae`):** NEW `lite/static/js/object-agg.js` — a single tuple-stream aggregation engine `{pg, catId, role, floorKey, area, counting}` plus a new I11 invariant oracle that proves any two consumers reducing the same partition cannot disagree, making the H2 "Summary vs. Review can disagree" finding structurally impossible rather than manually kept in sync. **B1-B2 (`6909486`, `00ab9b9`):** report-vars, Summary per-floor totals, layer-tree sums, and the Review-panel Section-3 rows all rerouted onto the same tuple stream — H2 closed for good, and M6 (root-unfiled layers silently uncounted) closed as a side effect. **B3 (`34594b7`):** `layer-system.js` self-heals orphaned `catId`s on both `removeLayer` and load, closing H3 (the crash-tier orphan bug). **B4 (`750d2f6`):** NEW `lite/static/js/layer-move.js` finally gives users a UI to move an object between layers — Properties select plus a context-menu entry, with CFSS shared-shape instances retargeting their master with a confirm — closing H1, the last of the 3 HIGH findings. **B5 (`3d3741e`):** a small clarity polish groups the report-vars operand dropdown into Σ-role vs. ▸-layer optgroups, closing M4. Bundled into the same session: **UX batch 1 (`34aefa3`)** — F-7 fixes the `modalOpen()` gap that let hotkeys leak into the Summary widget (the exact class of bug the UX review filed that same morning), F-1/F-2/F-3 fix a dead hotkey, a key collision, and Page Manager's discoverability, plus a cheatsheet accuracy pass; and the **save-fix bug-archive follow-up (`d40b20b`, already fixed and reported in the prior finalize)**, included here to close out the narrative arc. Every commit was independently verified pre-commit with its own guard test plus a `t0` measure-parity sweep; `MEASURE_PARITY_OK` confirmed green at B4. Zero `proto/` edits across the whole block.
+
+## What was delivered
+
+- `lite/static/js/object-agg.js` (NEW, B0) — single tuple-stream aggregation engine, closes H2 by construction via the I11 invariant oracle
+- `lite/static/js/report-vars.js`, `layer-tree.js`, `overview-setup.js` (B1-B2) — Summary, per-floor totals, and Review-panel rows all reduce the same tuple stream
+- `lite/static/js/layer-system.js` (B3) — `reassignObjectsOfLayer` + load-time `sweepOrphanCatIds`, closes H3
+- `lite/static/js/layer-move.js` (NEW, 120 lines, B4) — move-object-to-layer UI, closes H1
+- `lite/static/js/report-vars.js` operand dropdown Σ/▸ optgroups (B5) — closes M4
+- `lite/ui-lite.html` (UX batch 1) — F-7 modal-detection fix, F-1/F-2/F-3 hotkey/discoverability fixes, cheatsheet corrections
+- `lite/tests/test_save_clickpath.py`, `test_ux_quickwins.py`, `test_object_tuples.py`, `test_b1_role_reroute.py`, `test_b2_single_engine.py`, `test_b3_orphan_heal.py`, `test_b4_move_layer.py`, `test_b5_ref_badges.py` (all NEW)
+- Shipped as commits `d40b20b` + `34aefa3` + `edc89ae` + `6909486` + `00ab9b9` + `34594b7` + `750d2f6` + `3d3741e` on `main`
+
+## What's next
+
+- **(1)** UX quick-wins batch 2 — F-4 (visible scale-verified badge), F-5/F-6 (wizard/upload messaging), F-9 (replace `window.prompt()` in Verify Scale), plus seeded-vars red-error display and a wizard Next-button gate. In progress at the time of this write.
+- **(2)** B4 CFSS-undo follow-up — CFSS-master-only layer moves are not undoable (pre-existing `_docSnap` gap surfaced by the new UI, not a new regression). Candidate follow-up sprint.
+- **(3)** Production RSS re-probe of worker-recycle on the CHH binder — carried over, still open.
+- **(4)** Workflow-redesign proposal — awaiting user GO.
+- **(5)** V2 U3/U4 migration — `SHIPS.jsonl` ledger (U3) and roadmap split+reconcile tooling (U4).
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic. This block is the direct completion of the layer↔measurement redesign Pack H's `INV-20260703-layer-linkage` investigation scoped and scored earlier the same day: rather than patch 3 HIGH findings independently, the winning approach (a single shared aggregation engine) closes all 3 with one mechanism, one of them (H2, dual-engine disagreement) closed structurally rather than by careful manual synchronization. The staged B0→B5 commit sequence — engine first, consumers rerouted one at a time behind opt-in flags, crash-tier bug closed, UI finally shipped, then a small polish — kept every step independently testable. UX batch 1 was bundled in because its lead item (F-7) was a direct low-risk follow-up to the UX review filed the same morning. No forbidden surface touched; zero `proto/` edits.
+
+---
+
+# Previous: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — PASS
 
 **Date:** 2026-07-03
 **Branch:** main
@@ -36,39 +70,8 @@ Phase 1 — BMA-Plan Lite epic. A CRASH-tier bug on the core save path was found
 
 ---
 
-# Previous: GO-20260703-invariants-streaming-worker-recycle — PASS
-
-**Date:** 2026-07-03
-**Branch:** main
-
-## Outcome
-
-PASS. Continuation of the same-day "GO" loop block, resumed right after `BLOCK-20260703-clear-queue` closed and the Range-streaming human checkpoint was cleared. **(1) V2-U1 invariant registry (`6d6e39b`):** NEW `lite/tests/INVARIANTS.md` — a canonical registry of 10 invariants (I1–I10), each mapped to its guard test + tier, plus the two mandatory SCOPE questions this project's own `DEVELOPMENT_V2_BLUEPRINT.md` U1 called for, born directly from the arc/CFSS-summary postmortem. Same commit reconciles 16 stale `PHASE_INDEX.md` rows with real `fixed_commit`, and closes the queued `ptToScreen` parity-fixture card with rationale rather than code (the behavioral lock already exists as invariant I7). **(2) Range-streaming SPIKE (`9466fe4`+`f8c2981`), GO received:** the 5-step spike was run for real on RAMA4 (19 MB) and the actual CHH customer binder (95 MB), not simulated. It found streaming cuts CHH's memory by only 10% against a ≥50% acceptance bar — **FAILS** — and confirmed the real ~1.5 GB memory ceiling is a pdf.js worker-heap defect (bug #10730), not a document-buffering problem Range-streaming could ever fix. **VERDICT: NOGO on streaming-as-a-memory-fix.** This is exactly what a spike is for: it prevented real engineering effort from being spent building the wrong fix. **(3) worker-recycle BUILT (`d52ddbb`), the RESHAPE:** explicit pdf.js worker lifecycle management — the worker is now recycled (torn down + transparently reinitialized) on tab-hidden or app-idle triggers, targeting the actual root cause the spike identified. New guard test `LITE_WORKER_RECYCLE_OK` (7/7 checks) passes; a production re-probe of the real memory-reduction number on the CHH binder is honestly recorded as a queued follow-up measurement, not assumed. **(4) Streaming-as-bandwidth deferred:** the spike's secondary "80% fewer bytes" benefit was explicitly NOT built — the current product is desktop-only over localhost, so there is no user who benefits from it today; revisit if/when a remote deployment exists. Lite suite now 72 files; `MEASURE_PARITY_OK` green throughout. Zero `proto/` edits.
-
-## What was delivered
-
-- `lite/tests/INVARIANTS.md` (NEW) — 10 invariants (I1–I10) + 2 mandatory SCOPE questions + new-object-kind fixture rule
-- `docs/status/PHASE_INDEX.md` — 16 stale rows reconciled; `ptToScreen` parity card closed with rationale; streaming-spike verdict + worker-recycle + bandwidth-deferral recorded
-- `docs/invent/lite-range-streaming.md` — updated with the real spike results and NOGO-as-memory-fix verdict
-- `lite/sandbox/invent-range-streaming/` (NEW) — spike scripts + raw results
-- `lite/static/js/page-renderer.js` — explicit `PDFWorker` ownership, `_docSource` re-open handle, `recycleDocWorker()`, hidden/idle/manual triggers
-- `lite/tests/test_worker_recycle.py` (NEW) — `LITE_WORKER_RECYCLE_OK`, 7/7 checks
-- Shipped as commits `6d6e39b` + `9466fe4` + `f8c2981` + `d52ddbb` on `main` (streaming-as-bandwidth deferral recorded as a documentation-only follow-on)
-
-## What's next
-
-- **(1) Production RSS re-probe of worker-recycle on the CHH binder** — the −50% acceptance bar was measured in the spike's pattern, not yet re-verified against the shipped implementation on the real 95 MB file. Small measurement task.
-- **(2) V2 migration continuation** — U1 (`INVARIANTS.md`) now DONE; U2 (tiered test runner) partially landed earlier. Remaining: U3 (`SHIPS.jsonl` ledger — the token-cost killer), U4 (full roadmap split ACTIVE/DONE + a reconcile script — this block's 16-row fix was done by hand).
-- **(3) proto backlog decision** — proto is de-facto in maintenance mode; decide whether to formally freeze it or schedule a hardening pass against its known issues (circle 32-gon storage bias, snap-radius zoom growth, soft-pass markers).
-- **(4) Release ritual per V2-U6** — tag + CHANGELOG + full 4-tier test run + `/lite-sandbox-test`, due before the next build hand-off.
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic. This block is the direct continuation of the invention discipline `BLOCK-20260703-clear-queue` Ship 3 halted at: the Range-streaming research reached a human checkpoint, work resumed once it cleared, a real spike caught that the memory problem was misdiagnosed, and the RESHAPE redirected the same acceptance bar at the real root cause instead. Process debt (invariant registry, roadmap reconciliation) was paid down opportunistically in the same session. No forbidden surface touched.
-
----
-
-<!-- UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data / GO-20260703-invariants-streaming-worker-recycle are the 2 kept in this file -->
+<!-- INV-20260703-layer-linkage (plan B complete) + UX-batch-1 + save-fix follow-up / UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data are the 2 kept in this file -->
+<!-- GO-20260703-invariants-streaming-worker-recycle archived to docs/archive/reports-2026-07-03.md on 2026-07-03 (INV-20260703-layer-linkage plan-B-complete sprint block) -->
 <!-- BLOCK-20260703-clear-queue archived to docs/archive/reports-2026-07-03.md on 2026-07-03 (UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data sprint block) -->
 <!-- PERF-20260702-lite-foxit-smoothness archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (GO-20260703-invariants-streaming-worker-recycle session) -->
 <!-- BUG-20260702-lite-pagerot-registration archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (BLOCK-20260703-clear-queue session) -->

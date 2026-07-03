@@ -4,7 +4,66 @@
 
 ---
 
-# Latest: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — CRASH fix (Ctrl+S wiped all data) + full UI/UX journey review + layer↔measurement invent checkpoint
+# Latest: INV-20260703-layer-linkage (plan B complete) + UX-batch-1 + save-fix follow-up
+
+Branch: main
+
+Date: 2026-07-03
+
+## Outcome: PASS — Layer↔measurement redesign plan B (one aggregation engine) shipped 100% across 7 commits: all 3 HIGH findings (H1 no-move-UI / H2 engine disagreement / H3 orphan catId) plus M4 and M6 closed; plus the CRASH-tier save-wipe fix now has its bug-archive follow-up recorded; plus a first batch of UX quick-wins (F-7/F-1/F-2/F-3 + cheatsheet truth pass). `d40b20b` (save-fix): `projectToGlobals(livePS)` resolves live content by identity; `LITE_SAVE_CLICKPATH_OK`. `34aefa3` (UX batch 1): F-7 modalOpen keydown guard, F-1 ⇧D Path hotkey wired, F-2 F-key/Focus fix, F-3 Page Manager menu entry, cheatsheet corrections; `test_ux_quickwins.py`. `edc89ae` (B0): NEW `lite/static/js/object-agg.js` — single tuple-stream aggregation engine `{pg, catId, role, floorKey, area, counting}`; I11 oracle `assertEnginesAgree`; `test_object_tuples.py` (`LITE_OBJECT_TUPLES_OK`). `6909486` (B1): report-vars + Summary per-floor gfa/ded/net on tuples via opt-in `{useLive:true}` (default path byte-identical); `test_b1_role_reroute.py`. `00ab9b9` (B2): layer-tree Σ + Review Section-3 rows reduce the same tuple stream; oracle proves `byFloorRole` partitions == `byRole` — the two-engine disagreement (H2) impossible by construction; root-unfiled layers (M6) now counted; `test_b2_single_engine.py`. `34594b7` (B3): `layer-system.js` `reassignObjectsOfLayer` on `removeLayer` + `sweepOrphanCatIds` load-time heal — orphaned catId silent-drop/crash (H3) closed; `test_b3_orphan_heal.py`. `750d2f6` (B4): NEW `lite/static/js/layer-move.js` (120 lines, DOM-injected) — move-object-to-layer via Properties select + context menu "ย้ายไปเลเยอร์ ▸"; CFSS instances retarget MASTER with confirm; H1 closed; `test_b4_move_layer.py`. Known flag: CFSS-master-only moves not undoable (pre-existing `_docSnap` gap, candidate follow-up). `3d3741e` (B5): report-vars.js operand dropdown groups Σ role-refs vs ▸ single-layer refs (two optgroups); display-only, persisted expr format unchanged; M4 closed; `test_b5_ref_badges.py`. Every commit verified independently pre-commit; latest verify (B5) plus a `t0` measure-parity sweep all green. No `proto/` E2E needed — zero `proto/` files touched (lite-only block; proto markers unaffected).
+
+## Summary
+
+Layer↔measurement redesign plan B ("one aggregation engine," the structural fix that won 25/30 at the `INV-20260703-layer-linkage` human GO checkpoint) shipped end-to-end across a staged B0→B5 rollout, bundled with a first UX quick-wins batch and the bug-archive follow-up bookkeeping for the same-day CRASH-tier save-wipe fix. **Save-fix follow-up (`d40b20b`, already fixed and recorded in the prior finalize):** Ctrl+S no longer wipes measurements — `projectToGlobals(livePS)` resolves live content by identity via `_initialIds`/`dupSrc`; guard `LITE_SAVE_CLICKPATH_OK`. **UX batch 1 (`34aefa3`):** F-7 `modalOpen()` keydown guard closes the hotkey-leak into Summary; F-1 dead ⇧D Path hotkey wired; F-2 F-key/Focus collision resolved; F-3 Page Manager gained a menu entry (was ⇧F12-only); cheatsheet corrected. Guard `test_ux_quickwins.py`. **B0 (`edc89ae`):** NEW `lite/static/js/object-agg.js` — the single tuple-stream aggregation engine: one generator emits `{pg, catId, role, floorKey, area, counting}` tuples for every measured object; NEW I11 invariant oracle `assertEnginesAgree` proves any two consumers reducing the same partition of the same tuple stream cannot disagree — making the H2 dual-engine-disagreement finding structurally impossible rather than patched case-by-case. Guard `test_object_tuples.py` (`LITE_OBJECT_TUPLES_OK`). **B1 (`6909486`):** `report-vars.js` + Summary per-floor `gfa`/`ded`/`net` rerouted onto the tuple engine behind an opt-in `{useLive:true}` flag — default path stays byte-identical. Guard `test_b1_role_reroute.py`. **B2 (`00ab9b9`):** layer-tree Σ totals and Review-panel Section-3 rows now reduce the SAME tuple stream as Summary; oracle check (c) proves `byFloorRole` partitions equal `byRole` partitions by construction — H2 closed for good; root-unfiled layers (M6) now counted where they previously silently dropped. Guard `test_b2_single_engine.py`. **B3 (`34594b7`):** `layer-system.js` gains `reassignObjectsOfLayer` on `removeLayer` plus a load-time `sweepOrphanCatIds` heal pass — closes H3 (deleted-category orphaned `catId` silently dropped objects from every total, crashed on one path). Guard `test_b3_orphan_heal.py`. **B4 (`750d2f6`):** NEW `lite/static/js/layer-move.js` (120 lines, DOM-injected — `ui-lite.html` itself untouched) — the move-object-to-layer UI closing H1: Properties-panel select + canvas context-menu "ย้ายไปเลเยอร์ ▸"; CFSS shared-shape instances retarget the MASTER with a confirm dialog. Guard `test_b4_move_layer.py`. Known flag carried forward: CFSS-master-only moves are not undoable (pre-existing `_docSnap` gap, candidate follow-up, not a new regression). **B5 (`3d3741e`):** report-vars.js operand dropdown now groups references into two optgroups — Σ role-refs vs ▸ single-layer refs — closing M4 (the two reference kinds were visually indistinguishable). Display-only; persisted expression format unchanged. **Tests:** every commit independently verified pre-commit (targeted suite + t0 measure-parity). Latest verify (B5): `test_b5_ref_badges` + `test_report_vars_ui` + `test_report_vars_rollup` + `test_b1_role_reroute` + `run_all_tests.py --tier t0` all green. No `proto/` E2E needed — zero `proto/` files touched this whole block.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/object-agg.js` | NEW (B0) — single tuple-stream aggregation engine `{pg, catId, role, floorKey, area, counting}` |
+| `lite/static/js/report-vars.js` | (B1) per-floor gfa/ded/net on tuples via opt-in `{useLive:true}`; (B5) operand dropdown Σ/▸ optgroups |
+| `lite/static/js/layer-tree.js` | (B2) Σ totals reduce the tuple stream |
+| `lite/static/js/overview-setup.js` | (B2) Review-panel Section-3 rows reduce the tuple stream |
+| `lite/static/js/layer-system.js` | (B3) `reassignObjectsOfLayer` on `removeLayer` + load-time `sweepOrphanCatIds` heal |
+| `lite/static/js/layer-move.js` | NEW (B4, 120 lines) — move-object-to-layer via Properties select + context menu, CFSS master retarget with confirm |
+| `lite/static/js/page-folder-layers.js`, `page-manager.js`, `page-manager-ui.js` | save-fix follow-up bookkeeping (piece 1, already shipped) |
+| `lite/ui-lite.html` | UX batch 1 — F-7 modalOpen keydown guard, F-1 ⇧D Path hotkey, F-2 F-key/Focus fix, F-3 Page Manager menu entry, cheatsheet corrections |
+| `lite/tests/test_save_clickpath.py`, `test_ux_quickwins.py`, `test_object_tuples.py`, `test_b1_role_reroute.py`, `test_b2_single_engine.py`, `test_b3_orphan_heal.py`, `test_b4_move_layer.py`, `test_b5_ref_badges.py` | all NEW (1 guard per piece) |
+| `docs/status/PHASE_INDEX.md` | updated via the block's own commits — NOT touched by this docs-batching write per explicit instruction |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only block; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `lite/static/js/measure-engine.js` drift-locked vendored math — UNCHANGED; `MEASURE_PARITY_OK` verified green at B4
+- `.bmaplan` schema version stays 1; all changes this block are additive (tuple engine is a pure read-side reduction, not a new persisted shape)
+
+## Tests Run
+
+Every commit independently verified pre-commit with its own targeted suite plus a `t0` measure-parity sweep. Latest verify (B5):
+```
+python lite/tests/test_b5_ref_badges.py       PASS
+python lite/tests/test_report_vars_ui.py      PASS
+python lite/tests/test_report_vars_rollup.py  PASS
+python lite/tests/test_b1_role_reroute.py     PASS
+python lite/tests/run_all_tests.py --tier t0  PASS
+```
+No `proto/` E2E run this block. Zero `proto/` files touched across the whole block (lite-only) — proto's 22-marker full-E2E baseline is unaffected by construction; this is the standing no-test rationale for the proto side, not an omission.
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only block)
+- ✅ `.bmaplan` schema version stays 1; all new fields/files this block are additive
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ No forbidden surface touched
+
+---
+
+# Previous: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — CRASH fix (Ctrl+S wiped all data) + full UI/UX journey review + layer↔measurement invent checkpoint
 
 Branch: main
 
@@ -56,63 +115,8 @@ Regression 17/17: metamorphic suite, page-manager suite, apply-mutations suite, 
 
 ---
 
-# Previous: GO-20260703-invariants-streaming-worker-recycle — V2-U1 invariant registry + Range-streaming spike (NOGO→RESHAPE) + worker-recycle build
-
-Branch: main
-
-Date: 2026-07-03
-
-## Outcome: PASS — Continuation of the same-day "GO" loop block, resumed right after `BLOCK-20260703-clear-queue` closed and the Range-streaming human checkpoint was cleared. (1) V2-U1 invariant registry (`6d6e39b`): NEW `lite/tests/INVARIANTS.md` (10 invariants I1–I10 mapped to guard test + tier + mandatory SCOPE questions + new-object-kind fixture rule) + reconciled 16 stale `PHASE_INDEX.md` rows with real `fixed_commit` + closed the `ptToScreen` parity-fixture card with rationale (registered as invariant I7). (2) Range-streaming SPIKE (`9466fe4`+`f8c2981`), GO received: 5-step spike run for real on RAMA4 19MB + real CHH 95MB — streaming cut CHH RSS only 10% against a ≥50% GO bar (FAILS); pdf.js worker-heap bug #10730 CONFIRMED on 4.0.379 (the real memory ceiling is the WORKER heap, not the doc heap). VERDICT: NOGO on streaming-as-memory-fix, RESHAPE to worker-recycle — the spike prevented a doomed build sprint. (3) worker-recycle BUILT (`d52ddbb`), the RESHAPE: explicit `PDFWorker` ownership + cheap `_docSource` re-open handle + `recycleDocWorker()` with guards + transparent lazy reinit + hidden/idle/manual triggers; `LITE_WORKER_RECYCLE_OK` 7/7 (incl. zero-refetch-via-blob, heap-not-worse −0.8%); production RSS re-probe on CHH queued as honest follow-up. (4) Streaming-as-bandwidth card DEFERRED-until-remote-deployment (localhost bytes are free on the current desktop-only product). Lite suite now 72 files; `MEASURE_PARITY_OK` green throughout. Zero `proto/` edits.
-
-## Summary
-
-Continuation of the same-day "GO" loop block, resumed right after `BLOCK-20260703-clear-queue` closed and the Range-streaming human checkpoint was cleared. **(1) V2-U1 invariant registry (`6d6e39b`):** NEW `lite/tests/INVARIANTS.md` — canonical registry of 10 invariants (I1–I10), each mapped to its guard test + tier, plus the two mandatory SCOPE questions ("which invariants does this feature touch" / "does it create a new object kind") — the prevention mechanism `docs/process/DEVELOPMENT_V2_BLUEPRINT.md` U1 called for, born directly from the arc-summary/CFSS-summary postmortem. New-kind rule: fixtures added to I2/I4/I5 in the same sprint, no exceptions. Same commit reconciles 16 stale `PHASE_INDEX.md` rows (`lpm-1..9`, `cfss-guard`, `EVOLT-1..5`, `INV-2026-05-25-CFSS`) that claimed `queued` but were long since shipped — each now carries its real `fixed_commit`. The `ptToScreen`/`screenToPt` parity-fixture card is closed with a rationale instead of code: the behavioral lock already exists as invariant I7 (`LITE_PAGEROT_REG_OK`; runtime routes through the parity-tested `pdfToC`/`cToPdf` kernel since `9f4b298`). **(2) Range-streaming SPIKE (`9466fe4`+`f8c2981`), GO received via `/loop`:** the 5-step spike from `docs/invent/lite-range-streaming.md` was executed for real in `lite/sandbox/invent-range-streaming/` against RAMA4 (19 MB) and the real CHH binder (95 MB). Results: both customer PDFs are NON-linearized yet stream fine (20% bytes fetched — linearization concern moot); Starlette's `/raw` already serves `206 Partial Content`+`Content-Range` with zero backend work; streaming cut CHH's RSS only 10% (1675→1503 MB) against a ≥50% GO bar — **FAILS**; pdf.js worker-heap bug #10730 CONFIRMED on the pinned 4.0.379 build (`destroy()` frees the main doc heap 409→98 MB but the worker heap survives — the real ~1.5 GB ceiling); `PDFDataRangeTransport` over `Blob.slice` works mechanically but delivers no memory win. **VERDICT: NOGO on streaming-as-memory-fix, RESHAPE to worker-recycle** — the spike prevented a doomed build sprint. **(3) worker-recycle BUILT (`d52ddbb`), the RESHAPE:** `lite/static/js/page-renderer.js` gains explicit `PDFWorker` ownership (`_docWorker`, passed into `getDocument` from both `openLocal` and `/raw` paths) + a cheap `_docSource` re-open handle (retained local `File`/`Blob` = zero-network reinit, or `caseId` = one `/raw` refetch) + `recycleDocWorker()` (guards: recycle-in-progress / render-in-flight=SKIP / no source; preserves `pageDims`/`pageRot`/`_scanned`) + transparent lazy `_reinitDoc` on next `loadPage` + triggers (tab hidden ≥60s; idle ≥5min AND `pageCount>20`; manual `PageRenderer.recycleNow`). `_resetCache()` now also destroys the explicit worker on new-upload, closing a latent per-upload worker leak. `page-renderer.js` 790/1000 lines; `ui-lite.html` +1 call-site line (1170/1200). Built by `lite-builder`, independently verified. NEW `lite/tests/test_worker_recycle.py` (`LITE_WORKER_RECYCLE_OK`, 7 checks incl. zero-refetch-via-blob and heap-not-worse −0.8%). Honest scope: the full CHH RSS −50% acceptance bar was measured in the spike's pattern, not re-verified against this specific production build — a production re-probe is recorded as queued follow-up measurement, not assumed. Regression 6/6 + `--tier t0` green. **(4) Streaming-as-bandwidth card DEFERRED-until-remote-deployment** with a recorded rationale (เสา 1): all `/raw` byte transfer is localhost on the current desktop-only product (91 MB `/raw` = 498 ms measured), so the spike's 80% byte-count reduction has no user-facing benefit until a remote deployment target exists. **Suite validation:** lite test suite now 72 files; `MEASURE_PARITY_OK` green throughout every piece of this block.
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/tests/INVARIANTS.md` | NEW (1) — 10 invariants I1–I10 mapped to guard test + tier, 2 mandatory SCOPE questions, new-object-kind fixture rule |
-| `docs/status/PHASE_INDEX.md` | (1)+(2)+(4) — 16 stale rows reconciled with real `fixed_commit`; `ptToScreen` parity card closed with rationale (I7); streaming-spike verdict + worker-recycle GO + bandwidth-deferral recorded on the perf card — via the block's own commits, not this docs-batching write |
-| `docs/invent/lite-range-streaming.md` | (2) — updated with the 5-step spike's real results, NOGO-as-memory-fix verdict, 2 proposed follow-on cards |
-| `lite/sandbox/invent-range-streaming/` | NEW (2) — spike scripts + raw results (`s1_linearize.py`, `s2_range.py`, `spike.html`, `spike_run.py`, `results.json`, `results.md`) |
-| `lite/static/js/page-renderer.js` | (3) — worker-recycle: `_docWorker` explicit ownership, `_docSource` re-open handle, `recycleDocWorker()` with guards, transparent lazy `_reinitDoc`, hidden/idle/manual triggers, `_resetCache()` destroys worker |
-| `lite/ui-lite.html` | (3) — +1 line, single worker-recycle call-site (1170/1200 cap) |
-| `lite/tests/test_worker_recycle.py` | NEW (3) — `LITE_WORKER_RECYCLE_OK`, 7 checks incl. zero-refetch-via-blob, heap-not-worse (−0.8%) |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (lite-only block; zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `lite/static/js/measure-engine.js` drift-locked vendored math — UNCHANGED
-- `.bmaplan` schema version stays 1; no schema fields touched this block (invariants doc, spike research, worker lifecycle management — no persisted-state change)
-- Range-streaming spike ran isolated in `lite/sandbox/`, not against the live page-renderer buffer-ownership contract, until the RESHAPE was independently built + guarded by its own test
-
-## Tests Run
-
-```
-python lite/tests/test_worker_recycle.py       → LITE_WORKER_RECYCLE_OK   PASS (NEW, 7/7 checks)
-python lite/tests/run_all_tests.py --tier t0   → PASS (measure-math tier, <5s target)
-python lite/tests/test_measure_parity.py       → MEASURE_PARITY_OK        PASS (drift-lock intact)
-```
-
-Regression 6/6 targeted at-risk files green + `run_all_tests.py --tier t0` green. `MEASURE_PARITY_OK` green throughout — zero vendored-math touch across all 4 pieces of this block. Lite suite now 72 test files. Proto E2E n/a (lite-only block; zero `proto/` edits).
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
-- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only block)
-- ✅ `.bmaplan` schema version stays 1; no fields touched this block
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ No forbidden surface touched; spike isolated in `lite/sandbox/`, RESHAPE independently built + guarded
-- ✅ `lite/ui-lite.html` stays under 1200-line cap (1170/1200); `page-renderer.js` stays under 1000-line cap (790/1000)
-
----
-
-<!-- UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data / GO-20260703-invariants-streaming-worker-recycle are the 2 kept in this file -->
+<!-- INV-20260703-layer-linkage (plan B complete) + UX-batch-1 + save-fix follow-up / UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data are the 2 kept in this file -->
+<!-- GO-20260703-invariants-streaming-worker-recycle archived to docs/archive/patch-history-2026-07-03.md on 2026-07-03 (INV-20260703-layer-linkage plan-B-complete sprint block) -->
 <!-- BLOCK-20260703-clear-queue archived to docs/archive/patch-history-2026-07-03.md on 2026-07-03 (UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data sprint block) -->
 <!-- PERF-20260702-lite-foxit-smoothness archived to docs/archive/patch-history-2026-07-02.md on 2026-07-03 (GO-20260703-invariants-streaming-worker-recycle sprint block) -->
 <!-- BUG-20260702-lite-pagerot-registration archived to docs/archive/patch-history-2026-07-02.md on 2026-07-03 (BLOCK-20260703-clear-queue session) -->

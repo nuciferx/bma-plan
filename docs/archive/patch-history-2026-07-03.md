@@ -1,6 +1,6 @@
 # patch-history-2026-07-03.md — Archived Patch Summaries
 
-> Archived from root PATCH_SUMMARY.md on 2026-07-03 (BLOCK-20260703-clear-queue archived during the UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data sprint block, to keep root at Latest + 1 Previous).
+> Archived from root PATCH_SUMMARY.md on 2026-07-03 (BLOCK-20260703-clear-queue archived during the UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data sprint block; GO-20260703-invariants-streaming-worker-recycle archived during the INV-20260703-layer-linkage plan-B-complete sprint block, both to keep root at Latest + 1 Previous).
 
 ---
 
@@ -66,5 +66,61 @@ python lite/tests/run_all_tests.py                → 70/70 files green (chunked
 - ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
 - ✅ No forbidden surface touched — Ship 3's Range-streaming (the one piece that would touch the page-renderer's buffer-ownership contract) correctly HALTED at the human checkpoint rather than shipped
 - ✅ `lite/ui-lite.html` stays under 1200-line cap (1170/1200 after Ship 4)
+
+---
+
+# GO-20260703-invariants-streaming-worker-recycle — V2-U1 invariant registry + Range-streaming spike (NOGO→RESHAPE) + worker-recycle build
+
+Branch: main
+
+Date: 2026-07-03
+
+## Outcome: PASS — Continuation of the same-day "GO" loop block, resumed right after `BLOCK-20260703-clear-queue` closed and the Range-streaming human checkpoint was cleared. (1) V2-U1 invariant registry (`6d6e39b`): NEW `lite/tests/INVARIANTS.md` (10 invariants I1–I10 mapped to guard test + tier + mandatory SCOPE questions + new-object-kind fixture rule) + reconciled 16 stale `PHASE_INDEX.md` rows with real `fixed_commit` + closed the `ptToScreen` parity-fixture card with rationale (registered as invariant I7). (2) Range-streaming SPIKE (`9466fe4`+`f8c2981`), GO received: 5-step spike run for real on RAMA4 19MB + real CHH 95MB — streaming cut CHH RSS only 10% against a ≥50% GO bar (FAILS); pdf.js worker-heap bug #10730 CONFIRMED on 4.0.379 (the real memory ceiling is the WORKER heap, not the doc heap). VERDICT: NOGO on streaming-as-memory-fix, RESHAPE to worker-recycle — the spike prevented a doomed build sprint. (3) worker-recycle BUILT (`d52ddbb`), the RESHAPE: explicit `PDFWorker` ownership + cheap `_docSource` re-open handle + `recycleDocWorker()` with guards + transparent lazy reinit + hidden/idle/manual triggers; `LITE_WORKER_RECYCLE_OK` 7/7 (incl. zero-refetch-via-blob, heap-not-worse −0.8%); production RSS re-probe on CHH queued as honest follow-up. (4) Streaming-as-bandwidth card DEFERRED-until-remote-deployment (localhost bytes are free on the current desktop-only product). Lite suite now 72 files; `MEASURE_PARITY_OK` green throughout. Zero `proto/` edits.
+
+## Summary
+
+Continuation of the same-day "GO" loop block, resumed right after `BLOCK-20260703-clear-queue` closed and the Range-streaming human checkpoint was cleared. **(1) V2-U1 invariant registry (`6d6e39b`):** NEW `lite/tests/INVARIANTS.md` — canonical registry of 10 invariants (I1–I10), each mapped to its guard test + tier, plus the two mandatory SCOPE questions ("which invariants does this feature touch" / "does it create a new object kind") — the prevention mechanism `docs/process/DEVELOPMENT_V2_BLUEPRINT.md` U1 called for, born directly from the arc-summary/CFSS-summary postmortem. New-kind rule: fixtures added to I2/I4/I5 in the same sprint, no exceptions. Same commit reconciles 16 stale `PHASE_INDEX.md` rows (`lpm-1..9`, `cfss-guard`, `EVOLT-1..5`, `INV-2026-05-25-CFSS`) that claimed `queued` but were long since shipped — each now carries its real `fixed_commit`. The `ptToScreen`/`screenToPt` parity-fixture card is closed with a rationale instead of code: the behavioral lock already exists as invariant I7 (`LITE_PAGEROT_REG_OK`; runtime routes through the parity-tested `pdfToC`/`cToPdf` kernel since `9f4b298`). **(2) Range-streaming SPIKE (`9466fe4`+`f8c2981`), GO received via `/loop`:** the 5-step spike from `docs/invent/lite-range-streaming.md` was executed for real in `lite/sandbox/invent-range-streaming/` against RAMA4 (19 MB) and the real CHH binder (95 MB). Results: both customer PDFs are NON-linearized yet stream fine (20% bytes fetched — linearization concern moot); Starlette's `/raw` already serves `206 Partial Content`+`Content-Range` with zero backend work; streaming cut CHH's RSS only 10% (1675→1503 MB) against a ≥50% GO bar — **FAILS**; pdf.js worker-heap bug #10730 CONFIRMED on the pinned 4.0.379 build (`destroy()` frees the main doc heap 409→98 MB but the worker heap survives — the real ~1.5 GB ceiling); `PDFDataRangeTransport` over `Blob.slice` works mechanically but delivers no memory win. **VERDICT: NOGO on streaming-as-memory-fix, RESHAPE to worker-recycle** — the spike prevented a doomed build sprint. **(3) worker-recycle BUILT (`d52ddbb`), the RESHAPE:** `lite/static/js/page-renderer.js` gains explicit `PDFWorker` ownership (`_docWorker`, passed into `getDocument` from both `openLocal` and `/raw` paths) + a cheap `_docSource` re-open handle (retained local `File`/`Blob` = zero-network reinit, or `caseId` = one `/raw` refetch) + `recycleDocWorker()` (guards: recycle-in-progress / render-in-flight=SKIP / no source; preserves `pageDims`/`pageRot`/`_scanned`) + transparent lazy `_reinitDoc` on next `loadPage` + triggers (tab hidden ≥60s; idle ≥5min AND `pageCount>20`; manual `PageRenderer.recycleNow`). `_resetCache()` now also destroys the explicit worker on new-upload, closing a latent per-upload worker leak. `page-renderer.js` 790/1000 lines; `ui-lite.html` +1 call-site line (1170/1200). Built by `lite-builder`, independently verified. NEW `lite/tests/test_worker_recycle.py` (`LITE_WORKER_RECYCLE_OK`, 7 checks incl. zero-refetch-via-blob and heap-not-worse −0.8%). Honest scope: the full CHH RSS −50% acceptance bar was measured in the spike's pattern, not re-verified against this specific production build — a production re-probe is recorded as queued follow-up measurement, not assumed. Regression 6/6 + `--tier t0` green. **(4) Streaming-as-bandwidth card DEFERRED-until-remote-deployment** with a recorded rationale (เสา 1): all `/raw` byte transfer is localhost on the current desktop-only product (91 MB `/raw` = 498 ms measured), so the spike's 80% byte-count reduction has no user-facing benefit until a remote deployment target exists. **Suite validation:** lite test suite now 72 files; `MEASURE_PARITY_OK` green throughout every piece of this block.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/tests/INVARIANTS.md` | NEW (1) — 10 invariants I1–I10 mapped to guard test + tier, 2 mandatory SCOPE questions, new-object-kind fixture rule |
+| `docs/status/PHASE_INDEX.md` | (1)+(2)+(4) — 16 stale rows reconciled with real `fixed_commit`; `ptToScreen` parity card closed with rationale (I7); streaming-spike verdict + worker-recycle GO + bandwidth-deferral recorded on the perf card — via the block's own commits, not this docs-batching write |
+| `docs/invent/lite-range-streaming.md` | (2) — updated with the 5-step spike's real results, NOGO-as-memory-fix verdict, 2 proposed follow-on cards |
+| `lite/sandbox/invent-range-streaming/` | NEW (2) — spike scripts + raw results (`s1_linearize.py`, `s2_range.py`, `spike.html`, `spike_run.py`, `results.json`, `results.md`) |
+| `lite/static/js/page-renderer.js` | (3) — worker-recycle: `_docWorker` explicit ownership, `_docSource` re-open handle, `recycleDocWorker()` with guards, transparent lazy `_reinitDoc`, hidden/idle/manual triggers, `_resetCache()` destroys worker |
+| `lite/ui-lite.html` | (3) — +1 line, single worker-recycle call-site (1170/1200 cap) |
+| `lite/tests/test_worker_recycle.py` | NEW (3) — `LITE_WORKER_RECYCLE_OK`, 7 checks incl. zero-refetch-via-blob, heap-not-worse (−0.8%) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — NOT TOUCHED (lite-only block; zero proto/ edits)
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
+- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
+- `buildSnapIndex`, `snap` engine — UNCHANGED
+- `lite/static/js/measure-engine.js` drift-locked vendored math — UNCHANGED
+- `.bmaplan` schema version stays 1; no schema fields touched this block (invariants doc, spike research, worker lifecycle management — no persisted-state change)
+- Range-streaming spike ran isolated in `lite/sandbox/`, not against the live page-renderer buffer-ownership contract, until the RESHAPE was independently built + guarded by its own test
+
+## Tests Run
+
+```
+python lite/tests/test_worker_recycle.py       → LITE_WORKER_RECYCLE_OK   PASS (NEW, 7/7 checks)
+python lite/tests/run_all_tests.py --tier t0   → PASS (measure-math tier, <5s target)
+python lite/tests/test_measure_parity.py       → MEASURE_PARITY_OK        PASS (drift-lock intact)
+```
+
+Regression 6/6 targeted at-risk files green + `run_all_tests.py --tier t0` green. `MEASURE_PARITY_OK` green throughout — zero vendored-math touch across all 4 pieces of this block. Lite suite now 72 test files. Proto E2E n/a (lite-only block; zero `proto/` edits).
+
+## Phase 1 Scope Check
+
+- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
+- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
+- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only block)
+- ✅ `.bmaplan` schema version stays 1; no fields touched this block
+- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
+- ✅ No forbidden surface touched; spike isolated in `lite/sandbox/`, RESHAPE independently built + guarded
+- ✅ `lite/ui-lite.html` stays under 1200-line cap (1170/1200); `page-renderer.js` stays under 1000-line cap (790/1000)
 
 ---
