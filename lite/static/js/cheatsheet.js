@@ -12,9 +12,11 @@ var SHORTCUTS = {
     ['Select',               'V'],
     ['Pan (สลับ)',           'H'],
     ['Set Scale',            'S'],
+    ['Verify Scale',         '⇧S'],
     ['Polygon area',         'A'],
     ['Arc edge (ขณะวาด)',   'A → A'],
     ['Distance',             'D'],
+    ['Distance (ต่อเนื่อง / Path)', '⇧D'],
     ['Reference line',       'R'],
     ['Count marker',         'N'],
     ['Finish drawing',       'Enter'],
@@ -29,18 +31,21 @@ var SHORTCUTS = {
     ['Loupe',                    'L']
   ],
   'หน้า / ดู': [
-    ['Fit window',           'Ctrl+0'],
+    ['Fit window',           'F / Ctrl+0'],
     ['Actual size',          'Ctrl+1'],
     ['Zoom in / out',        'Ctrl+ / Ctrl−'],
-    ['Focus mode',           'F'],
+    ['Focus mode',           '⇧F'],
     ['Overview',             'F12'],
+    ['Page Manager',         '⇧F12'],
     ['Page search',          'Ctrl+K'],
+    ['Page Setup',           'Ctrl+,'],
     ['Prev / next page',     'PgUp / PgDn']
   ],
   'แก้ไข': [
     ['Undo',                 'Ctrl+Z'],
     ['Redo',                 'Ctrl+Y / ⇧Ctrl+Z'],
     ['Delete selected',      'Del'],
+    ['Duplicate',            'Ctrl+D'],
     ['Save project',         'Ctrl+S'],
     ['Export XLSX',          'Ctrl+E']
   ]
@@ -227,7 +232,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // F1 and ? need editable-focus + modal guard
     if (e.key === 'F1' || e.key === '?') {
       if (_isEditorFocused()) return;
-      if (typeof modalOpen === 'function' && modalOpen()) return;
+      // F-7: modalOpen() now reports the cheatsheet itself as "a modal is open"
+      // (so app hotkeys don't leak while it's showing). That means once open,
+      // modalOpen() would always be true here too — skip the guard when the
+      // cheatsheet is ALREADY open so F1/? can still toggle it CLOSED; the
+      // guard still applies (blocks opening) when some OTHER modal is up.
+      var alreadyOpen = _csBackdrop && _csBackdrop.classList.contains('open');
+      if (!alreadyOpen && typeof modalOpen === 'function' && modalOpen()) return;
       e.preventDefault();
       toggleCheatsheet();
     }

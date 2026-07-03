@@ -151,6 +151,7 @@
       <div class="item" id="mi-excl">ยกเว้นหน้านี้ (toggle)</div>
       <div class="sep"></div>
       <div class="item" id="mi-setup">Page Setup… (แท็ก/สเกล/โปรเจกต์)<span class="k">Ctrl+,</span></div>
+      <div class="item" id="mi-pagemgr">จัดการหน้า (เรียง/ลบ/รวมไฟล์)<span class="k">⇧F12</span></div>
     </div></div>
     <div class="menu" data-m="annotate"><button>Annotate ▾</button><div class="dd">
       <div class="item" data-tool="ann_text">ตัวหนังสือ (Text)</div>
@@ -166,7 +167,7 @@
     <button class="rbtn" id="btn-sum">Σ สรุป</button>
     <button class="rbtn" id="btn-cmdk">🔍 ค้นหาหน้า ⌘K</button>
     <button class="rbtn" id="btn-ov">🐦 Overview F12</button>
-    <button class="rbtn" id="btn-focus">◯ Focus F</button>
+    <button class="rbtn" id="btn-focus">◯ Focus ⇧F</button>
   </div>
 
   <div id="stage">
@@ -924,6 +925,7 @@ function openSetup(){ if(!caseId){alert("เปิด PDF ก่อน");return;
   var s=getScaleForPage(curPage); document.getElementById("su-ppm").value=s?s.pts_per_m.toFixed(2):"";
   document.getElementById("setupModal").style.display="flex"; }
 document.getElementById("mi-setup").onclick=function(){closeMenus();openSetup();};
+document.getElementById("mi-pagemgr").onclick=function(){closeMenus();if(typeof window.pmOpenManager==="function")window.pmOpenManager();};
 document.getElementById("su-cancel").onclick=function(){document.getElementById("setupModal").style.display="none";};
 document.getElementById("su-ok").onclick=function(){ projectInfo.name=document.getElementById("su-proj").value;
   /* tag/floor already applied live via onFloorTag/onFloorKind/onFloorNum */
@@ -1092,6 +1094,8 @@ document.getElementById("lp-add-folder").onclick=function(){ var f=addFolder("�
 
 /* keys */
 window.addEventListener("keydown",function(e){
+  var _kt=e.target,_ktag=_kt&&_kt.tagName;
+  if(_ktag==="INPUT"||_ktag==="TEXTAREA"||(_kt&&_kt.isContentEditable))return; /* F-7: never hijack typing in any input/textarea/contenteditable */
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();
     if(state.draft&&state.draft.length){state.draft.pop();if(!state.draft.length)state.draft=null;draw();}  // proto-parity: while drawing, Ctrl+Z removes the last placed point
     else{undo();}                                                                                          // not drawing → object-level history
@@ -1119,6 +1123,7 @@ window.addEventListener("keydown",function(e){
   }
   if(e.key===" "){ e.preventDefault(); if(!spaceDown){spaceDown=true;setCursor();} return; }  // spacebar-hold pan
   if(e.key==="h"||e.key==="H"){ state.panTool=!state.panTool; setCursor(); draw(); return; }     // toggle pan tool
+  if(e.shiftKey&&e.key==="F"){e.preventDefault();document.body.classList.toggle("focus");return;} /* F-2: Shift+F = Focus mode (F alone stays Fit — no collision) */
   if(e.key==="f"||e.key==="F"){ fit(); return; }                                                  // fit to window
   if(e.key==="F12"){e.preventDefault();openOv();return;}
   if(e.key==="Escape"){closeOverlays();closeObjMenu();if(state.vertMode){state.vertMode=null;draw();return;}
@@ -1138,10 +1143,20 @@ window.addEventListener("keydown",function(e){
     else{setTool("poly");}
     return; }
   if(e.shiftKey&&e.key==="S"){e.preventDefault();if(typeof verifyScaleStart==="function")verifyScaleStart();return;} /* INV-2026-07-lite-verify: Shift+S = Verify Scale */
+  if(e.shiftKey&&e.key==="D"){e.preventDefault();setTool("path");return;} /* F-1: Shift+D = continuous path tool (mirrors Distance flyout ⇧D item) */
   var map={v:"select",s:"scale",d:"dist",r:"ref",n:"count"};
   if(map[e.key]){setTool(map[e.key]);}
 });
-function modalOpen(){return document.getElementById("modal").classList.contains("show")||document.getElementById("cmdk").classList.contains("show")||document.getElementById("setupModal").style.display==="flex"||(document.getElementById("pm-overlay")&&document.getElementById("pm-overlay").classList.contains("show"));}
+function modalOpen(){
+  if(document.getElementById("modal").classList.contains("show"))return true;
+  if(document.getElementById("cmdk").classList.contains("show"))return true;
+  if(document.getElementById("setupModal").style.display==="flex")return true;
+  if(document.getElementById("sum").classList.contains("show"))return true; /* F-7: summary overlay has text inputs */
+  var pm=document.getElementById("pm-overlay"); if(pm&&pm.classList.contains("show"))return true;
+  var vs=document.getElementById("vs-modal"); if(vs&&vs.style.display==="flex")return true; /* F-7: verify-scale result modal */
+  if(document.querySelector(".cheatsheet-backdrop.open"))return true; /* F-7: cheatsheet overlay */
+  return false;
+}
 window.addEventListener("keydown",function(e){ if(e.key==="Shift"&&!state.shift){state.shift=true;state.snapHint=null;if(PageRenderer.ready())draw();} });
 window.addEventListener("keyup",function(e){ if(e.key==="Shift"){state.shift=false;if(PageRenderer.ready())draw();} if(e.key===" "){spaceDown=false;setCursor();} });
 // FIX-B5: warn before unload if document is dirty OR page mutations are pending
@@ -1166,5 +1181,6 @@ console.log("[lite] ready — engine RS="+RS+", unit-square self-check:",
 <script src="static/js/menu-flyout.js"></script>
 <script src="static/js/annot-style.js"></script>
 <script src="static/js/centerline-snap.js"></script>
+<script src="static/js/object-agg.js"></script>
 </body>
 </html>
