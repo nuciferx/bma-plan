@@ -197,6 +197,7 @@ function _ltDndKeyDown(e) {
       if (sibs[i].node.id === nodeId) { idx = i; break; }
     }
     if (idx > 0) {
+      if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS/FOLDERS: capture BEFORE reorder
       _ltSwapOrder(sibs[idx].node, sibs[idx - 1].node);
       state.dirty = true;
       handled = true;
@@ -209,6 +210,7 @@ function _ltDndKeyDown(e) {
       if (sibs2[j].node.id === nodeId) { idx2 = j; break; }
     }
     if (idx2 >= 0 && idx2 < sibs2.length - 1) {
+      if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS/FOLDERS: capture BEFORE reorder
       _ltSwapOrder(sibs2[idx2].node, sibs2[idx2 + 1].node);
       state.dirty = true;
       handled = true;
@@ -217,6 +219,7 @@ function _ltDndKeyDown(e) {
     /* Indent: nest under immediately preceding sibling */
     var pre = _ltPrecedingNode(nodeId);
     if (pre) {
+      if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS/FOLDERS: capture BEFORE reparent (indent)
       var oldParent = (node.parentId !== undefined) ? node.parentId : null;
       node.parentId = pre.node.id;
       _ltDndReindex(oldParent);
@@ -230,6 +233,7 @@ function _ltDndKeyDown(e) {
     /* Outdent: move up to grandparent */
     var currentParentId = (node.parentId !== undefined) ? node.parentId : null;
     if (currentParentId !== null) {
+      if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS/FOLDERS: capture BEFORE reparent (outdent)
       var parentNode = layerById(currentParentId) || folderById(currentParentId);
       var grandParentId = parentNode ? ((parentNode.parentId !== undefined) ? parentNode.parentId : null) : null;
       var oldParent2 = currentParentId;
@@ -405,6 +409,7 @@ function _ltDndOnUp(e) {
   _ltDndClearViz();
 
   if (_ltDrag && _ltDrag.moved && _ltDrag.target) {
+    if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS/FOLDERS: capture BEFORE reparent/reorder (incl. group auto-folder)
     _ltDndCommit(_ltDrag);
     buildPicker();
     draw();

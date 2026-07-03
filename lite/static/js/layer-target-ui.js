@@ -239,8 +239,9 @@
   }
 
   /* [ตามหน้า] clear the layer's floorKey → object falls back to the page
-     tag. This MUTATES a layer; layers are not snapshot-covered by undo yet,
-     but we pushUndo() first for cheap forward-compat (see B-ui report). */
+     tag. This MUTATES a layer; LAYERS/FOLDERS are now snapshot-covered by undo
+     (layer-redesign follow-up), so pushUndo() here makes floorKey clearing
+     fully round-trip under Ctrl+Z (was a no-op before the snapshot fix). */
   function _onByPage() {
     var banner = _q("ltu-banner");
     var row = banner && banner._ltuRow;

@@ -20,6 +20,7 @@
 function _lpCommitRename(id, value) {
   var v = (value || "").trim();
   if (v.length > 0) {
+    if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS: capture BEFORE rename
     renameLayer(id, v);
     state.dirty = true;
   }
@@ -119,6 +120,7 @@ function _lpDoAddLayer(role) {
   for (var i = 0; i < LAYERS.length; i++) {
     if (LAYERS[i].role === role) n++;
   }
+  if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS: capture BEFORE add
   var newLayer = addLayer(role, rd.name + " " + n, rd.color);
   if (!newLayer) return;
   // Carry parentId from currently active layer (puts new layer in same folder)

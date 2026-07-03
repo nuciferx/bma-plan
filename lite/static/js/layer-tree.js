@@ -128,6 +128,7 @@ function _ltMakeSwatch(id, getColor, setColorFn) {
     inp.style.display = "none";
     document.body.appendChild(inp);
     inp.addEventListener("change", function() {
+      if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS/FOLDERS: capture BEFORE recolor
       setColorFn(inp.value);
       state.dirty = true;
       if (inp.parentNode) document.body.removeChild(inp);
@@ -243,6 +244,7 @@ function _ltRenderFolder(folder, depth, el) {
       committed = true;
       var v = (inp.value || "").trim();
       if (v.length > 0) {
+        if (typeof pushUndo === "function") pushUndo(); // undo covers FOLDERS: capture BEFORE rename
         folder.name = v;
         state.dirty = true;
       }
@@ -278,6 +280,7 @@ function _ltRenderFolder(folder, depth, el) {
   btnDel.addEventListener("click", function(e) {
     e.stopPropagation();
     if (!confirm("ลบกลุ่ม \"" + folder.name + "\"?\nรายการย่อยจะถูกย้ายออกจากกลุ่ม")) return;
+    if (typeof pushUndo === "function") pushUndo(); // undo covers FOLDERS: capture BEFORE remove
     var savedId = folder.id;
     var r = removeFolder(savedId);
     if (!r.removed) return;
@@ -439,6 +442,7 @@ function _ltRenderLayer(layer, depth, el) {
     btnDel.addEventListener("click", function(e) {
       e.stopPropagation();
       if (!confirm("ลบ layer \"" + layer.name + "\"?\nวัตถุทั้งหมดจะถูกย้ายไป layer หลัก")) return;
+      if (typeof pushUndo === "function") pushUndo(); // undo covers LAYERS (+PS reassign): capture BEFORE remove
       var r = removeLayer(layer.id);
       if (!r.removed) return;
       // reparent this layer's sub-layers/sub-folders up to its parent — removeLayer

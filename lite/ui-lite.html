@@ -852,9 +852,10 @@ function setTool(t){ if(typeof annEdit!=="undefined"&&annEdit)commitAnnEditor();
    Snapshots the mutable doc (objects/annotations/scale per page + page metadata).
    In-progress draft/selection is NOT part of history — undo works at committed-object level. */
 var undoStack=[], redoStack=[], UNDO_MAX=80;
-function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id,pageOrder:(pageMgr?pageMgr.pageOrder:null),masters:(typeof CFSS!=="undefined"&&CFSS.snapshotMasters)?CFSS.snapshotMasters():undefined}); } // LPM slice 3: pageOrder included for B-DIRTY (future reorder detection); B4-fu: masters = CFSS registry (additive; absent in old snapshots)
+function _docSnap(){ return JSON.stringify({PS:PS,excluded:excluded,pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,projectInfo:projectInfo,_id:state._id,pageOrder:(pageMgr?pageMgr.pageOrder:null),masters:(typeof CFSS!=="undefined"&&CFSS.snapshotMasters)?CFSS.snapshotMasters():undefined,layers:(typeof snapshotLayers!=="undefined")?snapshotLayers():undefined,folders:(typeof snapshotFolders!=="undefined")?snapshotFolders():undefined}); } // LPM slice 3: pageOrder included for B-DIRTY (future reorder detection); B4-fu: masters = CFSS registry (additive; absent in old snapshots); layer-redesign-fu: layers/folders = LAYERS/FOLDERS (additive; absent in old snapshots)
 function pushUndo(){ undoStack.push(_docSnap()); if(undoStack.length>UNDO_MAX)undoStack.shift(); redoStack.length=0; }
 function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTags=d.pageTags; pageFloorKind=d.pageFloorKind; pageFloorNum=d.pageFloorNum; pageNames=d.pageNames; projectInfo=d.projectInfo; if(d._id)state._id=d._id; if(typeof CFSS!=="undefined"&&CFSS.restoreMasters)CFSS.restoreMasters(d.masters); // B4-fu: restore CFSS registry (d.masters undefined in old snapshots => untouched)
+  if(typeof restoreLayers!=="undefined")restoreLayers(d.layers); if(typeof restoreFolders!=="undefined")restoreFolders(d.folders); // layer-redesign-fu: restore LAYERS/FOLDERS in place (d.layers/d.folders undefined in old snapshots => untouched)
   // BUG-20260530-lpm-4: re-seed pageMgr so it matches the restored globals.
   // d.pageOrder holds the identity array captured at pushUndo() time.
   // _pmSeed rebuilds pageMgr from (restored PS + restored identity order) then
@@ -1093,7 +1094,7 @@ function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(
 document.querySelectorAll(".overlay").forEach(function(o){o.addEventListener("click",function(e){if(e.target===o)closeOverlays();});});
 document.getElementById("btn-focus").onclick=function(){document.body.classList.toggle("focus");};
 document.getElementById("lp-add").onclick=lpHandleAddLayer;
-document.getElementById("lp-add-folder").onclick=function(){ var f=addFolder("กลุ่มใหม่","#ffb454",null); state.catVis[f.id]=true; state.catLock[f.id]=false; state.dirty=true; buildPicker(); draw(); };
+document.getElementById("lp-add-folder").onclick=function(){ pushUndo(); var f=addFolder("กลุ่มใหม่","#ffb454",null); state.catVis[f.id]=true; state.catLock[f.id]=false; state.dirty=true; buildPicker(); draw(); };
 
 /* keys */
 window.addEventListener("keydown",function(e){

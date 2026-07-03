@@ -405,6 +405,32 @@ function foldersInOrder() {
 }
 
 /* ============================================================
+   UNDO/REDO SUPPORT — LAYERS + FOLDERS snapshot / restore
+   (INV-20260703-layer-redesign follow-up; mirrors the CFSS.snapshotMasters
+   pattern in cross-floor-shapes.js). ui-lite's _docSnap()/_applyDoc() now
+   carry LAYERS + FOLDERS under additive `layers` / `folders` keys so layer
+   add / rename / recolor / reorder / reparent / floorKey mutations round-trip
+   under Ctrl+Z. snapshot* return the live arrays; the caller's JSON.stringify
+   deep-clones them into the snapshot string (layers/folders are tiny).
+
+   CRITICAL — restore MUST mutate the array CONTENTS in place (splice + push),
+   never reassign LAYERS/FOLDERS. ui-lite.html captures `var CATS = LAYERS` by
+   reference at load, and layer-system's own invariant (header) forbids
+   reassigning either array identity. Reassigning would orphan CATS and every
+   module that closed over the array object. Old snapshots (no key) => snap is
+   undefined => leave the array untouched (graceful).
+   ============================================================ */
+function snapshotLayers()  { return LAYERS; }
+function snapshotFolders() { return FOLDERS; }
+function _restoreArrInPlace(arr, snap) {
+  if (snap === undefined || snap === null || !Array.isArray(snap)) return; // old/absent => untouched
+  arr.splice(0, arr.length);
+  for (var i = 0; i < snap.length; i++) arr.push(snap[i]);
+}
+function restoreLayers(snap)  { _restoreArrInPlace(LAYERS, snap); }
+function restoreFolders(snap) { _restoreArrInPlace(FOLDERS, snap); }
+
+/* ============================================================
    TREE ACCESSORS (LST-1)
    Pure — no dependency on state, measure-engine, or area math.
    Callers supply lookup functions (isHidden, isLocked, ownAreaOf).
