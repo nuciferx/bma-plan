@@ -6,7 +6,19 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u3gen-u5-truth
+# Latest: PROC-20260703-v2-u2-impact-map
+
+Date: 2026-07-03 · Area: process / test-infra
+
+| Marker | Result |
+|---|---|
+| LITE_RUN_ALL_OK | PASS |
+
+Closes: V2-U2-impact-map
+
+---
+
+# Previous: PROC-20260703-v2-u3gen-u5-truth
 
 Date: 2026-07-03 · Area: process / docs-tooling
 
@@ -18,7 +30,7 @@ Closes: V2-U3-generator, V2-U5
 
 ---
 
-# Previous: PROC-20260703-v2-u3ledger-u4-roadmap
+# PROC-20260703-v2-u3ledger-u4-roadmap
 
 Date: 2026-07-03 · Area: process / docs-tooling
 

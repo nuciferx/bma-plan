@@ -6,7 +6,22 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u3gen-u5-truth
+# Latest: PROC-20260703-v2-u2-impact-map
+
+Date: 2026-07-03 · Area: process / test-infra
+
+V2 U2 impact-map: --changed / --changed-against / --dry-run in run_all_tests.py — maps changed source globs to affected tests + always t0; unmapped/broad-blast-radius files widen to whole suite loudly (no silent under-select). Shared-harness refactor deferred.
+
+**Commits:**
+- `2df65d4` — chore(process): V2 U2 impact-map --changed mode in run_all_tests.py (dev-loop <1min)
+
+**Files touched:** `lite/tests/run_all_tests.py`
+
+**Closes:** V2-U2-impact-map
+
+---
+
+# Previous: PROC-20260703-v2-u3gen-u5-truth
 
 Date: 2026-07-03 · Area: process / docs-tooling
 
@@ -24,7 +39,7 @@ V2 U3 generator (scripts/gen_status_docs.py: SHIPS.jsonl -> 4 derived docs via G
 
 ---
 
-# Previous: PROC-20260703-v2-u3ledger-u4-roadmap
+# PROC-20260703-v2-u3ledger-u4-roadmap
 
 Date: 2026-07-03 · Area: process / docs-tooling
 
