@@ -1,10 +1,42 @@
 # FINAL_REPORT_FOR_CHATGPT.md — Sprint Outcome Report
 
-> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md)
+> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md)
 
 ---
 
-# Latest: GO-20260703-invariants-streaming-worker-recycle — PASS
+# Latest: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — PASS
+
+**Date:** 2026-07-03
+**Branch:** main
+
+## Outcome
+
+PASS. Three pieces filed/shipped the same morning. **(1) CRASH fix — save wiped all data (`d40b20b`):** Ctrl+S wrote an empty `.bmaplan` and destroyed the in-memory session — the most severe defect class this project tracks, total silent data loss on the single most-used action in the app. Root cause: `pageMgr` seeded `PS_by_id` as empty `deepCopy` snapshots taken at upload time, never refreshed, then projected back over live `PS` right before save serialized it. 72 previously-green tests missed this because every existing save test drove the API/serialization path directly, never the real `mi-save` click. Fixed via a new `projectToGlobals(livePS)` resolver plus the same latent wipe on the Apply/merge path (a backwards commit-order bug, 2 sites). NEW guard `LITE_SAVE_CLICKPATH_OK` drives the real click and closes the click-path-vs-API-path testing gap; RED pre-fix (exact journey repro) → GREEN; regression 17/17. **(2) UX review filed (`UX-20260703-review-findings`):** a full journey (29 screenshots on the real 45-page permit) + static-code review surfaced 9 FRICTION findings (dead hotkey, key collisions, an undiscoverable Page Manager, invisible post-verify scale state, a silently mouse-blocking wizard, misleading upload messaging, a modal-detection gap that leaks hotkeys into open dialogs, raw error text, and a native `window.prompt()` in Verify Scale) plus 6 COSMETIC findings, with 3 GOODs explicitly pinned so future work doesn't regress them. This is the review methodology validating itself in the same session — the CRASH it surfaced was fixed same-morning. **(3) Layer↔measurement invent reached its human checkpoint (`INV-20260703-layer-linkage`):** an investigation mapped 8 concrete problems in the current layer/measurement data model (3 rated HIGH, all tracing to two independently-maintained rollup engines that can silently disagree), scored 5 candidate redesigns, and staged a rollout plan around the winning "one aggregation engine" approach. GO was received; the first build increment and a batch of UX quick-win fixes are in progress right now via two parallel builder subagents, not yet shipped as of this report. Lite suite regression green throughout; `MEASURE_PARITY_OK` intact. Zero `proto/` edits.
+
+## What was delivered
+
+- `lite/static/js/page-manager.js` — NEW `projectToGlobals(livePS)`, resolves page content from live `PS` by identity at commit time
+- `lite/static/js/page-manager-ui.js` — Apply/merge commit-order fix (2 sites), closing the same latent save-wipe on that path
+- `lite/tests/test_save_clickpath.py` (NEW, 190 lines) — `LITE_SAVE_CLICKPATH_OK`, drives the real `mi-save` click via `URL.createObjectURL` interception
+- `artifacts/ux-review-20260703/` (NEW) — 29 journey screenshots backing the filed UX findings
+- `docs/status/PHASE_INDEX.md` — bug filed + fixed; UX review bundle + layer-linkage invent checkpoint filed
+- Shipped as commits `d40b20b` + `912c3e2` + `2249400` on `main`
+
+## What's next
+
+- **(1)** Verify + commit the two in-flight builder sprints: B0 (tuple-stream aggregation engine + `I11` invariant oracle) and UX quick-wins batch 1 (F-7/F-1/F-2/F-3 + cheatsheet accuracy pass).
+- **(2)** B1-B2 — reroute the existing summary/review/export consumers onto the new tuple-stream aggregation engine once B0 lands.
+- **(3)** UX quick-wins batch 2 — F-4 (visible scale-verified badge), F-5/F-6 (wizard/upload messaging), F-9 (replace `window.prompt()` in Verify Scale), plus summary seeded-vars red-error display and a wizard Next-button gate.
+- **(4)** Production RSS re-probe of worker-recycle on the CHH binder (carried over, still open).
+- **(5)** V2 migration continuation — `SHIPS.jsonl` ledger (U3) and roadmap split+reconcile tooling (U4).
+
+## Position in Plan
+
+Phase 1 — BMA-Plan Lite epic. A CRASH-tier bug on the core save path was found and fixed the same morning a broader UI/UX health review was run — direct validation of why the review methodology exists. The layer↔measurement redesign is upstream R&D discipline (Pack H): rather than patching 8 symptom-level problems ad hoc, the investigation found and scored a structural root-cause fix before committing build time, and correctly halted at the human GO checkpoint rather than auto-promoting. No forbidden surface touched.
+
+---
+
+# Previous: GO-20260703-invariants-streaming-worker-recycle — PASS
 
 **Date:** 2026-07-03
 **Branch:** main
@@ -36,42 +68,8 @@ Phase 1 — BMA-Plan Lite epic. This block is the direct continuation of the inv
 
 ---
 
-# Previous: BLOCK-20260703-clear-queue — PASS
-
-**Date:** 2026-07-03
-**Branch:** main
-
-## Outcome
-
-PASS. Five same-session ships, cleared back-to-back overnight under a user directive to close out the entire remaining queue ("ทำทั้งหมด"). **Ship 1 — `AUDIT-20260702-s2-fitz-lock` (`d0a5dde`):** per-case `threading.Lock` now serializes all `fitz.Document` access in `lite/server_lite.py`, including moving `/export-pdf-overlay`'s render off the event loop entirely (completing the S2 threadpool goal deferred from `AUDIT-20260702-infra-bundle`). NEW `LITE_CASE_LOCK_OK` hammer test (96 requests / 8 threads / mid-flight doc-swap / concurrent overlay export), zero 5xx — honestly recorded as a hardening test, not a deterministic RED-before-fix proof, since native races are probabilistic. **Ship 2 — render-followups (a)+(c) (`aec375b`):** PDF.js-unavailable no longer blanks the canvas (falls back to server JPEG raster); scanned/image-only pages get a capped re-render scale (saves wasted CPU, zero accuracy change) plus a one-time hint. **Ship 3 (`13054b6`):** tiered test runner (`--tier t0/t1/t2`, part of the new V2 migration blueprint), and — most notably — the first PIXEL-level proof (not just exact-inverse math) that the raster canvas and exported overlay stay registered (max offset 0.50 device px), closing an evidence gap the 2026-05-28 render-quality spike never closed. Range-streaming research was also completed and correctly HALTED at the human decision checkpoint rather than shipped, per this project's invention discipline. **Ship 4 — `ACC-20260703-verify-scale-port` (`bea2119`):** ported Verify-Scale from proto to lite, closing the single remaining accuracy gap vs. Foxit identified by the 2026-07-02 competitive comparison. **Ship 5:** wrote down the day's operating lessons as two new process docs (`DEVELOPMENT_PILLARS.md`, `DEVELOPMENT_V2_BLUEPRINT.md`) before they were lost. Full lite test suite validated at 70/70 files green (grown from 60 across the two days); `MEASURE_PARITY_OK` stayed green through every ship. Zero `proto/` edits across the whole block. **Ship 3's Range-streaming checkpoint was cleared and resolved by `GO-20260703-invariants-streaming-worker-recycle`.**
-
-## What was delivered
-
-- `lite/server_lite.py` — per-case `_case_lock` guarding all `fitz.Document` access; `/export-pdf-overlay` now threadpool-offloaded (Ship 1)
-- `lite/ui-lite.html` — raster fallback when PDF.js fails to load (Ship 2); new Verify Scale menu item + `Shift+S` shortcut, +3 net lines (Ship 4)
-- render module — scanned-page detection + capped re-render scale with transform compensation (Ship 2)
-- `lite/tests/run_all_tests.py` — `--tier t0/t1/t2` flag, `t0` (measure math) runs in 1.26s (Ship 3)
-- `lite/tests/test_overlay_registration.py` (NEW) — pixel-level raster↔overlay registration proof, `LITE_OVERLAY_REG_OK` (Ship 3)
-- `docs/invent/lite-range-streaming.md` (NEW) — Range-streaming research, verdict `PRIOR_ART_PARTIAL`, HALTED at human checkpoint (Ship 3)
-- `lite/static/js/verify-scale.js` (NEW, 225 lines) — ported from proto's `INV-2026-05-20-001` (Ship 4)
-- `docs/process/DEVELOPMENT_PILLARS.md` + `docs/process/DEVELOPMENT_V2_BLUEPRINT.md` (NEW) — process doctrine (Ship 5)
-- 5 NEW guard tests total: `LITE_CASE_LOCK_OK` / `LITE_RENDER_FB_SCAN_OK` / (tier flag, no dedicated marker) / `LITE_OVERLAY_REG_OK` / `LITE_VERIFY_SCALE_OK`
-- Shipped as commits `d0a5dde` + `aec375b` + `13054b6` + `bea2119` + `16e6495` + `b676652` on `main`
-
-## What's next (as recorded at the time; see GO-20260703-invariants-streaming-worker-recycle above for resolution)
-
-- **(1) HUMAN DECISION: Range-streaming spike GO/NOGO/RESHAPE** (`docs/invent/lite-range-streaming.md`) — the only item in the whole cleared queue still awaiting anything, and it specifically awaits a human call, not more agent work. **(Resolved: GO received, spike ran, NOGO-as-memory-fix, RESHAPE shipped.)**
-- **(2) V2 migration continuation** — `INVARIANTS.md` (U1), roadmap split + reconcile (U4), `SHIPS.jsonl` ledger (U3) remain queued from `docs/process/DEVELOPMENT_V2_BLUEPRINT.md`; the tiered test runner (U2) is partially landed via Ship 3. **(U1 done; U3/U4 remainder still queued.)**
-- **(3) `ptToScreen`/`screenToPt` into the parity fixture** — last drift-lock nicety carried over from `BUG-20260702-lite-pagerot-registration`. **(Closed with rationale — registered as invariant I7.)**
-- **(4) Stale `PHASE_INDEX.md` rows** — `lpm-1..9` show `queued` but `bug-archive.jsonl` says fixed; needs a reconciliation pass. **(Resolved — 16 rows reconciled.)**
-
-## Position in Plan
-
-Phase 1 — BMA-Plan Lite epic. This block spans three tracks at once: reliability hardening (fitz lock), rendering robustness (fallback + scan detection + registration proof), and measurement-accuracy parity with the competitive benchmark (Verify-Scale port) — plus capturing the day's process lessons as durable doctrine. With the queue now cleared, the only forward motion pending is the human GO/NOGO decision on Range-streaming; everything else is either shipped or explicitly queued for a future sprint. No forbidden surface touched.
-
----
-
-<!-- GO-20260703-invariants-streaming-worker-recycle + BLOCK-20260703-clear-queue are the 2 kept in this file -->
+<!-- UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data / GO-20260703-invariants-streaming-worker-recycle are the 2 kept in this file -->
+<!-- BLOCK-20260703-clear-queue archived to docs/archive/reports-2026-07-03.md on 2026-07-03 (UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data sprint block) -->
 <!-- PERF-20260702-lite-foxit-smoothness archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (GO-20260703-invariants-streaming-worker-recycle session) -->
 <!-- BUG-20260702-lite-pagerot-registration archived to docs/archive/reports-2026-07-02.md on 2026-07-03 (BLOCK-20260703-clear-queue session) -->
 <!-- AUDIT-20260702-infra-bundle archived to docs/archive/reports-2026-07-02.md on 2026-07-02 (PERF-20260702-lite-foxit-smoothness sprint block) -->
