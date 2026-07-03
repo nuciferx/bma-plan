@@ -6,7 +6,21 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: TEST-20260526-wiz-followup-guard
+# Latest: AUDIT-20260703-lfoc-order-b-verify
+
+Date: 2026-07-03 · Area: layer / folders (lite)
+
+LFOC-ORDER-B build audit: feature found fully landed (kind-aware PF folder ids + rank + seeds + Thai labels + 11-check guard already in tree); floorKey exact-inverse parity proven for 7 kind/tag pairs; zero code change - stale invent-done-go card closed.
+
+**Commits:** —
+
+**Files touched:** —
+
+**Closes:** INV-2026-05-26-LFOC-ORDER-B
+
+---
+
+# Previous: TEST-20260526-wiz-followup-guard
 
 Date: 2026-07-03 · Area: wizard / test (lite)
 
@@ -22,7 +36,7 @@ BUG-20260526-lite-wizard-followup: both fixes found already landed (dblclick loc
 
 ---
 
-# Previous: FIX-20260703-undo-layers-folders
+# FIX-20260703-undo-layers-folders
 
 Date: 2026-07-03 · Area: layer / undo (lite)
 

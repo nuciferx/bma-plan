@@ -9,6 +9,9 @@ marker is hand-written and preserved.
 
 ## 2026-07-03
 
+- **AUDIT-20260703-lfoc-order-b-verify** _layer / folders (lite)_
+  - LFOC-ORDER-B build audit: feature found fully landed (kind-aware PF folder ids + rank + seeds + Thai labels + 11-check guard already in tree); floorKey exact-inverse parity proven for 7 kind/tag pairs; zero code change - stale invent-done-go card closed.
+  - guards LITE_PF_KIND_OK · closes INV-2026-05-26-LFOC-ORDER-B
 - **TEST-20260526-wiz-followup-guard** _wizard / test (lite)_
   - BUG-20260526-lite-wizard-followup: both fixes found already landed (dblclick lock gate; buildPicker after reseed) - added the missing guard test BUG_20260526_LITE_WIZ_FOLLOWUP_OK 4/4, RED-proven by temporary revert; card moved to done.
   - commits `71ba5be`, `2000a9a` · guards BUG_20260526_LITE_WIZ_FOLLOWUP_OK · closes BUG-20260526-lite-wizard-followup

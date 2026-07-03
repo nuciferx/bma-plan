@@ -6,7 +6,21 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: TEST-20260526-wiz-followup-guard
+# Latest: AUDIT-20260703-lfoc-order-b-verify
+
+Date: 2026-07-03 · Area: layer / folders (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_PF_KIND_OK | PASS |
+
+Closes: INV-2026-05-26-LFOC-ORDER-B
+
+---
+
+# Previous: TEST-20260526-wiz-followup-guard
 
 Date: 2026-07-03 · Area: wizard / test (lite)
 
@@ -20,7 +34,7 @@ Closes: BUG-20260526-lite-wizard-followup
 
 ---
 
-# Previous: FIX-20260703-undo-layers-folders
+# FIX-20260703-undo-layers-folders
 
 Date: 2026-07-03 · Area: layer / undo (lite)
 

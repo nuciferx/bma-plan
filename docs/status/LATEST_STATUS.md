@@ -7,6 +7,7 @@ Date: 2026-07-03 (INV-20260703-layer-linkage plan B COMPLETE + UX-batch-1 + save
 
 | id | date | area | guards | commits |
 |---|---|---|---|---|
+| AUDIT-20260703-lfoc-order-b-verify | 2026-07-03 | layer / folders (lite) | LITE_PF_KIND_OK | — |
 | TEST-20260526-wiz-followup-guard | 2026-07-03 | wizard / test (lite) | BUG_20260526_LITE_WIZ_FOLLOWUP_OK | `71ba5be`, `2000a9a` |
 | FIX-20260703-undo-layers-folders | 2026-07-03 | layer / undo (lite) | LITE_UNDO_LAYERS_OK | `085ab60` |
 | INV-20260703-layer-redesign | 2026-07-03 | layer / model + ux (lite) | LITE_LAYER_FLOORKEY_OK, LITE_LAYER_TARGET_UI_OK | `76ee98c`, `f54bac3`, `92174b6`, `20129af` |
