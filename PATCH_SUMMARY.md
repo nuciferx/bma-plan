@@ -6,7 +6,27 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: UX-20260703-quickwins-batch3
+# Latest: INV-20260703-layer-redesign
+
+Date: 2026-07-03 · Area: layer / model + ux (lite)
+
+Layer redesign A+B (user GO at invent checkpoint, spike 4/4): A-model layer.floorKey one-seam swap in objectTuples (precedence master->layer->page, additive persistence, old saves byte-identical) + B-ui layer-target-ui.js (draw-target chip, canvas tint, make-current marker, reconcile banner).
+
+**Commits:**
+- `76ee98c` — docs(invent): file INV-20260703-layer-redesign — research+diverge done, A+B recommended, spike next
+- `f54bac3` — docs(invent): INV-20260703-layer-redesign spike PASS 4/4 — layer.floorKey one-seam swap proven safe
+- `92174b6` — feat(lite): A-model — layer.floorKey one-seam swap in objectTuples (INV-20260703-layer-redesign)
+- `20129af` — feat(lite): B-ui — draw-target chip + canvas tint + make-current marker + reconcile banner (INV-20260703-layer-redesign)
+
+**Files touched:** `docs/invent/lite-layer-floorkey.md`, `docs/status/PHASE_INDEX.md`, `lite/sandbox/invent-layer-floorkey/mockup.html`, `lite/sandbox/invent-layer-floorkey/spike.js`, `lite/static/js/layer-target-ui.js`, `lite/static/js/object-agg.js`, `lite/static/js/page-folder-layers.js`, `lite/tests/test_layer_floorkey.py`, `lite/tests/test_layer_target_ui.py`, `lite/ui-lite.html`
+
+**Closes:** P1-layer-floor-mismatch, P2-wrong-layer-draws, P3-role-layer-ambiguity
+
+**Docs:** docs/invent/lite-layer-floorkey.md
+
+---
+
+# Previous: UX-20260703-quickwins-batch3
 
 Date: 2026-07-03 · Area: ui (lite)
 
@@ -21,7 +41,7 @@ UX batch 3: F-8 (11 error messages gain Thai next-step) + annotate Shift-hotkeys
 
 ---
 
-# Previous: PROC-20260703-probe-dblclick-rewrite
+# PROC-20260703-probe-dblclick-rewrite
 
 Date: 2026-07-03 · Area: test-infra (simulate)
 

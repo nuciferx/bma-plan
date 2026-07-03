@@ -9,6 +9,9 @@ marker is hand-written and preserved.
 
 ## 2026-07-03
 
+- **INV-20260703-layer-redesign** _layer / model + ux (lite)_
+  - Layer redesign A+B (user GO at invent checkpoint, spike 4/4): A-model layer.floorKey one-seam swap in objectTuples (precedence master->layer->page, additive persistence, old saves byte-identical) + B-ui layer-target-ui.js (draw-target chip, canvas tint, make-current marker, reconcile banner).
+  - commits `76ee98c`, `f54bac3`, `92174b6`, `20129af` · guards LITE_LAYER_FLOORKEY_OK, LITE_LAYER_TARGET_UI_OK · closes P1-layer-floor-mismatch, P2-wrong-layer-draws, P3-role-layer-ambiguity
 - **UX-20260703-quickwins-batch3** _ui (lite)_
   - UX batch 3: F-8 (11 error messages gain Thai next-step) + annotate Shift-hotkeys x7 via guarded central keydown + Thai PM/wizard strings + NEW empty-state.js pre-open overlay + NEW page-scan-badge.js per-page scanned/fallback badge.
   - commits `fcf5b23` · guards LITE_UX_BATCH3_OK · closes UX-F8, UX-COSMETIC-1-4

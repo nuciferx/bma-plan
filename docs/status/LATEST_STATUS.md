@@ -7,6 +7,7 @@ Date: 2026-07-03 (INV-20260703-layer-linkage plan B COMPLETE + UX-batch-1 + save
 
 | id | date | area | guards | commits |
 |---|---|---|---|---|
+| INV-20260703-layer-redesign | 2026-07-03 | layer / model + ux (lite) | LITE_LAYER_FLOORKEY_OK, LITE_LAYER_TARGET_UI_OK | `76ee98c`, `f54bac3`, `92174b6`, `20129af` |
 | UX-20260703-quickwins-batch3 | 2026-07-03 | ui (lite) | LITE_UX_BATCH3_OK | `fcf5b23` |
 | PROC-20260703-probe-dblclick-rewrite | 2026-07-03 | test-infra (simulate) | — | `707ed8f` |
 | PROC-20260703-v2-u6-changelog | 2026-07-03 | process / release-tooling | — | `a42bde6` |

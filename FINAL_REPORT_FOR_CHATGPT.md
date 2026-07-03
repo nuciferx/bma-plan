@@ -6,7 +6,15 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: UX-20260703-quickwins-batch3 — ui (lite)
+# Latest: INV-20260703-layer-redesign — layer / model + ux (lite)
+
+**Date:** 2026-07-03
+
+Layer redesign A+B (user GO at invent checkpoint, spike 4/4): A-model layer.floorKey one-seam swap in objectTuples (precedence master->layer->page, additive persistence, old saves byte-identical) + B-ui layer-target-ui.js (draw-target chip, canvas tint, make-current marker, reconcile banner). Closes: P1-layer-floor-mismatch, P2-wrong-layer-draws, P3-role-layer-ambiguity.
+
+---
+
+# Previous: UX-20260703-quickwins-batch3 — ui (lite)
 
 **Date:** 2026-07-03
 
@@ -14,7 +22,7 @@ UX batch 3: F-8 (11 error messages gain Thai next-step) + annotate Shift-hotkeys
 
 ---
 
-# Previous: PROC-20260703-probe-dblclick-rewrite — test-infra (simulate)
+# PROC-20260703-probe-dblclick-rewrite — test-infra (simulate)
 
 **Date:** 2026-07-03
 

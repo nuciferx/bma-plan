@@ -6,7 +6,22 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: UX-20260703-quickwins-batch3
+# Latest: INV-20260703-layer-redesign
+
+Date: 2026-07-03 · Area: layer / model + ux (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_LAYER_FLOORKEY_OK | PASS |
+| LITE_LAYER_TARGET_UI_OK | PASS |
+
+Closes: P1-layer-floor-mismatch, P2-wrong-layer-draws, P3-role-layer-ambiguity
+
+---
+
+# Previous: UX-20260703-quickwins-batch3
 
 Date: 2026-07-03 · Area: ui (lite)
 
@@ -20,7 +35,7 @@ Closes: UX-F8, UX-COSMETIC-1-4
 
 ---
 
-# Previous: PROC-20260703-probe-dblclick-rewrite
+# PROC-20260703-probe-dblclick-rewrite
 
 Date: 2026-07-03 · Area: test-infra (simulate)
 
