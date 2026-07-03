@@ -284,21 +284,55 @@ function _injectRvStyle() {
   document.head.appendChild(s);
 }
 
-/* Build operand <select> option list for var at index vIdx.
-   Options: every layer ref, every earlier var ref, then literal. */
+/* Build operand <select> option groups for var at index vIdx (B5,
+   INV-20260703-layer-linkage, closes M4).
+   Returns {roles, layers, vars} — three label/value lists:
+     roles  = the 6 ROLE_DEFS, "Σ " prefix — picking one means "rollup of
+              EVERY layer whose role is this" (resolves via rollupAggByRole /
+              ObjectAgg.byRole(), never a single layer's own area).
+     layers = CUSTOM layers only (added via addLayer — id !== role id),
+              "▸ " prefix + layer name + role in parens — picking one means
+              "this ONE layer's own area", never rolled up with siblings.
+              Default per-role layers (layer.id === layer.role, e.g. the
+              seeded "gfa" layer) are deliberately excluded here: their ref
+              string is IDENTICAL to their role's ref string (rollupAggByRole
+              always overwrites that key with the full role sum), so listing
+              them a second time under "single layer" would just be a
+              same-value duplicate of the role option — the exact ambiguity
+              this sprint removes, not an addition to it.
+     vars   = earlier vars in the chain (unchanged, ungrouped, "➜ " prefix). */
 function _rvOperandOptions(vIdx) {
-  var opts = [];
-  /* layers */
+  var roles = [];
+  for (var ri = 0; ri < ROLE_DEFS.length; ri++) {
+    var rd = ROLE_DEFS[ri];
+    roles.push({ val: 'ref:' + rd.id, label: 'Σ ' + rd.name });
+  }
+  var layerOpts = [];
   var layers = (typeof layersInOrder === 'function') ? layersInOrder() : [];
   for (var li = 0; li < layers.length; li++) {
-    opts.push({ val: 'ref:' + layers[li].id, label: layers[li].name });
+    var lay = layers[li];
+    if (lay.id === lay.role) continue; // default layer — already covered by its role option
+    var rd2 = (typeof roleDef === 'function') ? roleDef(lay.role) : null;
+    var roleName = rd2 ? rd2.name : lay.role;
+    layerOpts.push({ val: 'ref:' + lay.id, label: '▸ ' + lay.name + ' (' + roleName + ')' });
   }
-  /* earlier vars (chain) */
+  var varOpts = [];
   for (var vi = 0; vi < vIdx; vi++) {
-    opts.push({ val: 'ref:' + REPORT_VARS[vi].id, label: '➜ ' + REPORT_VARS[vi].name });
+    varOpts.push({ val: 'ref:' + REPORT_VARS[vi].id, label: '➜ ' + REPORT_VARS[vi].name });
   }
-  opts.push({ val: 'lit', label: 'ตัวเลข…' });
-  return opts;
+  return { roles: roles, layers: layerOpts, vars: varOpts };
+}
+
+/* Append a flat list of {val,label} as <option> children of `parent`,
+   marking the one matching curVal as selected. */
+function _rvAppendOptions(parent, list, curVal) {
+  for (var i = 0; i < list.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = list[i].val;
+    opt.textContent = list[i].label;
+    if (list[i].val === curVal) opt.selected = true;
+    parent.appendChild(opt);
+  }
 }
 
 /* Build the operand widget (select + optional lit input) for token t at
@@ -309,14 +343,26 @@ function _rvOperandWidget(vIdx, tIdx, t, host, agg) {
 
   var sel = document.createElement('select');
   var curVal = ('lit' in t) ? 'lit' : 'ref:' + t.ref;
-  var opts = _rvOperandOptions(vIdx);
-  for (var oi = 0; oi < opts.length; oi++) {
-    var opt = document.createElement('option');
-    opt.value = opts[oi].val;
-    opt.textContent = opts[oi].label;
-    if (opts[oi].val === curVal) opt.selected = true;
-    sel.appendChild(opt);
-  }
+  var groups = _rvOperandOptions(vIdx);
+
+  var ogRole = document.createElement('optgroup');
+  ogRole.label = 'หมวดรวม (ทุกเลเยอร์ใน role)';
+  _rvAppendOptions(ogRole, groups.roles, curVal);
+  sel.appendChild(ogRole);
+
+  var ogLayer = document.createElement('optgroup');
+  ogLayer.label = 'เลเยอร์เดี่ยว';
+  _rvAppendOptions(ogLayer, groups.layers, curVal);
+  sel.appendChild(ogLayer);
+
+  _rvAppendOptions(sel, groups.vars, curVal);
+
+  var litOpt = document.createElement('option');
+  litOpt.value = 'lit';
+  litOpt.textContent = 'ตัวเลข…';
+  if (curVal === 'lit') litOpt.selected = true;
+  sel.appendChild(litOpt);
+
   sel.onchange = (function(token, h, ag) {
     return function(ev) {
       var x = ev.target.value;
