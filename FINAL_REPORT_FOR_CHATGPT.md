@@ -6,7 +6,23 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: INV-20260703-layer-redesign — layer / model + ux (lite)
+# Latest: TEST-20260526-wiz-followup-guard — wizard / test (lite)
+
+**Date:** 2026-07-03
+
+BUG-20260526-lite-wizard-followup: both fixes found already landed (dblclick lock gate; buildPicker after reseed) - added the missing guard test BUG_20260526_LITE_WIZ_FOLLOWUP_OK 4/4, RED-proven by temporary revert; card moved to done. Closes: BUG-20260526-lite-wizard-followup.
+
+---
+
+# Previous: FIX-20260703-undo-layers-folders — layer / undo (lite)
+
+**Date:** 2026-07-03
+
+Undo/redo covers LAYERS+FOLDERS: additive _docSnap keys + in-place splice restore (CATS alias preserved); pushUndo at all UI entry points, seeding/load undo-silent; reconcile banner [ตามหน้า] now round-trips under Ctrl+Z. RED-proven. Closes: layer-redesign-followup-a, b4-undo-flag.
+
+---
+
+# INV-20260703-layer-redesign — layer / model + ux (lite)
 
 **Date:** 2026-07-03
 
@@ -14,7 +30,7 @@ Layer redesign A+B (user GO at invent checkpoint, spike 4/4): A-model layer.floo
 
 ---
 
-# Previous: UX-20260703-quickwins-batch3 — ui (lite)
+# UX-20260703-quickwins-batch3 — ui (lite)
 
 **Date:** 2026-07-03
 

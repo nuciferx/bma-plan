@@ -9,6 +9,12 @@ marker is hand-written and preserved.
 
 ## 2026-07-03
 
+- **TEST-20260526-wiz-followup-guard** _wizard / test (lite)_
+  - BUG-20260526-lite-wizard-followup: both fixes found already landed (dblclick lock gate; buildPicker after reseed) - added the missing guard test BUG_20260526_LITE_WIZ_FOLLOWUP_OK 4/4, RED-proven by temporary revert; card moved to done.
+  - commits `71ba5be`, `2000a9a` · guards BUG_20260526_LITE_WIZ_FOLLOWUP_OK · closes BUG-20260526-lite-wizard-followup
+- **FIX-20260703-undo-layers-folders** _layer / undo (lite)_
+  - Undo/redo covers LAYERS+FOLDERS: additive _docSnap keys + in-place splice restore (CATS alias preserved); pushUndo at all UI entry points, seeding/load undo-silent; reconcile banner [ตามหน้า] now round-trips under Ctrl+Z. RED-proven.
+  - commits `085ab60` · guards LITE_UNDO_LAYERS_OK · closes layer-redesign-followup-a, b4-undo-flag
 - **INV-20260703-layer-redesign** _layer / model + ux (lite)_
   - Layer redesign A+B (user GO at invent checkpoint, spike 4/4): A-model layer.floorKey one-seam swap in objectTuples (precedence master->layer->page, additive persistence, old saves byte-identical) + B-ui layer-target-ui.js (draw-target chip, canvas tint, make-current marker, reconcile banner).
   - commits `76ee98c`, `f54bac3`, `92174b6`, `20129af` · guards LITE_LAYER_FLOORKEY_OK, LITE_LAYER_TARGET_UI_OK · closes P1-layer-floor-mismatch, P2-wrong-layer-draws, P3-role-layer-ambiguity

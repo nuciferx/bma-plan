@@ -6,7 +6,35 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: INV-20260703-layer-redesign
+# Latest: TEST-20260526-wiz-followup-guard
+
+Date: 2026-07-03 · Area: wizard / test (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| BUG_20260526_LITE_WIZ_FOLLOWUP_OK | PASS |
+
+Closes: BUG-20260526-lite-wizard-followup
+
+---
+
+# Previous: FIX-20260703-undo-layers-folders
+
+Date: 2026-07-03 · Area: layer / undo (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_UNDO_LAYERS_OK | PASS |
+
+Closes: layer-redesign-followup-a, b4-undo-flag
+
+---
+
+# INV-20260703-layer-redesign
 
 Date: 2026-07-03 · Area: layer / model + ux (lite)
 
@@ -21,7 +49,7 @@ Closes: P1-layer-floor-mismatch, P2-wrong-layer-draws, P3-role-layer-ambiguity
 
 ---
 
-# Previous: UX-20260703-quickwins-batch3
+# UX-20260703-quickwins-batch3
 
 Date: 2026-07-03 · Area: ui (lite)
 

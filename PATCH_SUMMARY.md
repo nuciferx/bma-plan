@@ -6,7 +6,38 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: INV-20260703-layer-redesign
+# Latest: TEST-20260526-wiz-followup-guard
+
+Date: 2026-07-03 · Area: wizard / test (lite)
+
+BUG-20260526-lite-wizard-followup: both fixes found already landed (dblclick lock gate; buildPicker after reseed) - added the missing guard test BUG_20260526_LITE_WIZ_FOLLOWUP_OK 4/4, RED-proven by temporary revert; card moved to done.
+
+**Commits:**
+- `71ba5be` — test(lite): guard for BUG-20260526-lite-wizard-followup — fixes already landed, marker was missing
+- `2000a9a` — docs: BUG-20260526-lite-wizard-followup done -> ROADMAP_DONE (reconcile clean)
+
+**Files touched:** `docs/status/PHASE_INDEX.md`, `docs/status/ROADMAP_DONE.md`, `lite/tests/test_wiz_followup.py`
+
+**Closes:** BUG-20260526-lite-wizard-followup
+
+---
+
+# Previous: FIX-20260703-undo-layers-folders
+
+Date: 2026-07-03 · Area: layer / undo (lite)
+
+Undo/redo covers LAYERS+FOLDERS: additive _docSnap keys + in-place splice restore (CATS alias preserved); pushUndo at all UI entry points, seeding/load undo-silent; reconcile banner [ตามหน้า] now round-trips under Ctrl+Z. RED-proven.
+
+**Commits:**
+- `085ab60` — fix(lite): undo/redo now covers LAYERS + FOLDERS (layer-redesign follow-up)
+
+**Files touched:** `lite/static/js/layer-dnd.js`, `lite/static/js/layer-panel.js`, `lite/static/js/layer-system.js`, `lite/static/js/layer-target-ui.js`, `lite/static/js/layer-tree.js`, `lite/tests/test_undo_layers.py`, `lite/ui-lite.html`
+
+**Closes:** layer-redesign-followup-a, b4-undo-flag
+
+---
+
+# INV-20260703-layer-redesign
 
 Date: 2026-07-03 · Area: layer / model + ux (lite)
 
@@ -26,7 +57,7 @@ Layer redesign A+B (user GO at invent checkpoint, spike 4/4): A-model layer.floo
 
 ---
 
-# Previous: UX-20260703-quickwins-batch3
+# UX-20260703-quickwins-batch3
 
 Date: 2026-07-03 · Area: ui (lite)
 
