@@ -22,6 +22,15 @@ var SHORTCUTS = {
     ['Finish drawing',       'Enter'],
     ['Cancel drawing',       'Esc']
   ],
+  'Annotate': [
+    ['ตัวหนังสือ (Text)',     '⇧T'],
+    ['คอมเมนต์ (Comment)',   '⇧M'],
+    ['ลูกศร (Arrow)',         '⇧A'],
+    ['ไฮไลต์ (Highlight)',    '⇧H'],
+    ['กรอบสี่เหลี่ยม (Rect)', '⇧R'],
+    ['กรอบวงกลม (Circle)',    '⇧C'],
+    ['กรอบเมฆ (Cloud)',      '⇧U']
+  ],
   'Snap & helper': [
     ['Endpoint snap (toggle)',   'E'],
     ['Midpoint snap (toggle)',   'M'],

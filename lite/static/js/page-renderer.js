@@ -572,7 +572,7 @@ async function loadPage(n) {
       return;
     } catch (err2) {
       hideLoading();
-      alert("โหลดหน้า " + n + " ไม่ได้\n" + (err && err.message ? err.message : err));
+      alert("โหลดหน้า " + n + " ไม่ได้\n" + (err && err.message ? err.message : err) + "\nลองเปลี่ยนไปหน้าอื่นแล้วกลับมาใหม่ หรือเปิดไฟล์ใหม่อีกครั้ง");
     }
   }
 }
@@ -800,6 +800,7 @@ window.PageRenderer = {
   adoptCase:  _adoptCase,
   warmThumbs: _warmThumbs,
   recycleNow: recycleDocWorker,   // PERF-20260703: manual/test trigger for worker recycle
+  isScanned:  function (n) { return _scanned[n] === true; },   // COSMETIC-4: per-page scanned badge (read-only)
   _test_forceRasterFallback: function (v) { _forceRasterFallback = !!v; },
   _test_scanned: function () { return _scanned; }
 };

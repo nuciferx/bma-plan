@@ -102,7 +102,7 @@ function _pmuiBuildOverlay() {
   /* header */
   var hdr = document.createElement('div');
   hdr.id = 'pm-header';
-  hdr.innerHTML = '<h3>จัดการหน้า / Manage Pages</h3>';
+  hdr.innerHTML = '<h3>จัดการหน้า</h3>';
   var closeBtn = document.createElement('button');
   closeBtn.id = 'pm-close';
   closeBtn.textContent = '✕';
@@ -166,7 +166,7 @@ function _pmuiRenderGrid() {
             (imgSrc
               ? '<div class="pmui-skel"></div>' +
                 '<img class="pmui-thumb-img" data-src="' + imgSrc + '">'
-              : '<div class="pmui-pending">⏳ pending</div>') +
+              : '<div class="pmui-pending">⏳ รอประมวลผล</div>') +
             '<span class="pmui-label">หน้า ' + n + '</span>' +
             '<div class="pmui-actions">' +
             (count > 1 ? '<button class="pmui-btn pmui-del" data-pmui-idx="' + (n - 1) + '" title="ลบหน้านี้">🗑</button>' : '') +
@@ -320,7 +320,7 @@ function _pmuiBuildActionBar() {
   // Apply button (only when pending)
   var applyBtn = document.createElement('button');
   applyBtn.id = 'pmui-apply';
-  applyBtn.textContent = 'Apply page changes (' + pageMgr.pending.length + ')';
+  applyBtn.textContent = 'บันทึกการแก้ไขหน้า (' + pageMgr.pending.length + ')';
   applyBtn.style.cssText = 'background:var(--accent);color:#fff;border:0;border-radius:7px;' +
     'padding:6px 14px;cursor:pointer;font-size:13px;' +
     (hasPending ? '' : 'display:none;');
@@ -331,7 +331,7 @@ function _pmuiBuildActionBar() {
   if (pageMgr.undoStack && pageMgr.undoStack.length > 0) {
     var undoBtn = document.createElement('button');
     undoBtn.id = 'pmui-undo';
-    undoBtn.textContent = '↶ Undo';
+    undoBtn.textContent = '↶ เลิกทำ';
     undoBtn.style.cssText = 'background:#222a37;color:var(--ink);border:1px solid var(--line);' +
       'border-radius:7px;padding:6px 12px;cursor:pointer;font-size:13px;';
     undoBtn.onclick = function () {
@@ -352,8 +352,8 @@ function _pmuiBuildActionBar() {
   // Merge PDF button
   var mergeBtn = document.createElement('button');
   mergeBtn.id = 'pmui-merge';
-  mergeBtn.textContent = '＋ Merge PDF';
-  mergeBtn.title = hasPending ? 'Apply changes first before merging' : 'Append pages from another PDF';
+  mergeBtn.textContent = '＋ รวมไฟล์ PDF';
+  mergeBtn.title = hasPending ? 'บันทึกการแก้ไขหน้าให้เสร็จก่อนจึงจะรวมไฟล์ได้' : 'เพิ่มหน้าจากไฟล์ PDF อื่น';
   mergeBtn.disabled = hasPending;
   mergeBtn.style.cssText = 'background:#222a37;color:' + (hasPending ? 'var(--muted)' : 'var(--ink)') + ';' +
     'border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:' +
@@ -433,7 +433,7 @@ async function _pmuiApplyChanges() {
   } catch (err) {
     if (applyBtn) {
       applyBtn.disabled = false;
-      applyBtn.textContent = 'Apply page changes (' + pageMgr.pending.length + ')';
+      applyBtn.textContent = 'บันทึกการแก้ไขหน้า (' + pageMgr.pending.length + ')';
     }
     alert('Apply ล้มเหลว: ' + err.message + '\nยังคงสถานะเดิม — กด Apply อีกครั้งเพื่อลองใหม่');
   }
@@ -453,7 +453,7 @@ async function _pmuiMergePdf(evt) {
   }
 
   var mergeBtn = document.getElementById('pmui-merge');
-  if (mergeBtn) { mergeBtn.disabled = true; mergeBtn.textContent = 'กำลัง Merge…'; }
+  if (mergeBtn) { mergeBtn.disabled = true; mergeBtn.textContent = 'กำลังรวมไฟล์…'; }
 
   try {
     var fd = new FormData();
@@ -478,7 +478,7 @@ async function _pmuiMergePdf(evt) {
   } catch (err) {
     alert('Merge ล้มเหลว: ' + err.message);
   } finally {
-    if (mergeBtn) { mergeBtn.disabled = false; mergeBtn.textContent = '＋ Merge PDF'; }
+    if (mergeBtn) { mergeBtn.disabled = false; mergeBtn.textContent = '＋ รวมไฟล์ PDF'; }
   }
 }
 

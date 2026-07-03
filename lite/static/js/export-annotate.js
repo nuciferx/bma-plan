@@ -21,7 +21,7 @@ function buildExportData(){ var rows=[],sum={},cnt={};
     .concat(Object.keys(cnt).map(function(id){var c=catOf(id);return {category:(c?c.name:"—")+" (จุด)",total:cnt[id]};}));
   return {rows:rows,summary:summary}; }
 async function dlPost(url,payload,fname){ var res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  if(!res.ok){alert("export ล้มเหลว ("+res.status+")");return;} var blob=await res.blob();
+  if(!res.ok){alert("export ล้มเหลว ("+res.status+")\nลองใหม่อีกครั้ง หรือตรวจว่ายังเปิดไฟล์อยู่และตัวเซิร์ฟเวอร์ยังทำงาน");return;} var blob=await res.blob();
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; a.click(); }
 function baseName(){ return (pdfName||"export").replace(/\.pdf$/i,""); }
 function exportXlsx(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;} dlPost("/export-xlsx",buildExportData(),baseName()+".xlsx"); closeMenus(); }
@@ -92,7 +92,7 @@ function openReport(){
   var payload=buildReportPayload();
   if(!payload.pages.length){alert("ยังไม่มีพื้นที่ที่วัด — วาดพื้นที่ (polygon) ก่อนสร้างรายงาน");return;}
   try{ sessionStorage.setItem("bmaReportPayload",JSON.stringify(payload)); }
-  catch(err){ alert("เตรียมรายงานไม่สำเร็จ (ข้อมูลใหญ่เกิน): "+err.message); return; }
+  catch(err){ alert("เตรียมรายงานไม่สำเร็จ (ข้อมูลใหญ่เกิน): "+err.message+"\nลองลดจำนวนหน้า/วัตถุที่วัด แล้วสร้างรายงานใหม่"); return; }
   window.open("/report","_blank");
   closeMenus();
 }

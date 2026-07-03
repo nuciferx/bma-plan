@@ -185,7 +185,7 @@ function _lovsInjectCSS() {
 function _lovsBuiltPanelHTML() {
   return '<div id="ov-panel">' +
     '<div id="ov-head">' +
-      '<h3>Overview · Page Setup Wizard</h3>' +
+      '<h3>ภาพรวม · ตั้งค่าหน้า (Page Setup)</h3>' +
       '<span class="ov-meta" id="ovh-meta">—</span>' +
       '<div class="kv">tagged <b id="ovh-tagged" class="acc">0/0</b></div>' +
       '<div class="kv">floors <b id="ovh-floors">0</b></div>' +
@@ -194,9 +194,9 @@ function _lovsBuiltPanelHTML() {
       '<button id="ov-close">✕ ปิด (Esc)</button>' +
     '</div>' +
     '<div id="ov-steps">' +
-      '<div class="step act" data-step="1"><span class="num">1</span><span class="lbl"><b>Classify</b><span>ติด tag ทุกหน้า</span></span></div>' +
-      '<div class="step" data-step="2"><span class="num">2</span><span class="lbl"><b>Number Floors</b><span>ลำดับชั้น</span></span></div>' +
-      '<div class="step" data-step="3"><span class="num">3</span><span class="lbl"><b>Review</b><span>ตรวจรายงาน</span></span></div>' +
+      '<div class="step act" data-step="1"><span class="num">1</span><span class="lbl"><b>จัดหมวดหน้า</b><span>ติดแท็กทุกหน้า</span></span></div>' +
+      '<div class="step" data-step="2"><span class="num">2</span><span class="lbl"><b>เรียงชั้น</b><span>ลำดับชั้น</span></span></div>' +
+      '<div class="step" data-step="3"><span class="num">3</span><span class="lbl"><b>ตรวจทาน</b><span>ตรวจรายงาน</span></span></div>' +
     '</div>' +
     '<div class="tab-body act" data-tab="1">' +
       '<div class="ov-hint"><span>คลิก=เลือก · <kbd>Shift</kbd>+คลิก=ช่วง · <kbd>Ctrl</kbd>+คลิก=toggle</span>' +
@@ -213,15 +213,15 @@ function _lovsBuiltPanelHTML() {
       '<div id="grid-classify"></div><div id="ov-dragbox"></div>' +
     '</div>' +
     '<div class="tab-body" data-tab="2" id="tab-floors">' +
-      '<div class="fhint"><b>Number Floors</b> — แสดงเฉพาะหน้า <code>tag=floor</code>. <b>ลากเรียง</b> ซ้าย=ล่าง → ขวา=บน. กดปุ่ม <b>⚡ Sequential</b> auto-assign 1→N</div>' +
+      '<div class="fhint"><b>เรียงชั้น</b> — แสดงเฉพาะหน้า <code>tag=floor</code>. <b>ลากเรียง</b> ซ้าย=ล่าง → ขวา=บน. กดปุ่ม <b>⚡ เรียงอัตโนมัติ</b> กำหนดเลข 1→N ให้เอง</div>' +
       '<div class="seq-bar"><label>เริ่มที่ชั้น <input type="number" id="seq-start" value="1" min="-5" max="50"></label>' +
-        '<button id="ov-seq">⚡ Sequential</button><button id="ov-clear-floor" class="sec">↺ ล้างเลขชั้น</button>' +
+        '<button id="ov-seq">⚡ เรียงอัตโนมัติ</button><button id="ov-clear-floor" class="sec">↺ ล้างเลขชั้น</button>' +
         '<span style="flex:1"></span><label>หน้า floor: <span id="fcount" style="color:var(--accent,#4c8dff);font-weight:600">—</span></label>' +
       '</div><div id="floor-strip"></div>' +
     '</div>' +
     '<div class="tab-body" data-tab="3" id="tab-review"><div class="report" id="report"></div></div>' +
     '<div id="ov-nav">' +
-      '<button id="ov-prev">← ย้อน</button><span class="prog" id="ov-prog">Step 1 of 3</span>' +
+      '<button id="ov-prev">← ย้อน</button><span class="prog" id="ov-prog">ขั้นที่ 1 จาก 3</span>' +
       '<span class="sp"></span><span class="prog" id="ov-step-prog"></span>' +
       '<button id="ov-export" style="display:none">📄 ส่งออก PDF</button>' +
       '<button id="ov-next" class="pri">ถัดไป →</button>' +
@@ -263,11 +263,11 @@ function _lovsGoStep(s) {
   document.querySelectorAll("#ov-panel .tab-body").forEach(function(el) {
     el.classList.toggle("act", +el.dataset.tab === s);
   });
-  var pe = document.getElementById("ov-prog"); if (pe) pe.textContent = "Step " + s + " of 3";
+  var pe = document.getElementById("ov-prog"); if (pe) pe.textContent = "ขั้นที่ " + s + " จาก 3";
   var prev = document.getElementById("ov-prev"); if (prev) prev.disabled = s === 1;
   var next = document.getElementById("ov-next");
   if (next) { next.disabled = false; next.className = "pri";
-    next.textContent = s === 3 ? "เสร็จ ✓" : s === 2 ? "ถัดไป → Review" : "ถัดไป →"; }
+    next.textContent = s === 3 ? "เสร็จ ✓" : s === 2 ? "ถัดไป → ตรวจทาน" : "ถัดไป →"; }
   /* Export button visible only on Step 3 (Review) */
   var exp = document.getElementById("ov-export");
   if (exp) exp.style.display = s === 3 ? "" : "none";
