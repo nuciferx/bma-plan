@@ -6,7 +6,24 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u2-impact-map
+# Latest: PROC-20260703-v2-u6-changelog
+
+Date: 2026-07-03 · Area: process / release-tooling
+
+V2 U6 automated half: scripts/gen_changelog.py (SHIPS.jsonl -> docs/CHANGELOG.md, GEN-marker idempotent) + docs/process/RELEASE_RITUAL.md separating automated preflight from human-gated tag/sandbox-test/build steps.
+
+**Commits:**
+- `a42bde6` — chore(process): V2 U6 tooling — gen_changelog.py (SHIPS.jsonl -> docs/CHANGELOG.md) + RELEASE_RITUAL.md
+
+**Files touched:** `docs/CHANGELOG.md`, `docs/process/RELEASE_RITUAL.md`, `scripts/gen_changelog.py`
+
+**Closes:** V2-U6-tooling
+
+**Docs:** docs/process/RELEASE_RITUAL.md
+
+---
+
+# Previous: PROC-20260703-v2-u2-impact-map
 
 Date: 2026-07-03 · Area: process / test-infra
 
@@ -21,7 +38,7 @@ V2 U2 impact-map: --changed / --changed-against / --dry-run in run_all_tests.py 
 
 ---
 
-# Previous: PROC-20260703-v2-u3gen-u5-truth
+# PROC-20260703-v2-u3gen-u5-truth
 
 Date: 2026-07-03 · Area: process / docs-tooling
 

@@ -9,6 +9,9 @@ marker is hand-written and preserved.
 
 ## 2026-07-03
 
+- **PROC-20260703-v2-u6-changelog** _process / release-tooling_
+  - V2 U6 automated half: scripts/gen_changelog.py (SHIPS.jsonl -> docs/CHANGELOG.md, GEN-marker idempotent) + docs/process/RELEASE_RITUAL.md separating automated preflight from human-gated tag/sandbox-test/build steps.
+  - commits `a42bde6` · closes V2-U6-tooling
 - **PROC-20260703-v2-u2-impact-map** _process / test-infra_
   - V2 U2 impact-map: --changed / --changed-against / --dry-run in run_all_tests.py — maps changed source globs to affected tests + always t0; unmapped/broad-blast-radius files widen to whole suite loudly (no silent under-select). Shared-harness refactor deferred.
   - commits `2df65d4` · guards LITE_RUN_ALL_OK · closes V2-U2-impact-map

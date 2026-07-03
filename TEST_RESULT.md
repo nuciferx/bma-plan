@@ -6,7 +6,17 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PROC-20260703-v2-u2-impact-map
+# Latest: PROC-20260703-v2-u6-changelog
+
+Date: 2026-07-03 · Area: process / release-tooling
+
+_No guard markers — docs / process / research ship (no dedicated marker)._
+
+Closes: V2-U6-tooling
+
+---
+
+# Previous: PROC-20260703-v2-u2-impact-map
 
 Date: 2026-07-03 · Area: process / test-infra
 
@@ -18,7 +28,7 @@ Closes: V2-U2-impact-map
 
 ---
 
-# Previous: PROC-20260703-v2-u3gen-u5-truth
+# PROC-20260703-v2-u3gen-u5-truth
 
 Date: 2026-07-03 · Area: process / docs-tooling
 
