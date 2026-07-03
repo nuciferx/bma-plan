@@ -12,6 +12,12 @@ Drive File Stream cannot hydrate files and every read on the repo drive
 fails with ENOSPC — tests then fail confusingly or corrupt state. The
 preflight fails fast with a clear message instead.
 
+The preflight also runs the DEVELOPMENT_V2_BLUEPRINT U5 "executable-truth"
+gate (scripts/check_executable_truth.py): line caps, the vendored measure-engine
+hash pin, the SHIPS.jsonl marker inventory, roadmap reconcile, and ledger
+commit existence. A stale documented fact blocks the run. Skip with
+--no-truth-check only if the checker itself is broken.
+
 Usage:
     py -3 lite/tests/run_all_tests.py                 # run everything
     py -3 lite/tests/run_all_tests.py --tier t0       # math-only tier (~seconds, no browser)
@@ -38,6 +44,8 @@ import time
 from pathlib import Path
 
 TESTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_DIR.parent.parent
+TRUTH_CHECK = REPO_ROOT / "scripts" / "check_executable_truth.py"
 MIN_FREE_GB = 2.0
 
 MARKER_RE = re.compile(r"\b[A-Z][A-Z0-9_]*_(?:OK|FAIL)\b")
@@ -55,7 +63,28 @@ TIERS = {
 }
 
 
-def preflight():
+def truth_check():
+    """DEVELOPMENT_V2_BLUEPRINT U5 — executable-truth gate. Runs the read-only
+    scripts/check_executable_truth.py and returns a list of problem strings (empty
+    == truths hold). Blocks the run if a documented fact (line caps, vendored-engine
+    hash, marker inventory, roadmap status, ledger commits) has gone stale."""
+    if not TRUTH_CHECK.exists():
+        return [f"executable-truth script missing at {TRUTH_CHECK}"]
+    proc = subprocess.run(
+        [sys.executable, str(TRUTH_CHECK)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if proc.returncode == 0:
+        return []
+    out = (proc.stdout or "") + (proc.stderr or "")
+    # surface only the FAILURES section so preflight stays terse
+    lines = out.splitlines()
+    tail = lines[lines.index("-- FAILURES --"):] if "-- FAILURES --" in lines else lines[-12:]
+    return ["executable-truth check FAILED (run `python scripts/check_executable_truth.py`):"] \
+        + ["    " + ln for ln in tail]
+
+
+def preflight(run_truth_check=True):
     """Fail fast on the known environment killers. Returns list of problems."""
     problems = []
 
@@ -96,6 +125,11 @@ def preflight():
     # 3. Node.js — required by test_measure_parity (drift gate).
     if shutil.which("node") is None:
         problems.append("node not on PATH — test_measure_parity (drift gate) will fail")
+
+    # 4. Executable-truth gate (U5) — docs that lie block the run. Runs by DEFAULT;
+    #    skippable with --no-truth-check for the rare case the checker itself is broken.
+    if run_truth_check:
+        problems.extend(truth_check())
 
     return problems
 
@@ -141,16 +175,18 @@ def main():
                     help="test-pyramid tier (t0=math/Node, t1=endpoints, t2=UI)")
     ap.add_argument("--timeout", type=int, default=420, help="per-test timeout in seconds")
     ap.add_argument("--fail-fast", action="store_true", help="stop at the first failing test")
+    ap.add_argument("--no-truth-check", action="store_true",
+                    help="skip the U5 executable-truth gate (runs by default)")
     args = ap.parse_args()
 
     print("== PREFLIGHT ==")
-    problems = preflight()
+    problems = preflight(run_truth_check=not args.no_truth_check)
     if problems:
         for p in problems:
             print(f"  PREFLIGHT_FAIL: {p}")
         print("LITE_RUN_ALL_FAIL")
         sys.exit(1)
-    print("  ok (disk space / deps / node)")
+    print("  ok (disk space / deps / node" + ("" if args.no_truth_check else " / executable-truth") + ")")
 
     tests = discover(args.filter, args.tier)
     if not tests:
