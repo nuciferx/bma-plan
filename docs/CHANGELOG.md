@@ -9,6 +9,9 @@ marker is hand-written and preserved.
 
 ## 2026-07-03
 
+- **AUDIT-20260703-roadmap-staleness** _process / roadmap hygiene_
+  - Full ACTIVE-row staleness audit after 2 stale cards in a row: found 3 more STALE-DONE (PERF-open-streaming status contradicted body; force-setup landed 32d5f38; probe-rewrite 707ed8f) + simulator idea superseded by Pack J; closed all + moved 4 tombstones; HK-1 *.gsheet gitignored; .git/refs desktop.ini removed (git log --all fixed). Root cause: fix commits carry card-id but docs follow-up commit sometimes never lands.
+  - closes PERF-20260702-open-streaming, BUG-20260526-lite-force-setup, LITE-PROBE-DBLCLICK-REWRITE, HK-1
 - **AUDIT-20260703-lfoc-order-b-verify** _layer / folders (lite)_
   - LFOC-ORDER-B build audit: feature found fully landed (kind-aware PF folder ids + rank + seeds + Thai labels + 11-check guard already in tree); floorKey exact-inverse parity proven for 7 kind/tag pairs; zero code change - stale invent-done-go card closed.
   - guards LITE_PF_KIND_OK · closes INV-2026-05-26-LFOC-ORDER-B

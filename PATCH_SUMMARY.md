@@ -6,7 +6,21 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: AUDIT-20260703-lfoc-order-b-verify
+# Latest: AUDIT-20260703-roadmap-staleness
+
+Date: 2026-07-03 · Area: process / roadmap hygiene
+
+Full ACTIVE-row staleness audit after 2 stale cards in a row: found 3 more STALE-DONE (PERF-open-streaming status contradicted body; force-setup landed 32d5f38; probe-rewrite 707ed8f) + simulator idea superseded by Pack J; closed all + moved 4 tombstones; HK-1 *.gsheet gitignored; .git/refs desktop.ini removed (git log --all fixed). Root cause: fix commits carry card-id but docs follow-up commit sometimes never lands.
+
+**Commits:** —
+
+**Files touched:** —
+
+**Closes:** PERF-20260702-open-streaming, BUG-20260526-lite-force-setup, LITE-PROBE-DBLCLICK-REWRITE, HK-1
+
+---
+
+# Previous: AUDIT-20260703-lfoc-order-b-verify
 
 Date: 2026-07-03 · Area: layer / folders (lite)
 
@@ -20,7 +34,7 @@ LFOC-ORDER-B build audit: feature found fully landed (kind-aware PF folder ids +
 
 ---
 
-# Previous: TEST-20260526-wiz-followup-guard
+# TEST-20260526-wiz-followup-guard
 
 Date: 2026-07-03 · Area: wizard / test (lite)
 

@@ -6,7 +6,17 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: AUDIT-20260703-lfoc-order-b-verify
+# Latest: AUDIT-20260703-roadmap-staleness
+
+Date: 2026-07-03 · Area: process / roadmap hygiene
+
+_No guard markers — docs / process / research ship (no dedicated marker)._
+
+Closes: PERF-20260702-open-streaming, BUG-20260526-lite-force-setup, LITE-PROBE-DBLCLICK-REWRITE, HK-1
+
+---
+
+# Previous: AUDIT-20260703-lfoc-order-b-verify
 
 Date: 2026-07-03 · Area: layer / folders (lite)
 
@@ -20,7 +30,7 @@ Closes: INV-2026-05-26-LFOC-ORDER-B
 
 ---
 
-# Previous: TEST-20260526-wiz-followup-guard
+# TEST-20260526-wiz-followup-guard
 
 Date: 2026-07-03 · Area: wizard / test (lite)
 
