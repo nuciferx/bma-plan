@@ -2,6 +2,32 @@
 
 Date: 2026-07-03 (INV-20260703-layer-linkage plan B COMPLETE + UX-batch-1 + save-fix follow-up SHIPPED — the staged B0-B5 rollout of the layer↔measurement redesign that reached its human GO checkpoint earlier the same day shipped end-to-end across 6 commits: B0 (`edc89ae`) NEW `lite/static/js/object-agg.js` single tuple-stream aggregation engine + I11 invariant oracle; B1-B2 (`6909486`+`00ab9b9`) report-vars/Summary/layer-tree/Review all rerouted onto the same tuple stream, closing H2 (dual-engine disagreement, now structurally impossible) + M6; B3 (`34594b7`) orphan-`catId` self-heal on `removeLayer` + load-time sweep, closing H3; B4 (`750d2f6`) NEW `lite/static/js/layer-move.js` move-object-to-layer UI, closing H1 — all 3 HIGH findings now closed; B5 (`3d3741e`) report-vars operand dropdown Σ/▸ optgroups, closing M4. Bundled: UX batch 1 (`34aefa3`) — F-7 modalOpen keydown guard, F-1/F-2/F-3 hotkey/discoverability fixes, cheatsheet corrections; and the save-fix bug-archive follow-up (`d40b20b`, already shipped in the prior finalize). Every commit independently verified pre-commit; `MEASURE_PARITY_OK` green at B4. Zero proto/ edits. Previous ship: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data SHIPPED — CRASH-tier save-wipe fix + full UI/UX journey review (9 FRICTION + 6 COSMETIC findings) + the `INV-20260703-layer-linkage` investigation reaching its GO checkpoint. Regression 17/17.)
 
+<!-- GEN:START gen_status_docs -->
+## Ship Ledger (generated)
+
+| id | date | area | guards | commits |
+|---|---|---|---|---|
+| PROC-20260703-v2-u3gen-u5-truth | 2026-07-03 | process / docs-tooling | TRUTH_CHECK_OK | `ea03f53`, `770ee14` |
+| PROC-20260703-v2-u3ledger-u4-roadmap | 2026-07-03 | process / docs-tooling | — | `77a610f` |
+| SLICE-20260703-report-edit-default-grid | 2026-07-03 | report / ui (lite) | LITE_REPORT_DEFAULT_GRID_OK | `16698bb`, `99c37db` |
+| PERF-20260703-worker-recycle-chh-probe | 2026-07-03 | perf-probe / docs | — | `39de379` |
+| BUG-20260703-lite-cfss-undo-masters | 2026-07-03 | measure / undo (lite) | LITE_UNDO_MASTERS_OK | `81c4325` |
+| UX-20260703-quickwins-batch2 | 2026-07-03 | ui (lite) | LITE_UX_BATCH2_OK | `036a49d` |
+| INV-20260703-layer-linkage | 2026-07-03 | measure+layer (lite) | LITE_OBJECT_TUPLES_OK, LITE_B1_ROLE_REROUTE_OK, LITE_B2_SINGLE_ENGINE_OK, LITE_B3_ORPHAN_HEAL_OK, LITE_B4_MOVE_LAYER_OK, LITE_B5_REF_BADGES_OK | `edc89ae`, `6909486`, `00ab9b9`, `34594b7`, `750d2f6`, `3d3741e` |
+| UX-20260703-quickwins-batch1 | 2026-07-03 | ui (lite) | LITE_UX_QUICKWINS_OK | `34aefa3` |
+| BUG-20260703-lite-save-wipes-data | 2026-07-03 | save/load (lite) | LITE_SAVE_CLICKPATH_OK | `d40b20b` |
+| GO-20260703-invariants-streaming-worker-recycle | 2026-07-03 | test-infra + perf (lite) | LITE_WORKER_RECYCLE_OK | `6d6e39b`, `9466fe4`, `f8c2981`, `d52ddbb` |
+| DOCS-20260702-dev-pillars-blueprint | 2026-07-02 | process / docs | — | `16e6495`, `b676652` |
+| ACC-20260703-verify-scale-port | 2026-07-03 | measure-ux / accuracy (lite) | LITE_VERIFY_SCALE_OK | `bea2119` |
+| AUDIT-20260702-render-followups | 2026-07-03 | render + test-infra (lite) | LITE_RENDER_FB_SCAN_OK, LITE_OVERLAY_REG_OK | `aec375b`, `13054b6` |
+| AUDIT-20260702-s2-fitz-lock | 2026-07-02 | server perf (lite) | LITE_CASE_LOCK_OK | `d0a5dde` |
+| PERF-20260702-lite-foxit-smoothness | 2026-07-02 | perf (lite) | LITE_PAGECACHE_LRU_OK, LITE_LOCAL_OPEN_OK, LITE_WARM_PREFETCH_OK, LITE_THUMB_WARM_OK | `ae0f168`, `3ec9239`, `e0fb856`, `a0c1152` |
+| AUDIT-20260702-infra-bundle | 2026-07-02 | test-infra + server (lite) | LITE_RUN_ALL_OK, LITE_EXPORT_ENDPOINTS_OK | `9c4c36e`, `60d424a` |
+| BUG-20260702-lite-pagerot-registration | 2026-07-02 | measure-geometry / render (lite) | LITE_PAGEROT_REG_OK | `9f4b298` |
+| BUG-20260702-lite-cfss-summary | 2026-07-02 | measure-geometry (lite) | LITE_SUMMARY_CFSS_OK | `02e35af` |
+| BUG-20260702-lite-arc-summary | 2026-07-02 | measure-geometry (lite) | LITE_SUMMARY_ARC_OK | `e5264e2` |
+<!-- GEN:END -->
+
 ## Phase
 
 Phase 1 = Raster PDF Measurement Assistant. No legal checker, OCR, AI, Rule Engine, FAR/OSR/pass-fail.

@@ -26,8 +26,10 @@ printed, exit 1 on any failure else 0):
                       function line vs proto/ui.html on every run; this check guards
                       that that guard still exists and the file has not silently moved.
   3. marker-inventory every guard marker listed in SHIPS.jsonl must have at least one
-                      test file under lite/tests/ that contains (can emit) it — catches
-                      a ledger claiming a guard whose test does not exist.
+                      emitter under lite/tests/ OR scripts/ that contains (can emit) it
+                      — catches a ledger claiming a guard whose test does not exist.
+                      (scripts/ is scanned too so process-tooling ships whose proof
+                      marker is emitted from a script, e.g. TRUTH_CHECK_OK, resolve.)
   4. roadmap-recon    delegates to scripts/reconcile_roadmap.py (subprocess); its exit
                       code becomes this check's result. No logic is duplicated.
   5. ships-commits    every commit hash in every SHIPS.jsonl entry's commits[] resolves
@@ -83,6 +85,7 @@ RUNNER = "lite/tests/run_all_tests.py"
 # ---- check-3/5 config: ledger --------------------------------------------------
 SHIPS = "docs/status/SHIPS.jsonl"
 TESTS_DIR = "lite/tests"
+SCRIPTS_DIR = "scripts"
 
 # ---- check-4 config: delegated roadmap reconcile -------------------------------
 RECONCILE = "scripts/reconcile_roadmap.py"
@@ -227,23 +230,27 @@ def check_marker_inventory():
         for g in d.get("guards", []) or []:
             guards.add(g)
 
-    # collect all test source once
-    tdir = rp(TESTS_DIR)
+    # collect all emitter source once — lite tests AND process-tooling scripts
+    # (process-tooling ships emit their proof marker from scripts/, e.g. TRUTH_CHECK_OK)
     sources = {}
-    if os.path.isdir(tdir):
-        for name in os.listdir(tdir):
+    for d in (TESTS_DIR, SCRIPTS_DIR):
+        sdir = rp(d)
+        if not os.path.isdir(sdir):
+            continue
+        for name in os.listdir(sdir):
             if name.endswith(".py"):
                 try:
-                    sources[name] = open(os.path.join(tdir, name), encoding="utf-8").read()
+                    sources[f"{d}/{name}"] = open(os.path.join(sdir, name), encoding="utf-8").read()
                 except OSError:
                     pass
 
     for g in sorted(guards):
         emitters = [name for name, src in sources.items() if g in src]
         ok = bool(emitters)
-        r.item(f"{g} -> {emitters if emitters else 'NO TEST EMITS THIS'}", ok)
+        r.item(f"{g} -> {emitters if emitters else 'NO SOURCE EMITS THIS'}", ok)
         if not ok:
-            r.fail(f"guard '{g}' is claimed in SHIPS.jsonl but no test under {TESTS_DIR}/ contains it")
+            r.fail(f"guard '{g}' is claimed in SHIPS.jsonl but no test under {TESTS_DIR}/ "
+                   f"or script under {SCRIPTS_DIR}/ contains it")
 
     r.summary = f"{len(guards)} guard markers, all have an emitting test" if r.ok \
         else f"{len(guards)} guards, {sum(1 for _, ok in r.items if not ok)} without a test"

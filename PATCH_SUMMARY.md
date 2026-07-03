@@ -4,114 +4,335 @@
 
 ---
 
-# Latest: INV-20260703-layer-linkage (plan B complete) + UX-batch-1 + save-fix follow-up
+<!-- GEN:START gen_status_docs -->
 
-Branch: main
+# Latest: PROC-20260703-v2-u3gen-u5-truth
 
-Date: 2026-07-03
+Date: 2026-07-03 · Area: process / docs-tooling
 
-## Outcome: PASS — Layer↔measurement redesign plan B (one aggregation engine) shipped 100% across 7 commits: all 3 HIGH findings (H1 no-move-UI / H2 engine disagreement / H3 orphan catId) plus M4 and M6 closed; plus the CRASH-tier save-wipe fix now has its bug-archive follow-up recorded; plus a first batch of UX quick-wins (F-7/F-1/F-2/F-3 + cheatsheet truth pass). `d40b20b` (save-fix): `projectToGlobals(livePS)` resolves live content by identity; `LITE_SAVE_CLICKPATH_OK`. `34aefa3` (UX batch 1): F-7 modalOpen keydown guard, F-1 ⇧D Path hotkey wired, F-2 F-key/Focus fix, F-3 Page Manager menu entry, cheatsheet corrections; `test_ux_quickwins.py`. `edc89ae` (B0): NEW `lite/static/js/object-agg.js` — single tuple-stream aggregation engine `{pg, catId, role, floorKey, area, counting}`; I11 oracle `assertEnginesAgree`; `test_object_tuples.py` (`LITE_OBJECT_TUPLES_OK`). `6909486` (B1): report-vars + Summary per-floor gfa/ded/net on tuples via opt-in `{useLive:true}` (default path byte-identical); `test_b1_role_reroute.py`. `00ab9b9` (B2): layer-tree Σ + Review Section-3 rows reduce the same tuple stream; oracle proves `byFloorRole` partitions == `byRole` — the two-engine disagreement (H2) impossible by construction; root-unfiled layers (M6) now counted; `test_b2_single_engine.py`. `34594b7` (B3): `layer-system.js` `reassignObjectsOfLayer` on `removeLayer` + `sweepOrphanCatIds` load-time heal — orphaned catId silent-drop/crash (H3) closed; `test_b3_orphan_heal.py`. `750d2f6` (B4): NEW `lite/static/js/layer-move.js` (120 lines, DOM-injected) — move-object-to-layer via Properties select + context menu "ย้ายไปเลเยอร์ ▸"; CFSS instances retarget MASTER with confirm; H1 closed; `test_b4_move_layer.py`. Known flag: CFSS-master-only moves not undoable (pre-existing `_docSnap` gap, candidate follow-up). `3d3741e` (B5): report-vars.js operand dropdown groups Σ role-refs vs ▸ single-layer refs (two optgroups); display-only, persisted expr format unchanged; M4 closed; `test_b5_ref_badges.py`. Every commit verified independently pre-commit; latest verify (B5) plus a `t0` measure-parity sweep all green. No `proto/` E2E needed — zero `proto/` files touched (lite-only block; proto markers unaffected).
+V2 U3 generator (scripts/gen_status_docs.py: SHIPS.jsonl -> 4 derived docs via GEN markers, idempotent, replaces bma-sprint-writer ~200-260K tok/finalize) + U5 executable-truth gate (scripts/check_executable_truth.py 5 assertions, wired into run_all_tests preflight).
 
-## Summary
+**Commits:**
+- `ea03f53` — chore(process): V2 U3 generator — SHIPS.jsonl → PATCH_SUMMARY/TEST_RESULT/FINAL_REPORT/LATEST_STATUS
+- `770ee14` — chore(process): V2 U5 executable-truth gate wired into runner preflight
 
-Layer↔measurement redesign plan B ("one aggregation engine," the structural fix that won 25/30 at the `INV-20260703-layer-linkage` human GO checkpoint) shipped end-to-end across a staged B0→B5 rollout, bundled with a first UX quick-wins batch and the bug-archive follow-up bookkeeping for the same-day CRASH-tier save-wipe fix. **Save-fix follow-up (`d40b20b`, already fixed and recorded in the prior finalize):** Ctrl+S no longer wipes measurements — `projectToGlobals(livePS)` resolves live content by identity via `_initialIds`/`dupSrc`; guard `LITE_SAVE_CLICKPATH_OK`. **UX batch 1 (`34aefa3`):** F-7 `modalOpen()` keydown guard closes the hotkey-leak into Summary; F-1 dead ⇧D Path hotkey wired; F-2 F-key/Focus collision resolved; F-3 Page Manager gained a menu entry (was ⇧F12-only); cheatsheet corrected. Guard `test_ux_quickwins.py`. **B0 (`edc89ae`):** NEW `lite/static/js/object-agg.js` — the single tuple-stream aggregation engine: one generator emits `{pg, catId, role, floorKey, area, counting}` tuples for every measured object; NEW I11 invariant oracle `assertEnginesAgree` proves any two consumers reducing the same partition of the same tuple stream cannot disagree — making the H2 dual-engine-disagreement finding structurally impossible rather than patched case-by-case. Guard `test_object_tuples.py` (`LITE_OBJECT_TUPLES_OK`). **B1 (`6909486`):** `report-vars.js` + Summary per-floor `gfa`/`ded`/`net` rerouted onto the tuple engine behind an opt-in `{useLive:true}` flag — default path stays byte-identical. Guard `test_b1_role_reroute.py`. **B2 (`00ab9b9`):** layer-tree Σ totals and Review-panel Section-3 rows now reduce the SAME tuple stream as Summary; oracle check (c) proves `byFloorRole` partitions equal `byRole` partitions by construction — H2 closed for good; root-unfiled layers (M6) now counted where they previously silently dropped. Guard `test_b2_single_engine.py`. **B3 (`34594b7`):** `layer-system.js` gains `reassignObjectsOfLayer` on `removeLayer` plus a load-time `sweepOrphanCatIds` heal pass — closes H3 (deleted-category orphaned `catId` silently dropped objects from every total, crashed on one path). Guard `test_b3_orphan_heal.py`. **B4 (`750d2f6`):** NEW `lite/static/js/layer-move.js` (120 lines, DOM-injected — `ui-lite.html` itself untouched) — the move-object-to-layer UI closing H1: Properties-panel select + canvas context-menu "ย้ายไปเลเยอร์ ▸"; CFSS shared-shape instances retarget the MASTER with a confirm dialog. Guard `test_b4_move_layer.py`. Known flag carried forward: CFSS-master-only moves are not undoable (pre-existing `_docSnap` gap, candidate follow-up, not a new regression). **B5 (`3d3741e`):** report-vars.js operand dropdown now groups references into two optgroups — Σ role-refs vs ▸ single-layer refs — closing M4 (the two reference kinds were visually indistinguishable). Display-only; persisted expression format unchanged. **Tests:** every commit independently verified pre-commit (targeted suite + t0 measure-parity). Latest verify (B5): `test_b5_ref_badges` + `test_report_vars_ui` + `test_report_vars_rollup` + `test_b1_role_reroute` + `run_all_tests.py --tier t0` all green. No `proto/` E2E needed — zero `proto/` files touched this whole block.
+**Files touched:** `lite/tests/run_all_tests.py`, `scripts/check_executable_truth.py`, `scripts/gen_status_docs.py`, `scripts/gen_status_docs_README.md`
 
-## Files Changed
+**Closes:** V2-U3-generator, V2-U5
 
-| File | Change |
-|---|---|
-| `lite/static/js/object-agg.js` | NEW (B0) — single tuple-stream aggregation engine `{pg, catId, role, floorKey, area, counting}` |
-| `lite/static/js/report-vars.js` | (B1) per-floor gfa/ded/net on tuples via opt-in `{useLive:true}`; (B5) operand dropdown Σ/▸ optgroups |
-| `lite/static/js/layer-tree.js` | (B2) Σ totals reduce the tuple stream |
-| `lite/static/js/overview-setup.js` | (B2) Review-panel Section-3 rows reduce the tuple stream |
-| `lite/static/js/layer-system.js` | (B3) `reassignObjectsOfLayer` on `removeLayer` + load-time `sweepOrphanCatIds` heal |
-| `lite/static/js/layer-move.js` | NEW (B4, 120 lines) — move-object-to-layer via Properties select + context menu, CFSS master retarget with confirm |
-| `lite/static/js/page-folder-layers.js`, `page-manager.js`, `page-manager-ui.js` | save-fix follow-up bookkeeping (piece 1, already shipped) |
-| `lite/ui-lite.html` | UX batch 1 — F-7 modalOpen keydown guard, F-1 ⇧D Path hotkey, F-2 F-key/Focus fix, F-3 Page Manager menu entry, cheatsheet corrections |
-| `lite/tests/test_save_clickpath.py`, `test_ux_quickwins.py`, `test_object_tuples.py`, `test_b1_role_reroute.py`, `test_b2_single_engine.py`, `test_b3_orphan_heal.py`, `test_b4_move_layer.py`, `test_b5_ref_badges.py` | all NEW (1 guard per piece) |
-| `docs/status/PHASE_INDEX.md` | updated via the block's own commits — NOT touched by this docs-batching write per explicit instruction |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — NOT TOUCHED (lite-only block; zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `lite/static/js/measure-engine.js` drift-locked vendored math — UNCHANGED; `MEASURE_PARITY_OK` verified green at B4
-- `.bmaplan` schema version stays 1; all changes this block are additive (tuple engine is a pure read-side reduction, not a new persisted shape)
-
-## Tests Run
-
-Every commit independently verified pre-commit with its own targeted suite plus a `t0` measure-parity sweep. Latest verify (B5):
-```
-python lite/tests/test_b5_ref_badges.py       PASS
-python lite/tests/test_report_vars_ui.py      PASS
-python lite/tests/test_report_vars_rollup.py  PASS
-python lite/tests/test_b1_role_reroute.py     PASS
-python lite/tests/run_all_tests.py --tier t0  PASS
-```
-No `proto/` E2E run this block. Zero `proto/` files touched across the whole block (lite-only) — proto's 22-marker full-E2E baseline is unaffected by construction; this is the standing no-test rationale for the proto side, not an omission.
-
-## Phase 1 Scope Check
-
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
-- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only block)
-- ✅ `.bmaplan` schema version stays 1; all new fields/files this block are additive
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ No forbidden surface touched
+**Docs:** scripts/gen_status_docs_README.md
 
 ---
 
-# Previous: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — CRASH fix (Ctrl+S wiped all data) + full UI/UX journey review + layer↔measurement invent checkpoint
+# Previous: PROC-20260703-v2-u3ledger-u4-roadmap
 
-Branch: main
+Date: 2026-07-03 · Area: process / docs-tooling
 
-Date: 2026-07-03
+V2 U3 ledger half (SHIPS.jsonl 16 entries + README) + U4 roadmap ACTIVE/DONE split (123 done rows -> ROADMAP_DONE.md, PHASE_INDEX 825->703) + scripts/reconcile_roadmap.py (flags un-moved/stale/dead-hash rows, exit-code gated).
 
-## Outcome: PASS — CRASH-tier bug found and fixed (Ctrl+S wrote an empty `.bmaplan` and destroyed the in-memory session), a full UI/UX journey + static review filed 9 FRICTION + 6 COSMETIC findings (+3 GOODs pinned), and a layer↔measurement redesign investigation reached its human GO checkpoint. **(1) Save-wipe CRASH fix (`d40b20b`):** root cause was `pageMgr`'s `PS_by_id` snapshots taken (empty) at upload time, never refreshed, then projected back over live `PS` at save — so Ctrl+S always wrote the upload-time empty state. Fixed via new `projectToGlobals(livePS)` resolving content from live `PS` by identity, plus the same latent wipe fixed on the Apply/merge path (commit-order bug, 2 sites in `page-manager-ui.js`). NEW guard `LITE_SAVE_CLICKPATH_OK` drives the REAL `mi-save` click (closing the click-path-vs-API-path gap that let 72 prior green tests miss this) — proven RED (exact journey repro) → GREEN. Regression 17/17. **(2) UX review filed (`UX-20260703-review-findings`, `2249400`):** 29-screenshot journey review on the real 45-page permit + static inventory → 9 FRICTION (dead hotkey, key collisions, undiscoverable Page Manager, invisible verified state, silent mouse-block, misleading messaging, missed-modal hotkey leakage, raw errors, native prompt() in Verify Scale) + 6 COSMETIC + 3 GOODs pinned. **(3) Layer↔measurement invent checkpoint (`INV-20260703-layer-linkage`, `2249400`):** investigation mapped 8 problems (3 HIGH); Approach B "one aggregation engine" (`object-agg.js` tuple stream) scored 25/30 and won over 4 alternatives; fallback D recorded; staged B0-B5 rollout GO'd. B0 + UX quick-wins batch 1 (F-7/F-1/F-2/F-3 + cheatsheet pass) are being built right now by two parallel `lite-builder` subagents — in-progress, not shipped as of this write. Lite suite regression green throughout (`MEASURE_PARITY_OK` intact). Zero `proto/` edits.
+**Commits:**
+- `77a610f` — chore(process): V2 U3 SHIPS.jsonl ledger + U4 roadmap ACTIVE/DONE split + reconcile script
 
-## Summary
+**Files touched:** `docs/status/PHASE_INDEX.md`, `docs/status/ROADMAP_DONE.md`, `docs/status/SHIPS.jsonl`, `docs/status/SHIPS_README.md`, `scripts/reconcile_roadmap.py`
 
-Three pieces filed/shipped the same morning. **(1) CRASH fix — save wiped all data (`d40b20b`):** Ctrl+S wrote an empty `.bmaplan` and destroyed the in-memory session. Root cause: `pageMgr` seeded `PS_by_id` as `deepCopy` snapshots of `PS` taken at upload time (empty at that point); all drawing thereafter mutated live `PS` only; `mi-save` → `_pmCommit` then projected those stale empty snapshots back over `PS` immediately before `buildPageStore()` serialized it. 72 green tests missed this because every existing save test called `buildPageStore()` directly (the API path), never the real `mi-save` click path. Fix: new `projectToGlobals(livePS)` resolves each page id's CONTENT from live `PS` by identity — baseline via `_initialIds`, duplicates via a new `dupSrc` map (deep-copy of the SOURCE page's live content), merges stay blank; `_pmCommit` passes `PS` through this resolver; model snapshots refreshed post-commit. The same latent wipe existed on the Apply/merge path (`_pmuiApplyChanges` + merge, `page-manager-ui.js`, 2 sites) — commit order was backwards (flush-then-commit); reordered to commit-with-pre-flush-baseline-THEN-flush. NEW guard `lite/tests/test_save_clickpath.py` (`LITE_SAVE_CLICKPATH_OK`) drives the REAL `mi-save` click via `URL.createObjectURL` interception — closing the exact click-path-vs-API-path gap that let 72 tests miss this. Proven RED pre-fix (polys 0, calib null — exact journey repro) → GREEN; 4 checks incl. dup-content-follows-identity. Regression 17/17 (metamorphic, page-manager suite, apply-mutations, all persist suites, arc/CFSS parities, `MEASURE_PARITY_OK`). **(2) UX review complete (`UX-20260703-review-findings`, `2249400`):** journey review on the real 45-page permit (29 screenshots in `artifacts/ux-review-20260703/`) + static inventory. 9 FRICTION: F-1 dead ⇧D hotkey, F-2 `F`/Focus collision, F-3 Page Manager undiscoverable (⇧F12-only), F-4 scale-verified state invisible post-modal, F-5 wizard blocks mouse silently, F-6 misleading "เปิด PDF ก่อน" during background upload, F-7 `modalOpen()` misses `#sum`/`#vs-modal`/cheatsheet → typing fires tool hotkeys, F-8 raw error messages, F-9 Verify Scale uses `window.prompt()`. 6 COSMETIC (annotate no hotkeys; Thai/English flips; stale cheatsheet; empty-state clutter; transient scanned notice; no fallback badge). 3 GOODs pinned (setup wizard, local-first save status, live measure feedback). Findings-filing only — no app code changed by the review itself. **(3) Layer↔measurement invent at checkpoint (`INV-20260703-layer-linkage`, `2249400`):** investigation mapped the model + 8 problems (3 HIGH: no move-between-layers UI; Summary-widget vs Review-panel dual aggregation engines can disagree on net area; orphaned `catId` silently drops objects / crashes). `bma-inventor` scored 5 approaches; Approach B "one aggregation engine" won 25/30 (`object-agg.js` tuple-stream generator, every consumer becomes a pure reduction, per-floor net becomes native, fully additive); fallback D (simple `floorKey` field) recorded. Staged B0-B5 rollout plan written. GO received at the human checkpoint. B0 (tuple generator + new `I11` invariant oracle) and a first UX quick-wins batch (F-7 modal-detection fix, F-1/F-2/F-3 hotkey/discoverability, cheatsheet accuracy pass) are being built right now by two `lite-builder` subagents in parallel — recorded as in-progress, not shipped in this docs-write's commit range.
+**Closes:** V2-U3-ledger, V2-U4
 
-## Files Changed
+**Docs:** docs/status/SHIPS_README.md
 
-| File | Change |
-|---|---|
-| `lite/static/js/page-manager.js` | (1) — NEW `projectToGlobals(livePS)` resolves page content from live `PS` by identity at commit time |
-| `lite/static/js/page-manager-ui.js` | (1) — Apply/merge commit-order fix (2 call sites) |
-| `lite/tests/test_save_clickpath.py` | NEW (1) — `LITE_SAVE_CLICKPATH_OK`, drives the real `mi-save` click, 4 checks |
-| `lite/ui-lite.html` | (1) — +4/− minor wiring for the click-path guard |
-| `docs/status/PHASE_INDEX.md` | (1)+(2)+(3) — bug filed + `fixed_commit`; UX review + invent-checkpoint bundle filed — via the block's own commits, not this docs-batching write |
-| `lite/tests/bug-archive.jsonl` | (1) — `BUG-20260703-lite-save-wipes-data` fixed_commit recorded — via the block's own commit, not this docs-batching write |
-| `artifacts/ux-review-20260703/` | NEW (2) — 29 journey screenshots backing the UX review findings |
+---
 
-## Source Files NOT Touched (Forbidden Surfaces)
+# SLICE-20260703-report-edit-default-grid
 
-- `proto/server.py` — NOT TOUCHED (lite-only block; zero proto/ edits)
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — UNCHANGED
-- `pdfToC`, `cToPdf`, `RS`, scale math — UNCHANGED
-- `buildSnapIndex`, `snap` engine — UNCHANGED
-- `lite/static/js/measure-engine.js` drift-locked vendored math — UNCHANGED
-- `.bmaplan` schema version stays 1; save-fix changes commit-time resolution logic only, no new/renamed persisted fields
-- Layer-linkage invent is HALTED at the human checkpoint per Pack H — B0/UX-quick-wins are a separate in-progress sprint, not part of this write's shipped commit range
+Date: 2026-07-03 · Area: report / ui (lite)
 
-## Tests Run
+Editable jspreadsheet grid promoted to default report view; classic contenteditable table kept as print-fallback (off-screen swap + @media-print force-classic), #re-toggle repurposed grid->classic. report-edit.js unchanged.
 
-```
-python lite/tests/test_save_clickpath.py   → LITE_SAVE_CLICKPATH_OK   PASS (NEW; RED pre-fix = exact journey repro; 4 checks)
-```
-Regression 17/17: metamorphic suite, page-manager suite, apply-mutations suite, all persist suites, arc-summary parity, CFSS-summary parity, `MEASURE_PARITY_OK` (drift-lock intact). UX review and invent checkpoint are findings/research work, no dedicated test marker, covered by the same regression run. B0 + UX quick-wins batch 1 are in-progress with two `lite-builder` subagents at time of write — not yet tested or shipped.
+**Commits:**
+- `16698bb` — feat(lite): editable grid is default report view; classic as print-fallback toggle
+- `99c37db` — chore(docs): NEXT_ACTIONS item 8 (report-edit default grid) shipped; item 9 re-scoped
 
-## Phase 1 Scope Check
+**Files touched:** `docs/status/NEXT_ACTIONS.md`, `lite/lite-report.html`, `lite/tests/test_report_default_grid.py`
 
-- ✅ `polyAreaM2` / `polyMetrics` / `polySelfIntersects` unchanged
-- ✅ `pdfToC` / `cToPdf` / `RS` / scale math unchanged
-- ✅ `proto/server.py` core endpoints unchanged (proto NOT TOUCHED — lite-only block)
-- ✅ `.bmaplan` schema version stays 1; no new/renamed fields
-- ✅ No legal / OCR / AI / Rule Engine / FAR-OSR pass-fail
-- ✅ No forbidden surface touched; layer-linkage invent correctly HALTED at the human checkpoint per Pack H
+**Closes:** NEXT_ACTIONS-item-8
+
+---
+
+# PERF-20260703-worker-recycle-chh-probe
+
+Date: 2026-07-03 · Area: perf-probe / docs
+
+Production RSS re-probe of worker-recycle on the real 90.8MB CHH binder: recycleNow released ~1444MB (tree RSS 1796->352MB = -80.4%), reinit transparent 1.1s from local blob. Passes the >=50% bar.
+
+**Commits:**
+- `39de379` — chore(docs): record worker-recycle CHH production re-probe PASS (-80% tree RSS, reinit 1.1s)
+
+**Files touched:** `docs/status/NEXT_ACTIONS.md`, `docs/status/PHASE_INDEX.md`
+
+**Closes:** —
+
+**Docs:** artifacts/perf/probe_worker_recycle_chh_20260703.txt
+
+---
+
+# BUG-20260703-lite-cfss-undo-masters
+
+Date: 2026-07-03 · Area: measure / undo (lite)
+
+Undo/redo now covers the CFSS MASTERS registry: additive masters key in _docSnap via snapshotMasters/restoreMasters + pushUndo in promote/edit; old snapshots restore gracefully.
+
+**Commits:**
+- `81c4325` — fix(lite): undo/redo now covers CFSS MASTERS registry (B4 follow-up)
+
+**Files touched:** `lite/static/js/cross-floor-shapes.js`, `lite/tests/test_undo_masters.py`, `lite/ui-lite.html`
+
+**Closes:** BUG-20260703-lite-cfss-undo-masters
+
+**Docs:** lite/tests/bug-archive.jsonl
+
+---
+
+# UX-20260703-quickwins-batch2
+
+Date: 2026-07-03 · Area: ui (lite)
+
+UX quick-wins batch 2: F-4 HUD verified badge, F-5 mousedown hint, F-6 upload message, F-9 verify-scale in-app modal (no window.prompt), seeded-vars dim state, wizard Next gated at 0 tagged.
+
+**Commits:**
+- `036a49d` — feat(lite): UX batch 2 — F-4/F-5/F-6/F-9 + seeded-vars wait-state + wizard Next gate (UX-20260703)
+
+**Files touched:** `lite/static/js/export-annotate.js`, `lite/static/js/menu-flyout.js`, `lite/static/js/overview-setup.js`, `lite/static/js/page-renderer.js`, `lite/static/js/report-vars.js`, `lite/static/js/verify-scale.js`, `lite/static/js/wiz-auto.js`, `lite/tests/test_ux_batch2.py`, `lite/ui-lite.html`
+
+**Closes:** F-4, F-5, F-6, F-9
+
+---
+
+# INV-20260703-layer-linkage
+
+Date: 2026-07-03 · Area: measure+layer (lite)
+
+Layer<->measurement redesign B0-B5 (Approach B): object-agg.js tuple stream + I11 oracle, per-floor Summary, single engine, orphan-catId self-heal, move-to-layer UI, ref badges. H1/H2/H3/M4/M6 closed.
+
+**Commits:**
+- `edc89ae` — feat(lite): B0 — object-tuple aggregation engine + I11 oracle (INV-20260703-layer-linkage)
+- `6909486` — feat(lite): B1 — report-vars + Summary per-floor block on the tuple engine (INV-20260703)
+- `00ab9b9` — feat(lite): B2 — single aggregation engine; Review/tree sums on tuples (INV-20260703)
+- `34594b7` — feat(lite): B3 — orphan catId self-heal + catOf crash guards (INV-20260703, H3 closed)
+- `750d2f6` — feat(lite): B4 — move-object-to-layer UI (INV-20260703, H1 closed)
+- `3d3741e` — feat(lite): B5 — Σ/▸ ref badges in report-var editor (INV-20260703, M4 closed)
+
+**Files touched:** `lite/static/js/export-annotate.js`, `lite/static/js/layer-move.js`, `lite/static/js/layer-system.js`, `lite/static/js/layer-tree.js`, `lite/static/js/object-agg.js`, `lite/static/js/overview-setup.js`, `lite/static/js/page-folder-layers.js`, `lite/static/js/report-vars.js`, `lite/tests/test_b1_role_reroute.py`, `lite/tests/test_b2_single_engine.py`, `lite/tests/test_b3_orphan_heal.py`, `lite/tests/test_b4_move_layer.py`, `lite/tests/test_b5_ref_badges.py`, `lite/tests/test_object_tuples.py`, `lite/ui-lite.html`
+
+**Closes:** H1, H2, H3, M4, M6
+
+---
+
+# UX-20260703-quickwins-batch1
+
+Date: 2026-07-03 · Area: ui (lite)
+
+UX quick-wins batch 1: F-7 modalOpen keydown guard (hotkey-leak class), F-1 dead Shift+D Path hotkey, F-2 F-key/Focus collision, F-3 Page Manager menu entry, cheatsheet corrections.
+
+**Commits:**
+- `34aefa3` — feat(lite-ux): UX quick-wins batch 1 — F-7 hotkey leak + F-1/F-2/F-3 + cheatsheet truth (UX-20260703)
+
+**Files touched:** `lite/static/js/cheatsheet.js`, `lite/tests/test_ux_quickwins.py`, `lite/ui-lite.html`
+
+**Closes:** F-1, F-2, F-3, F-7
+
+---
+
+# BUG-20260703-lite-save-wipes-data
+
+Date: 2026-07-03 · Area: save/load (lite)
+
+CRASH: Ctrl+S wrote an empty .bmaplan + wiped the live session. projectToGlobals resolves content from live PS by identity; guard drives the REAL mi-save click path (closed the API-vs-click test gap).
+
+**Commits:**
+- `d40b20b` — fix(BUG-20260703-lite-save-wipes-data): save no longer wipes all measurements
+
+**Files touched:** `docs/status/PHASE_INDEX.md`, `lite/static/js/page-manager-ui.js`, `lite/static/js/page-manager.js`, `lite/tests/bug-archive.jsonl`, `lite/tests/test_save_clickpath.py`, `lite/ui-lite.html`
+
+**Closes:** BUG-20260703-lite-save-wipes-data
+
+**Docs:** lite/tests/bug-archive.jsonl
+
+---
+
+# GO-20260703-invariants-streaming-worker-recycle
+
+Date: 2026-07-03 · Area: test-infra + perf (lite)
+
+V2-U1 INVARIANTS.md registry + reconciled 16 stale rows; Range-streaming spike NOGO (worker heap survives destroy) -> RESHAPE to pdf.js worker-recycle build (explicit PDFWorker + lazy reinit).
+
+**Commits:**
+- `6d6e39b` — chore: V2-U1 invariant registry + PHASE_INDEX reconcile (16 stale rows)
+- `9466fe4` — invent(lite): Range-streaming spike complete — NOGO on memory, RESHAPE to worker-recycle
+- `f8c2981` — chore: PHASE_INDEX — record streaming spike verdict on the perf card
+- `d52ddbb` — perf(lite): pdf.js worker-recycle — reclaim the worker heap (RESHAPE from streaming spike)
+
+**Files touched:** `docs/invent/lite-range-streaming.md`, `docs/status/PHASE_INDEX.md`, `lite/sandbox/invent-range-streaming/results.json`, `lite/sandbox/invent-range-streaming/results.md`, `lite/sandbox/invent-range-streaming/s1_linearize.py`, `lite/sandbox/invent-range-streaming/s2_range.py`, `lite/sandbox/invent-range-streaming/spike.html`, `lite/sandbox/invent-range-streaming/spike_run.py`, `lite/static/js/page-renderer.js`, `lite/tests/INVARIANTS.md`, `lite/tests/test_worker_recycle.py`, `lite/ui-lite.html`
+
+**Closes:** —
+
+**Docs:** lite/tests/INVARIANTS.md,docs/invent/lite-range-streaming.md
+
+---
+
+# DOCS-20260702-dev-pillars-blueprint
+
+Date: 2026-07-02 · Area: process / docs
+
+DEVELOPMENT_PILLARS.md (6-pillar doctrine) + DEVELOPMENT_V2_BLUEPRINT.md (6 evidenced weaknesses -> 6 upgrades U1-U6). Methodology docs, no runtime change.
+
+**Commits:**
+- `16e6495` — docs(process): DEVELOPMENT_PILLARS.md — 6-pillar development doctrine
+- `b676652` — docs(process): DEVELOPMENT_V2_BLUEPRINT — next-gen methodology from honest self-critique
+
+**Files touched:** `docs/process/DEVELOPMENT_PILLARS.md`, `docs/process/DEVELOPMENT_V2_BLUEPRINT.md`
+
+**Closes:** —
+
+**Docs:** docs/process/DEVELOPMENT_PILLARS.md,docs/process/DEVELOPMENT_V2_BLUEPRINT.md
+
+---
+
+# ACC-20260703-verify-scale-port
+
+Date: 2026-07-03 · Area: measure-ux / accuracy (lite)
+
+Verify-Scale ported from proto: 2nd-reference calibration cross-check -> %dev band + accept/recalibrate/average, additive scale.verifyResult. Closes the last accuracy gap vs Foxit.
+
+**Commits:**
+- `bea2119` — feat(lite): Verify-Scale port — 2nd-reference calibration cross-check (accuracy gap vs Foxit closed)
+
+**Files touched:** `lite/static/js/menu-flyout.js`, `lite/static/js/verify-scale.js`, `lite/tests/test_verify_scale.py`, `lite/ui-lite.html`
+
+**Closes:** ACC-20260703-verify-scale-port
+
+---
+
+# AUDIT-20260702-render-followups
+
+Date: 2026-07-03 · Area: render + test-infra (lite)
+
+Raster JPEG fallback + scanned-page detection (scale cap); V2 test-pyramid t0/t1/t2 tiers; first sub-pixel raster<->overlay registration proof (max 0.5 device px).
+
+**Commits:**
+- `aec375b` — feat(lite-render): raster fallback + scanned-page detection with capped re-render (render-followups a+c)
+- `13054b6` — feat(lite-tests): V2 test-pyramid tiers + overlay-registration pixel proof + streaming research
+
+**Files touched:** `docs/invent/lite-range-streaming.md`, `docs/status/PHASE_INDEX.md`, `lite/static/js/page-renderer.js`, `lite/tests/run_all_tests.py`, `lite/tests/test_overlay_registration.py`, `lite/tests/test_render_fallback_scanned.py`
+
+**Closes:** AUDIT-20260702-render-followups
+
+**Docs:** docs/invent/lite-range-streaming.md
+
+---
+
+# AUDIT-20260702-s2-fitz-lock
+
+Date: 2026-07-02 · Area: server perf (lite)
+
+Per-case fitz threading.Lock serializes all Document access (/page /thumb /pageinfo + overlay render moved off event loop). Hardening hammer: 96-req 8-thread + mid-flight swap, zero 5xx.
+
+**Commits:**
+- `d0a5dde` — fix(lite-server): per-case fitz lock — serialize all Document access (AUDIT-20260702-s2-fitz-lock)
+
+**Files touched:** `lite/server_lite.py`, `lite/tests/test_case_lock.py`
+
+**Closes:** AUDIT-20260702-s2-fitz-lock
+
+---
+
+# PERF-20260702-lite-foxit-smoothness
+
+Date: 2026-07-02 · Area: perf (lite)
+
+Foxit-grade open smoothness (4 sprints): page-cache LRU, local-first open (paint before upload), worker warm-up + adjacent prefetch, sequential thumb warm. CHH heap 766->628MB; paint ~475ms.
+
+**Commits:**
+- `ae0f168` — perf(lite): LRU eviction for PDFPageProxy page cache (PERF-20260702 companion 1)
+- `3ec9239` — perf(lite): local-first open — first paint no longer waits for upload (PERF-20260702 companion 2)
+- `e0fb856` — perf(lite): pdf.js worker warm-up at idle + adjacent-page prefetch (PERF-20260702 companions 3-4)
+- `a0c1152` — perf(lite): sequential thumbnail warm after upload (PERF-20260702 companion 6)
+
+**Files touched:** `lite/static/js/page-renderer.js`, `lite/tests/test_local_open.py`, `lite/tests/test_pagecache_lru.py`, `lite/tests/test_thumb_warm.py`, `lite/tests/test_warm_prefetch.py`, `lite/ui-lite.html`
+
+**Closes:** —
+
+**Docs:** artifacts/perf/probe_results_20260702.txt
+
+---
+
+# AUDIT-20260702-infra-bundle
+
+Date: 2026-07-02 · Area: test-infra + server (lite)
+
+Test-runner + preflight (run_all_tests.py, disk/dep checks) and export payload caps + first real HTTP tests of /export-xlsx and /export-pdf-overlay (400 on oversize, latent-500 fix).
+
+**Commits:**
+- `9c4c36e` — feat(lite-tests): all-tests runner + free-space preflight (AUDIT-20260702-runner-preflight)
+- `60d424a` — feat(lite-server): export payload caps + real export endpoint tests (AUDIT-20260702-export-caps)
+
+**Files touched:** `lite/server_lite.py`, `lite/tests/run_all_tests.py`, `lite/tests/test_export_endpoints.py`
+
+**Closes:** AUDIT-20260702-runner-preflight, AUDIT-20260702-export-caps
+
+---
+
+# BUG-20260702-lite-pagerot-registration
+
+Date: 2026-07-02 · Area: measure-geometry / render (lite)
+
+Manual page rotate now registers geometry with the rotated raster + export: getRot reads pageRot, ptToScreen/screenToPt route through vendored pdfToC/cToPdf (net 0 lines), server prerotates overlay.
+
+**Commits:**
+- `9f4b298` — fix(BUG-20260702-lite-pagerot-registration): geometry now registers with rotated raster
+
+**Files touched:** `lite/server_lite.py`, `lite/static/js/export-annotate.js`, `lite/tests/test_pagerot_registration.py`, `lite/ui-lite.html`
+
+**Closes:** BUG-20260702-lite-pagerot-registration
+
+**Docs:** lite/tests/bug-archive.jsonl
+
+---
+
+# BUG-20260702-lite-cfss-summary
+
+Date: 2026-07-02 · Area: measure-geometry (lite)
+
+CFSS shared-shape instances now enter every rollup + export no longer crashes: promote captures catId/semanticTag, new rollupAreaM2/rollupCatId helpers rewire 6 rollup + 2 crash sites.
+
+**Commits:**
+- `02e35af` — fix(BUG-20260702-lite-cfss-summary): CFSS instances enter all rollups + export no longer crashes
+
+**Files touched:** `lite/static/js/cross-floor-shapes.js`, `lite/static/js/export-annotate.js`, `lite/static/js/layer-tree.js`, `lite/static/js/overview-setup.js`, `lite/tests/test_summary_cfss_parity.py`, `lite/ui-lite.html`
+
+**Closes:** BUG-20260702-lite-cfss-summary
+
+**Docs:** lite/tests/bug-archive.jsonl
+
+---
+
+# BUG-20260702-lite-arc-summary
+
+Date: 2026-07-02 · Area: measure-geometry (lite)
+
+Arc-edge polygon areas entered all rollups arc-inclusive: swapped 6 rollup sites to polyMetricsAnyShape (labels were arc-correct, summaries silently under-counted).
+
+**Commits:**
+- `e5264e2` — fix(BUG-20260702-lite-arc-summary): arc-edge areas now enter all rollups arc-inclusive
+
+**Files touched:** `lite/static/js/export-annotate.js`, `lite/static/js/layer-tree.js`, `lite/static/js/overview-setup.js`, `lite/tests/test_summary_arc_parity.py`, `lite/ui-lite.html`
+
+**Closes:** BUG-20260702-lite-arc-summary
+
+**Docs:** lite/tests/bug-archive.jsonl
+
+---
+
+<!-- GEN:END -->
+
 
 ---
 

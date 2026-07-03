@@ -4,105 +4,272 @@
 
 ---
 
-# Latest: INV-20260703-layer-linkage (plan B complete) + UX-batch-1 + save-fix follow-up
+<!-- GEN:START gen_status_docs -->
 
-Branch: main
-Date: 2026-07-03
+# Latest: PROC-20260703-v2-u3gen-u5-truth
 
-## Result: PASS (lite tests only — proto NOT TOUCHED)
+Date: 2026-07-03 · Area: process / docs-tooling
 
-## No Proto-Test Rationale
+| Marker | Result |
+|---|---|
+| TRUTH_CHECK_OK | PASS |
 
-Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this block made zero changes to `proto/` source files. Lite-only block (plan-B rollout B0-B5 + UX quick-wins batch 1 + save-fix bug-archive follow-up); no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (`PHASE_CENTERLINE_SNAP_OK` 10/10, last run 2026-05-25, unchanged).
-
-## Commands
-
-```bash
-python lite/tests/test_save_clickpath.py
-python lite/tests/test_ux_quickwins.py
-python lite/tests/test_object_tuples.py
-python lite/tests/test_b1_role_reroute.py
-python lite/tests/test_b2_single_engine.py
-python lite/tests/test_b3_orphan_heal.py
-python lite/tests/test_b4_move_layer.py
-python lite/tests/test_b5_ref_badges.py
-python lite/tests/run_all_tests.py --tier t0
-```
-
-## Lite — Results (8 new guard tests, one per commit, verified independently pre-commit)
-
-| Test | Marker | Result |
-|---|---|---|
-| test_save_clickpath.py | LITE_SAVE_CLICKPATH_OK | PASS (already reported in the prior finalize; carried here for the closed arc's completeness) |
-| test_ux_quickwins.py | (UX batch 1 guard) | PASS — F-7 modalOpen keydown guard, F-1 ⇧D Path hotkey, F-2 F-key/Focus fix, F-3 Page Manager menu entry, cheatsheet corrections all verified |
-| test_object_tuples.py | LITE_OBJECT_TUPLES_OK | PASS (NEW, B0) — single tuple-stream aggregation engine + I11 oracle `assertEnginesAgree` |
-| test_b1_role_reroute.py | (B1 guard) | PASS — report-vars + Summary per-floor gfa/ded/net on tuples via opt-in `{useLive:true}`; default path byte-identical |
-| test_b2_single_engine.py | (B2 guard) | PASS — layer-tree Σ + Review Section-3 rows reduce the same tuple stream; oracle (c) proves `byFloorRole` partitions == `byRole`; M6 root-unfiled layers now counted |
-| test_b3_orphan_heal.py | (B3 guard) | PASS — `reassignObjectsOfLayer` on `removeLayer` + `sweepOrphanCatIds` load-time heal; H3 closed |
-| test_b4_move_layer.py | (B4 guard) | PASS — move-object-to-layer via Properties select + context menu; CFSS master retarget with confirm; H1 closed |
-| test_b5_ref_badges.py | (B5 guard) | PASS — report-vars operand dropdown Σ/▸ optgroups; M4 closed |
-| run_all_tests.py --tier t0 | — | PASS (measure-math tier, <5s target) |
-
-Every commit was independently verified pre-commit with its own targeted suite plus a `t0` measure-parity sweep. Latest verify (B5): `test_b5_ref_badges.py` + `test_report_vars_ui.py` + `test_report_vars_rollup.py` + `test_b1_role_reroute.py` + `run_all_tests.py --tier t0` — all green. `MEASURE_PARITY_OK` verified green at B4 — the natural checkpoint for a block this heavy on layer/aggregation plumbing — confirming `measure-engine.js` vendored math stayed untouched throughout.
-
-## Plan-B closure — what each finding's guard proves
-
-- **H1 (no move-between-layers UI):** `test_b4_move_layer.py` exercises the Properties-select and context-menu move paths, incl. CFSS master retarget-with-confirm.
-- **H2 (dual aggregation engines can disagree):** `test_object_tuples.py`'s I11 oracle + `test_b2_single_engine.py`'s partition-equality check (c) prove structurally, not just empirically, that Summary and Review cannot disagree once both reduce the same tuple stream.
-- **H3 (orphaned catId silently drops objects / crashes):** `test_b3_orphan_heal.py` exercises both the `removeLayer` reassignment path and the load-time `sweepOrphanCatIds` heal.
-- **M4 (Σ vs ▸ refs visually indistinguishable):** `test_b5_ref_badges.py`.
-- **M6 (root-unfiled layers uncounted):** covered by `test_b2_single_engine.py`.
-
-## In-progress work not covered by this test result
-
-UX quick-wins batch 2 (F-4/F-5/F-6/F-9 + seeded-vars red-error display + wizard Next-button gate) is in progress at the time of this write and will get its own `TEST_RESULT.md` update when it lands.
-
-## Reference Baseline (proto, unchanged this block)
-
-```
-python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
-```
+Closes: V2-U3-generator, V2-U5
 
 ---
 
-# Previous: UX-REVIEW-20260703 + BUG-20260703-lite-save-wipes-data — CRASH fix (Ctrl+S wiped all data) + full UI/UX journey review + layer↔measurement invent checkpoint
+# Previous: PROC-20260703-v2-u3ledger-u4-roadmap
 
-Branch: main
-Date: 2026-07-03
+Date: 2026-07-03 · Area: process / docs-tooling
 
-## Result: PASS (lite tests only — proto NOT TOUCHED)
+_No guard markers — docs / process / research ship (no dedicated marker)._
 
-## No Proto-Test Rationale
+Closes: V2-U3-ledger, V2-U4
 
-Per AGENTS.md §1: proto `py_compile + smoke + full` not re-run because this block made zero changes to `proto/` source files. Lite-only block (save-wipe CRASH fix + UX review + invent checkpoint); no forbidden-trigger surface touched in proto. Reference baseline: proto full E2E = 22 _OK markers (`PHASE_CENTERLINE_SNAP_OK` 10/10, last run 2026-05-25, unchanged).
+---
 
-## Commands
+# SLICE-20260703-report-edit-default-grid
 
-```bash
-python lite/tests/test_save_clickpath.py
-```
+Date: 2026-07-03 · Area: report / ui (lite)
 
-## Lite — Results (1 new guard test + 17-file targeted regression, all exit 0)
+_lite-only, proto untouched._
 
-| Test | Marker | Result |
-|---|---|---|
-| test_save_clickpath.py | LITE_SAVE_CLICKPATH_OK (NEW) | PASS (4 checks: real `mi-save` click driven via `URL.createObjectURL` interception, polys/calib survive save, duplicate-page content follows identity not position, Apply/merge commit-order also verified. RED pre-fix = exact journey repro: polys 0, calib null) |
+| Marker | Result |
+|---|---|
+| LITE_REPORT_DEFAULT_GRID_OK | PASS |
 
-Regression: 17/17 targeted at-risk files green — metamorphic suite, page-manager suite, apply-mutations suite, all persist suites, arc-summary parity, CFSS-summary parity, `MEASURE_PARITY_OK` (drift-lock intact — confirms `measure-engine.js` vendored math untouched). The UX review (`UX-20260703-review-findings`) and the layer-linkage invent checkpoint (`INV-20260703-layer-linkage`) are findings-filing / research work, not app-code changes, and carry no dedicated test marker — covered by the same regression context rather than a standalone guard.
+Closes: NEXT_ACTIONS-item-8
 
-## Save-wipe CRASH — the click-path-vs-API-path gap
+---
 
-72 previously-green tests missed this CRASH-tier bug because every existing save test called `buildPageStore()` directly (the API/serialization path) rather than driving the real `mi-save` button click a user actually triggers. `test_save_clickpath.py` closes that specific gap by intercepting `URL.createObjectURL` to capture the blob the real click handler produces. This is recorded here as a testing-methodology lesson, not yet promoted into `lite/tests/INVARIANTS.md` (that file was explicitly out of scope for this docs-batching write while two `lite-builder` subagents are actively editing `lite/`).
+# PERF-20260703-worker-recycle-chh-probe
 
-## In-progress work not covered by this test result
+Date: 2026-07-03 · Area: perf-probe / docs
 
-B0 (tuple-stream aggregation engine + new `I11` invariant oracle) and UX quick-wins batch 1 (F-7/F-1/F-2/F-3 + cheatsheet accuracy pass) are being built right now by two `lite-builder` subagents in parallel. No test results are recorded for either here — they are unshipped as of this write and will get their own `TEST_RESULT.md` update when they land.
+_No guard markers — docs / process / research ship (no dedicated marker)._
 
-## Reference Baseline (proto, unchanged this block)
+Closes: —
 
-```
-python3.11 proto/e2e_ui_test.py full → PASS 22 markers (PHASE_CENTERLINE_SNAP_OK 10/10), last run 2026-05-25.
-```
+---
+
+# BUG-20260703-lite-cfss-undo-masters
+
+Date: 2026-07-03 · Area: measure / undo (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_UNDO_MASTERS_OK | PASS |
+
+Closes: BUG-20260703-lite-cfss-undo-masters
+
+---
+
+# UX-20260703-quickwins-batch2
+
+Date: 2026-07-03 · Area: ui (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_UX_BATCH2_OK | PASS |
+
+Closes: F-4, F-5, F-6, F-9
+
+---
+
+# INV-20260703-layer-linkage
+
+Date: 2026-07-03 · Area: measure+layer (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_OBJECT_TUPLES_OK | PASS |
+| LITE_B1_ROLE_REROUTE_OK | PASS |
+| LITE_B2_SINGLE_ENGINE_OK | PASS |
+| LITE_B3_ORPHAN_HEAL_OK | PASS |
+| LITE_B4_MOVE_LAYER_OK | PASS |
+| LITE_B5_REF_BADGES_OK | PASS |
+
+Closes: H1, H2, H3, M4, M6
+
+---
+
+# UX-20260703-quickwins-batch1
+
+Date: 2026-07-03 · Area: ui (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_UX_QUICKWINS_OK | PASS |
+
+Closes: F-1, F-2, F-3, F-7
+
+---
+
+# BUG-20260703-lite-save-wipes-data
+
+Date: 2026-07-03 · Area: save/load (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_SAVE_CLICKPATH_OK | PASS |
+
+Closes: BUG-20260703-lite-save-wipes-data
+
+---
+
+# GO-20260703-invariants-streaming-worker-recycle
+
+Date: 2026-07-03 · Area: test-infra + perf (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_WORKER_RECYCLE_OK | PASS |
+
+Closes: —
+
+---
+
+# DOCS-20260702-dev-pillars-blueprint
+
+Date: 2026-07-02 · Area: process / docs
+
+_No guard markers — docs / process / research ship (no dedicated marker)._
+
+Closes: —
+
+---
+
+# ACC-20260703-verify-scale-port
+
+Date: 2026-07-03 · Area: measure-ux / accuracy (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_VERIFY_SCALE_OK | PASS |
+
+Closes: ACC-20260703-verify-scale-port
+
+---
+
+# AUDIT-20260702-render-followups
+
+Date: 2026-07-03 · Area: render + test-infra (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_RENDER_FB_SCAN_OK | PASS |
+| LITE_OVERLAY_REG_OK | PASS |
+
+Closes: AUDIT-20260702-render-followups
+
+---
+
+# AUDIT-20260702-s2-fitz-lock
+
+Date: 2026-07-02 · Area: server perf (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_CASE_LOCK_OK | PASS |
+
+Closes: AUDIT-20260702-s2-fitz-lock
+
+---
+
+# PERF-20260702-lite-foxit-smoothness
+
+Date: 2026-07-02 · Area: perf (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_PAGECACHE_LRU_OK | PASS |
+| LITE_LOCAL_OPEN_OK | PASS |
+| LITE_WARM_PREFETCH_OK | PASS |
+| LITE_THUMB_WARM_OK | PASS |
+
+Closes: —
+
+---
+
+# AUDIT-20260702-infra-bundle
+
+Date: 2026-07-02 · Area: test-infra + server (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_RUN_ALL_OK | PASS |
+| LITE_EXPORT_ENDPOINTS_OK | PASS |
+
+Closes: AUDIT-20260702-runner-preflight, AUDIT-20260702-export-caps
+
+---
+
+# BUG-20260702-lite-pagerot-registration
+
+Date: 2026-07-02 · Area: measure-geometry / render (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_PAGEROT_REG_OK | PASS |
+
+Closes: BUG-20260702-lite-pagerot-registration
+
+---
+
+# BUG-20260702-lite-cfss-summary
+
+Date: 2026-07-02 · Area: measure-geometry (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_SUMMARY_CFSS_OK | PASS |
+
+Closes: BUG-20260702-lite-cfss-summary
+
+---
+
+# BUG-20260702-lite-arc-summary
+
+Date: 2026-07-02 · Area: measure-geometry (lite)
+
+_lite-only, proto untouched._
+
+| Marker | Result |
+|---|---|
+| LITE_SUMMARY_ARC_OK | PASS |
+
+Closes: BUG-20260702-lite-arc-summary
+
+---
+
+<!-- GEN:END -->
+
 
 ---
 
