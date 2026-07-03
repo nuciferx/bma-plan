@@ -8,7 +8,7 @@ Date: 2026-07-03 (updated: INV-20260703-layer-linkage plan B COMPLETE + UX-batch
 
 - **(1) ~~UX quick-wins batch 2~~ — SHIPPED `036a49d` 2026-07-03** — F-4 HUD "✓✓ ยืนยันแล้ว" badge, F-5 mousedown block-hint, F-6 `gateNoCaseMsg()` upload-in-flight message at all gate sites, F-9 verify-scale in-app modal (no more `window.prompt`), seeded-vars render as dim "รอข้อมูล" via render-time `classifyReportVarErr` (genuine errors stay red), wizard Next gated at 0 tagged pages. Guard `test_ux_batch2.py` (`LITE_UX_BATCH2_OK`, 5 checks; F-5 manual repro documented). Remaining from `UX-20260703-review-findings`: F-8 error+next-step, export-entry redundancy, COSMETIC set — low queue. Also flagged: `overview-setup.js` now 1059 lines (pre-existing over-cap 1043 → +16) — extraction follow-up candidate.
 
-- **(2) B4 CFSS-undo follow-up** — CFSS-master-only layer moves (shipped in B4's new `layer-move.js`) are not currently undoable — a pre-existing `_docSnap` coverage gap that B4's UI simply made reachable for the first time, not a new regression. Candidate follow-up sprint.
+- **(2) ~~B4 CFSS-undo follow-up~~ — SHIPPED `81c4325` 2026-07-03** — undo/redo now covers `window.MASTERS`: additive `masters` key in `_docSnap` via new `CFSS.snapshotMasters()`/`restoreMasters()` (old snapshots without the key restore gracefully), `pushUndo` added in `cfssCommitPromote`/`cfssCommitEdit`. Guard `test_undo_masters.py` (`LITE_UNDO_MASTERS_OK`, 5 checks incl. redo + old-snapshot grace) proven RED pre-fix via git stash. bug-archive entry `BUG-20260703-lite-cfss-undo-masters` filed.
 
 - **(3) Workflow-redesign proposal** — awaiting user GO; separate from the `INV-20260703-layer-linkage` arc that just closed.
 
