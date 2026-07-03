@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPIKE mockup — layer.floorKey draw-target chip</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a21; --line:#2a3140; --muted:#8b97a8; --text:#e6edf3;
+    --gfa:#4c8dff; --ded:#ff6b6b; --site:#c084fc; --use:#39d98a; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+  .wrap{display:grid;grid-template-columns:1fr 300px;height:100vh}
+
+  /* ---- canvas stage ---- */
+  .stage{position:relative;overflow:hidden;background:
+     repeating-linear-gradient(0deg,#12151b 0 39px,#171b23 39px 40px),
+     repeating-linear-gradient(90deg,#12151b 0 39px,#171b23 39px 40px);}
+  .sheet-label{position:absolute;top:12px;left:14px;background:rgba(15,17,21,.8);border:1px solid var(--line);
+     border-radius:6px;padding:4px 10px;color:var(--muted);font-size:12px}
+  /* active-layer edge tint — colored inner glow around the canvas */
+  .edgetint{position:absolute;inset:0;pointer-events:none;border:3px solid transparent;
+     box-shadow:inset 0 0 0 3px var(--active,transparent), inset 0 0 34px -6px var(--active,transparent);
+     transition:box-shadow .18s ease}
+
+  /* ---- persistent draw-target chip (bottom-left, above HUD) ---- */
+  .drawchip{position:absolute;left:14px;bottom:52px;display:flex;align-items:center;gap:8px;
+     background:#0b0d11;border:1px solid var(--active,#4c8dff);border-radius:999px;padding:7px 14px 7px 12px;
+     box-shadow:0 6px 20px -8px #000;font-weight:600;letter-spacing:.2px}
+  .drawchip .dot{width:11px;height:11px;border-radius:50%;background:var(--active,#4c8dff);box-shadow:0 0 8px var(--active)}
+  .drawchip .sub{color:var(--muted);font-weight:400;font-size:11px}
+  /* fake HUD line so the chip visibly sits ABOVE it */
+  .hud{position:absolute;left:0;right:0;bottom:0;height:34px;border-top:1px solid var(--line);
+     background:#0b0d11;display:flex;align-items:center;gap:16px;padding:0 14px;color:var(--muted);font-size:11px}
+
+  /* ---- reconcile banner ---- */
+  .banner{position:absolute;left:50%;top:16px;transform:translateX(-50%);max-width:640px;width:calc(100% - 60px);
+     background:#2a2113;border:1px solid var(--warn);border-radius:8px;padding:10px 12px;display:none;gap:10px;
+     align-items:center;box-shadow:0 8px 24px -10px #000}
+  .banner.show{display:flex}
+  .banner .ic{font-size:16px}
+  .banner .msg{flex:1;font-size:12px;color:#ffe4bd}
+  .banner b{color:#fff}
+  .banner button{border:1px solid var(--line);background:#161a21;color:var(--text);border-radius:6px;
+     padding:5px 10px;cursor:pointer;font-size:12px}
+  .banner button:hover{border-color:var(--warn)}
+  .banner button.prim{background:var(--warn);color:#221a0a;border-color:var(--warn);font-weight:600}
+
+  /* ---- right layer panel ---- */
+  .panel{background:var(--panel);border-left:1px solid var(--line);overflow:auto}
+  .panel h4{margin:0;padding:11px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);
+     text-transform:uppercase;letter-spacing:.6px}
+  .folder{padding:7px 10px;color:var(--muted);font-size:12px;border-bottom:1px solid #1e2430;background:#12151b}
+  .row{display:flex;align-items:center;gap:8px;padding:7px 10px 7px 22px;border-bottom:1px solid #1a1f28;cursor:pointer}
+  .row:hover{background:#1a2029}
+  .row.active{background:#182233}
+  .sw{width:12px;height:12px;border-radius:3px;flex:none}
+  .nm{flex:1}
+  .fk{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .fk.pin{color:#ffd9a3;border-color:#5a4620}
+  /* make-current button */
+  .mkc{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;
+     font-size:11px;color:var(--muted);flex:none}
+  .row.active .mkc{border-color:var(--active);color:var(--active)}
+  .mkc.on{background:var(--active);color:#07101e;border-color:var(--active)}
+  .hint{padding:10px 12px;color:var(--muted);font-size:11px;line-height:1.6;border-top:1px dashed var(--line)}
+  .hint code{color:#9cd4ff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="edgetint" id="edge"></div>
+    <div class="sheet-label" id="sheetLbl">หน้า 3 · แท็ก: ชั้น 1</div>
+
+    <div class="banner" id="banner">
+      <span class="ic">⚠️</span>
+      <span class="msg" id="bannerMsg"></span>
+      <button class="prim" id="byLayer">ตามเลเยอร์</button>
+      <button id="byPage">ตามหน้า</button>
+    </div>
+
+    <div class="drawchip" id="chip">
+      <span class="dot"></span>
+      <span>วาดที่: <span id="chipFloor">ชั้น 1</span></span>
+      <span class="sub" id="chipLayer">· GFA ชั้น 1</span>
+    </div>
+
+    <div class="hud">
+      <span>Tool: Polygon</span><span>Scale: 1:100</span><span>Objects: 3</span><span id="hudLayer">Layer: GFA ชั้น 1</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h4>เลเยอร์ (หน้า 3 · ชั้น 1)</h4>
+    <div class="folder">📂 🏢 ชั้น 1 (p3)</div>
+    <div id="rows"></div>
+    <div class="hint">
+      <b>◉</b> = ปุ่ม “ตั้งเป็นเลเยอร์ที่กำลังวาด”. ป้าย <span class="fk">ชั้น N</span> = layer.floorKey.
+      ป้ายสีส้ม <span class="fk pin">ชั้น 2</span> = ปักไว้คนละชั้นกับหน้า → เกิด reconcile banner.<br>
+      โมเดล: <code>floorKeyOfObject = layer.floorKey ?? floorKeyOfPage(pg)</code>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---- mock layer model (mirrors the spike's data shape) ---- */
+var COLORS={gfa:'#4c8dff',ded:'#ff6b6b',use:'#39d98a',site:'#c084fc'};
+var LAYERS=[
+  {id:'gfa',  name:'GFA ชั้น 1',   role:'gfa', floorKey:null},        // follows page
+  {id:'L1',   name:'พื้นที่โถงลอย',role:'gfa', floorKey:'floor:2'},   // PINNED floor 2 (mezz on floor-1 sheet)
+  {id:'ded',  name:'หักช่องลิฟต์', role:'ded', floorKey:null},
+  {id:'L2',   name:'ระเบียงยื่น',  role:'gfa', floorKey:'floor:1'}    // pinned == page → consistent, no banner
+];
+var PAGE_FLOOR='floor:1';   // page 3 is tagged floor 1
+var active='gfa';
+
+function floorLabel(fk){ if(!fk) return null; var p=String(fk).split(':'); return p[0]==='floor'?('ชั้น '+p[1]):fk; }
+function effFloor(l){ return l.floorKey || PAGE_FLOOR; }  // layer.floorKey ?? page
+
+function render(){
+  var rows=document.getElementById('rows'); rows.innerHTML='';
+  LAYERS.forEach(function(l){
+    var r=document.createElement('div'); r.className='row'+(l.id===active?' active':'');
+    r.style.setProperty('--active',COLORS[l.role]);
+    var sw='<span class="sw" style="background:'+COLORS[l.role]+'"></span>';
+    var pinned = l.floorKey && l.floorKey!==PAGE_FLOOR;
+    var fk = l.floorKey ? '<span class="fk'+(pinned?' pin':'')+'">'+floorLabel(l.floorKey)+'</span>'
+                        : '<span class="fk">↳ ตามหน้า</span>';
+    var mk='<span class="mkc'+(l.id===active?' on':'')+'" title="ตั้งเป็นเลเยอร์ที่กำลังวาด">◉</span>';
+    r.innerHTML=sw+'<span class="nm">'+l.name+'</span>'+fk+mk;
+    r.addEventListener('click',function(){ setActive(l.id); });
+    rows.appendChild(r);
+  });
+  var al=LAYERS.filter(function(x){return x.id===active;})[0];
+  var col=COLORS[al.role];
+  document.documentElement.style.setProperty('--active',col);
+  document.getElementById('edge').style.setProperty('--active',col);
+  document.getElementById('chip').style.setProperty('--active',col);
+  document.getElementById('chipFloor').textContent=floorLabel(effFloor(al));
+  document.getElementById('chipLayer').textContent='· '+al.name;
+  document.getElementById('hudLayer').textContent='Layer: '+al.name;
+  // reconcile banner shows iff active layer is pinned to a different floor than the page
+  var pinned = al.floorKey && al.floorKey!==PAGE_FLOOR;
+  var b=document.getElementById('banner');
+  if(pinned){
+    document.getElementById('bannerMsg').innerHTML=
+      'เลเยอร์ <b>'+al.name+'</b> ปักไว้ <b>'+floorLabel(al.floorKey)+
+      '</b> แต่หน้านี้ถูกแท็กเป็น <b>'+floorLabel(PAGE_FLOOR)+'</b> — จะให้นับพื้นที่ตามอะไร?';
+    b.classList.add('show');
+  } else b.classList.remove('show');
+}
+function setActive(id){ active=id; render(); }
+
+document.getElementById('byLayer').addEventListener('click',function(){
+  // keep the pin — object stays on layer.floorKey (no data move)
+  document.getElementById('banner').classList.remove('show');
+});
+document.getElementById('byPage').addEventListener('click',function(){
+  // clear the pin — layer now follows the page tag
+  var al=LAYERS.filter(function(x){return x.id===active;})[0]; al.floorKey=null; render();
+});
+render();
+</script>
+</body>
+</html>
