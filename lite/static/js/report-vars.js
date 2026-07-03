@@ -9,7 +9,10 @@
      seedReportVars()             — idempotent: populate 3 presets if empty
      evalReportExpr(expr,computed)→ {v:Number|null, err:String|null}
      resolveReportRef(id,agg,computed) → Number|null
-     computeReportVars(agg)       → [{id,name,unit,expr,value,err}]
+     computeReportVars(agg,opts)  → [{id,name,unit,expr,value,err}]
+                                     opts.useLive:true (B1) sources role
+                                     totals from ObjectAgg.byRole() instead
+                                     of agg; default false = legacy/pure.
      addReportVar(name)           → new entry (pushed into REPORT_VARS)
      removeReportVar(id)          → bool
      serializeReportVars()        → deep-plain copy [{id,name,unit,expr}]
@@ -133,16 +136,38 @@ function rollupAggByRole(agg) {
 
 /* --- Compute all REPORT_VARS in order ---
    agg = {catId: number}  (from computeSummary)
+   opts.useLive (default false, B1 / INV-20260703-layer-linkage): when true
+     AND window.ObjectAgg exists (typeof-guard), role totals (gfa/ded/site/
+     open/...) are sourced from ObjectAgg.byRole() — the live object-tuple
+     stream, which correctly skips excluded[] pages — instead of being
+     re-derived from agg's own catId keys via rollupAggByRole(). Layer/catId
+     keys from the passed agg are preserved so a var referencing one
+     specific layer id (not just its role) still resolves. useLive is
+     OPT-IN and defaults to false so this stays a pure function of `agg`
+     with no window/PS coupling for the legacy path — required by
+     test_report_vars*.py, which pass synthetic agg values and expect
+     deterministic fold-eval regardless of any live page state. Production
+     call sites (openSum, per-floor block, buildReportPayload) pass
+     {useLive:true} explicitly.
    Returns [{id,name,unit,expr,value,err}].
    Later vars may reference earlier ones (chain). */
-function computeReportVars(agg) {
+function computeReportVars(agg, opts) {
   agg = agg || {};
-  agg = rollupAggByRole(agg);
+  var rolled;
+  if (opts && opts.useLive && typeof window !== "undefined" && window.ObjectAgg &&
+      typeof window.ObjectAgg.byRole === "function") {
+    rolled = {};
+    for (var k in agg) if (agg.hasOwnProperty(k)) rolled[k] = agg[k];
+    var tupleRoles = window.ObjectAgg.byRole();
+    for (var role in tupleRoles) if (tupleRoles.hasOwnProperty(role)) rolled[role] = tupleRoles[role].area;
+  } else {
+    rolled = rollupAggByRole(agg);
+  }
   var computed = {};
   var results = [];
   for (var i = 0; i < REPORT_VARS.length; i++) {
     var vv = REPORT_VARS[i];
-    var r = evalReportExpr(vv.expr, computed, agg);
+    var r = evalReportExpr(vv.expr, computed, rolled);
     if (r.err === null) computed[vv.id] = r.v;
     results.push({
       id:    vv.id,
@@ -318,13 +343,15 @@ function _rvOperandWidget(vIdx, tIdx, t, host, agg) {
   return wrap;
 }
 
-/* Main public renderer. Clears host and rebuilds from REPORT_VARS + agg. */
-function renderReportVarsEditor(host, agg) {
+/* Main public renderer. Clears host and rebuilds from REPORT_VARS + agg.
+   opts (B1, optional) forwarded to computeReportVars — {useLive:true} routes
+   role totals through ObjectAgg.byRole() (see computeReportVars doc). */
+function renderReportVarsEditor(host, agg, opts) {
   _injectRvStyle();
   agg = agg || {};
 
   /* compute values for display */
-  var results = computeReportVars(agg);
+  var results = computeReportVars(agg, opts);
   /* build id→result map */
   var resMap = {};
   for (var ri = 0; ri < results.length; ri++) resMap[results[ri].id] = results[ri];

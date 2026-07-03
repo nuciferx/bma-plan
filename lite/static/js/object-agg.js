@@ -16,16 +16,36 @@
    PURPOSE: a single flat tuple stream {pg, catId, role, floorKey, area,
    counting, count} from which every existing rollup (byRole, byFloor,
    per-folder totals, ...) can in principle be derived by a plain group-sum.
-   NOTHING is rerouted to this stream yet (that is slice B1/B2). This file
-   only builds the stream + a parity oracle (assertEnginesAgree) proving it
-   agrees with the existing computeSummary()/rollupAggByRole() engine BEFORE
-   any consumer is touched. This is invariant I11 groundwork.
+   This file builds the stream + a parity oracle (assertEnginesAgree) proving
+   it agrees with the existing computeSummary()/rollupAggByRole() engine.
+   This is invariant I11 groundwork.
 
    Never edits measure-engine.js / polyAreaM2 / polyMetrics / pdfToC / cToPdf.
 
+   --- slice B1 (INV-20260703-layer-linkage) ---
+   Rerouted consumers: report-vars.js computeReportVars(agg, {useLive:true})
+   and ui-lite.html openSum()'s new per-floor block now source role totals
+   from byRole()/byFloorRole() instead of the legacy computeSummary()-derived
+   agg. useLive is OPT-IN (default false / legacy path) specifically so the
+   pure-function contract pinned by test_report_vars*.py — arbitrary
+   synthetic agg in, deterministic fold-eval out, no window/PS coupling —
+   stays intact; only the real production call sites (openSum, per-floor
+   block, buildReportPayload's reportVars) pass {useLive:true}.
+
+   DECISION on the B0-flagged excluded-page asymmetry: tuple engine
+   (objectTuples) skips excluded[] pages; computeSummary() does not. B1
+   resolves this for the tuple-sourced consumers ONLY — report vars and the
+   per-floor block now correctly exclude excluded-page objects (new, more
+   correct semantics). computeSummary()'s own cur/all totals rendered in the
+   openSum() category table are LEFT UNCHANGED (still include excluded
+   pages) — unifying that is B2 scope, not B1.
+
+   floorReportRows()/floorKeyLabel() are rendering-agnostic: they return
+   plain row data + Thai labels; ui-lite.html maps rows -> HTML.
+
    Public API: window.ObjectAgg = {
      floorKeyOfPage, objectTuples, aggTuples, byRole, byFloor, byFloorRole,
-     assertEnginesAgree
+     floorKeyLabel, floorReportRows, assertEnginesAgree
    }
    ============================================================ */
 
@@ -123,6 +143,47 @@ function byFloorRole(tuples) {
   return out;
 }
 
+/* floorKey -> readable Thai label. Mirrors overview-setup.js's
+   _lovsFloorLabel() wording (ชั้น N / ใต้ดิน N / ดาดฟ้า) but works from a
+   floorKey string (no specific page number needed) so it can label an
+   aggregated per-floor row group. "" / unrecognized -> "" (caller skips). */
+function floorKeyLabel(fk) {
+  if (fk === "site") return "ผังบริเวณ";
+  if (fk === "roof") return "ดาดฟ้า";
+  if (!fk) return "";
+  var parts = String(fk).split(":"), kind = parts[0], num = parts[1];
+  if (kind === "basement") return "ใต้ดิน " + num;
+  if (kind === "mezz")     return "ชั้นลอย " + num;
+  if (kind === "mech")     return "ห้องเครื่อง " + num;
+  if (kind === "floor")    return "ชั้น " + num;
+  return fk;
+}
+var _FLOOR_KIND_RANK = {basement: 0, floor: 1, mezz: 2, mech: 3};
+
+/* Rendering-agnostic per-floor gfa/ded/net row data (B1). Skips the ""
+   bucket (untagged/non-floor pages) and floors with no gfa/ded area at all.
+   Uses tuple semantics (objectTuples() default arg) -> excluded[] pages are
+   OUT, resolving the B0-flagged asymmetry for this consumer (see header).
+   Returns [{floorKey, label, gfa, ded, net}], sorted basement->floor->mezz
+   ->mech (ascending num within each kind); site/roof/unrecognized last. */
+function floorReportRows(tuples) {
+  var bfr = byFloorRole(tuples), out = [];
+  Object.keys(bfr).forEach(function(fk) {
+    if (!fk) return;
+    var gfa = (bfr[fk].gfa && bfr[fk].gfa.area) || 0;
+    var ded = (bfr[fk].ded && bfr[fk].ded.area) || 0;
+    if (!gfa && !ded) return;
+    out.push({floorKey: fk, label: floorKeyLabel(fk), gfa: gfa, ded: ded, net: gfa - ded});
+  });
+  out.sort(function(a, b) {
+    var pa = a.floorKey.split(":"), pb = b.floorKey.split(":");
+    var ra = (pa[0] in _FLOOR_KIND_RANK) ? _FLOOR_KIND_RANK[pa[0]] : 9;
+    var rb = (pb[0] in _FLOOR_KIND_RANK) ? _FLOOR_KIND_RANK[pb[0]] : 9;
+    return ra !== rb ? ra - rb : (parseFloat(pa[1]) || 0) - (parseFloat(pb[1]) || 0);
+  });
+  return out;
+}
+
 /* TEST ORACLE (invariant I11 groundwork) — never throws, never alerts.
    Compares (a) byRole() role totals vs rollupAggByRole(computeSummary().all)
    role totals, and (b) sum of all tuple areas vs sum of computeSummary().all
@@ -171,6 +232,8 @@ var _ObjectAgg = {
   byRole: byRole,
   byFloor: byFloor,
   byFloorRole: byFloorRole,
+  floorKeyLabel: floorKeyLabel,
+  floorReportRows: floorReportRows,
   assertEnginesAgree: assertEnginesAgree
 };
 if (typeof window !== "undefined") window.ObjectAgg = _ObjectAgg;

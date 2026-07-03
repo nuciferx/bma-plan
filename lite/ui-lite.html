@@ -1077,13 +1077,15 @@ function openSum(){ if(!caseId)return; var s=computeSummary();
   var floorBlock='<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">'+
     '<div style="font-size:12px;color:var(--muted);margin-bottom:5px">กำหนดประเภท/ชั้น — หน้า '+curPage+nm+'</div>'+
     '<div id="sum-floor" class="floorctl">'+floorOptsHTML(curPage)+'</div></div>';
-  document.getElementById("sum-body").innerHTML=floorBlock+
+  /* B1 (INV-20260703-layer-linkage): per-floor gfa/ded/net block, tuple semantics (excludes excluded[] pages) — rows data from object-agg.js, HTML mapping here */
+  var frows=(typeof floorReportRows==="function")?floorReportRows():[]; var perFloorBlock=frows.length?('<div style="margin-bottom:14px"><div style="font-size:12px;color:var(--muted);margin-bottom:5px">สรุปตามชั้น (ไม่รวมหน้ายกเว้น)</div><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="color:var(--muted);font-size:11px"><th style="text-align:left">ชั้น</th><th style="text-align:right">GFA</th><th style="text-align:right">หัก</th><th style="text-align:right">สุทธิ</th></tr></thead><tbody>'+frows.map(function(r){return '<tr><td>'+r.label+'</td><td style="text-align:right">'+fmt(r.gfa)+'</td><td style="text-align:right">'+fmt(r.ded)+'</td><td style="text-align:right">'+fmt(r.net)+'</td></tr>';}).join('')+'</tbody></table></div>'):'';
+  document.getElementById("sum-body").innerHTML=floorBlock+perFloorBlock+
     '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:var(--muted);font-size:11px">'+
     '<th style="text-align:left;padding-bottom:6px">ประเภท</th><th style="text-align:right">หน้า '+curPage+' (ตร.ม.)</th><th style="text-align:right">ทุกหน้า (ตร.ม.)</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>'+
     '<div id="rv-host"></div>'+
     '<div style="margin-top:10px;font-size:11px;color:var(--muted)">'+s.pagesWith+' หน้ามีข้อมูล · พื้นที่คำนวณจาก polyAreaM2 (vendored) ตามสเกลของแต่ละหน้า</div>';
-  renderReportVarsEditor(document.getElementById("rv-host"), agg);
+  renderReportVarsEditor(document.getElementById("rv-host"), agg, {useLive:true});
   document.getElementById("sum").classList.add("show"); }
 document.getElementById("btn-sum").onclick=openSum;
 function closeOverlays(){document.querySelectorAll(".overlay").forEach(function(o){o.classList.remove("show");});}

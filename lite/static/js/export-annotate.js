@@ -84,7 +84,7 @@ function buildReportPayload(){
       overlays:overlays,groups:groups,net:+net.toFixed(2)});
   });
   var _s=computeSummary(); var _agg={}; Object.keys(_s.all).forEach(function(k){_agg[k]=_s.all[k];}); Object.keys(_s.allCnt).forEach(function(k){_agg[k]=_s.allCnt[k];});
-  var _rv=computeReportVars(_agg).map(function(v){return {name:v.name,unit:v.unit,value:v.value,err:v.err};});
+  var _rv=computeReportVars(_agg,{useLive:true}).map(function(v){return {name:v.name,unit:v.unit,value:v.value,err:v.err};});  /* B1: tuple-semantics role totals (excludes excluded[] pages) */
   return {project:projectInfo.name||"",date:new Date().toLocaleDateString("th-TH"),generated:Date.now(),pages:pages,reportVars:_rv};
 }
 function openReport(){
