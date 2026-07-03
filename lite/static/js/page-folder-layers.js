@@ -224,9 +224,21 @@ function _rankPFFolder(folderId) {
    PF_excluded   → none */
 function _seedBaseLayers(folder) {
   var ids = [];
+  /* INV-20260703-layer-floorkey: pin each seeded layer to the SAME floorKey
+     string its floor folder maps to (floor:N / basement:N / mezz:N / mech:N /
+     site / roof), derived via ObjectAgg.floorKeyOfPageFolderId so it stays in
+     parity with floorKeyOfPage(). For a correctly-tagged page this is a no-op
+     (layer override == page floor); the pin only bites when the drawing later
+     lands on a different-floor page (the P1/P2 cases). object-agg.js is a
+     static <script> loaded before this runs at seed time; if unavailable
+     (defensive) fk stays "" and the layer falls back to the page tag. */
+  var fk = (typeof window !== "undefined" && window.ObjectAgg &&
+            typeof window.ObjectAgg.floorKeyOfPageFolderId === "function")
+    ? window.ObjectAgg.floorKeyOfPageFolderId(folder.id) : "";
   function mk(role, name, color) {
     var l = addLayer(role, name, color);
     l.parentId = folder.id;
+    if (fk) l.floorKey = fk;
     ids.push(l.id);
   }
   var fkind = _pfKindOf(folder.id);

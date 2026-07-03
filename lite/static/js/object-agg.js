@@ -91,6 +91,50 @@ function floorKeyOfPage(pg) {
   }
 }
 
+/* Stable floor-bucket key for a PF_* page-folder id (INV-20260703-layer-
+   floorkey). The inverse of pageFolderIdFor(): reconstructs the SAME
+   floorKey string floorKeyOfPage() produces for a page filed into that
+   folder, so a PF-seeded layer can carry floorKey === its folder's floor
+   and stay in parity with the page-tag path. PF_excluded / unknown -> ""
+   (not a floor bucket). Used at seed time by page-folder-layers.js. */
+function floorKeyOfPageFolderId(fid) {
+  if (!fid) return "";
+  if (fid === "PF_site") return "site";
+  if (fid === "PF_excluded") return "";
+  if (fid === "PF_floor_roof") return "roof";
+  var m;
+  if ((m = /^PF_basement_(.+)$/.exec(fid))) return "basement:" + m[1];
+  if ((m = /^PF_mezz_(.+)$/.exec(fid)))     return "mezz:" + m[1];
+  if ((m = /^PF_mech_(.+)$/.exec(fid)))     return "mech:" + m[1];
+  if ((m = /^PF_floor_(.+)$/.exec(fid)))    return "floor:" + m[1];
+  return "";
+}
+
+/* Per-object floor bucket (INV-20260703-layer-floorkey). Additive override
+   precedence (spike-proven):
+     1. CFSS instance whose master carries a concrete floorKey (!= "multi")
+        -> that master's floorKey pins ALL its instances.
+     2. else the object's layer.floorKey (!= "multi") -> layer override.
+     3. else floorKeyOfPage(pg) -> today's page-tag behaviour (fallback).
+   A layer/master with no floorKey (or "multi") is treated as "absent" so
+   legacy saves are byte-identical (proof 1) and CFSS masters stay
+   per-instance-page (proof 4). byRole()/grand-total never read floorKey,
+   so an override can only REDISTRIBUTE area across floors, never change a
+   role total or the project total. */
+function floorKeyOfObject(o, pg) {
+  if (!o) return floorKeyOfPage(pg);
+  if (o.kind === "instance") {
+    var m = (typeof masterById === "function") ? masterById(o.masterId)
+          : ((typeof window !== "undefined" && window.MASTERS) ? window.MASTERS[o.masterId] : null);
+    if (m && m.floorKey && m.floorKey !== "multi") return m.floorKey;
+  }
+  var catId = (typeof rollupCatId === "function") ? rollupCatId(o) : o.catId;
+  var layer = (typeof layerById === "function") ? layerById(catId) : null;
+  var lfk = layer && layer.floorKey;
+  if (lfk && lfk !== "multi") return lfk;   // additive layer override
+  return floorKeyOfPage(pg);                 // page-tag fallback (today's behaviour)
+}
+
 /* Flatten every measurable object across all non-excluded PS pages into a
    flat tuple stream. Mirrors computeSummary()'s inclusion rules exactly
    (arc + CFSS-instance inclusive area via rollupAreaM2/rollupCatId, skip
@@ -99,7 +143,12 @@ function floorKeyOfPage(pg) {
    NOT skip excluded pages (pre-existing gap, out of scope for B0) — so
    assertEnginesAgree() below is only exact when the fixture has no
    objects on excluded pages; excluded-page skipping is asserted directly
-   against objectTuples()/byRole() instead. */
+   against objectTuples()/byRole() instead.
+
+   ONE SEAM (INV-20260703-layer-floorkey): the floorKey field per tuple now
+   comes from floorKeyOfObject(o, pg) instead of the per-page
+   floorKeyOfPage(pg). With no layer/master floorKey anywhere this is
+   byte-identical (proof 1). */
 function objectTuples() {
   var out = [];
   if (typeof PS === "undefined") return out;
@@ -107,13 +156,12 @@ function objectTuples() {
     var pg = +k;
     if (typeof excluded !== "undefined" && excluded[pg]) return;
     var objs = (PS[k] && PS[k].objects) || [];
-    var floorKey = floorKeyOfPage(pg);
     for (var i = 0; i < objs.length; i++) {
       var o = objs[i];
       if (o.counting) {
         if (o.catId == null) continue;
         var crole = (typeof layerById === "function" && layerById(o.catId)) ? layerById(o.catId).role : null;
-        out.push({pg: pg, catId: o.catId, role: crole, floorKey: floorKey, area: null, counting: true, count: 1});
+        out.push({pg: pg, catId: o.catId, role: crole, floorKey: floorKeyOfObject(o, pg), area: null, counting: true, count: 1});
         continue;
       }
       var catId = (typeof rollupCatId === "function") ? rollupCatId(o) : o.catId;
@@ -121,7 +169,7 @@ function objectTuples() {
         : (o.kind === "poly" && typeof polyMetricsAnyShape === "function" ? polyMetricsAnyShape(o, pg).area : null);
       if (area == null || catId == null) continue;
       var role = (typeof layerById === "function" && layerById(catId)) ? layerById(catId).role : null;
-      out.push({pg: pg, catId: catId, role: role, floorKey: floorKey, area: area, counting: false, count: 0});
+      out.push({pg: pg, catId: catId, role: role, floorKey: floorKeyOfObject(o, pg), area: area, counting: false, count: 0});
     }
   });
   return out;
@@ -264,8 +312,42 @@ function assertEnginesAgree(epsilon) {
   }
 }
 
+/* Divergence detector (INV-20260703-layer-floorkey) — the read-only data
+   feed for B-ui's reconcile banner. Lists, aggregated per (layer, page),
+   objects whose layer.floorKey pins a floor different from the floor their
+   PAGE tag currently designates. Returns rows
+     {layerId, layerFloorKey, pageFloorKey, pg, count}
+   count = number of objects on that layer+page whose bucket the layer
+   override moved off the page floor. "multi"/absent layer.floorKey and
+   non-diverging objects are skipped. NO UI here — pure data. */
+function detectDivergence() {
+  if (typeof PS === "undefined") return [];
+  var rows = {};
+  Object.keys(PS).forEach(function(k) {
+    var pg = +k;
+    if (typeof excluded !== "undefined" && excluded[pg]) return;
+    var objs = (PS[k] && PS[k].objects) || [];
+    for (var i = 0; i < objs.length; i++) {
+      var o = objs[i];
+      var catId = o.counting ? o.catId
+        : ((typeof rollupCatId === "function") ? rollupCatId(o) : o.catId);
+      var layer = (typeof layerById === "function") ? layerById(catId) : null;
+      var lfk = layer && layer.floorKey;
+      if (!lfk || lfk === "multi") continue;
+      var pfk = floorKeyOfPage(pg);
+      if (lfk === pfk) continue;
+      var key = catId + "@" + pg;
+      if (!rows[key]) rows[key] = {layerId: catId, layerFloorKey: lfk, pageFloorKey: pfk, pg: pg, count: 0};
+      rows[key].count++;
+    }
+  });
+  return Object.keys(rows).map(function(kk) { return rows[kk]; });
+}
+
 var _ObjectAgg = {
   floorKeyOfPage: floorKeyOfPage,
+  floorKeyOfPageFolderId: floorKeyOfPageFolderId,
+  floorKeyOfObject: floorKeyOfObject,
   objectTuples: objectTuples,
   aggTuples: aggTuples,
   byRole: byRole,
@@ -273,6 +355,7 @@ var _ObjectAgg = {
   byFloorRole: byFloorRole,
   floorKeyLabel: floorKeyLabel,
   floorReportRows: floorReportRows,
+  detectDivergence: detectDivergence,
   assertEnginesAgree: assertEnginesAgree
 };
 if (typeof window !== "undefined") window.ObjectAgg = _ObjectAgg;

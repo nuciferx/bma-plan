@@ -970,7 +970,7 @@ document.getElementById("mi-save").onclick=async function(){
     pageRotations:pageRot,pageTags:pageTags,pageNames:pageNames,projectInfo:projectInfo,siteOrientation:{},
     excludedPages:Object.keys(excluded).filter(function(k){return excluded[k];}).map(Number),pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,
     pageIdentities:(pageMgr?pageMgr.pageOrder.slice():undefined),
-    liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null)};}),
+    liteLayers:layersInOrder().map(function(l){return {id:l.id,name:l.name,color:l.color,role:l.role,order:l.order,parentId:(l.parentId!==undefined?l.parentId:null),floorKey:(l.floorKey!==undefined?l.floorKey:undefined)};}),
     liteGroups:foldersInOrder().map(function(f){return {id:f.id,name:f.name,color:f.color,parentId:(f.parentId!==undefined?f.parentId:null),order:f.order,kind:f.kind,pages:f.pages};}),
     reportVars:serializeReportVars()};
   var blob=new Blob([JSON.stringify(doc,null,2)],{type:"application/json"});
@@ -1000,7 +1000,7 @@ function loadProto(doc){ PS={}; excluded={};
     doc.liteLayers.forEach(function(e){ if(!roleDef(e.role))return; // skip unknown role
       LAYERS.push({id:e.id,name:e.name,color:e.color,role:e.role,
         tag:roleSemanticTag(e.role),counting:!!(roleDef(e.role).counting),subTag:"",order:e.order,groupId:null,
-        parentId:(e.parentId!==undefined?e.parentId:null)}); });
+        parentId:(e.parentId!==undefined?e.parentId:null),floorKey:e.floorKey}); }); /* floorKey additive: undefined on old saves */
     /* ensure every role's default layer exists (fallback target) */
     ROLE_DEFS.forEach(function(rd){ if(!layerById(rd.id)){
       LAYERS.push({id:rd.id,name:rd.name,color:rd.color,role:rd.id,
