@@ -24,8 +24,8 @@ async function dlPost(url,payload,fname){ var res=await fetch(url,{method:"POST"
   if(!res.ok){alert("export ล้มเหลว ("+res.status+")");return;} var blob=await res.blob();
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; a.click(); }
 function baseName(){ return (pdfName||"export").replace(/\.pdf$/i,""); }
-function exportXlsx(){ if(!caseId){alert("เปิด PDF ก่อน");return;} dlPost("/export-xlsx",buildExportData(),baseName()+".xlsx"); closeMenus(); }
-function exportPdfOverlay(){ if(!caseId){alert("เปิด PDF ก่อน");return;}
+function exportXlsx(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;} dlPost("/export-xlsx",buildExportData(),baseName()+".xlsx"); closeMenus(); }
+function exportPdfOverlay(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;}
   var pages={}; Object.keys(PS).forEach(function(k){ var ppm=(PS[k].scale&&PS[k].scale.pts_per_m>0)?PS[k].scale.pts_per_m:null;
     var objs=PS[k].objects.map(function(o){
     var cid=(typeof rollupCatId==="function")?rollupCatId(o):o.catId; var cat=catOf(cid); var col=cat?cat.color:"#888";
@@ -88,7 +88,7 @@ function buildReportPayload(){
   return {project:projectInfo.name||"",date:new Date().toLocaleDateString("th-TH"),generated:Date.now(),pages:pages,reportVars:_rv};
 }
 function openReport(){
-  if(!caseId){alert("เปิด PDF ก่อน");return;}
+  if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;}
   var payload=buildReportPayload();
   if(!payload.pages.length){alert("ยังไม่มีพื้นที่ที่วัด — วาดพื้นที่ (polygon) ก่อนสร้างรายงาน");return;}
   try{ sessionStorage.setItem("bmaReportPayload",JSON.stringify(payload)); }

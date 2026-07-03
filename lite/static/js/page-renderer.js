@@ -773,8 +773,23 @@ function _resetCache() {
   }
 }
 
+/* ---- UX batch2 F-6: local-first gate message ----
+ * With local-first open, pdfDoc is loaded (PDF visibly open) while caseId is
+ * still null during the background upload. Server-gated actions must NOT say
+ * "เปิด PDF ก่อน" then — that's wrong/confusing. gateNoCaseMsg() returns the
+ * upload-in-progress message when a local doc IS open but caseId is pending,
+ * and the original "open a PDF" message when nothing is open at all. Call sites
+ * replace  alert("เปิด PDF ก่อน")  with  alert(gateNoCaseMsg()). */
+function gateNoCaseMsg() {
+  if (typeof caseId !== "undefined" && !caseId && pdfDoc)
+    return "กำลังอัปโหลดไฟล์ขึ้นเซิร์ฟเวอร์ รอสักครู่แล้วลองใหม่";
+  return "เปิด PDF ก่อน";
+}
+window.gateNoCaseMsg = gateNoCaseMsg;
+
 /* ---- public API ---- */
 window.PageRenderer = {
+  hasDoc:     function () { return !!pdfDoc; },
   loadPage:   loadPage,
   drawImage:  _drawImage,
   fit:        fit,

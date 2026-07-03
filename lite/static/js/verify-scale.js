@@ -45,7 +45,7 @@
 
   /* ---------------- entry point (menu item / Shift+S) ---------------- */
   function start() {
-    if (typeof caseId === "undefined" || !caseId) { alert("เปิด PDF ก่อน"); return; }
+    if (typeof caseId === "undefined" || !caseId) { alert(typeof gateNoCaseMsg === "function" ? gateNoCaseMsg() : "เปิด PDF ก่อน"); return; }
     var sc = getScaleForPage(curPage);
     if (!sc || !(sc.pts_per_m > 0)) {
       alert("หน้านี้ยังไม่มี scale — ตั้ง Set Scale ก่อน แล้วจึง Verify");
@@ -67,14 +67,63 @@
     state.draft = null;
     var pg = curPage, sc = getScaleForPage(pg);
     if (!sc || !(sc.pts_per_m > 0)) { alert("ไม่พบ scale หน้านี้"); if (typeof draw === "function") draw(); return; }
-    var input = prompt("ระยะจริงระหว่าง 2 จุดที่คลิก (เมตร):", "");
-    if (input === null) { if (typeof draw === "function") draw(); return; }
-    var enterM = parseFloat(input);
-    if (!(enterM > 0)) { alert("ระยะต้องมากกว่า 0"); if (typeof draw === "function") draw(); return; }
-    var dev = computeDeviation(ptDist, sc.pts_per_m, enterM);
-    _ctx = { pg: pg, sc: sc, ptDist: ptDist, enterM: enterM, measM: dev.measM, vPpm: dev.vPpm, pct: dev.pct };
-    openResultModal();
-    if (typeof draw === "function") draw();
+    /* F-9: in-app modal instead of window.prompt (Enter=OK, Esc=cancel). */
+    openInputModal(function (input) {
+      if (input === null) { if (typeof draw === "function") draw(); return; }
+      var enterM = parseFloat(input);
+      if (!(enterM > 0)) { alert("ระยะต้องมากกว่า 0"); if (typeof draw === "function") draw(); return; }
+      var dev = computeDeviation(ptDist, sc.pts_per_m, enterM);
+      _ctx = { pg: pg, sc: sc, ptDist: ptDist, enterM: enterM, measM: dev.measM, vPpm: dev.vPpm, pct: dev.pct };
+      openResultModal();
+      if (typeof draw === "function") draw();
+    });
+  }
+
+  /* ---------------- input modal (F-9): replaces window.prompt with in-app DOM ----------------
+     Built entirely from this module so ui-lite.html markup stays untouched.
+     Styling matches the Set Scale modal (#modal .box) + the result modal above.
+     Keyboard: Enter=OK, Esc=cancel. Consumed by modalOpen() in ui-lite.html so
+     typing digits does not switch tools. */
+  var _inputCb = null;
+  function ensureInputDom() {
+    var el = document.getElementById("vs-input-modal");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "vs-input-modal";
+    el.style.cssText = "position:fixed;inset:0;background:rgba(6,8,12,.72);z-index:9500;display:none;align-items:center;justify-content:center;";
+    el.innerHTML =
+      '<div style="background:#161a22;border:1px solid #2a3140;border-radius:12px;padding:18px 20px;width:340px;color:#e7ecf3;font:13px/1.4 \'Segoe UI\',sans-serif">' +
+      '<h4 style="margin:0 0 10px;font-size:15px">🔎 Verify Scale</h4>' +
+      '<p style="font-size:12px;color:#9aa3b2;margin:0 0 8px">ระยะจริงระหว่าง 2 จุดที่คลิก (เมตร):</p>' +
+      '<input id="vs-input-m" type="number" step="0.01" placeholder="เช่น 10.00" ' +
+      'style="width:100%;padding:8px 10px;background:#0c0f14;border:1px solid #2a3140;color:#e7ecf3;border-radius:7px;font-size:14px;box-sizing:border-box">' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+      '<button id="vs-input-cancel" style="padding:7px 14px;border-radius:7px;border:1px solid #2a3140;background:#222a37;color:#e7ecf3;cursor:pointer">ยกเลิก</button>' +
+      '<button id="vs-input-ok" style="padding:7px 14px;border-radius:7px;border:1px solid #4c8dff;background:#4c8dff;color:#fff;cursor:pointer">ตกลง</button>' +
+      '</div></div>';
+    document.body.appendChild(el);
+    el.querySelector("#vs-input-ok").onclick = function () { _inputResolve(document.getElementById("vs-input-m").value); };
+    el.querySelector("#vs-input-cancel").onclick = function () { _inputResolve(null); };
+    var inp = el.querySelector("#vs-input-m");
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); _inputResolve(inp.value); }
+      else if (e.key === "Escape") { e.preventDefault(); _inputResolve(null); }
+    });
+    return el;
+  }
+  function openInputModal(cb) {
+    _inputCb = cb;
+    var el = ensureInputDom();
+    var inp = document.getElementById("vs-input-m");
+    inp.value = "";
+    el.style.display = "flex";
+    setTimeout(function () { inp.focus(); }, 0);
+  }
+  function _inputResolve(val) {
+    var el = document.getElementById("vs-input-modal");
+    if (el) el.style.display = "none";
+    var cb = _inputCb; _inputCb = null;
+    if (typeof cb === "function") cb(val);
   }
 
   /* ---------------- result modal (self-contained DOM — no ui-lite.html markup edits) ---------------- */

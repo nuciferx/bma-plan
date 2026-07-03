@@ -346,7 +346,7 @@ var TOOLNAME={select:"เลือก/แก้ไข",scale:"Set Scale",poly:"P
   ann_text:"Text",ann_comment:"Comment",ann_arrow:"Arrow",ann_highlight:"Highlight",ann_rect:"Rect",ann_circle:"Circle",ann_cloud:"Cloud"};
 function updateHUD(){
   var s=getScaleForPage(curPage), cat=catOf(state.activeCat)||{color:"#4c8dff",name:"—",id:state.activeCat};
-  document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">1:'+scaleN(s)+' ✓</span>':'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
+  document.getElementById("hud-tl").innerHTML="Scale "+(s?'<span class="ok">1:'+scaleN(s)+' ✓</span>'+((s.verifyResult&&(s.verifyResult.accepted||s.verifyResult.action))?' <span class="ok" id="hud-verified" style="color:#34c759">✓✓ ยืนยันแล้ว</span>':''):'<span class="dot">ยังไม่ตั้ง</span>')+' &nbsp; Tool <b>'+TOOLNAME[state.tool]+'</b>';
   document.getElementById("hud-tr").innerHTML= caseId?("หน้า <b>"+curPage+"</b> / "+pageCount+(excluded[curPage]?' <span class="dot">(ยกเว้น)</span>':'')):"—";
   var nobj=caseId?PSpage().objects.length:0;
   var co=(PageRenderer.ready()&&lastMouse)?screenToPt(lastMouse.x,lastMouse.y):null;
@@ -919,7 +919,7 @@ function onFloorKind(n,v,el){ pushUndo(); liteSetFloorKind(n,v); refreshFloorCtl
 function onFloorNum(n,v,el){ pushUndo(); liteSetFloorNum(n,v); refreshFloorCtls(); draw(); }
 function onFloorName(n,v,el){ var t=v.trim(); if(t&&t===(pageNames[n]||""))return; pushUndo(); if(t){pageNames[n]=t;} else { delete pageNames[n]; autoNamePage(n,true); } state.dirty=true; refreshFloorCtls(); }
 /* LITE-PAGESETUP */
-function openSetup(){ if(!caseId){alert("เปิด PDF ก่อน");return;}
+function openSetup(){ if(!caseId){alert(gateNoCaseMsg());return;}
   document.getElementById("su-proj").value=projectInfo.name||"";
   renderFloorCtl("su-floor",curPage);
   var s=getScaleForPage(curPage); document.getElementById("su-ppm").value=s?s.pts_per_m.toFixed(2):"";
@@ -1157,6 +1157,7 @@ function modalOpen(){
   if(document.getElementById("sum").classList.contains("show"))return true; /* F-7: summary overlay has text inputs */
   var pm=document.getElementById("pm-overlay"); if(pm&&pm.classList.contains("show"))return true;
   var vs=document.getElementById("vs-modal"); if(vs&&vs.style.display==="flex")return true; /* F-7: verify-scale result modal */
+  var vsi=document.getElementById("vs-input-modal"); if(vsi&&vsi.style.display==="flex")return true; /* F-9: verify-scale input modal */
   if(document.querySelector(".cheatsheet-backdrop.open"))return true; /* F-7: cheatsheet overlay */
   return false;
 }

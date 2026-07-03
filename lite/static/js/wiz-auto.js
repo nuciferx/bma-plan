@@ -69,8 +69,10 @@ function _lwizInstallLock() {
       e.stopPropagation();
       e.stopImmediatePropagation();
       e.preventDefault();
-      // Show hint only on keydown to avoid hint spam
-      if (evtName === 'keydown') _lwizShowBlockHint();
+      // Show hint on keydown AND mousedown (UX batch2 F-5: mouse was blocked
+      // silently before). mousedown only (not click/mouseup) to avoid hint spam
+      // — the hint element self-debounces via clearTimeout.
+      if (evtName === 'keydown' || evtName === 'mousedown') _lwizShowBlockHint();
     };
     document.addEventListener(evtName, handler, true);
     _lwizBlockGuards.push({event: evtName, fn: handler});

@@ -181,6 +181,45 @@ function computeReportVars(agg, opts) {
   return results;
 }
 
+/* --- Render-time error classifier (UX batch2, seeded-vars neutral state) ---
+   Distinguishes "waiting for data" (seeded FAR/OSR/net vars that error ONLY
+   because their referenced role/layer totals are empty before any object is
+   measured) from a GENUINE error (bad ref to a non-existent target, malformed
+   empty expr, or a real division-by-zero once data exists). Classifies purely
+   at render time by inspecting the expr tokens + current data presence —
+   evalReportExpr itself is NOT modified (its err strings stay as-is).
+     Returns 'wait'  → render neutral/dim "รอข้อมูล"
+             'err'   → render red error (unchanged behavior). */
+function _rvRefKnown(ref) {
+  if (typeof ROLE_DEFS !== 'undefined' && ROLE_DEFS) {
+    for (var i = 0; i < ROLE_DEFS.length; i++) if (ROLE_DEFS[i].id === ref) return true;
+  }
+  if (typeof layerById === 'function' && layerById(ref)) return true;
+  for (var j = 0; j < REPORT_VARS.length; j++) if (REPORT_VARS[j].id === ref) return true;
+  return false;
+}
+function _rvHasData(agg) {
+  if (agg) for (var k in agg) if (agg.hasOwnProperty(k) && agg[k]) return true;
+  if (typeof window !== 'undefined' && window.ObjectAgg && typeof window.ObjectAgg.byRole === 'function') {
+    var tr = window.ObjectAgg.byRole();
+    for (var r in tr) if (tr.hasOwnProperty(r) && tr[r] && tr[r].area) return true;
+  }
+  return false;
+}
+function classifyReportVarErr(v, agg) {
+  if (!v || !v.err) return null;                 // no error → caller renders value
+  var expr = v.expr;
+  if (!expr || expr.length === 0) return 'err';  // 'ว่าง' — malformed, genuine
+  var hasRef = false;
+  for (var i = 0; i < expr.length; i++) {
+    var t = expr[i];
+    if ('ref' in t) { hasRef = true; if (!_rvRefKnown(t.ref)) return 'err'; } // unknown ref → genuine
+  }
+  if (v.err === '÷0') return _rvHasData(agg) ? 'err' : (hasRef ? 'wait' : 'err');
+  if (v.err === 'อ้างตัวแปรไม่พบ') return hasRef ? 'wait' : 'err';
+  return 'err';
+}
+
 /* --- Add a new blank variable; returns it --- */
 function addReportVar(name) {
   _rvSeq++;
@@ -277,6 +316,7 @@ function _injectRvStyle() {
     '.rv-val{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;',
     '  min-width:78px;text-align:right;color:var(--good);}',
     '.rv-val.rv-err{color:#ff6b6b;font-weight:500;font-size:11px;}',
+    '.rv-val.rv-wait{color:var(--muted);font-weight:500;font-size:11px;opacity:.75;}',
     '.rv-addvar{background:transparent;border:1px solid var(--line);color:var(--muted);',
     '  font-size:12px;border-radius:6px;padding:5px 10px;cursor:pointer;margin-top:8px;}',
     '.rv-addvar:hover{background:#2a3140;color:var(--ink);}'
@@ -483,8 +523,13 @@ function renderReportVarsEditor(host, agg, opts) {
       var res = resMap[vv.id];
       var valSpan = document.createElement('span');
       if (res && res.err) {
-        valSpan.className = 'rv-val rv-err';
-        valSpan.textContent = '⚠ ' + res.err;
+        if (classifyReportVarErr(res, agg) === 'wait') {
+          valSpan.className = 'rv-val rv-wait';
+          valSpan.textContent = 'รอข้อมูล';
+        } else {
+          valSpan.className = 'rv-val rv-err';
+          valSpan.textContent = '⚠ ' + res.err;
+        }
       } else {
         valSpan.className = 'rv-val';
         valSpan.textContent = _rvFmt(res ? res.value : null) + (vv.unit ? ' ' + vv.unit : '');

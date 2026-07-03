@@ -53,7 +53,7 @@ var FLYOUT_GROUPS = {
    Guards against missing caseId / helpers so it is safe to call at any time.
 --------------------------------------------------------------------------- */
 window.exportXlsx = function () {
-  if (typeof caseId === 'undefined' || !caseId) { alert('เปิด PDF ก่อน'); return; }
+  if (typeof caseId === 'undefined' || !caseId) { alert(typeof gateNoCaseMsg==='function'?gateNoCaseMsg():'เปิด PDF ก่อน'); return; }
   if (typeof dlPost !== 'function' || typeof buildExportData !== 'function' || typeof baseName !== 'function') return;
   dlPost('/export-xlsx', buildExportData(), baseName() + '.xlsx');
   if (typeof closeMenus === 'function') closeMenus();

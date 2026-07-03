@@ -281,6 +281,14 @@ function _lovsRenderCurStep() {
   _lovsUpdateHeader();
 }
 
+/* Wizard Next gate (UX batch2): ≥1 page must carry a real tag before Step 1
+   (Classify) advances — or the user explicitly confirms skipping. */
+function _lovsAnyTagged() {
+  var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
+  for (var n = 1; n <= pc; n++) { if (pageTags[n]) return true; }
+  return false;
+}
+
 function _lovsUpdateHeader() {
   var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
   var tagged = 0, floors = 0, numbered = 0;
@@ -852,7 +860,11 @@ function _lovsRenderReview() {
     html += '<h2>5. ตัวแปรรายงาน (LRV registry)</h2><table>' +
       '<tr><th>ชื่อ</th><th class="num">ค่า</th><th>หน่วย</th></tr>' +
       lrv.map(function(v) {
-        var val = (v.err ? '<span style="color:#a04">' + v.err + '</span>' : (v.value != null ? fmt(v.value) : "—"));
+        var val = (v.err ?
+            (typeof classifyReportVarErr === "function" && classifyReportVarErr(v, _agg) === "wait" ?
+               '<span style="color:#8b97a8">รอข้อมูล</span>' :
+               '<span style="color:#a04">' + v.err + '</span>') :
+            (v.value != null ? fmt(v.value) : "—"));
         return '<tr><td>' + (v.name || "") + '</td><td class="num">' + val + '</td><td>' + (v.unit || "") + '</td></tr>';
       }).join('') + '</table>';
   }
@@ -869,7 +881,7 @@ function _lovsRenderReview() {
    Called from Step 3 nav button. If openReport() exists (mi-report wired in
    ui-lite.html L1019), call it directly. Otherwise, alert + close. */
 function _lovsExportReport() {
-  if (typeof caseId !== "undefined" && !caseId) { alert("เปิด PDF ก่อน"); return; }
+  if (typeof caseId !== "undefined" && !caseId) { alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน"); return; }
   if (typeof openReport === "function") {
     var ov = document.getElementById("ov");
     if (ov) ov.classList.remove("show");
@@ -951,8 +963,12 @@ function _lovsWireNav() {
   var prev = document.getElementById("ov-prev"); if (prev) prev.addEventListener("click", function() { _lovsGoStep(_lovsCurStep - 1); });
   var next = document.getElementById("ov-next");
   if (next) next.addEventListener("click", function() {
-    if (_lovsCurStep < 3) _lovsGoStep(_lovsCurStep + 1);
-    else {
+    if (_lovsCurStep < 3) {
+      // Wizard Next gate: don't silently pass Step 1 with 0 tagged pages.
+      if (_lovsCurStep === 1 && !_lovsAnyTagged() &&
+          !confirm("ยังไม่ได้แท็กหน้าใดเลย — ข้ามขั้นนี้ไปเลยหรือไม่?")) return;
+      _lovsGoStep(_lovsCurStep + 1);
+    } else {
       // Done (Step 3): force-fill any untagged pages before closing
       _lovsForceFillMissingTags();
       // BUG-20260526-lite-wizard-followup: lift LWIZ lock unconditionally on Done.
