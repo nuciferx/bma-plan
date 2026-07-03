@@ -147,6 +147,32 @@ def main():
         for sid, cid in b_hits:
             findings.append(f"      ship {sid} closes '{cid}' but it is still an active row")
 
+    # ---- (d) queued card ids that already have a fix/feat/test commit ----
+    # Root cause found 2026-07-03: fix commits land carrying the card-id in the
+    # subject, but the docs follow-up that flips the row status sometimes never
+    # happens (3 stale cards found that way). Only fix/feat/test/perf subjects
+    # count — docs()/chore() commits that merely FILE a card must not trigger.
+    d_hits = []
+    for rid in sorted(active_ids):
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{6,60}", rid.strip("`* ")):
+            continue
+        rid_clean = rid.strip("`* ")
+        try:
+            out = subprocess.run(
+                ["git", "log", "--all", "--oneline", "--grep", rid_clean, "-5"],
+                capture_output=True, text=True, cwd=ROOT, timeout=15).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        for line in out.splitlines():
+            subj = line.split(" ", 1)[1] if " " in line else ""
+            if re.match(r"(fix|feat|test|perf)[(!:]", subj):
+                d_hits.append((rid_clean, line.strip()))
+                break
+    if d_hits:
+        findings.append("(d) queued cards with a fix/feat/test commit already referencing them (stale?):")
+        for rid, line in d_hits:
+            findings.append(f"      {rid} :: {line[:90]}")
+
     # ---- (c) commit hashes that don't exist in git ----
     refs = {}  # hash -> list of "doc" labels
     for label, lines in (("PHASE_INDEX.md", pi), ("ROADMAP_DONE.md", rd)):
@@ -174,7 +200,7 @@ def main():
             print("  " + f)
         print("\nRESULT: FAIL")
         return 1
-    print("\nRESULT: clean (a/b/c all pass)")
+    print("\nRESULT: clean (a/b/c/d all pass)")
     return 0
 
 
