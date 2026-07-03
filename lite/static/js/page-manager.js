@@ -71,6 +71,7 @@
     this.undoCap     = 30;   // bound undo memory (45-page docs blow up an unbounded stack)
     this.curPage     = 1;    // currently-visible display page
     this._initialIds = [];   // baseline order for the CURRENT server PDF (reset by applyFlush)
+    this.dupSrc      = {};   // dupId -> source id (BUG-20260703: live-content mapping for duplicates)
     this._migratedFromLegacy = false;
     // liteGroups: kept for save/load backward compat with existing .bmaplan files.
     // NOT maintained during mutations — folder membership is DERIVED via deriveFolderMap().
@@ -195,6 +196,7 @@
     this.pageOrder.splice(at + 1, 0, nid);
     this.PS_by_id[nid]   = deepCopy(this.PS_by_id[src]);    // independent deep copy
     this.meta_by_id[nid] = deepCopy(this.meta_by_id[src]);
+    this.dupSrc[nid]     = src;   // BUG-20260703: live content resolves via the source id
     this.originNum[nid]  = null;                             // not on server yet
     // G-RENDER: until flush, the copy renders from the same server page as its source.
     this.srcServer[nid]  = (this.originNum[src] != null)
@@ -316,6 +318,7 @@
     this.pending     = [];
     this.undoStack   = [];
     this.curPage     = 1;
+    this.dupSrc      = {};
     this._savedGroups = [];
 
     var self = this;
@@ -393,6 +396,7 @@
     this.pending     = [];
     this.undoStack   = [];
     this.curPage     = 1;
+    this.dupSrc      = {};
     this._savedGroups = [];
 
     var count = g.pageCount || 0;
@@ -444,7 +448,32 @@
    * reproduces the input globals (modulo blank-page normalisation).
    * Pure: no DOM, no side effects.
    */
-  PageModel.prototype.projectToGlobals = function () {
+  /* BUG-20260703-lite-save-wipes-data:
+   * PS_by_id holds deepCopy SNAPSHOTS taken at seed time (upload = empty pages).
+   * All later drawing mutates the LIVE PS directly — the model never sees it.
+   * Projecting the stale snapshots back over PS therefore WIPED every
+   * measurement + scale on save (mi-save calls _pmCommit before serializing).
+   * Fix: projectToGlobals(livePS) resolves each id's CONTENT from the live PS
+   * via its baseline position (_initialIds); duplicates resolve via dupSrc to a
+   * deep copy of the source's live content; merged pages stay model-blank.
+   * With no pending mutations (the save path — guard blocks save otherwise)
+   * this makes content projection an exact no-op. Snapshots are refreshed so
+   * the model is in sync after every commit. livePS omitted = legacy behavior
+   * (pure model tests unchanged). */
+  PageModel.prototype._liveContentFor = function (id, livePS) {
+    if (!livePS) return null;
+    var b = this._initialIds.indexOf(id);
+    if (b >= 0) return livePS[b + 1] || this.PS_by_id[id] || null;
+    var src = this.dupSrc && this.dupSrc[id];
+    if (src) {
+      var sb = this._initialIds.indexOf(src);
+      var srcContent = (sb >= 0 && livePS[sb + 1]) ? livePS[sb + 1] : this.PS_by_id[src];
+      return srcContent ? deepCopy(srcContent) : null;
+    }
+    return null;   // merged page — no live content in this doc yet
+  };
+
+  PageModel.prototype.projectToGlobals = function (livePS) {
     var self = this;
     var out = {
       PS:            {},
@@ -460,8 +489,11 @@
     this.pageOrder.forEach(function (id, i) {
       var n  = i + 1;
       var mt = self.meta_by_id[id] || blankMeta();
-      // PS: reference (not copy) — app assigns this dict back; caller must not mutate
-      out.PS[n] = self.PS_by_id[id];
+      // PS: live content by identity (see BUG-20260703 note above); model
+      // snapshot only as fallback. Refresh the snapshot to stay in sync.
+      var live = self._liveContentFor(id, livePS);
+      out.PS[n] = live || self.PS_by_id[id];
+      self.PS_by_id[id] = out.PS[n];
       // fan out meta — match save() emptiness rules, EXCEPT excluded is dict here
       if (mt.rot)            out.pageRot[n]       = mt.rot;
       if (mt.tag)            out.pageTags[n]       = mt.tag;

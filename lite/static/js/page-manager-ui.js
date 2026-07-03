@@ -419,9 +419,12 @@ async function _pmuiApplyChanges() {
     var data = await resp.json();
     if (!data.ok) throw new Error(data.error || 'server error');
 
+    // BUG-20260703: commit BEFORE re-baselining — _pmCommit(livePS) maps each
+    // page's live content via the PRE-flush baseline (_initialIds/dupSrc);
+    // applyFlush() destroys that mapping, so it must run after.
+    _pmCommit();
     pageMgr.applyFlush();
     pageCount = data.new_count;
-    _pmCommit();
 
     // Refresh PM grid and canvas — do NOT call openOv() (that's the LOVS wizard)
     _pmuiRenderGrid();
@@ -464,8 +467,9 @@ async function _pmuiMergePdf(evt) {
     pageCount = data.new_count;
 
     pageMgr.merge(added);
-    pageMgr.applyFlush();
+    // BUG-20260703: commit (pre-flush baseline content mapping) before re-baseline
     _pmCommit();
+    pageMgr.applyFlush();
 
     // Refresh PM grid and canvas — do NOT call openOv() (that's the LOVS wizard)
     _pmuiRenderGrid();
