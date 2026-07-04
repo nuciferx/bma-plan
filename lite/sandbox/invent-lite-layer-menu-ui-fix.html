@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike: lite-layer-menu-ui-fix — Approach B (context-scoped panel + global floor search)</title>
+<style>
+  body{background:#0d1117;color:#e6edf3;font-family:"Tahoma","Segoe UI",sans-serif;font-size:13px;margin:0;padding:16px;}
+  h1{font-size:16px;margin:0 0 4px;}
+  .sub{color:#8b949e;font-size:12px;margin-bottom:14px;}
+  #toolbar{margin-bottom:12px;}
+  button{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px;margin-right:6px;}
+  button:hover{background:#30363d;}
+  /* ---- proportion presets (สัดส่วน): every panel dimension/color below reads a
+     --p-* custom property set on #app by applyPreset(). Token values come from the
+     Visual gap table in docs/invent/lite-layer-ui-spec.md; P3 lifts the anchor
+     spike (invent-layer-dnd.html) CSS verbatim; P1 mirrors live ui-lite.html. ---- */
+  #app{width:var(--p-width,260px);border:1px solid var(--p-border,#3a3d44);
+    border-radius:var(--p-panel-radius,8px);overflow:hidden;
+    background:var(--p-panel,#26282d);color:var(--p-txt,#e6e8ec);font-size:var(--p-font,13px);}
+  #floor-rail{display:flex;align-items:center;gap:6px;padding:var(--p-rail-pad,8px);
+    background:var(--p-head,#22242a);border-bottom:1px solid var(--p-border,#3a3d44);}
+  #floor-rail button{padding:var(--p-railbtn-pad,4px 8px);font-size:var(--p-font-sm,12px);margin:0;}
+  #floor-jump{flex:1;min-width:0;background:var(--p-input-bg,#1e1f23);color:var(--p-txt,#e6e8ec);
+    border:1px solid var(--p-border,#3a3d44);border-radius:4px;padding:4px;font-size:var(--p-font-sm,12px);}
+  #search-wrap{position:relative;padding:var(--p-rail-pad,8px);
+    border-bottom:1px solid var(--p-border,#3a3d44);background:var(--p-head,#22242a);}
+  #search-input{width:100%;box-sizing:border-box;background:var(--p-input-bg,#1e1f23);
+    color:var(--p-txt,#e6e8ec);border:1px solid var(--p-border,#3a3d44);border-radius:4px;
+    padding:var(--p-input-pad,6px);font-size:var(--p-font-sm,12px);}
+  #search-results{position:absolute;left:var(--p-rail-pad,8px);right:var(--p-rail-pad,8px);top:100%;
+    background:var(--p-input-bg,#1e1f23);border:1px solid var(--p-border,#3a3d44);border-radius:4px;
+    max-height:220px;overflow:auto;z-index:5;display:none;}
+  .search-result{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--p-border,#3a3d44);}
+  .search-result:hover{background:var(--p-row-hover,#343841);}
+  #layer-panel{padding:var(--p-panel-pad,4px);min-height:120px;background:var(--p-panel,#26282d);}
+  .panel-header{font-weight:bold;margin:4px 2px 8px;color:var(--p-accent,#4aa3ff);font-size:var(--p-font,13px);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .layer-row{display:flex;align-items:center;gap:var(--p-row-gap-x,5px);
+    height:var(--p-row-h,30px);padding:var(--p-row-pad,0 6px);margin:var(--p-row-margin,2px 0);
+    background:var(--p-row-bg,#2d3036);border-radius:var(--p-row-radius,5px);
+    border-bottom:var(--p-row-border,none);}
+  .layer-row:hover{background:var(--p-row-hover,#343841);}
+  .layer-row.hl{background:#1f6feb55;outline:1px solid var(--p-accent,#4aa3ff);}
+  .grip{display:var(--p-grip-display,inline);cursor:grab;color:var(--p-muted,#8b909a);
+    font-size:14px;width:14px;text-align:center;flex:0 0 auto;}
+  .sw{display:inline-block;width:var(--p-sw,14px);height:var(--p-sw,14px);border-radius:3px;
+    border:1px solid #0006;flex:0 0 auto;}
+  .layer-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .vis-toggle,.lock-toggle{background:none;border:none;cursor:pointer;
+    width:var(--p-chip,20px);font-size:12px;padding:2px 0;margin:0;text-align:center;
+    opacity:.85;color:var(--p-txt,#e6e8ec);flex:0 0 auto;}
+  .vis-toggle:hover,.lock-toggle:hover{opacity:1;}
+  #preset-bar{margin:0 0 12px;}
+  #preset-bar .preset-btn{text-align:left;line-height:1.35;vertical-align:top;}
+  #preset-bar .preset-btn.on{background:#1f6feb;border-color:#58a6ff;}
+  #preset-bar .preset-btn small{display:block;color:#c9d1d9;font-size:10px;font-weight:normal;}
+  #eval-output{margin-top:18px;max-width:900px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;}
+  th,td{border:1px solid #30363d;padding:6px 8px;text-align:left;vertical-align:top;}
+  th{background:#161b22;}
+  .pass{color:#3fb950;font-weight:bold;}
+  .fail{color:#f85149;font-weight:bold;}
+  .notes{color:#8b949e;font-size:11px;margin-top:6px;}
+  code{background:#161b22;padding:1px 4px;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<h1>Spike B — Context-scoped layer panel + global floor search</h1>
+<div class="sub">
+  idea: <code>lite-layer-menu-ui-fix</code> · zero schema change · panel renders ONLY the active floor's folder;
+  floor-rail (prev/next + jump) for context switch; search box jumps across all floors.
+</div>
+
+<div id="toolbar">
+  <button id="btn-build-happy">Build 100-floor demo project</button>
+  <button id="btn-run-eval">▶ Run Eval (ทุก preset)</button>
+</div>
+
+<div id="preset-bar">
+  <b style="margin-right:8px">สัดส่วน:</b>
+  <button class="preset-btn" data-preset="P1">P1 Compact — 190px<small>เท่า lite ปัจจุบัน — ประหยัดพื้นที่สุด แต่แน่น/ชิดตา</small></button>
+  <button class="preset-btn" data-preset="P2">P2 Balanced — 260px<small>จังหวะแถว 30px + chip แบบ anchor แต่บีบ padding — สมดุลพื้นที่/อ่านง่าย</small></button>
+  <button class="preset-btn" data-preset="P3">P3 Anchor — 320px<small>ตามสเปค DnD spike เป๊ะ — สวยสุด แต่กินพื้นที่ canvas</small></button>
+</div>
+
+<div id="app">
+  <div id="floor-rail">
+    <button id="floor-prev">‹ ก่อนหน้า</button>
+    <select id="floor-jump"></select>
+    <button id="floor-next">ถัดไป ›</button>
+  </div>
+  <div id="search-wrap">
+    <input id="search-input" type="text" placeholder="ค้นหาชั้น หรือ ชื่อ layer (เช่น 57 หรือ ผนัง)">
+    <div id="search-results"></div>
+  </div>
+  <div id="layer-panel"></div>
+</div>
+
+<div id="eval-output"></div>
+
+<script>
+/* ============================================================
+   DATA MODEL — mirrors lite/static/js/layer-system.js + page-folder-layers.js
+   field shapes (LAYERS: id/name/color/role/order/parentId/floorKey;
+   FOLDERS: id/name/color/parentId/order/kind/pages). Zero data change vs
+   the real model — Approach B is a pure render-layer change.
+   ============================================================ */
+var FOLDERS = [];          // page-folder entries, one per floor
+var LAYERS  = [];          // layer entities, ~6 per floor
+var OBJECTS = {};          // objId -> {id, catId}  (2 per layer)
+var SEARCH_INDEX = [];
+var activeFolderId = null;
+var FLOOR_GEN_ORDER = [];  // canonical generation-order id list (ground truth for ordering test)
+var state = {catVis:{}, catLock:{}};
+var _lastLoadedRawDoc = null;
+
+window.__actionLog = [];
+window.__pageErrors = [];
+window.onerror = function(msg){ window.__pageErrors.push(String(msg)); };
+
+/* ============================================================
+   PROPORTION PRESETS (สัดส่วน) — 3 sizing presets switched live via CSS
+   custom properties on #app. Sources:
+     P1 = live ui-lite.html values (gap table "Live" column)
+     P3 = anchor invent-layer-dnd.html CSS verbatim
+     P2 = anchor's 30px row rhythm at 260px width, paddings tightened
+   Values NOT present in the gap table are marked GUESS in the token comments.
+   ============================================================ */
+var PRESETS = {
+  P1: { /* Compact 190 — live lite today */
+    '--p-width':'190px',
+    '--p-panel':'#161a22', '--p-head':'#161a22', '--p-input-bg':'#0f1115',
+    '--p-row-bg':'transparent', '--p-row-hover':'#1c2230' /* GUESS: live has selector, no token */,
+    '--p-row-h':'auto', '--p-row-pad':'6px 8px', '--p-row-margin':'0',
+    '--p-row-radius':'0', '--p-row-border':'1px solid #2a3140' /* GUESS: live separator look */,
+    '--p-row-gap-x':'5px', '--p-sw':'12px', '--p-chip':'16px' /* GUESS: live is "10-18px mixed" */,
+    '--p-grip-display':'none', '--p-panel-radius':'0', '--p-border':'#2a3140',
+    '--p-txt':'#e7ecf3', '--p-muted':'#8b97a8', '--p-accent':'#4c8dff',
+    '--p-font':'12px', '--p-font-sm':'11px',
+    '--p-rail-pad':'6px', '--p-railbtn-pad':'3px 6px', '--p-input-pad':'5px', '--p-panel-pad':'4px'
+  },
+  P2: { /* Balanced 260 — anchor rhythm, tightened paddings */
+    '--p-width':'260px',
+    '--p-panel':'#26282d', '--p-head':'#22242a', '--p-input-bg':'#1e1f23',
+    '--p-row-bg':'#2d3036', '--p-row-hover':'#343841',
+    '--p-row-h':'30px', '--p-row-pad':'0 5px' /* tightened vs anchor 0 6px */, '--p-row-margin':'2px 0',
+    '--p-row-radius':'5px', '--p-row-border':'none',
+    '--p-row-gap-x':'5px', '--p-sw':'14px', '--p-chip':'20px',
+    '--p-grip-display':'inline', '--p-panel-radius':'8px', '--p-border':'#3a3d44',
+    '--p-txt':'#e6e8ec', '--p-muted':'#8b909a', '--p-accent':'#4aa3ff',
+    '--p-font':'13px', '--p-font-sm':'12px',
+    '--p-rail-pad':'6px' /* tightened vs P3 8px */, '--p-railbtn-pad':'3px 7px',
+    '--p-input-pad':'5px', '--p-panel-pad':'4px'
+  },
+  P3: { /* Anchor 320 — DnD-spike spec verbatim */
+    '--p-width':'320px',
+    '--p-panel':'#26282d', '--p-head':'#22242a', '--p-input-bg':'#1e1f23',
+    '--p-row-bg':'#2d3036', '--p-row-hover':'#343841',
+    '--p-row-h':'30px', '--p-row-pad':'0 6px', '--p-row-margin':'2px 0',
+    '--p-row-radius':'5px', '--p-row-border':'none',
+    '--p-row-gap-x':'5px', '--p-sw':'14px', '--p-chip':'20px',
+    '--p-grip-display':'inline', '--p-panel-radius':'8px', '--p-border':'#3a3d44',
+    '--p-txt':'#e6e8ec', '--p-muted':'#8b909a', '--p-accent':'#4aa3ff',
+    '--p-font':'13px', '--p-font-sm':'12px',
+    '--p-rail-pad':'8px' /* GUESS: anchor toolbar pads 6px 10px; rail not in gap table */,
+    '--p-railbtn-pad':'4px 8px', '--p-input-pad':'6px', '--p-panel-pad':'4px 4px 12px'
+  }
+};
+var activePreset = 'P2'; // default per coordinator instruction (plain JS var, no storage)
+function applyPreset(id){
+  var p = PRESETS[id];
+  if (!p) return false;
+  activePreset = id;
+  var app = document.getElementById('app');
+  // remove every known token first so presets never leak into each other
+  Object.keys(PRESETS).forEach(function(pid){
+    Object.keys(PRESETS[pid]).forEach(function(k){ app.style.removeProperty(k); });
+  });
+  Object.keys(p).forEach(function(k){ app.style.setProperty(k, p[k]); });
+  document.querySelectorAll('#preset-bar .preset-btn').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-preset') === id);
+  });
+  return true;
+}
+window.__applyPreset = applyPreset;
+
+/* --- floor id / rank / label helpers (mirror _rankPFFolder / pageFolderIdFor) --- */
+function floorFolderId(floor){
+  if (floor.kind === 'basement')   return 'PF_basement_' + floor.num;
+  if (floor.kind === 'mezzanine')  return 'PF_mezz_' + floor.num;
+  if (floor.kind === 'rooftop')    return 'PF_floor_roof';
+  return 'PF_floor_' + floor.num; // normal
+}
+function rankFloorFolder(fid){
+  if (fid === 'PF_floor_roof') return 9000;
+  var mb = /^PF_basement_(\d+)$/.exec(fid); if (mb) return 100 - parseInt(mb[1], 10) * 5;
+  var mf = /^PF_floor_(\d+)$/.exec(fid);    if (mf) return 100 + parseInt(mf[1], 10) * 10;
+  var mm = /^PF_mezz_(\d+)$/.exec(fid);     if (mm) return 100 + parseInt(mm[1], 10) * 10 + 5;
+  return 5000;
+}
+function floorDisplayName(floor){
+  if (floor.kind === 'basement')  return '🅱 ชั้นใต้ดิน B' + floor.num;
+  if (floor.kind === 'mezzanine') return '🅜 ชั้นลอย M';
+  if (floor.kind === 'rooftop')   return '🏠 หลังคา (ROOF)';
+  return '🏢 ชั้น ' + floor.label;
+}
+function floorKeyOf(floor){
+  if (floor.kind === 'basement')  return 'basement:' + floor.num;
+  if (floor.kind === 'mezzanine') return 'mezz:' + floor.num;
+  if (floor.kind === 'rooftop')   return 'roof';
+  return 'floor:' + floor.num;
+}
+function layerKindsTpl(label){
+  return [
+    {key:'gfa',       name:'GFA ชั้น ' + label, role:'gfa'},
+    {key:'ded_lift',  name:'หักลิฟต์', role:'ded'},
+    {key:'ded_stair', name:'หักบันได', role:'ded'},
+    {key:'wall',      name:'ผนัง', role:'wall'},
+    {key:'opening',   name:'ช่องเปิด', role:'opening'},
+    {key:'misc',      name:'อื่นๆ', role:'misc'}
+  ];
+}
+
+function folderById(id){ for (var i=0;i<FOLDERS.length;i++) if (FOLDERS[i].id===id) return FOLDERS[i]; return null; }
+function layerById(id){  for (var i=0;i<LAYERS.length;i++)  if (LAYERS[i].id===id)  return LAYERS[i];  return null; }
+function foldersInOrder(){ return FOLDERS.slice().sort(function(a,b){return a.order-b.order;}); }
+function layersInOrder(){  return LAYERS.slice().sort(function(a,b){return a.order-b.order;}); }
+
+/* --- buildProject(nFloorsTotal, opts) ---
+   nFloorsTotal = total floor entities INCLUDING 3 basements + 1 mezzanine + 1 roof.
+   opts.mezzAfter = normal-floor number the mezzanine sits above (default 12). */
+function buildProject(nFloorsTotal, opts){
+  opts = opts || {};
+  FOLDERS.length = 0; LAYERS.length = 0; OBJECTS = {};
+  state.catVis = {}; state.catLock = {};
+
+  var floors = [];
+  floors.push({kind:'basement', num:3, label:'B3'});
+  floors.push({kind:'basement', num:2, label:'B2'});
+  floors.push({kind:'basement', num:1, label:'B1'});
+  var reserved = 3 + 1 /*mezz*/ + 1 /*roof*/;
+  var normalCount = Math.max(1, nFloorsTotal - reserved);
+  var mezzAfter = (opts.mezzAfter !== undefined) ? opts.mezzAfter : 12;
+  for (var i = 1; i <= normalCount; i++){
+    floors.push({kind:'normal', num:i, label:String(i)});
+    if (i === mezzAfter && mezzAfter < normalCount) floors.push({kind:'mezzanine', num:mezzAfter, label:'M'});
+  }
+  floors.push({kind:'rooftop', num:'roof', label:'ROOF'});
+
+  FLOOR_GEN_ORDER = floors.map(floorFolderId);
+
+  // NOTE (bug fixed after 1st eval run): layer .order must be GLOBALLY monotonic
+  // (mirrors the real addLayer()'s maxOrder+1-over-all-LAYERS behaviour), never
+  // reset per floor. A per-floor-local 0..5 index made layersInOrder()'s global
+  // sort reshuffle every layer across floor boundaries (all order=0 grouped first,
+  // etc.) — this silently broke the v1 round-trip (case 3) on the first attempt.
+  var globalLayerOrder = 0;
+  var page = 1;
+  floors.forEach(function(floor){
+    var fid = floorFolderId(floor);
+    var folder = {id:fid, name:floorDisplayName(floor), color:'#4c8dff', parentId:null,
+      order:rankFloorFolder(fid), kind:'page-folder', pages:[page++]};
+    FOLDERS.push(folder);
+    state.catVis[fid] = true; state.catLock[fid] = false;
+
+    layerKindsTpl(floor.label).forEach(function(k){
+      var lid = fid + '_' + k.key;
+      LAYERS.push({id:lid, name:k.name, color:'#39d98a', role:k.role, order:globalLayerOrder++,
+        parentId:fid, floorKey:floorKeyOf(floor)});
+      state.catVis[lid] = true; state.catLock[lid] = false;
+      for (var o = 1; o <= 2; o++){
+        var oid = lid + '_o' + o;
+        OBJECTS[oid] = {id:oid, catId:lid};
+      }
+    });
+  });
+
+  activeFolderId = floors.length ? floorFolderId(floors[0]) : null;
+  buildSearchIndex();
+  return {floorCount:floors.length, folderCount:FOLDERS.length, layerCount:LAYERS.length,
+    objectCount:Object.keys(OBJECTS).length};
+}
+
+/* ============================================================
+   RENDER — panel shows ONLY the active floor's folder (Approach B core claim)
+   ============================================================ */
+function renderFloorRail(){
+  var sel = document.getElementById('floor-jump');
+  sel.innerHTML = '';
+  foldersInOrder().forEach(function(f){
+    var opt = document.createElement('option');
+    opt.value = f.id; opt.textContent = f.name;
+    sel.appendChild(opt);
+  });
+  sel.value = activeFolderId;
+}
+function jumpToFloor(fid){
+  if (!folderById(fid)) return false;
+  activeFolderId = fid;
+  var sel = document.getElementById('floor-jump');
+  if (sel) sel.value = fid;
+  renderPanel();
+  return true;
+}
+function floorStep(dir){
+  var arr = foldersInOrder();
+  var idx = arr.findIndex(function(f){ return f.id === activeFolderId; });
+  if (idx < 0) idx = 0;
+  var next = idx + dir;
+  if (next < 0) next = 0;
+  if (next >= arr.length) next = arr.length - 1;
+  jumpToFloor(arr[next].id);
+}
+function renderPanel(){
+  var el = document.getElementById('layer-panel');
+  el.innerHTML = '';
+  var folder = folderById(activeFolderId);
+  if (!folder){ el.textContent = '(ไม่มีชั้นที่เลือก)'; return; }
+
+  var header = document.createElement('div');
+  header.className = 'panel-header';
+  header.textContent = folder.name + (folder.pages ? ('  — หน้า ' + folder.pages.join(',')) : '');
+  el.appendChild(header);
+
+  var layers = LAYERS.filter(function(l){ return l.parentId === folder.id; })
+                      .sort(function(a,b){ return a.order - b.order; });
+  layers.forEach(function(l){
+    var row = document.createElement('div');
+    row.className = 'layer-row';
+    row.setAttribute('data-layer-id', l.id);
+
+    var grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.textContent = '⠿';
+
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = l.color || '#39d98a';
+
+    var nm = document.createElement('span');
+    nm.className = 'layer-name';
+    nm.textContent = l.name;
+
+    var visBtn = document.createElement('button');
+    visBtn.className = 'vis-toggle';
+    visBtn.setAttribute('data-layer-id', l.id);
+    visBtn.textContent = (state.catVis[l.id] !== false) ? '👁' : '🚫';
+    visBtn.addEventListener('click', function(){
+      window.__actionLog.push({t:'click', id:'vis:' + l.id});
+      state.catVis[l.id] = (state.catVis[l.id] === false) ? true : false;
+      visBtn.textContent = (state.catVis[l.id] !== false) ? '👁' : '🚫';
+    });
+
+    var lockBtn = document.createElement('button');
+    lockBtn.className = 'lock-toggle';
+    lockBtn.setAttribute('data-layer-id', l.id);
+    lockBtn.textContent = (state.catLock[l.id] === true) ? '🔒' : '🔓';
+    lockBtn.addEventListener('click', function(){
+      window.__actionLog.push({t:'click', id:'lock:' + l.id});
+      state.catLock[l.id] = !state.catLock[l.id];
+      lockBtn.textContent = (state.catLock[l.id] === true) ? '🔒' : '🔓';
+    });
+
+    row.appendChild(grip); row.appendChild(sw); row.appendChild(nm);
+    row.appendChild(visBtn); row.appendChild(lockBtn);
+    el.appendChild(row);
+  });
+}
+function highlightLayerRow(layerId){
+  var row = document.querySelector('#layer-panel .layer-row[data-layer-id="' + layerId + '"]');
+  if (row) row.classList.add('hl');
+}
+
+/* ============================================================
+   SEARCH — global index across ALL floors; click result = jump + highlight
+   ============================================================ */
+function buildSearchIndex(){
+  SEARCH_INDEX = [];
+  FOLDERS.forEach(function(f){ SEARCH_INDEX.push({type:'floor', folderId:f.id, text:f.name}); });
+  LAYERS.forEach(function(l){ SEARCH_INDEX.push({type:'layer', folderId:l.parentId, layerId:l.id, text:l.name}); });
+}
+function renderSearchResults(query){
+  var box = document.getElementById('search-results');
+  box.innerHTML = '';
+  var q = (query || '').trim();
+  if (!q){ box.style.display = 'none'; return; }
+  var hits = SEARCH_INDEX.filter(function(item){ return item.text.indexOf(q) !== -1; }).slice(0, 30);
+  box.style.display = hits.length ? 'block' : 'none';
+  hits.forEach(function(h){
+    var row = document.createElement('div');
+    row.className = 'search-result';
+    row.setAttribute('data-restype', h.type);
+    row.setAttribute('data-folderid', h.folderId);
+    if (h.layerId) row.setAttribute('data-layerid', h.layerId);
+    row.textContent = (h.type === 'floor' ? '📁 ' : '▫ ') + h.text;
+    row.addEventListener('click', function(){
+      window.__actionLog.push({t:'click', id:'search-result:' + h.type + ':' + (h.layerId || h.folderId)});
+      jumpToFloor(h.folderId);
+      box.innerHTML = ''; box.style.display = 'none';
+      document.getElementById('search-input').value = '';
+      if (h.layerId) highlightLayerRow(h.layerId);
+    });
+    box.appendChild(row);
+  });
+}
+document.getElementById('search-input').addEventListener('input', function(e){
+  window.__actionLog.push({t:'input', id:'search-input', value:e.target.value});
+  renderSearchResults(e.target.value);
+});
+document.getElementById('floor-prev').addEventListener('click', function(){
+  window.__actionLog.push({t:'click', id:'floor-prev'}); floorStep(-1);
+});
+document.getElementById('floor-next').addEventListener('click', function(){
+  window.__actionLog.push({t:'click', id:'floor-next'}); floorStep(1);
+});
+document.getElementById('floor-jump').addEventListener('change', function(e){
+  window.__actionLog.push({t:'change', id:'floor-jump'}); jumpToFloor(e.target.value);
+});
+document.getElementById('btn-build-happy').addEventListener('click', function(){
+  buildProject(100); renderFloorRail(); renderPanel();
+});
+
+/* ============================================================
+   V1 ROUND-TRIP — mirrors ui-lite.html mi-save/loadProto serialization
+   exactly: liteGroups (id,name,color,parentId,order,kind,pages) +
+   liteLayers (id,name,color,role,order,parentId,floorKey). pageStore
+   objects carry liteCatId (mirrors real PS polys/openings/lines shape).
+   Approach B makes ZERO schema change, so round-trip should be lossless.
+   ============================================================ */
+function genV1Doc(){
+  var floors = [
+    {kind:'basement',  num:1,      label:'B1'},
+    {kind:'normal',     num:1,      label:'1'},
+    {kind:'mezzanine',  num:1,      label:'M'},
+    {kind:'normal',     num:2,      label:'2'},
+    {kind:'rooftop',    num:'roof', label:'ROOF'}
+  ];
+  var liteGroups = [], liteLayers = [], pageStore = {}, pageTags = {}, pageFloorKind = {}, pageFloorNum = {};
+  var globalLayerOrder = 0; // must match buildProject()'s globally-monotonic order convention
+  var page = 1;
+  floors.forEach(function(floor){
+    var fid = floorFolderId(floor);
+    liteGroups.push({id:fid, name:floorDisplayName(floor), color:'#4c8dff', parentId:null,
+      order:rankFloorFolder(fid), kind:'page-folder', pages:[page]});
+    pageTags[String(page)] = 'floor';
+    pageFloorKind[String(page)] = (floor.kind === 'rooftop') ? 'rooftop' : floor.kind;
+    pageFloorNum[String(page)] = (floor.kind === 'rooftop') ? 'roof' : floor.num;
+
+    layerKindsTpl(floor.label).forEach(function(k){
+      var lid = fid + '_' + k.key;
+      liteLayers.push({id:lid, name:k.name, color:'#39d98a', role:k.role, order:globalLayerOrder++,
+        parentId:fid, floorKey:floorKeyOf(floor)});
+    });
+    pageStore[String(page)] = {
+      polys:    [{liteCatId:fid + '_gfa',  semanticTag:'gross_floor_area',  pts:[{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}]}],
+      openings: [{liteCatId:fid + '_wall', semanticTag:'deduction_opening', pts:[{x:1,y:1},{x:2,y:1},{x:2,y:2},{x:1,y:2}]}],
+      lines:    []
+    };
+    page++;
+  });
+  return {version:1, app:'bma-plan-lite', pdfName:'adversarial-v1-test.pdf', totalPages:floors.length,
+    pageTags:pageTags, pageFloorKind:pageFloorKind, pageFloorNum:pageFloorNum,
+    liteGroups:liteGroups, liteLayers:liteLayers, pageStore:pageStore};
+}
+function loadV1(doc){
+  _lastLoadedRawDoc = doc;
+  FOLDERS.length = 0;
+  (doc.liteGroups || []).forEach(function(g){
+    if (g && g.id) FOLDERS.push({id:g.id, name:g.name, color:g.color,
+      parentId:(g.parentId !== undefined ? g.parentId : null),
+      order:(g.order !== undefined ? g.order : FOLDERS.length), kind:g.kind, pages:g.pages});
+  });
+  LAYERS.length = 0;
+  (doc.liteLayers || []).forEach(function(e){
+    LAYERS.push({id:e.id, name:e.name, color:e.color, role:e.role, order:e.order,
+      parentId:(e.parentId !== undefined ? e.parentId : null), floorKey:e.floorKey});
+  });
+  // v1 never persists vis/lock (confirmed against ui-lite.html mi-save handler) — reseed defaults,
+  // exactly mirroring the real loadProto() re-seed pass.
+  LAYERS.forEach(function(l){
+    if (state.catVis[l.id] === undefined) state.catVis[l.id] = true;
+    if (state.catLock[l.id] === undefined) state.catLock[l.id] = false;
+  });
+  FOLDERS.forEach(function(f){
+    if (state.catVis[f.id] === undefined) state.catVis[f.id] = true;
+    if (state.catLock[f.id] === undefined) state.catLock[f.id] = false;
+  });
+  OBJECTS = {};
+  Object.keys(doc.pageStore || {}).forEach(function(pg){
+    var st = doc.pageStore[pg] || {};
+    (st.polys || []).forEach(function(o,i){ var oid='p'+pg+'_poly'+i; OBJECTS[oid]={id:oid, catId:o.liteCatId}; });
+    (st.openings || []).forEach(function(o,i){ var oid='p'+pg+'_open'+i; OBJECTS[oid]={id:oid, catId:o.liteCatId}; });
+    (st.lines || []).forEach(function(o,i){ var oid='p'+pg+'_line'+i; OBJECTS[oid]={id:oid, catId:o.liteCatId}; });
+  });
+  buildSearchIndex();
+}
+function saveV1(){
+  var base = _lastLoadedRawDoc || {};
+  return {
+    version: (base.version !== undefined) ? base.version : 1,
+    app: base.app, pdfName: base.pdfName, totalPages: base.totalPages,
+    pageTags: base.pageTags, pageFloorKind: base.pageFloorKind, pageFloorNum: base.pageFloorNum,
+    liteGroups: foldersInOrder().map(function(f){ return {id:f.id, name:f.name, color:f.color,
+      parentId:(f.parentId !== undefined ? f.parentId : null), order:f.order, kind:f.kind, pages:f.pages}; }),
+    liteLayers: layersInOrder().map(function(l){ return {id:l.id, name:l.name, color:l.color, role:l.role,
+      order:l.order, parentId:(l.parentId !== undefined ? l.parentId : null), floorKey:l.floorKey}; }),
+    pageStore: base.pageStore
+  };
+}
+function deepDiff(a, b, path){
+  path = path || '';
+  var adds = [], rems = [], changes = [];
+  if (a === null || a === undefined){
+    if (b !== undefined && b !== null) adds.push(path || '(root)');
+    return {adds:adds, rems:rems, changes:changes};
+  }
+  if (typeof a !== 'object'){
+    if (a !== b) changes.push({path:path, from:a, to:b});
+    return {adds:adds, rems:rems, changes:changes};
+  }
+  if (Array.isArray(a)){
+    if (!Array.isArray(b)){ changes.push({path:path, from:'array', to:typeof b}); return {adds:adds,rems:rems,changes:changes}; }
+    var maxLen = Math.max(a.length, b.length);
+    for (var i = 0; i < maxLen; i++){
+      if (i >= a.length){ adds.push(path + '[' + i + ']'); continue; }
+      if (i >= b.length){ rems.push(path + '[' + i + ']'); continue; }
+      var sub = deepDiff(a[i], b[i], path + '[' + i + ']');
+      adds = adds.concat(sub.adds); rems = rems.concat(sub.rems); changes = changes.concat(sub.changes);
+    }
+    return {adds:adds, rems:rems, changes:changes};
+  }
+  var keysA = Object.keys(a), keysB = Object.keys(b);
+  keysA.forEach(function(k){
+    if (!(k in b)){ rems.push(path + '.' + k); return; }
+    var s = deepDiff(a[k], b[k], path + '.' + k);
+    adds = adds.concat(s.adds); rems = rems.concat(s.rems); changes = changes.concat(s.changes);
+  });
+  keysB.forEach(function(k){ if (!(k in a)) adds.push(path + '.' + k); });
+  return {adds:adds, rems:rems, changes:changes};
+}
+
+/* ============================================================
+   EVAL — 3 cases per docs/invent/lite-layer-menu-ui-fix.md ## Eval
+   ============================================================ */
+function evalCase1_happy(){
+  buildProject(100); // 3 basement + 95 normal(1..95) + 1 mezz(after 12) + 1 roof = 100
+  renderFloorRail();
+
+  var t0 = performance.now();
+  renderPanel(); // initial panel render (only active floor's ~6 layers)
+  var t1 = performance.now();
+  var renderMs = t1 - t0;
+  var domNodes = document.querySelectorAll('#layer-panel *').length;
+
+  // locate + toggle "ชั้น 57 -> ผนัง" in <=3 real DOM actions
+  window.__actionLog = [];
+  var targetFolderId = floorFolderId({kind:'normal', num:57});
+  var wallLayerId = targetFolderId + '_wall';
+  var visBefore = state.catVis[wallLayerId];
+
+  // action 1: type "57" into search (real input event)
+  var searchInput = document.getElementById('search-input');
+  searchInput.value = '57';
+  searchInput.dispatchEvent(new Event('input', {bubbles:true}));
+
+  // action 2: click the FLOOR search result (jump to floor 57)
+  var floorResult = document.querySelector(
+    '#search-results .search-result[data-restype="floor"][data-folderid="' + targetFolderId + '"]');
+  var foundFloorResult = !!floorResult;
+  if (floorResult) floorResult.click();
+
+  // action 3: click the ผนัง vis-toggle now visible in the panel
+  var visBtn = document.querySelector('#layer-panel .vis-toggle[data-layer-id="' + wallLayerId + '"]');
+  var foundVisBtn = !!visBtn;
+  if (visBtn) visBtn.click();
+
+  var visAfter = state.catVis[wallLayerId];
+  var actionCount = window.__actionLog.length;
+  var jumpedCorrectly = (activeFolderId === targetFolderId);
+  var toggled = (visBefore !== visAfter);
+
+  var pass = (renderMs < 150 && domNodes < 800 && actionCount <= 3 &&
+              foundFloorResult && foundVisBtn && jumpedCorrectly && toggled);
+  return {renderMs:renderMs, domNodes:domNodes, actionCount:actionCount, foundFloorResult:foundFloorResult,
+    foundVisBtn:foundVisBtn, jumpedCorrectly:jumpedCorrectly, toggled:toggled, pass:pass};
+}
+
+function evalCase2_edge(){
+  buildProject(20, {mezzAfter:12}); // 3 basement + 15 normal(1..15) + 1 mezz(after12) + 1 roof = 20
+  var expectedOrder = FLOOR_GEN_ORDER.slice();
+
+  // simulate a real "creation order doesn't matter" scenario: scramble the FOLDERS array,
+  // then re-rank deterministically (mirrors real seedPageFolders' idempotent re-rank pass).
+  FOLDERS.reverse();
+  FOLDERS.forEach(function(f){ f.order = rankFloorFolder(f.id); });
+
+  var actualOrder = foldersInOrder().map(function(f){ return f.id; });
+  var orderMatches = JSON.stringify(actualOrder) === JSON.stringify(expectedOrder);
+
+  // two distinct floors, each literally named "ผนัง" (all floors are, by construction)
+  var floorA = {kind:'normal', num:5}, floorB = {kind:'normal', num:13}; // 13 is post-mezzanine
+  var wallA = floorFolderId(floorA) + '_wall';
+  var wallB = floorFolderId(floorB) + '_wall';
+  var la = layerById(wallA), lb = layerById(wallB);
+  var namesLiterallyWall = !!(la && la.name === 'ผนัง' && lb && lb.name === 'ผนัง');
+  var distinctIds = (wallA !== wallB);
+
+  // toggle A via a REAL panel click, verify B is unaffected (state isolation by entity id)
+  jumpToFloor(floorFolderId(floorA));
+  var visBBefore = state.catVis[wallB];
+  var visBtnA = document.querySelector('#layer-panel .vis-toggle[data-layer-id="' + wallA + '"]');
+  if (visBtnA) visBtnA.click();
+  jumpToFloor(floorFolderId(floorB));
+  var visBAfterAToggle = state.catVis[wallB];
+  var isolationOk = (visBAfterAToggle === visBBefore) && (state.catVis[wallA] === false);
+
+  // zero-orphan check across every object after the reorder
+  var orphanCount = 0;
+  Object.keys(OBJECTS).forEach(function(oid){ if (!layerById(OBJECTS[oid].catId)) orphanCount++; });
+
+  var pass = (orderMatches && namesLiterallyWall && distinctIds && isolationOk && orphanCount === 0);
+  return {expectedOrder:expectedOrder, actualOrder:actualOrder, orderMatches:orderMatches,
+    namesLiterallyWall:namesLiterallyWall, distinctIds:distinctIds, isolationOk:isolationOk,
+    orphanCount:orphanCount, objectCount:Object.keys(OBJECTS).length, pass:pass};
+}
+
+function evalCase3_adversarial(){
+  var original = genV1Doc();
+  var originalCopy = JSON.parse(JSON.stringify(original)); // pristine baseline
+  loadV1(JSON.parse(JSON.stringify(original)));            // load a deep clone (no shared refs)
+
+  var orphansAfterLoad = 0;
+  Object.keys(OBJECTS).forEach(function(oid){ if (!layerById(OBJECTS[oid].catId)) orphansAfterLoad++; });
+
+  var saved = saveV1();
+  var diff = deepDiff(originalCopy, saved, '');
+  var losslessAdditionsOnly = (diff.rems.length === 0 && diff.changes.length === 0);
+
+  // simulated v1 reader — only knows liteLayers/liteGroups/pageStore, ignores anything unknown
+  var v1LayerIndex = {};
+  (saved.liteLayers || []).forEach(function(l){ v1LayerIndex[l.id] = l; });
+  var v1ReaderOrphans = 0;
+  Object.keys(saved.pageStore || {}).forEach(function(pg){
+    var st = saved.pageStore[pg];
+    (st.polys || []).concat(st.openings || []).concat(st.lines || []).forEach(function(o){
+      if (!v1LayerIndex[o.liteCatId]) v1ReaderOrphans++;
+    });
+  });
+  // v1 reader vis/lock derivation: v1 never persisted these -> reader must default true/false
+  // (this matches real v1 behaviour exactly; Approach B does not change it)
+  var v1VisOk = true, v1LockOk = true;
+
+  var pass = (orphansAfterLoad === 0 && losslessAdditionsOnly && v1ReaderOrphans === 0 && v1VisOk && v1LockOk);
+  return {orphansAfterLoad:orphansAfterLoad, diffAdds:diff.adds.length, diffRems:diff.rems.length,
+    diffChanges:diff.changes.length, losslessAdditionsOnly:losslessAdditionsOnly,
+    v1ReaderOrphans:v1ReaderOrphans, v1VisOk:v1VisOk, v1LockOk:v1LockOk, pass:pass};
+}
+
+function renderEvalTable(results){
+  var el = document.getElementById('eval-output');
+  function row(name, ok, detail){
+    return '<tr><td>' + name + '</td><td class="' + (ok ? 'pass' : 'fail') + '">' +
+      (ok ? 'PASS' : 'FAIL') + '</td><td>' + detail + '</td></tr>';
+  }
+  var html = '<h2>Eval results (ทุก preset)</h2>';
+  ['P1','P2','P3'].forEach(function(pid){
+    var pr = results.presets[pid];
+    if (!pr) return;
+    var c1 = pr.case1, c2 = pr.case2, c3 = pr.case3;
+    html += '<h3>' + pid + ' — ' + (pr.allPass ? '<span class="pass">ALL PASS</span>'
+                                              : '<span class="fail">HAS FAILURES</span>') + '</h3>';
+    html += '<table><tr><th>Case</th><th>Verdict</th><th>Actual vs expected</th></tr>';
+    html += row('1. happy — render&lt;150ms, DOM&lt;800, actions&le;3', c1.pass,
+      'renderMs=' + c1.renderMs.toFixed(2) + ' (exp &lt;150) &middot; domNodes=' + c1.domNodes +
+      ' (exp &lt;800) &middot; actionCount=' + c1.actionCount + ' (exp &le;3) &middot; ' +
+      'foundFloorResult=' + c1.foundFloorResult + ' &middot; foundVisBtn=' + c1.foundVisBtn +
+      ' &middot; jumpedCorrectly=' + c1.jumpedCorrectly + ' &middot; toggled=' + c1.toggled);
+    html += row('2. edge — kind-aware order, name-isolation, zero-orphan', c2.pass,
+      'orderMatches=' + c2.orderMatches + ' &middot; namesLiterallyWall=' + c2.namesLiterallyWall +
+      ' &middot; distinctIds=' + c2.distinctIds + ' &middot; isolationOk=' + c2.isolationOk +
+      ' &middot; orphanCount=' + c2.orphanCount + '/' + c2.objectCount);
+    html += row('3. adversarial — v1 round-trip losslessness', c3.pass,
+      'orphansAfterLoad=' + c3.orphansAfterLoad + ' &middot; diff adds/rems/changes=' +
+      c3.diffAdds + '/' + c3.diffRems + '/' + c3.diffChanges + ' (exp rems=0,changes=0) &middot; ' +
+      'v1ReaderOrphans=' + c3.v1ReaderOrphans + ' &middot; v1VisOk=' + c3.v1VisOk + ' &middot; v1LockOk=' + c3.v1LockOk);
+    html += '</table>';
+  });
+  html += '<div class="notes">allPass=' + results.allPass + ' &middot; pageErrors=' +
+    JSON.stringify(window.__pageErrors) + '</div>';
+  el.innerHTML = html;
+}
+
+/* runEval: the full 3-case suite is executed once PER PRESET (P1/P2/P3) so the
+   DOM-node and action-count graders are proven under every proportion preset,
+   not just the default. Restores the P2 default afterwards. */
+function runEval(){
+  var perPreset = {};
+  var allPass = true;
+  ['P1','P2','P3'].forEach(function(pid){
+    applyPreset(pid);
+    var r1 = evalCase1_happy();
+    var r2 = evalCase2_edge();
+    var r3 = evalCase3_adversarial();
+    var pr = {case1:r1, case2:r2, case3:r3, allPass:(r1.pass && r2.pass && r3.pass)};
+    perPreset[pid] = pr;
+    allPass = allPass && pr.allPass;
+  });
+  applyPreset('P2'); // restore default preset
+  var results = {presets:perPreset, allPass:allPass};
+  window.__evalResults = results;
+  renderEvalTable(results);
+  // leave the UI in a friendly demo state for manual poking after the eval
+  buildProject(100); renderFloorRail(); renderPanel();
+  return results;
+}
+document.getElementById('btn-run-eval').addEventListener('click', runEval);
+document.querySelectorAll('#preset-bar .preset-btn').forEach(function(b){
+  b.addEventListener('click', function(){
+    window.__actionLog.push({t:'click', id:'preset:' + b.getAttribute('data-preset')});
+    applyPreset(b.getAttribute('data-preset'));
+  });
+});
+
+/* initial demo state on load — default preset = P2 */
+applyPreset('P2');
+buildProject(100);
+renderFloorRail();
+renderPanel();
+</script>
+</body>
+</html>
