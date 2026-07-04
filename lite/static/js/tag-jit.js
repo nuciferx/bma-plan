@@ -45,27 +45,65 @@
      state, setTool (wrapped), pushUndo(), liteSetTag(n,val),
      liteSetFloorKind(n,kind), liteSetFloorNum(n,num), buildPicker(),
      reseedActivePageFolders()
+
+   SCALE-GATE-2026-07-04: extends the SAME per-page JIT gate with a SECOND
+   check, run AFTER the tag check passes (gate ORDER: tag first, then
+   scale) — a tagged-but-unscaled page also refuses to arm poly/dist/
+   path/ref (count is EXEMPT — "นับจำนวนไม่ต้องมี scale"; the scale tool
+   itself is NEVER gated, since it's the remedy — it's simply not in
+   _JIT_MEASURE_TOOLS at all, same reason select/ann_* aren't gated).
+   Scale-presence source: `getScaleForPage(pg)` (ui-lite.html) — thin
+   wrapper over the real truth `PS[pg].scale` (see PSpage()/openCalib()/
+   #cal-ok). Scale-COMMIT hook: `#cal-ok` (the "Set Scale" 2-point-draw ->
+   modal -> OK flow) and `#su-ok` (the Page Setup dialog's manual
+   pts_per_m entry) are the only two user-facing scale-commit points in
+   ui-lite.html (grepped every `.scale=` assignment to confirm) — both are
+   plain `.onclick=` PROPERTY assignments (not addEventListener), so they
+   are wrapped the exact same way `setTool` is: capture the original
+   handler, splice in a before/after scale-presence diff, call the
+   original, then fire `_jitScaleCommitted()` if a scale that didn't exist
+   before now does. `#cal-ok` additionally hardcodes `state.tool="poly"`
+   directly (bypassing setTool) as pre-existing behavior; our hook runs
+   AFTER that (post-original-handler) and re-invokes `setTool(pendingTool)`
+   with the ACTUAL tool the user originally wanted — correctly overriding
+   that hardcoded default as a side effect. Same zero-ui-lite.html-edits
+   approach as the setTool wrap (own the load order, wrap onclick
+   properties from here).
    ============================================================ */
 
 var _JIT_MEASURE_TOOLS = { poly: 1, dist: 1, path: 1, ref: 1, count: 1 };
+var _JIT_SCALE_EXEMPT  = { count: 1 }; // measure tools that do NOT need a scale ("นับจำนวนไม่ต้องมี scale")
 var _jitPendingTool = null; // toolId the user tried to arm while blocked, or null
 
-/* -- gate predicate -- */
+/* -- gate predicates -- */
 function jitPageTagged(n) {
   if (typeof pageTags === "undefined" || !n) return true; // defensive: no doc yet, don't block
   return !!pageTags[n];
 }
+function jitPageScaled(n) {
+  if (typeof getScaleForPage !== "function" || !n) return true; // defensive: no doc yet, don't block
+  return !!getScaleForPage(n);
+}
 
-/* -- gate entry point — called from the setTool() wrap below -- */
+/* -- gate entry point — called from the setTool() wrap below.
+   Gate ORDER: tag gate first (existing), then scale gate. -- */
 function jitGuardTool(toolId) {
   if (!_JIT_MEASURE_TOOLS[toolId]) return true; // not a measure tool -> always allowed
   if (typeof caseId !== "undefined" && !caseId) return true; // no PDF open — nothing to gate yet
   var n = (typeof curPage !== "undefined") ? curPage : 0;
   if (!n) return true;
-  if (jitPageTagged(n)) { _jitHideBanner(); return true; }
-  _jitPendingTool = toolId;
-  _jitShowBanner(n);
-  return false;
+  if (!jitPageTagged(n)) {
+    _jitPendingTool = toolId;
+    _jitShowTagBanner(n);
+    return false;
+  }
+  if (!_JIT_SCALE_EXEMPT[toolId] && !jitPageScaled(n)) {
+    _jitPendingTool = toolId;
+    _jitShowScaleBanner(n);
+    return false;
+  }
+  _jitHideBanner();
+  return true;
 }
 
 /* -- next available floor number (1-tap floor default) --
@@ -117,7 +155,7 @@ function _jitInjectBannerDOM() {
   stage.appendChild(el);
 }
 
-function _jitShowBanner(n) {
+function _jitShowTagBanner(n) {
   _jitInjectBannerDOM();
   var el = document.getElementById("jit-banner");
   if (!el) return;
@@ -134,9 +172,38 @@ function _jitShowBanner(n) {
   });
 }
 
+/* -- SCALE-GATE-2026-07-04: second banner variant — tagged page, no scale.
+   Second message, single action: switch straight to the scale tool. -- */
+function _jitShowScaleBanner(n) {
+  _jitInjectBannerDOM();
+  var el = document.getElementById("jit-banner");
+  if (!el) return;
+  el.innerHTML = '<span style="color:var(--warn,#ffb454);font-weight:600">⚠ หน้านี้ยังไม่ตั้งมาตราส่วน</span>' +
+    '<span class="ov-tag-chip ov-tag-floor" id="jit-set-scale-btn" style="cursor:pointer">ตั้ง scale เลย</span>';
+  el.style.display = "flex";
+  var btn = document.getElementById("jit-set-scale-btn");
+  if (btn) btn.addEventListener("click", function() {
+    _jitHideBanner();
+    // 'scale' is not in _JIT_MEASURE_TOOLS -> jitGuardTool('scale') always
+    // returns true -> arms immediately, no re-entrant gating.
+    if (typeof setTool === "function") setTool("scale");
+  });
+}
+
 function _jitHideBanner() {
   var el = document.getElementById("jit-banner");
   if (el) el.style.display = "none";
+}
+
+/* -- called once a scale-commit point (see _jitWrapScaleCommit below)
+   detects the current page went from unscaled -> scaled. Re-arms the
+   tool the user originally tried to use, exactly once. -- */
+function _jitScaleCommitted() {
+  _jitHideBanner();
+  if (_jitPendingTool && typeof setTool === "function") {
+    var t = _jitPendingTool; _jitPendingTool = null;
+    setTool(t); // re-invoke the (wrapped) setTool — passes both gates now
+  }
 }
 
 /* -- bootstrap — wraps setTool() exactly once.
@@ -156,6 +223,32 @@ function _jitBootstrap() {
     };
     setTool.__jitWrapped = true;
   }
+  _jitWrapScaleCommit();
+}
+
+/* -- SCALE-GATE-2026-07-04: wrap the two user-facing scale-commit points.
+   Both are plain `.onclick=` PROPERTY assignments in ui-lite.html (not
+   addEventListener), so they're wrapped the same way as setTool: capture
+   the original handler, diff scale-presence before/after calling it, fire
+   _jitScaleCommitted() only on a genuine none->some transition (so an
+   invalid #cal-ok input, which its own handler alert()s+returns early
+   without setting a scale, correctly does NOT retrigger). -- */
+function _jitWrapScaleCommit() {
+  ["cal-ok", "su-ok"].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn || btn.__jitScaleWrapped) return;
+    var _origOnClick = btn.onclick;
+    if (typeof _origOnClick !== "function") return;
+    btn.onclick = function(e) {
+      var n = (typeof curPage !== "undefined") ? curPage : 0;
+      var hadScaleBefore = n ? jitPageScaled(n) : true;
+      var ret = _origOnClick.call(this, e);
+      var hasScaleNow = n ? jitPageScaled(n) : true;
+      if (n && !hadScaleBefore && hasScaleNow) _jitScaleCommitted();
+      return ret;
+    };
+    btn.__jitScaleWrapped = true;
+  });
 }
 
 if (document.readyState === "loading") {

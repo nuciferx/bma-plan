@@ -98,7 +98,12 @@ CHECK_BANNER_ONE_TAP = r"""
   caseId = 'test'; pageCount = 5;
   pageTags = {}; excluded = {}; pageFloorNum = {}; pageFloorKind = {};
   curPage = 4; state.tool = 'select'; state.pageFolderMode = true;
-  PS = { 4: { objects: [], scale: null, annotations: [] } };
+  // SCALE-GATE-2026-07-04: this page needs a scale pre-set too, otherwise
+  // after the tag gate is satisfied the (new, layered) scale gate would
+  // ALSO fire and block arming with a scale-banner instead — this check is
+  // specifically about the TAG gate's 1-tap flow, isolated from the scale
+  // gate (which has its own dedicated coverage in test_scale_gate.py).
+  PS = { 4: { objects: [], scale: { pts_per_m: 10 }, annotations: [] } };
   _jitHideBanner();
 
   setTool('dist');                        // blocked -> banner shown, pending tool = 'dist'
@@ -136,7 +141,10 @@ CHECK_TAGGED_ARMS_DIRECTLY = r"""
 () => {
   caseId = 'test'; pageCount = 5; pageTags = { 2: 'site' }; excluded = {};
   curPage = 2; state.tool = 'select';
-  PS = { 2: { objects: [], scale: null, annotations: [] } };
+  // SCALE-GATE-2026-07-04: scale pre-set — this check is specifically about
+  // the TAG gate arming directly once tagged; without a scale the (new)
+  // scale gate would still block 'poly' with a scale-banner instead.
+  PS = { 2: { objects: [], scale: { pts_per_m: 10 }, annotations: [] } };
   _jitHideBanner();
 
   setTool('poly');

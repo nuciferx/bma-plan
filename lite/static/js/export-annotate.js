@@ -82,14 +82,20 @@ function buildReportPayload(){
       var sub=0;
       var rows=inCat.map(function(o){
         var a,rpts,rname;
+        // SCALE-GATE-2026-07-04: keep a==null AS null (a page with no scale
+        // yet cannot compute a real m² area) — do NOT coerce to 0. sub/net
+        // (the report's independent ground truth) skip null rows entirely;
+        // the row itself carries area:null through to the grid, which
+        // renders "—" (report-edit.js) instead of a misleading 0.00.
         if(o.kind==="instance"){ var ppm=(PS[pg].scale&&PS[pg].scale.pts_per_m>0)?PS[pg].scale.pts_per_m:null;
-          a=(typeof rollupAreaM2==="function")?rollupAreaM2(o,pg):null; a=(a==null?0:a);
+          a=(typeof rollupAreaM2==="function")?rollupAreaM2(o,pg):null;
           var rs=(typeof resolveInstancePts==="function"&&ppm)?resolveInstancePts(o,ppm):null; rpts=rs?rs.pts:[];
           var mm=(typeof masterById==="function")?masterById(o.masterId):null; rname=(o.name||(mm&&mm.name)||c.name);
-        } else { a=polyMetricsAnyShape(o,pg).area; a=(a==null?0:a); rpts=o.pts||[]; rname=(o.name||c.name); }
-        sub+=a; badgeN++;
+        } else { a=polyMetricsAnyShape(o,pg).area; rpts=o.pts||[]; rname=(o.name||c.name); }
+        if(a!=null) sub+=a; // null rows don't participate in the subtotal
+        badgeN++;
         overlays.push({pts:rpts.map(function(p){return {x:+(p.x*RS).toFixed(1),y:+(p.y*RS).toFixed(1)};}),color:c.color,badge:badgeN});
-        return {name:rname, area:+a.toFixed(2), badge:badgeN};
+        return {name:rname, area:(a==null?null:+a.toFixed(2)), badge:badgeN};
       });
       var sign=(c.role==="ded")?-1:1; net+=sign*sub;
       groups.push({label:c.name,color:c.color,rows:rows,subtotal:+sub.toFixed(2),sign:sign});

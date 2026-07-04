@@ -14,6 +14,10 @@ var ReportEdit = (function(){
   var rowIds = [];
   var subMeta = {};
   var rowSign = {};       /* B-3 (REVIEW ledger slice B/4): rowId -> 1|-1, from the seed row's own `sign` (role-derived upstream) */
+  var nullAreaRows = {};  /* SCALE-GATE-2026-07-04: rowId -> true for a row whose seed area was null (unscaled page) --
+                              underlying jspreadsheet cell VALUE stays 0 (numeric-column-safe, contributes 0 to any
+                              manual subtotal), but its DISPLAY is overlaid to "—" + a tooltip by applyNullAreaCells(),
+                              re-applied every time refreshOverrideStyles() runs (onload/onchange/structural edits). */
   var _currentRows = null; /* rich seed rows [{name,area,sign,page}] behind the current seedData -- source for rowSign + makeHash */
   var stCounter = 0;
   var _rebuilding = false;
@@ -61,6 +65,32 @@ var ReportEdit = (function(){
       var overridden=!isFormula&&isFinite(num)&&Math.abs(num-baseline[i])>1e-9;
       jss.setStyle(colCell(i),'color',overridden?'#1d4ed8':'');
       jss.setStyle(colCell(i),'font-weight',overridden?'700':'');
+    }
+    applyNullAreaCells();
+  }
+
+  /* SCALE-GATE-2026-07-04: overlay DISPLAY (not the underlying jspreadsheet
+     cell value, which stays 0 for numeric-column safety) to "—" + a tooltip
+     for any row whose seed area was null (page has no scale yet). Re-run
+     every time refreshOverrideStyles() runs so the overlay survives
+     jspreadsheet's own re-renders (onload/onchange/structural edits). */
+  function applyNullAreaCells(){
+    if(!hostEl) return;
+    var ac=areaCount();
+    for(var i=0;i<ac;i++){
+      var rid=rowIds[i];
+      var td=hostEl.querySelector('td[data-x="1"][data-y="'+i+'"]');
+      if(!td) continue;
+      if(nullAreaRows[rid]){
+        td.textContent='—';
+        td.title='ยังไม่ตั้งมาตราส่วน';
+        td.style.color='#9aa3ad';
+        td.classList.add('re-null-area');
+      } else if(td.classList.contains('re-null-area')){
+        td.classList.remove('re-null-area');
+        td.removeAttribute('title');
+        td.style.color='';
+      }
     }
   }
 
@@ -245,6 +275,15 @@ var ReportEdit = (function(){
         rowSign['r'+si]=(src&&src.sign===-1)?-1:1;
       }
     }
+    /* SCALE-GATE-2026-07-04: null-area status is always derived FRESH from
+       _currentRows (whether the page has a scale is current truth read at
+       report-build time, not user-editable persisted state) -- never
+       restored from `saved`, unlike rowSign/subMeta above. */
+    nullAreaRows={};
+    for(var ai=0; ai<nArea; ai++){
+      var asrc=_currentRows&&_currentRows[ai];
+      nullAreaRows['r'+ai]=!!(asrc&&asrc.area==null);
+    }
 
     hostEl.innerHTML='';
     jss=jspreadsheet(hostEl,{
@@ -329,7 +368,12 @@ var ReportEdit = (function(){
     var srcRows=rows&&rows.length
       ? rows
       : DEFAULT_SEED.map(function(r){return {name:r[0],area:r[1],sign:1};});
-    var seedData=srcRows.map(function(r){return [r.name,r.area];});
+    /* SCALE-GATE-2026-07-04: a null area (unscaled page) is substituted with
+       0 for the underlying jspreadsheet numeric-column cell VALUE (keeps the
+       column type-safe / formula-safe -- contributes 0 to any manual
+       subtotal) -- nullAreaRows[] (built in init()) tracks which rows these
+       are so applyNullAreaCells() can overlay the DISPLAY to "—" + tooltip. */
+    var seedData=srcRows.map(function(r){return [r.name,r.area==null?0:r.area];});
     _currentRows=srcRows;
     _currentSeed=seedData;
     _currentSeedHash=makeHash(srcRows);
@@ -342,7 +386,9 @@ var ReportEdit = (function(){
         'body.re-picker-mode .jss td.re-picker-hot:hover{background:#eff6ff!important}'+
         '.jexcel_container td.editor input,.jss td.editor input,td.editor input,td.editor textarea{'+
         'background:#fffbe6!important;border:2px solid #2d6cdf!important;color:#1a1d21!important;'+
-        'font:14px "Segoe UI"!important;width:100%!important;box-sizing:border-box!important;padding:2px 4px!important}';
+        'font:14px "Segoe UI"!important;width:100%!important;box-sizing:border-box!important;padding:2px 4px!important}'+
+        /* SCALE-GATE-2026-07-04: null-area cell display overlay (applyNullAreaCells) */
+        '.re-null-area{text-align:right!important;font-style:italic}';
       document.head.appendChild(st);
     }
 
@@ -404,7 +450,7 @@ var ReportEdit = (function(){
     if(hostEl){ hostEl.innerHTML=''; }
     jss=null; hostEl=null;
     pickerActive=false; editorInput=null; editorCellX=-1; editorCellY=-1;
-    rowIds=[]; subMeta={}; rowSign={}; stCounter=0; baseline=[];
+    rowIds=[]; subMeta={}; rowSign={}; nullAreaRows={}; stCounter=0; baseline=[];
     _currentSeed=null; _currentSeedHash=null; _currentRows=null;
   }
 
@@ -415,7 +461,8 @@ var ReportEdit = (function(){
         var srcRows=rows&&rows.length
           ? rows
           : DEFAULT_SEED.map(function(r){return {name:r[0],area:r[1],sign:1};});
-        var seedData=srcRows.map(function(r){return [r.name,r.area];});
+        // SCALE-GATE-2026-07-04: null area -> 0 cell value, see mount() above.
+        var seedData=srcRows.map(function(r){return [r.name,r.area==null?0:r.area];});
         /* clear persistence for this seed so reset is clean */
         try{ localStorage.removeItem(lsKey(makeHash(srcRows))); }catch(e){}
         _currentRows=srcRows;
