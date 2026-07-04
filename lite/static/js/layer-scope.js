@@ -434,6 +434,43 @@ function _lsRenderSearchResults(query, resultsEl) {
 }
 
 /* ------------------------------------------------------------------
+   _lsSyncActiveCatToFolder(activeFolder)
+   INV-2026-07-04-001 slice 4 (bug fix): state.activeCat is a single
+   global value with no per-floor memory. Before scoping (slice 1),
+   every floor's layers rendered at once so this was invisible; now
+   that only the active floor's layers render, returning to a floor
+   via ANY nav path (click or rail) left activeCat pointing at
+   whatever layer was last clicked elsewhere — reads as "the old/
+   default layer shows up instead of the one I created for this
+   floor" (user report). Fix: remember the last active layer PER PF
+   folder (state._lsActiveByFolder — runtime-only, NOT persisted, no
+   .bmaplan schema change) and restore it when scoping switches there.
+   ------------------------------------------------------------------ */
+function _lsSyncActiveCatToFolder(activeFolder) {
+  if (!state || typeof pageFolderOfLayer !== "function") return null;
+  if (!state._lsActiveByFolder) state._lsActiveByFolder = {};
+  var mem = state._lsActiveByFolder;
+
+  // Remember: file the currently-active layer under ITS OWN folder (not
+  // necessarily activeFolder) so it survives being scoped out later.
+  if (state.activeCat) {
+    var curFolder = pageFolderOfLayer(state.activeCat);
+    if (curFolder) mem[curFolder.id] = state.activeCat;
+  }
+  if (!activeFolder) return null;
+
+  // Restore: if the active layer doesn't belong to the now-scoped folder,
+  // switch to whichever layer was last active there (if it still exists).
+  var nowFolder = state.activeCat ? pageFolderOfLayer(state.activeCat) : null;
+  if ((!nowFolder || nowFolder.id !== activeFolder.id) &&
+      mem[activeFolder.id] && typeof layerById === "function" && layerById(mem[activeFolder.id])) {
+    state.activeCat = mem[activeFolder.id];
+    return state.activeCat; // changed — caller re-syncs the DOM ".active" class
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------
    _lsPostRender()
    Runs after every buildPicker() call (wrapped below). Mounts/updates
    the rail, then — when scope is active and the current page resolves
@@ -452,6 +489,16 @@ function _lsPostRender() {
   if (host) lsRenderRail(host);
 
   var activeFolder = lsFolderForPage(typeof curPage !== "undefined" ? curPage : null);
+  var restoredCat = _lsSyncActiveCatToFolder(activeFolder);
+  if (restoredCat) {
+    // The row's ".active" class was already painted by the buildPicker() call
+    // that just ran (using the OLD activeCat) — patch it in place so the
+    // highlight matches immediately, not one render pass later.
+    var prevActive = catlist.querySelector(".lt-layer-row.active");
+    if (prevActive) prevActive.classList.remove("active");
+    var nowRow = catlist.querySelector('.lt-layer-row[data-catid="' + restoredCat + '"]');
+    if (nowRow) nowRow.classList.add("active");
+  }
   if (!activeFolder) return; // untagged/excluded page — fallback, unfiltered render
 
   if (typeof FOLDERS === "undefined") return;

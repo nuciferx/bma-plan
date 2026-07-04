@@ -224,12 +224,63 @@ CHECK_MODE_OFF = SEED + r"""
   })();
 """
 
+# ---------------------------------------------------------------------------
+# Check 6 — activeLayerRestoredOnReturn (slice 4 bug fix regression)
+# User report: create a custom layer on a floor, navigate away, navigate BACK
+# via a click path -> the panel/active-layer reverts to an old/default layer
+# instead of the one created for that floor. Repro headlessly confirmed the
+# ROW always rendered correctly (3 real click paths, see
+# tests/repro_layer_scope_pageclick.py) but state.activeCat has no per-floor
+# memory -- this check pins the fix: create+activate a custom layer on
+# PF_floor_2, switch active layer on PF_floor_3, navigate back to page 6 ->
+# activeCat must be restored to the floor-2 custom layer (not the floor-3 one
+# or a default), and the DOM ".active" class must sit on ITS row immediately.
+# ---------------------------------------------------------------------------
+CHECK_ACTIVE_RESTORE = SEED + r"""
+  curPage = 6; // PF_floor_2
+  var custom2 = addLayer('gfa', 'CustomFloor2', '#ff00ff');
+  custom2.parentId = 'PF_floor_2';
+  state.catVis[custom2.id] = true; state.catLock[custom2.id] = false;
+  state.activeCat = custom2.id; // simulate: user clicked this row to activate it
+  buildPicker();
+
+  window._origLoadPage = loadPage;
+  loadPage = function(n) { curPage = n; afterPage(); return Promise.resolve(); };
+""" + r"""
+  return (async function() {
+    // navigate to floor 3, activate a DIFFERENT (base) layer there
+    await loadPage(7);
+    var floor3BaseId = LAYERS.find(function(l) { return l.parentId === 'PF_floor_roof'; }).id;
+    state.activeCat = floor3BaseId;
+    buildPicker();
+
+    // navigate back to floor 2 (click-path proxy — same loadPage() the real
+    // click handlers call; afterPage()/buildPicker() are NOT stubbed)
+    await loadPage(6);
+
+    loadPage = window._origLoadPage;
+
+    var activeCatRestored = state.activeCat === custom2.id;
+    var domRow = document.querySelector('.lt-layer-row[data-catid="' + custom2.id + '"]');
+    var domActiveClass = !!(domRow && domRow.classList.contains('active'));
+    var noStaleActiveElsewhere = document.querySelectorAll('.lt-layer-row.active').length === 1;
+
+    return {
+      activeCatRestored: activeCatRestored,
+      domActiveClass: domActiveClass,
+      noStaleActiveElsewhere: noStaleActiveElsewhere,
+      allOk: activeCatRestored && domActiveClass && noStaleActiveElsewhere
+    };
+  })();
+"""
+
 CHECKS = [
     ("scopedRenderShowsOnlyActive",  CHECK_SCOPED_RENDER,   ["allOk"]),
     ("railListsKindAwareOrder",      CHECK_RAIL_ORDER,      ["allOk"]),
     ("railSelectionIsBidirectional", CHECK_BIDIRECTIONAL,   ["allOk"]),
     ("untaggedPageFallsBack",        CHECK_FALLBACK,        ["allOk"]),
     ("pfModeOffNoRail",              CHECK_MODE_OFF,        ["allOk"]),
+    ("activeLayerRestoredOnReturn",  CHECK_ACTIVE_RESTORE,  ["allOk"]),
 ]
 
 
