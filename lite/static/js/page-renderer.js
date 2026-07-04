@@ -26,11 +26,15 @@
  * Callers in ui-lite.html that tested `curImg` now call PageRenderer.ready().
  *
  * pageRot strategy (option B — composed θ_total):
- *   PDF.js rotation=0. pageRot is folded into the render transform as
- *   θ_total = pgRot + V.rot.  This exactly matches the old JPEG path where
- *   the server baked pgRot into the JPEG and drawImage then applied V.rot.
- *   When pgRot is 90/270 we swap pageW/pageH for fit() (because the pre-rotated
- *   raster has swapped dimensions that the old code received from curImg).
+ *   θ_total = cp.rotate (intrinsic /Rotate) + pgRot (user page-delta) + V.rot,
+ *   passed explicitly to getViewport({rotation}) — PDF.js only defaults to
+ *   intrinsic rotation when the param is OMITTED; an explicit value (even 0)
+ *   REPLACES it (BUG-20260704-lite-native-rotate). This exactly matches the
+ *   old JPEG path where the server's fitz get_pixmap applied intrinsic
+ *   /Rotate by default THEN .prerotate(pgRot) on top.
+ *   pageDims[n] is stored POST-intrinsic-rotation (natVp uses rotation:cp.rotate);
+ *   when pgRot is 90/270 we additionally swap pageW/pageH for fit() (the
+ *   user-rotated raster has swapped dimensions on top of the native ones).
  */
 
 /* ---- owned globals ---- */
@@ -545,9 +549,15 @@ async function loadPage(n) {
     // Store dims keyed by display index n (matches curPage usage elsewhere)
     // pageDims = POST-INTRINSIC-ROTATION dims (the orientation server JPEG used to deliver).
     // page.view gives NATIVE pre-rotation dims — wrong for PDFs with /Rotate metadata.
-    // PDF.js viewport at rotation=0 already applies intrinsic /Rotate, so its
-    // width/height reflect the visually-correct landscape (e.g. RAMA4 A1 /Rotate=90).
-    var natVp = pageCache[sn].getViewport({ scale: 1, rotation: 0 });
+    // BUG-20260704-lite-native-rotate: an explicit `rotation` arg to getViewport()
+    // REPLACES intrinsic /Rotate rather than applying it (PDF.js default param is
+    // `rotation = this.rotate`; passing 0 explicitly means "zero total rotation",
+    // NOT "apply intrinsic only"). Pass `pageCache[sn].rotate` (the page's own
+    // /Rotate, in {0,90,180,270}) explicitly so natVp reflects the visually-correct
+    // post-intrinsic-rotation landscape (e.g. RAMA4 A1 /Rotate=90), matching what
+    // the server's fitz `page.rect` (pageinfo w_pt/h_pt, used by the raster
+    // fallback) already reports.
+    var natVp = pageCache[sn].getViewport({ scale: 1, rotation: pageCache[sn].rotate });
     pageDims[n] = { w: natVp.width, h: natVp.height };
     // Also alias under sn so _render can find the proxy via curPage if needed
     pageCache[n] = pageCache[sn];
@@ -581,10 +591,12 @@ async function loadPage(n) {
  * On success, updates _cachedV / _cachedKey, then requests a repaint so the
  * fresh cache gets blitted to the visible canvas.
  *
- * pageRot strategy (option B): θ_total = pgRot + V.rot folded into the
- * transform; PDF.js viewport rotation stays 0. pageH for the transform = the
- * un-rotated PDF height (or width when pgRot is 90/270, because the origin
- * shifts to what would be the top-right corner of the un-rotated page).
+ * pageRot strategy (option B): θ_total = cp.rotate (intrinsic /Rotate) +
+ * pgRot (user page-delta) + V.rot, passed explicitly as the viewport
+ * `rotation` (BUG-20260704-lite-native-rotate — an explicit rotation arg
+ * REPLACES intrinsic /Rotate, so it must be added in ourselves). T is
+ * translate-only — PDF.js's viewport already encodes the rotation + scale +
+ * Y-flip for the full θ_total.
  */
 async function _render(myToken) {
   var cp = pageCache[curPage];
@@ -594,10 +606,12 @@ async function _render(myToken) {
   var Vsnap = { k: V.k, ox: V.ox, oy: V.oy, rot: V.rot };
   var pgRot = pageRot[curPage] || 0;
 
-  // PDF.js handles ALL rotation: intrinsic /Rotate via default rotation=0,
-  // user/page rotation via the rotation arg. T is translate-only — places
-  // the rendering at canvas (V.ox, V.oy).
-  var thetaUser = ((Vsnap.rot + pgRot) % 360 + 360) % 360;
+  // BUG-20260704-lite-native-rotate: an explicit `rotation` arg to getViewport()
+  // REPLACES intrinsic /Rotate (PDF.js only defaults to `this.rotate` when the
+  // param is OMITTED) — so cp.rotate must be folded into the composed total
+  // ourselves: thetaTotal = intrinsic /Rotate + page-delta rotation + view
+  // rotation. T is translate-only — places the rendering at canvas (V.ox, V.oy).
+  var thetaUser = ((cp.rotate + Vsnap.rot + pgRot) % 360 + 360) % 360;
   var want      = RS * Vsnap.k;
   // Scanned pages: cap the raster scale; compensate in T (up) so geometry/
   // registration is IDENTICAL — only resolution is capped (it's a scan).
