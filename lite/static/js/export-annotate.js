@@ -75,7 +75,7 @@ function buildReportPayload(){
         overlays.push({pts:rpts.map(function(p){return {x:+(p.x*RS).toFixed(1),y:+(p.y*RS).toFixed(1)};}),color:c.color,badge:badgeN});
         return {name:rname, area:+a.toFixed(2), badge:badgeN};
       });
-      var sign=(c.id==="ded")?-1:1; net+=sign*sub;
+      var sign=(c.role==="ded")?-1:1; net+=sign*sub;
       groups.push({label:c.name,color:c.color,rows:rows,subtotal:+sub.toFixed(2),sign:sign});
     });
     if(!groups.length) return;

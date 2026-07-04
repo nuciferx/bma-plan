@@ -254,6 +254,35 @@
       "calibScale": null,
       "annotations": []
     },
+    "14": {
+      "lines": [],
+      "polys": [
+        {
+          "pts": [
+            {"x": 200.0, "y": 200.0},
+            {"x": 400.0, "y": 200.0},
+            {"x": 400.0, "y": 400.0},
+            {"x": 200.0, "y": 400.0},
+            {"x": 200.0, "y": 200.0}
+          ],
+          "closed": true,
+          "name": "GFA ชั้น 1",
+          "areaType": "room",
+          "id": "area-fixture-gfa14",
+          "color": "#4c8dff",
+          "opacity": 0.18,
+          "semanticTag": "gross_floor_area",
+          "useCategory": null,
+          "liteCatId": "L4"
+        }
+      ],
+      "openings": [],
+      "refs": [],
+      "parking": [],
+      "counts": [],
+      "calibScale": {"pts_per_m": 28.34596557321068},
+      "annotations": []
+    },
     "26": {
       "lines": [],
       "polys": [
@@ -499,7 +528,26 @@
           "liteCatId": "L9"
         }
       ],
-      "openings": [],
+      "openings": [
+        {
+          "pts": [
+            {"x": 650.0, "y": 730.0},
+            {"x": 700.0, "y": 730.0},
+            {"x": 700.0, "y": 780.0},
+            {"x": 650.0, "y": 780.0},
+            {"x": 650.0, "y": 730.0}
+          ],
+          "closed": true,
+          "name": "หักช่องลิฟต์",
+          "areaType": "opening",
+          "id": "opening-fixture-ded26",
+          "color": "#ff6b6b",
+          "opacity": 0.18,
+          "semanticTag": "deduction_opening",
+          "useCategory": null,
+          "liteCatId": "L5"
+        }
+      ],
       "refs": [],
       "parking": [],
       "counts": [],
@@ -620,7 +668,7 @@
     "name": ""
   },
   "siteOrientation": {},
-  "excludedPages": [],
+  "excludedPages": [1],
   "pageFloorKind": {
     "14": "normal",
     "15": "normal",
