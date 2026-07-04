@@ -15,8 +15,12 @@ Covers the six UX-batch-2 findings implemented in lite/:
   seeded-vars  report vars whose expr errors ONLY because referenced role/
        layer totals are empty render neutral "รอข้อมูล" (dim) not red;
        a genuinely malformed expr (unknown ref) stays red.
-  wizard-next-gate  wizard Step 1 Next with 0 tagged pages fires confirm();
-       cancel keeps the step, OK proceeds; with >=1 tagged, no confirm.
+  wizard-next-gate  UPDATED (INV-2026-07-04-002 slice 4/4): the SET gate this
+       check used to verify (Step 1 Next blocked at 0 tags via window.confirm)
+       was REMOVED and replaced by a per-page JIT tag gate on the measure
+       tools themselves (tag-jit.js, see test_tag_jit.py). This check now
+       asserts the gate is GONE: Next always proceeds, 0 tags or not, and
+       never calls window.confirm.
 
 F-5 (wizard mousedown/click hint) is NOT auto-tested here: reproducing it
 needs the LWIZ hard-block lock, which is installed only on a REAL PDF upload
@@ -160,6 +164,8 @@ SEED_WAIT = r"""
 # ---------------------------------------------------------------------------
 WIZ_GATE = r"""
 () => {
+  // INV-2026-07-04-002 slice 4/4: SET gate removed — Next must proceed
+  // unconditionally now, 0 tags or not, and never touch window.confirm.
   caseId = 'test';
   pageCount = 3;
   pageTags = {};
@@ -171,30 +177,22 @@ WIZ_GATE = r"""
   if (!next) return {pass:false, err:'ov-next missing'};
 
   var _oc = window.confirm; var confirmCalls = 0;
-
-  // 0 tagged, confirm cancel -> stays on step 1
   window.confirm = function(){ confirmCalls++; return false; };
-  next.click();
-  var stepAfterCancel = _lovsCurStep;
 
-  // 0 tagged, confirm OK -> advances to step 2
-  window.confirm = function(){ confirmCalls++; return true; };
+  // 0 tagged -> Next proceeds immediately, no confirm
   next.click();
-  var stepAfterOk = _lovsCurStep;
+  var stepAfterZeroTags = _lovsCurStep;
 
-  // back to step 1, tag a page -> next must NOT call confirm
+  // back to step 1, tag a page -> still no confirm, still proceeds
   _lovsGoStep(1);
   pageTags = {1:'site'};
-  var confirmCalledWithTag = false;
-  window.confirm = function(){ confirmCalledWithTag = true; return false; };
   next.click();
   var stepWithTag = _lovsCurStep;
 
   window.confirm = _oc;
   caseId = null;
-  return {startStep, stepAfterCancel, stepAfterOk, stepWithTag, confirmCalls, confirmCalledWithTag,
-          pass: startStep===1 && stepAfterCancel===1 && stepAfterOk===2 &&
-                stepWithTag===2 && !confirmCalledWithTag && confirmCalls>=2};
+  return {startStep, stepAfterZeroTags, stepWithTag, confirmCalls,
+          pass: startStep===1 && stepAfterZeroTags===2 && stepWithTag===2 && confirmCalls===0};
 }
 """
 
@@ -204,7 +202,7 @@ CHECKS = [
     ("F6_uploadPendingMessageSwap",        F6_MSG,    ["pass"]),
     ("F9_verifyUsesInAppModalNotPrompt",   F9_MODAL,  ["pass"]),
     ("seed_emptyRefsRenderWaitingNotRed",  SEED_WAIT, ["pass"]),
-    ("wiz_nextBlockedAtZeroTags",          WIZ_GATE,  ["pass"]),
+    ("wiz_nextNeverBlocksNow_slice4",      WIZ_GATE,  ["pass"]),
 ]
 
 

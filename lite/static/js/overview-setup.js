@@ -4,6 +4,16 @@
    Plain-globals module. No IIFE, no export, no bundler.
    Loaded dynamically from page-folder-layers.js (LOVS-1 dynamic inject).
 
+   Step-1 "classify grid" (tile render/wire, multi-select, bulkbar,
+   context menu) was extracted to static/js/overview-grid.js
+   (INV-2026-07-04-002 slice 1/4) — loaded just before this file by the
+   same dynamic-inject mechanism. This file still calls into it:
+     _lovsRenderClassify() — from _lovsRenderCurStep (Step 1 render)
+     _lovsSetTagViaKey(k)  — from _lovsWireKeyboard (digit-key tagging)
+     _lovsHideCtx()        — from _lovsInitPanel / _lovsWireNav / _lovsWireKeyboard
+   and overview-grid.js calls back into this file's floor writers:
+     _lovsSetFloorNum(n,num), _lovsSetFloorKind(n,kind)
+
    Globals required (ui-lite.html):
      pageTags, pageFloorNum, pageFloorKind, pageNames, pageCount, curPage,
      excluded, PS, PAGE_TAGS, state, pdfName
@@ -11,15 +21,10 @@
    Optional (page-folder-layers.js): reseedActivePageFolders()
    ============================================================ */
 
-var _LOVS_TAG_CYCLE = ['','site','floor','plan','parking','amenity','detail'];
-var _LOVS_TAG_KEYS  = {'1':'site','2':'floor','3':'plan','4':'parking','5':'amenity','6':'detail','0':''};
 var _lovsOrigOpenOv = null;
 var _lovsCurStep    = 1;
 var _lovsFocusPage  = 1;
-var _lovsSelected   = new Set();
-var _lovsSelAnchor  = null;
 var _lovsInited     = false;
-window.__lovsSelected = _lovsSelected;
 
 /* -- floor num writer -- */
 function _lovsSetFloorNum(n, num) {
@@ -281,14 +286,6 @@ function _lovsRenderCurStep() {
   _lovsUpdateHeader();
 }
 
-/* Wizard Next gate (UX batch2): ≥1 page must carry a real tag before Step 1
-   (Classify) advances — or the user explicitly confirms skipping. */
-function _lovsAnyTagged() {
-  var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
-  for (var n = 1; n <= pc; n++) { if (pageTags[n]) return true; }
-  return false;
-}
-
 function _lovsUpdateHeader() {
   var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
   var tagged = 0, floors = 0, numbered = 0;
@@ -305,230 +302,11 @@ function _lovsUpdateHeader() {
   if (sp) sp.textContent = _lovsCurStep === 1 ? "tagged " + tagged + "/" + pc : _lovsCurStep === 2 ? "numbered " + numbered + "/" + floors : "";
 }
 
-/* ============================================================  STEP 1 */
-function _lovsRenderClassify() {
-  var g = document.getElementById("grid-classify"); if (!g) return;
-  var pc = (typeof pageCount !== "undefined") ? pageCount : 0;
-  var pt = (typeof PAGE_TAGS !== "undefined") ? PAGE_TAGS : {};
-  var h = "";
-  /* LFLOOR-1c: pre-compute per-tag sequence (excl floor + excluded pages).
-     _tagSeq[n] = 1-based position within its tag; _tagTot[tag] = total */
-  var _tagSeq = {}, _tagTot = {};
-  for (var ti = 1; ti <= pc; ti++) {
-    var ttag = pageTags[ti];
-    if (!ttag || ttag === "floor" || excluded[ti]) continue;
-    _tagTot[ttag] = (_tagTot[ttag] || 0) + 1;
-    _tagSeq[ti] = _tagTot[ttag];
-  }
-  if (_lovsSelected.size >= 2) {
-    h += '<div id="bulkbar"><span>เลือก <span class="ct">' + _lovsSelected.size + '</span> หน้า</span>' +
-      '<button id="bulk-clearsel">ล้าง (Esc)</button><span style="opacity:.5">|</span>';
-    _LOVS_TAG_CYCLE.filter(function(t) { return t; }).forEach(function(t) {
-      h += '<span class="ov-tag-chip ov-tag-' + t + '" data-bulk-tag="' + t + '">' + t + '</span>';
-    });
-    h += '<span class="ov-tag-chip ov-tag-untagged" data-bulk-tag="">ล้าง</span>' +
-      '<span style="opacity:.5">|</span><button id="bulk-excl">⛔ exclude</button></div>';
-  }
-  for (var n = 1; n <= pc; n++) {
-    var tag = pageTags[n] || "";
-    var tagLbl = tag ? (pt[tag] || tag) : "— ไม่ระบุ —";
-    var fl = pageFloorNum[n];
-    var flStr = fl === undefined ? "" : (fl === "roof" ? "roof" : String(fl));
-    /* Default kind=normal for any tag=floor page that hasn't been classified yet — so the
-       floor-input always shows (existing test classifyRendersTiles expects hasFloorInput4). */
-    var fkind = pageFloorKind[n] || (fl === "roof" ? "rooftop" : "normal");
-    var fkindNeedsNum = (fkind === "normal" || fkind === "basement");
-    var objc = (PS[n] && PS[n].objects && PS[n].objects.length) ? PS[n].objects.length : 0;
-    var thumbUrl = (typeof api === "function") ? api("/thumb/" + n) : ""; // LPM slice 4+: route through pageMgr.serverNum(n) once mutations exist
-    var cls = "ov-tile" + ((typeof curPage !== "undefined" && n === curPage) ? " cur" : "") +
-      (n === _lovsFocusPage ? " foc" : "") + (excluded[n] ? " exc" : "") + (_lovsSelected.has(n) ? " sel" : "");
-    h += '<div class="' + cls + '" data-pg="' + n + '">' +
-      '<div class="thumb">' +
-        (thumbUrl ? '<img class="ov-thumb-img" loading="lazy" src="' + thumbUrl + '" alt="p' + n + '" onerror="this.style.display=\'none\'">' : "") +
-        '<span class="pn">p' + n + '</span>' + (objc ? '<span class="objc">' + objc + '</span>' : "") +
-        '<span class="selchk">✓</span>' + (thumbUrl ? "" : "📄") +
-      '</div><div class="info">' +
-        '<div class="nm">หน้า ' + n + (pageNames[n] ? ' · ' + pageNames[n] : '') + '</div>' +
-        '<div class="row"><span class="ov-tag-chip ov-tag-' + (tag || "untagged") + '" data-tag="' + tag + '">' + tagLbl + '</span></div>' +
-        '<div class="row" style="justify-content:space-between">' +
-          (tag === "floor"
-            ? '<select class="ov-fkind-sel" data-fkind="' + n + '" title="ประเภทชั้น">' +
-                '<option value="normal"'     + (fkind === "normal"     ? " selected" : "") + '>🏢 ชั้น</option>' +
-                '<option value="basement"'   + (fkind === "basement"   ? " selected" : "") + '>⬇ ใต้ดิน</option>' +
-                '<option value="mezzanine"'  + (fkind === "mezzanine"  ? " selected" : "") + '>🪜 ชั้นลอย</option>' +
-                '<option value="mechanical"' + (fkind === "mechanical" ? " selected" : "") + '>⚙ ห้องเครื่อง</option>' +
-                '<option value="rooftop"'    + (fkind === "rooftop"    ? " selected" : "") + '>⛅ ดาดฟ้า</option>' +
-              '</select>' +
-              (fkindNeedsNum
-                ? '<input class="ov-floor-input" type="text" value="' + (fl != null && fl !== "roof" ? flStr : "") + '" placeholder="N" data-floor="' + n + '" title="เลขชั้น">'
-                : '<span style="flex:0 0 50px;text-align:center;color:var(--muted,#8b97a8);font-size:10px">' + (fkind === "rooftop" ? "ROOF" : fkind === "mezzanine" ? "MEZ" : "MEC") + '</span>')
-            : (tag && _tagSeq[n]
-                ? '<span style="flex:1;text-align:center;color:var(--accent,#4c8dff);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums" title="ลำดับใน tag ' + tag + '">#' + _tagSeq[n] + '/' + _tagTot[tag] + '</span>'
-                : '<span style="flex:1"></span>')) +
-          '<button class="ov-excl-btn" data-excl="' + n + '">' + (excluded[n] ? "⛔" : "·") + '</button>' +
-        '</div>' +
-      '</div></div>';
-  }
-  g.innerHTML = h;
-  _lovsWireClassify();
-}
-
-function _lovsWireClassify() {
-  var g = document.getElementById("grid-classify"); if (!g) return;
-  g.querySelectorAll(".ov-tile").forEach(function(tile) {
-    var pn = +tile.dataset.pg;
-    tile.addEventListener("mousedown", function(e) {
-      if (e.button !== 0 || e.target.closest(".ov-tag-chip") || e.target.closest(".ov-floor-input") || e.target.closest(".ov-fkind-sel") || e.target.closest(".ov-excl-btn")) return;
-      e.stopPropagation();
-    });
-    tile.addEventListener("click", function(e) {
-      if (e.target.closest(".ov-tag-chip") || e.target.closest(".ov-floor-input") || e.target.closest(".ov-fkind-sel") || e.target.closest(".ov-excl-btn")) return;
-      if (e.shiftKey && _lovsSelAnchor != null) {
-        var lo = Math.min(_lovsSelAnchor, pn), hi = Math.max(_lovsSelAnchor, pn);
-        _lovsSelected.clear(); for (var i = lo; i <= hi; i++) _lovsSelected.add(i);
-        _lovsFocusPage = pn;
-      } else if (e.ctrlKey || e.metaKey) {
-        if (_lovsSelected.has(pn)) _lovsSelected.delete(pn); else _lovsSelected.add(pn);
-        _lovsSelAnchor = pn; _lovsFocusPage = pn;
-      } else {
-        _lovsSelected.clear(); _lovsSelected.add(pn); _lovsSelAnchor = pn; _lovsFocusPage = pn;
-      }
-      _lovsRenderClassify();
-    });
-    tile.addEventListener("dblclick", function(e) {
-      if (e.target.closest(".ov-floor-input")) return;
-      // BUG-20260526-lite-wizard-followup (A): block dblclick escape during initial setup.
-      // LWIZ lock active means user must finish Page Setup before navigating to any PDF page.
-      if (window.__lwizAutoLockActive) {
-        if (typeof _lwizShowBlockHint === "function") _lwizShowBlockHint();
-        return;
-      }
-      if (typeof loadPage === "function") loadPage(pn);
-      if (typeof closeOverlays === "function") closeOverlays();
-      _lovsSelected.clear();
-    });
-    var chip = tile.querySelector(".ov-tag-chip");
-    if (chip) {
-      chip.addEventListener("click", function(e) { e.stopPropagation(); _lovsCycleTag(pn); });
-      chip.addEventListener("contextmenu", function(e) { e.preventDefault(); e.stopPropagation(); _lovsShowCtxMenu(e, pn); });
-    }
-    var fi = tile.querySelector(".ov-floor-input");
-    if (fi) {
-      fi.addEventListener("mousedown", function(e) { e.stopPropagation(); });
-      fi.addEventListener("click", function(e) { e.stopPropagation(); });
-      fi.addEventListener("change", function() { _lovsSetFloorNum(pn, fi.value.trim()); _lovsRenderClassify(); });
-      fi.addEventListener("keydown", function(e) { if (e.key === "Enter") fi.blur(); });
-    }
-    var fk = tile.querySelector(".ov-fkind-sel");
-    if (fk) {
-      fk.addEventListener("mousedown", function(e) { e.stopPropagation(); });
-      fk.addEventListener("click", function(e) { e.stopPropagation(); });
-      fk.addEventListener("change", function() { _lovsSetFloorKind(pn, fk.value); _lovsRenderClassify(); });
-    }
-    var eb = tile.querySelector(".ov-excl-btn");
-    if (eb) eb.addEventListener("click", function(e) { e.stopPropagation(); excluded[pn] = !excluded[pn]; _lovsRenderClassify(); });
-  });
-  var bb = document.getElementById("bulkbar");
-  if (bb) {
-    bb.querySelectorAll("[data-bulk-tag]").forEach(function(chip) {
-      chip.addEventListener("click", function() {
-        var t = chip.dataset.bulkTag;
-        _lovsSelected.forEach(function(n) { liteSetTag(n, t); });
-        _lovsRenderClassify();
-      });
-    });
-    var bcs = document.getElementById("bulk-clearsel"); if (bcs) bcs.addEventListener("click", function() { _lovsSelected.clear(); _lovsRenderClassify(); });
-    var bex = document.getElementById("bulk-excl");
-    if (bex) bex.addEventListener("click", function() {
-      var any = false; _lovsSelected.forEach(function(n) { if (excluded[n]) any = true; });
-      _lovsSelected.forEach(function(n) { excluded[n] = !any; }); _lovsRenderClassify();
-    });
-  }
-  _lovsWireDragBox();
-}
-
-function _lovsWireDragBox() {
-  var g = document.getElementById("grid-classify"), box = document.getElementById("ov-dragbox");
-  if (!g || !box) return;
-  var ds = null, drg = false, addM = false;
-  g.addEventListener("mousedown", function(e) {
-    if (e.target !== g || e.button !== 0) return;
-    addM = e.ctrlKey || e.metaKey; if (!addM) _lovsSelected.clear();
-    var gr = g.getBoundingClientRect();
-    ds = {x: e.clientX - gr.left + g.scrollLeft, y: e.clientY - gr.top + g.scrollTop}; drg = false;
-  });
-  g.addEventListener("mousemove", function(e) {
-    if (!ds) return;
-    var gr = g.getBoundingClientRect();
-    var x = e.clientX - gr.left + g.scrollLeft, y = e.clientY - gr.top + g.scrollTop;
-    if (!drg && (Math.abs(x - ds.x) > 4 || Math.abs(y - ds.y) > 4)) drg = true;
-    if (drg) {
-      var lx = Math.min(x, ds.x), ly = Math.min(y, ds.y), w = Math.abs(x - ds.x), h = Math.abs(y - ds.y);
-      box.style.cssText = "display:block;left:" + lx + "px;top:" + ly + "px;width:" + w + "px;height:" + h + "px";
-      var sel = addM ? new Set(_lovsSelected) : new Set();
-      g.querySelectorAll(".ov-tile").forEach(function(tile) {
-        var tr = tile.getBoundingClientRect();
-        var tx = tr.left - gr.left + g.scrollLeft, ty = tr.top - gr.top + g.scrollTop;
-        if (tx + tr.width > lx && tx < lx + w && ty + tr.height > ly && ty < ly + h) sel.add(+tile.dataset.pg);
-      });
-      _lovsSelected = sel; window.__lovsSelected = _lovsSelected;
-      g.querySelectorAll(".ov-tile").forEach(function(tile) { tile.classList.toggle("sel", _lovsSelected.has(+tile.dataset.pg)); });
-    }
-  });
-  g.addEventListener("mouseup", function(e) {
-    box.style.display = "none";
-    if (ds && drg) { if (_lovsSelected.size) { var mn = Infinity; _lovsSelected.forEach(function(n) { if (n < mn) mn = n; }); _lovsSelAnchor = mn; } _lovsRenderClassify(); }
-    else if (ds && !drg && e.target === g) { _lovsSelected.clear(); _lovsSelAnchor = null; _lovsRenderClassify(); }
-    ds = null; drg = false;
-  });
-}
-
-function _lovsCycleTag(pn) {
-  var cur = pageTags[pn] || "", i = _LOVS_TAG_CYCLE.indexOf(cur);
-  liteSetTag(pn, _LOVS_TAG_CYCLE[(i + 1) % _LOVS_TAG_CYCLE.length]);
-  _lovsFocusPage = pn; _lovsRenderClassify();
-}
-
-function _lovsSetTagViaKey(k) {
-  if (!(k in _LOVS_TAG_KEYS)) return false;
-  var t = _LOVS_TAG_KEYS[k], pc = (typeof pageCount !== "undefined") ? pageCount : 0;
-  if (_lovsSelected.size > 1) { _lovsSelected.forEach(function(n) { liteSetTag(n, t); }); _lovsRenderClassify(); return true; }
-  if (!_lovsFocusPage) return false;
-  liteSetTag(_lovsFocusPage, t);
-  if (_lovsFocusPage < pc) _lovsFocusPage++;
-  _lovsSelected.clear(); _lovsSelected.add(_lovsFocusPage); _lovsSelAnchor = _lovsFocusPage;
-  _lovsRenderClassify();
-  var el = document.querySelector('#grid-classify .ov-tile[data-pg="' + _lovsFocusPage + '"]');
-  if (el) el.scrollIntoView({block: "nearest"});
-  return true;
-}
-
-/* -- context menu -- */
-function _lovsShowCtxMenu(e, pn) {
-  var m = document.getElementById("ov-ctxmenu"); if (!m) return;
-  var targets = _lovsSelected.has(pn) ? (function() { var a = []; _lovsSelected.forEach(function(n) { a.push(n); }); return a; })() : [pn];
-  var pt = (typeof PAGE_TAGS !== "undefined") ? PAGE_TAGS : {};
-  var h = targets.length > 1 ? '<div style="padding:4px 9px;font-size:10px;color:var(--muted,#8b97a8)">ทำกับ ' + targets.length + ' หน้า</div><div class="sep"></div>' : "";
-  _LOVS_TAG_CYCLE.forEach(function(k) {
-    var lbl = k ? (pt[k] || k) : "— ล้าง tag —";
-    var cur = targets.length === 1 && (pageTags[targets[0]] || "") === k ? " ✓" : "";
-    var ky = k ? ((Object.entries(_LOVS_TAG_KEYS).find(function(kv) { return kv[1] === k; }) || [])[0] || "") : "0";
-    h += '<div class="it" data-ctx-tag="' + k + '"><span>' + lbl + cur + '</span><span class="k">' + ky + '</span></div>';
-  });
-  h += '<div class="sep"></div><div class="it" data-ctx-act="excl"><span>toggle exclude</span><span class="k">X</span></div>';
-  if (targets.length === 1) h += '<div class="it" data-ctx-act="goto"><span>ไปหน้านี้</span><span class="k">Enter</span></div>';
-  m.innerHTML = h; m.style.left = e.clientX + "px"; m.style.top = e.clientY + "px"; m.style.display = "block";
-  m.querySelectorAll(".it").forEach(function(it) {
-    it.addEventListener("click", function() {
-      if (it.dataset.ctxAct === "excl") { var any = targets.some(function(t) { return excluded[t]; }); targets.forEach(function(t) { excluded[t] = !any; }); }
-      else if (it.dataset.ctxAct === "goto") { if (typeof loadPage === "function") loadPage(targets[0]); if (typeof closeOverlays === "function") closeOverlays(); _lovsSelected.clear(); }
-      else { targets.forEach(function(t) { liteSetTag(t, it.dataset.ctxTag); }); }
-      _lovsRenderClassify(); _lovsHideCtx();
-    });
-  });
-}
-
-function _lovsHideCtx() { var m = document.getElementById("ov-ctxmenu"); if (m) m.style.display = "none"; }
+/* ============================================================  STEP 1
+   Classify grid (render/wire/dragbox/tag-cycle/context-menu) extracted to
+   static/js/overview-grid.js (INV-2026-07-04-002 slice 1/4). See that
+   file for: _lovsRenderClassify, _lovsWireClassify, _lovsWireDragBox,
+   _lovsCycleTag, _lovsSetTagViaKey, _lovsShowCtxMenu, _lovsHideCtx. */
 
 /* ============================================================  STEP 2 */
 function _lovsRenderFloors() {
@@ -964,9 +742,10 @@ function _lovsWireNav() {
   var next = document.getElementById("ov-next");
   if (next) next.addEventListener("click", function() {
     if (_lovsCurStep < 3) {
-      // Wizard Next gate: don't silently pass Step 1 with 0 tagged pages.
-      if (_lovsCurStep === 1 && !_lovsAnyTagged() &&
-          !confirm("ยังไม่ได้แท็กหน้าใดเลย — ข้ามขั้นนี้ไปเลยหรือไม่?")) return;
+      // INV-2026-07-04-002 slice 4/4: the wizard SET gate (block Step-1 Next
+      // at 0 tagged pages via window.confirm) is REMOVED — replaced by the
+      // per-page JIT tag gate on the measure tools themselves (tag-jit.js).
+      // Next always proceeds now; the wizard is optional, not a hard lock.
       _lovsGoStep(_lovsCurStep + 1);
     } else {
       // Done (Step 3): force-fill any untagged pages before closing
@@ -1008,8 +787,20 @@ function _lovsWireKeyboard() {
       _lovsFocusPage = e.key === "ArrowRight" ? Math.min(pc, _lovsFocusPage + 1) : Math.max(1, _lovsFocusPage - 1);
       if (!e.shiftKey) { _lovsSelected.clear(); _lovsSelected.add(_lovsFocusPage); _lovsSelAnchor = _lovsFocusPage; }
       else if (_lovsSelAnchor != null) {
-        var lo = Math.min(_lovsSelAnchor, _lovsFocusPage), hi = Math.max(_lovsSelAnchor, _lovsFocusPage);
-        _lovsSelected.clear(); for (var ri = lo; ri <= hi; ri++) _lovsSelected.add(ri);
+        // slice 3/4 leftover fix: range = VISUAL order (matches the mouse
+        // shift-click fix in overview-grid.js's _lovsWireClassify — index
+        // range over _lovsVisualOrder, not raw page-number arithmetic, so
+        // Arrow+Shift range is correct in grouped view mode too).
+        var vo = (typeof _lovsVisualOrder !== "undefined") ? _lovsVisualOrder : null;
+        var ia = vo ? vo.indexOf(_lovsSelAnchor) : -1, ib = vo ? vo.indexOf(_lovsFocusPage) : -1;
+        _lovsSelected.clear();
+        if (!vo || ia === -1 || ib === -1) {
+          var lo = Math.min(_lovsSelAnchor, _lovsFocusPage), hi = Math.max(_lovsSelAnchor, _lovsFocusPage);
+          for (var ri = lo; ri <= hi; ri++) _lovsSelected.add(ri);
+        } else {
+          var lo2 = Math.min(ia, ib), hi2 = Math.max(ia, ib);
+          for (var rj = lo2; rj <= hi2; rj++) _lovsSelected.add(vo[rj]);
+        }
       }
       _lovsRenderClassify();
       var el = document.querySelector('#grid-classify .ov-tile[data-pg="' + _lovsFocusPage + '"]');

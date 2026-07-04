@@ -178,7 +178,7 @@ flat 6-role (05-22) → tree+folder+Σ (LST, hybrid F ที่ไม่ได�
 
 | id | รายการ | phase | สถานะ | หมายเหตุ |
 |---|---|---|---|---|
-| A-1 | B-1 sign หักจาก role ไม่ใช่ id (`export-annotate.js:78`) + guard custom-ded-layer | A | shipped (รอ commit) | 2026-07-04. `id`→`role` 1 บรรทัด. guard `test_report_sign_role.py` `LITE_REPORT_SIGN_ROLE_OK` 13/13, RED-proof เอง (pre-fix net=125 → post-fix 75). regression test_report 17/17. fixture มาตรฐาน A-7 สร้างพร้อมกัน (custom_layer_report.bmaplan: 2+ หน้า, custom ded L5, excluded หน้า 1) |
+| A-1 | B-1 sign หักจาก role ไม่ใช่ id (`export-annotate.js:78`) + guard custom-ded-layer | A | shipped `0bf8eb2` | 2026-07-04. `id`→`role` 1 บรรทัด. guard `test_report_sign_role.py` `LITE_REPORT_SIGN_ROLE_OK` 13/13, RED-proof เอง (pre-fix net=125 → post-fix 75). regression test_report 17/17. fixture มาตรฐาน A-7 สร้างพร้อมกัน (custom_layer_report.bmaplan: 2+ หน้า, custom ded L5, excluded หน้า 1) |
 | A-2 | B-4 ส่ง opts เข้า closure ทุกจุด `report-vars.js` + guard re-render คง useLive | A | queued | ~7 จุด |
 | A-3 | B-5 heal `activeCat` (_afterHistory + removeLayer paths + sweep หลัง undo/redo) + guard | A | queued | |
 | A-4 | B-6 excluded semantics เดียว — reroute computeSummary + buildExportData เข้า tuple stream + pin test | A | queued | ปิด B2-leftover |
@@ -194,7 +194,7 @@ flat 6-role (05-22) → tree+folder+Σ (LST, hybrid F ที่ไม่ได�
 | S-7 | ตั้งค่าหน้าประตูเดียว + ศัพท์ floorKind ชุดเดียว | B | needs-GO | |
 | S-8 | ตัด warp-on-layer-click | B | needs-GO | เล็ก |
 | S-9 | ทางเพิ่ม layer แบบเดียว | B | needs-GO | |
-| S-10 | wizard lock เฉพาะ panel + ปุ่มข้ามไปวัดเลย | B | needs-GO | คง hard-gating |
+| S-10 | wizard lock เฉพาะ panel + ปุ่มข้ามไปวัดเลย | B | absorbed → INV-2026-07-04-002 (shipped 2026-07-04) | per-page JIT gate แทน SET gate — วัดหน้าไหนต้องแท็กหน้านั้น (hard) แต่ไม่บล็อกทั้งชุดอีกต่อไป; wizard เป็น optional tool |
 | S-11 | seed vars first-class + editor หลัง "ขั้นสูง" + ช่องหน่วย | B | needs-GO | |
 | S-12 | label PDF overlay เป็นชื่อ layer ไทย (display เท่านั้น) | B | needs-GO | เล็ก |
 | S-13 | cheatsheet หมวด layer | B | needs-GO | เล็ก |

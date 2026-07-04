@@ -24,12 +24,39 @@
      folder.kind?: 'page-folder'|'user' — undefined on legacy = 'user'
    ============================================================ */
 
+/* INV-2026-07-04-002 slice 1/4: dynamically load overview-grid.js BEFORE
+   overview-setup.js (classify-grid region extracted out of overview-setup.js,
+   which had crossed the 1000-line lite cap). Same avoids-editing-ui-lite.html
+   pattern as the LOVS-1 loader directly below; s.async=false on both
+   preserves execution order (grid, then setup). */
+(function() {
+  if (document.getElementById("__lovsgrid_script__")) return;
+  var s = document.createElement("script");
+  s.src = "static/js/overview-grid.js";
+  s.id = "__lovsgrid_script__";
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
 /* LOVS-1: dynamically load overview-setup.js (avoids editing ui-lite.html which is at cap) */
 (function() {
   if (document.getElementById("__lovs_script__")) return;
   var s = document.createElement("script");
   s.src = "static/js/overview-setup.js";
   s.id = "__lovs_script__";
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
+/* INV-2026-07-04-002 slice 4/4: dynamically load tag-jit.js AFTER
+   overview-setup.js (its banner reuses overview-setup.js's always-injected
+   .ov-tag-chip CSS — see tag-jit.js header). Same avoids-editing-
+   ui-lite.html pattern; s.async=false preserves load order. */
+(function() {
+  if (document.getElementById("__tagjit_script__")) return;
+  var s = document.createElement("script");
+  s.src = "static/js/tag-jit.js";
+  s.id = "__tagjit_script__";
   s.async = false;
   document.head.appendChild(s);
 })();
