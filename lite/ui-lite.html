@@ -220,6 +220,7 @@
   function getScaleForPage(pg){ var s = (PS[pg]||{}).scale; return s || null; }
 </script>
 <script src="static/js/measure-engine.js"></script>
+<script src="static/js/snap-engine.js"></script>
 <script src="static/js/draw-arc.js"></script>
 <script src="static/js/layer-system.js"></script>
 <script src="static/js/page-folder-layers.js"></script>
@@ -622,45 +623,9 @@ function inPoly(x,y,poly){var c=false;for(var i=0,j=poly.length-1;i<poly.length;
 function distSeg(px,py,a,b){var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1)return Math.hypot(px-a.x,py-a.y);
   var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2));return Math.hypot(px-(a.x+t*dx),py-(a.y+t*dy));}
 
-/* --- LITE-SNAP: lite-native snap (endpoint / intersection / nearest-on-edge).
-   Re-uses the vendored segIntersect for intersections. Works in SCREEN space. --- */
-function isDrawTool(){ return ["scale","poly","dist","path","ref","count"].indexOf(state.tool)>=0; }
-function edgeHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var m=ptToScreen({x:(o.pts[i].x+o.pts[(i+1)%o.pts.length].x)/2,y:(o.pts[i].y+o.pts[(i+1)%o.pts.length].y)/2}); if(Math.abs(sx-m.x)<7&&Math.abs(sy-m.y)<7)return i; } return -1; }
-function vertexHandleHit(o,sx,sy){ for(var i=0;i<o.pts.length;i++){ var s=ptToScreen(o.pts[i]); if(Math.abs(sx-s.x)<6&&Math.abs(sy-s.y)<6)return i; } return -1; }
-function nearOnSegS(px,py,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1)return{x:a.x,y:a.y};
-  var t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2)); return{x:a.x+t*dx,y:a.y+t*dy}; }
-function pageSegs(){ var segs=[]; var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,kind:(state.tool==="poly"?"poly":"line"),counting:false}]:[]);
-  objs.forEach(function(o){ if(o.counting||!o.pts||o.pts.length<2)return; var n=o.kind==="poly"?o.pts.length:o.pts.length-1;
-    for(var i=0;i<n;i++)segs.push([o.pts[i],o.pts[(i+1)%o.pts.length]]); }); return segs; }
-function computeSnap(sx,sy){
-  if(!PageRenderer.ready()||!state.snapOn)return null;
-  var ST=state.snapTypes||{endpoint:true,midpoint:true,center:true,intersection:true};
-  var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,counting:false}]:[]);
-  var best=null,bd=SNAP_PX;
-  if(ST.endpoint){ objs.forEach(function(o){ if(o.counting||!o.pts)return; o.pts.forEach(function(p){ var s=ptToScreen(p),d=Math.hypot(s.x-sx,s.y-sy);
-    if(d<bd){bd=d;best={pt:p,screen:s,type:"endpoint"};} }); }); if(best)return best; }  // endpoint wins
-  var segs=pageSegs();
-  if(ST.intersection){ for(var i=0;i<segs.length;i++)for(var j=i+1;j<segs.length;j++){
-    var a0=ptToScreen(segs[i][0]),a1=ptToScreen(segs[i][1]),b0=ptToScreen(segs[j][0]),b1=ptToScreen(segs[j][1]);
-    var ix=segIntersect(a0.x,a0.y,a1.x,a1.y,b0.x,b0.y,b1.x,b1.y);   // vendored
-    if(ix){ var d=Math.hypot(ix.x-sx,ix.y-sy); if(d<bd){bd=d;best={pt:screenToPt(ix.x,ix.y),screen:ix,type:"intersection"};} } }
-  if(best)return best; }                                // intersection next
-  if(ST.midpoint){ segs.forEach(function(seg){ var m={x:(seg[0].x+seg[1].x)/2,y:(seg[0].y+seg[1].y)/2},s=ptToScreen(m),d=Math.hypot(s.x-sx,s.y-sy);
-    if(d<bd){bd=d;best={pt:m,screen:s,type:"midpoint"};} }); if(best)return best; }  // midpoint
-  if(ST.center){ PSpage().objects.forEach(function(o){ if(o.counting||o.kind!=="poly"||!effVisible(o.catId,_isHidden))return; var c=centroid(o.pts),s=ptToScreen(c),d=Math.hypot(s.x-sx,s.y-sy);
-    if(d<bd){bd=d;best={pt:c,screen:s,type:"center"};} }); if(best)return best; }    // center
-  if(state.draft&&state.draft.length){ var lp=state.draft[state.draft.length-1];
-    segs.forEach(function(seg){ var foot=footPerp(lp,seg[0],seg[1]); var s=ptToScreen(foot),d=Math.hypot(s.x-sx,s.y-sy);
-      if(d<bd){bd=d;best={pt:foot,screen:s,type:"perp"};} }); }
-  if(best)return best;                                  // perpendicular (from last point)
-  segs.forEach(function(seg){ var s0=ptToScreen(seg[0]),s1=ptToScreen(seg[1]),np=nearOnSegS(sx,sy,s0,s1),d=Math.hypot(np.x-sx,np.y-sy);
-    if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} });
-  return best;
-}
-function footPerp(p,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1e-6)return{x:a.x,y:a.y};
-  var t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; return {x:a.x+t*dx,y:a.y+t*dy}; }   // projection onto infinite line
-function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy),step=Math.PI/4;
-  var la=Math.round(Math.atan2(dy,dx)/step)*step; return {x:prev.x+Math.cos(la)*len,y:prev.y+Math.sin(la)*len}; }
+/* --- LITE-SNAP: snap core (isDrawTool, edgeHandleHit, vertexHandleHit,
+   nearOnSegS, pageSegs, computeSnap, footPerp, angleLock, snapInvalidate)
+   moved to static/js/snap-engine.js (SNAP-2026-07-04 slice 1/3). --- */
 /* --- LITE-LIVE: ported measurement-display feedback from proto's redraw().
    Rubber-band line to the cursor, live segment length + bearing, running total
    (path/dist), live area preview (poly), cursor-guide crosshair, and a coordinate
@@ -866,6 +831,7 @@ function _applyDoc(s){ var d=JSON.parse(s); PS=d.PS; excluded=d.excluded; pageTa
   // A subsequent save/Apply will re-sync the server.
   if(typeof _pmSeed==='function'&&pageCount&&Array.isArray(d.pageOrder)&&d.pageOrder.length===pageCount){ _pmSeed(d.pageOrder); } }
 function _afterHistory(){ if(typeof annEdit!=="undefined"&&annEdit){annEdit=null;var ed=document.getElementById("annEditor");if(ed)ed.style.display="none";}
+  if(typeof snapInvalidate==="function")snapInvalidate();  // SNAP-2026-07-04: undo/redo can restore a same-shape-different-position state the cache fingerprint might miss
   state.sel=null; state.selSet=[]; state.selAnn=null; state.dragLabel=null; if(typeof closeAnnStyle==="function")closeAnnStyle(); state.draft=null; state.vertMode=null; state.dirty=true; showProps(null); buildPicker();
   if(document.getElementById("setupModal").style.display==="flex")renderFloorCtl("su-floor",curPage);
   if(document.getElementById("sum").classList.contains("show"))openSum();
