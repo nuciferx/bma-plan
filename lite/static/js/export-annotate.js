@@ -35,15 +35,21 @@ async function dlPost(url,payload,fname){ var res=await fetch(url,{method:"POST"
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; a.click(); }
 function baseName(){ return (pdfName||"export").replace(/\.pdf$/i,""); }
 function exportXlsx(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;} dlPost("/export-xlsx",buildExportData(),baseName()+".xlsx"); closeMenus(); }
+/* S-12 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice D/4): overlay labels
+   use the layer's Thai display name (catOf(cid).name), with the object's own
+   custom name taking priority when set -- mirrors buildReportPayload's
+   (o.name||c.name) row-naming pattern above. semanticTag (raw English enum
+   like "gross_floor_area") is DISPLAY-only dropped here; the schema field
+   itself is untouched everywhere else (rows/summary/payload). */
 function exportPdfOverlay(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;}
   var pages={}; Object.keys(PS).forEach(function(k){ var ppm=(PS[k].scale&&PS[k].scale.pts_per_m>0)?PS[k].scale.pts_per_m:null;
     var objs=PS[k].objects.map(function(o){
     var cid=(typeof rollupCatId==="function")?rollupCatId(o):o.catId; var cat=catOf(cid); var col=cat?cat.color:"#888";
     if(o.kind==="instance"){ var rs=(typeof resolveInstancePts==="function"&&ppm)?resolveInstancePts(o,ppm):null; if(!rs)return null;
       var mm=(typeof masterById==="function")?masterById(o.masterId):null; var ia=(typeof rollupAreaM2==="function")?rollupAreaM2(o,+k):null;
-      var mlab=((mm&&(mm.semanticTag||mm.name))||"")+(ia==null?"":" "+ia.toFixed(2)+" m2");
+      var mlab=((mm&&mm.name)||(cat?cat.name:"")||"")+(ia==null?"":" "+ia.toFixed(2)+" m2");
       return {kind:"poly",counting:false,pts:rs.pts,color:col,label:mlab}; }
-    var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetricsAnyShape(o,+k).area; label=o.semanticTag+(a==null?"":" "+a.toFixed(2)+" m2"); }
+    var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetricsAnyShape(o,+k).area; label=(o.name||(cat?cat.name:"")||"")+(a==null?"":" "+a.toFixed(2)+" m2"); }
     return {kind:o.kind,counting:o.counting,pts:o.pts,color:col,label:label}; }).filter(function(x){return x!==null;});
     var anns=(PS[k].annotations||[]).map(function(a){ var st=annStyle(a); return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:st.color,opacity:st.opacity,fontSize:st.fontSize}; });
     if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns,rot:(typeof pageRot!=="undefined"&&pageRot&&pageRot[k])||0}; });

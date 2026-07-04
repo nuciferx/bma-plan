@@ -228,7 +228,12 @@ function _lovsBuiltPanelHTML() {
     '<div id="ov-nav">' +
       '<button id="ov-prev">← ย้อน</button><span class="prog" id="ov-prog">ขั้นที่ 1 จาก 3</span>' +
       '<span class="sp"></span><span class="prog" id="ov-step-prog"></span>' +
-      '<button id="ov-export" style="display:none">📄 ส่งออก PDF</button>' +
+      /* S-6/S-12 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice D/4): this
+         button calls _lovsExportReport() -> openReport(), which opens the
+         editable HTML /report page (grid), NOT a PDF file. Old label "📄
+         ส่งออก PDF" claimed a PDF export that doesn't happen here -- relabeled
+         to describe what actually opens. */
+      '<button id="ov-export" style="display:none">📄 เปิดรายงาน</button>' +
       '<button id="ov-next" class="pri">ถัดไป →</button>' +
     '</div>' +
   '</div><div id="ov-ctxmenu"></div>';

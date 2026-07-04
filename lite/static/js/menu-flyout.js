@@ -39,11 +39,17 @@ var FLYOUT_GROUPS = {
       { label: 'Disable All (G)', action: 'toggleSnap' }
     ]
   },
+  /* S-6 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice D/4): the 3 real
+     export/report doors of the app, all in one place with truthful Thai
+     labels. "XLSX (Ctrl+E)" spells out the existing hotkey so it stays
+     discoverable from the submenu too (see _rebuildFileMenu for the
+     flat #mi-xlsx item, which is unhidden, not removed). */
   export: {
     parentLabel: 'Export ▶',
     items: [
-      { label: 'Report HTML',  action: 'openReport' },
-      { label: 'XLSX Summary', action: 'exportXlsx' }
+      { label: 'รายงาน (แก้ไข/พิมพ์ได้)', action: 'openReport' },
+      { label: 'XLSX (Ctrl+E)',           action: 'exportXlsx' },
+      { label: 'PDF ทับ Annotation',       action: 'exportPdfOverlay' }
     ]
   }
 };
@@ -57,6 +63,16 @@ window.exportXlsx = function () {
   if (typeof dlPost !== 'function' || typeof buildExportData !== 'function' || typeof baseName !== 'function') return;
   dlPost('/export-xlsx', buildExportData(), baseName() + '.xlsx');
   if (typeof closeMenus === 'function') closeMenus();
+};
+
+/* ---------------------------------------------------------------------------
+   exportPdfOverlay — global action for "PDF ทับ Annotation" in Export ▶.
+   Thin delegate to ExportAnnotate.exportPdfOverlay (export-annotate.js),
+   which already guards caseId/alerts -- no logic duplicated here.
+--------------------------------------------------------------------------- */
+window.exportPdfOverlay = function () {
+  if (typeof ExportAnnotate === 'undefined' || typeof ExportAnnotate.exportPdfOverlay !== 'function') return;
+  ExportAnnotate.exportPdfOverlay();
 };
 
 /* ---------------------------------------------------------------------------
@@ -222,22 +238,30 @@ function _rebuildMeasureMenu() {
 }
 
 /* ---------------------------------------------------------------------------
-   _rebuildFileMenu — wraps the single "Report HTML" item (mi-report) inside
-   an Export ▶ flyout parent.  xlsx / pdfov remain flat (they existed before;
-   the spec only requires Export ▶ skeleton for HTML report).
-   Actually per spec: Export ▶ contains only Report HTML here; xlsx/pdfov
-   remain as top-level File items (they are not variant of the same concept).
+   _rebuildFileMenu — S-6 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice
+   D/4): Export ▶ is now the ONE grouped door for all 3 export/report
+   actions (Report / XLSX / PDF overlay) -- no new actions, matches spec's
+   "menu count discipline".
+   - mi-report's DOM position becomes the Export ▶ flyout parent.
+   - mi-xlsx is UNHIDDEN (previously display:none while Ctrl+E still called
+     it -- a "ghost feature": working but undiscoverable). It now stays a
+     normal visible flat File-menu item alongside the Export ▶ submenu's own
+     "XLSX (Ctrl+E)" item -- both point at the same exportXlsx action, same
+     tolerated pattern as the overview-setup.js wizard button also pointing
+     at openReport (one of the 3 actions, reachable from more than one
+     place, never a 4th distinct action).
+   - mi-pdfov (previously a separate flat File-menu item, not grouped with
+     Export at all) is absorbed/removed outright into Export ▶'s 3rd item --
+     no hotkey depends on it, so unlike mi-xlsx it doesn't need to stay.
 --------------------------------------------------------------------------- */
 function _rebuildFileMenu() {
   var dd = document.querySelector('.menu[data-m="file"] .dd');
   if (!dd) return;
 
-  // Hide the flat mi-xlsx item (kept in DOM so Ctrl+E via element still works;
-  // Export ▶ submenu now owns the visible XLSX dispatch).
-  var miXlsx = dd.querySelector('#mi-xlsx');
-  if (miXlsx) miXlsx.style.display = 'none';
+  var miPdfov = dd.querySelector('#mi-pdfov');
+  if (miPdfov) miPdfov.remove();
 
-  // Build Export ▶ flyout parent
+  // Build Export ▶ flyout parent -- 3 items: Report / XLSX / PDF overlay
   var expGroup = Object.assign({ key: 'export' }, FLYOUT_GROUPS.export);
   var expParent = _buildParentItem(expGroup);
 

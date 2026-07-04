@@ -1,10 +1,20 @@
 """
 LEXP-1: test_export_submenu.py — verifies XLSX Summary in Export submenu.
 
+UPDATED for REVIEW_LITE_LAYER_REPORT_20260704.md ledger S-6 (report-truth
+slice D/4): the Export ▶ submenu grew from 2 items to its final 3 (Report /
+XLSX / PDF overlay), and the flat #mi-xlsx item -- previously hidden
+(display:none) while Ctrl+E still called it, a "ghost feature" -- is now
+UNHIDDEN (visible again) so the XLSX action has no invisible-but-functional
+duplicate. Checks 1/2 were pinning the OLD (now superseded) state and are
+updated below; checks 3/4 (functional behavior) are untouched and still
+pass unmodified. See also test_export_doors.py for the full slice D door
+inventory + overlay-label acceptance test.
+
 Four checks (driven by real DOM events via Playwright):
-  1. flatXlsxHidden            — mi-xlsx element exists in DOM but display===none
-  2. exportSubmenuHasTwoItems  — Export flyout sub-dd has 2 items: Report HTML + XLSX Summary
-  3. xlsxSubmenuItemTriggersExport — click XLSX Summary → dlPost called with /export-xlsx
+  1. flatXlsxVisible          — mi-xlsx element exists in DOM and display!==none (ghost closed)
+  2. exportSubmenuHasThreeItems — Export flyout sub-dd has 3 items: Report / XLSX / PDF overlay
+  3. xlsxSubmenuItemTriggersExport — click XLSX item → dlPost called with /export-xlsx
   4. ctrlEStillWorks           — Ctrl+E keydown → dlPost called once
 
 Emits LITE_EXPORT_SUBMENU_OK on success.
@@ -32,22 +42,23 @@ def _free_port(start=8490):
 
 
 # ---------------------------------------------------------------------------
-# Check 1 — flatXlsxHidden
-# mi-xlsx element must exist in DOM (for Ctrl+E) but have display===none.
+# Check 1 — flatXlsxVisible (S-6, slice D/4: unhidden -- ghost feature closed)
+# mi-xlsx element must exist in DOM and NOT be display:none.
 # ---------------------------------------------------------------------------
 SC1_FLAT_HIDDEN = """
 () => {
     var el = document.getElementById('mi-xlsx');
     if (!el) return { pass: false, reason: 'mi-xlsx element not found in DOM' };
     var display = getComputedStyle(el).display;
-    return { display, inDom: true, pass: display === 'none' };
+    return { display, inDom: true, pass: display !== 'none' };
 }
 """
 
 # ---------------------------------------------------------------------------
-# Check 2 — exportSubmenuHasTwoItems
-# The Export flyout parent (data-flyout-group="export") must have 2 .item
-# children in its .sub-dd, labelled "Report HTML" and "XLSX Summary".
+# Check 2 — exportSubmenuHasThreeItems (S-6, slice D/4: 3rd item = PDF overlay)
+# The Export flyout parent (data-flyout-group="export") must have 3 .item
+# children in its .sub-dd, one per action: openReport / exportXlsx /
+# exportPdfOverlay (labels are Thai now -- match by data-action, not text).
 # ---------------------------------------------------------------------------
 SC2_TWO_ITEMS = """
 () => {
@@ -56,12 +67,13 @@ SC2_TWO_ITEMS = """
     var subDd = expParent.querySelector('.sub-dd');
     if (!subDd) return { pass: false, reason: 'sub-dd not found inside export has-sub' };
     var items = subDd.querySelectorAll('.item');
-    var labels = Array.from(items).map(function(i){ return i.textContent.trim(); });
-    var hasReport = labels.some(function(l){ return l.indexOf('Report HTML') >= 0; });
-    var hasXlsx   = labels.some(function(l){ return l.indexOf('XLSX Summary') >= 0; });
+    var actions = Array.from(items).map(function(i){ return i.dataset.action; });
+    var hasReport = actions.indexOf('openReport') >= 0;
+    var hasXlsx   = actions.indexOf('exportXlsx') >= 0;
+    var hasPdfov  = actions.indexOf('exportPdfOverlay') >= 0;
     return {
-        count: items.length, labels, hasReport, hasXlsx,
-        pass: items.length === 2 && hasReport && hasXlsx
+        count: items.length, actions, hasReport, hasXlsx, hasPdfov,
+        pass: items.length === 3 && hasReport && hasXlsx && hasPdfov
     };
 }
 """
@@ -155,7 +167,7 @@ def main():
         # ------------------------------------------------------------------
         # Check 1 — flatXlsxHidden
         # ------------------------------------------------------------------
-        name = "flatXlsxHidden"
+        name = "flatXlsxVisible"
         try:
             result = pg.evaluate(SC1_FLAT_HIDDEN)
             ok = result.get("pass") is True
@@ -171,7 +183,7 @@ def main():
         # Check 2 — exportSubmenuHasTwoItems
         # Open File menu first so flyout is initialised, then check DOM
         # ------------------------------------------------------------------
-        name = "exportSubmenuHasTwoItems"
+        name = "exportSubmenuHasThreeItems"
         try:
             # Open the File menu to ensure _rebuildFileMenu has run
             file_btn = pg.query_selector('.menu[data-m="file"] > button')
