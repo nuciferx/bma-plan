@@ -13,6 +13,8 @@ var ReportEdit = (function(){
   var baseline = [];
   var rowIds = [];
   var subMeta = {};
+  var rowSign = {};       /* B-3 (REVIEW ledger slice B/4): rowId -> 1|-1, from the seed row's own `sign` (role-derived upstream) */
+  var _currentRows = null; /* rich seed rows [{name,area,sign,page}] behind the current seedData -- source for rowSign + makeHash */
   var stCounter = 0;
   var _rebuilding = false;
 
@@ -39,6 +41,14 @@ var ReportEdit = (function(){
       else break;
     }
     return n;
+  }
+  /* B-3: sign of the row at sheet-row index y (1 unless its seed row was
+     marked sign:-1, e.g. a deduction-role group row). Defaults to +1 for
+     subtotal rows / out-of-range indices -- unchanged current behavior. */
+  function rowSignOf(y){
+    var rid=rowIds[y];
+    if(rid==null) return 1;
+    return rowSign[rid]===-1?-1:1;
   }
 
   function refreshOverrideStyles(){
@@ -103,6 +113,7 @@ var ReportEdit = (function(){
   function doDeleteRow(idx){
     if(idx<0||idx>=rowIds.length) return;
     var ac=areaCount();
+    delete rowSign[rowIds[idx]];
     rowIds.splice(idx,1);
     if(idx<ac) baseline.splice(idx,1);
     _rebuilding=true;
@@ -131,6 +142,13 @@ var ReportEdit = (function(){
       });
     }
   }
+  /* B-3: last non-whitespace char of a formula body, used to detect the
+     user already picked an explicit operator (+, -, *, /) before clicking
+     a cell -- in that case we must NOT also auto-insert a sign. */
+  function lastMeaningfulChar(v){
+    var t=String(v||'').replace(/\s+$/,'');
+    return t.length?t.charAt(t.length-1):'';
+  }
   function insertAtCaret(text){
     if(!editorInput) return;
     var s=editorInput.selectionStart||editorInput.value.length;
@@ -154,19 +172,50 @@ var ReportEdit = (function(){
       if(x===editorCellX&&y===editorCellY) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      insertAtCaret(colLetter(x)+(y+1));
+      var ref=colLetter(x)+(y+1);
+      /* B-3: auto-default the sign for a picked cell UNLESS the user already
+         typed/clicked an explicit operator right before this pick (that
+         explicit choice always wins, e.g. building a ratio with '*'/'/').
+         With no explicit op pending: ded-role rows (rowSignOf<0) insert
+         '-B{n}' instead of a bare ref, so naively clicking through rows in
+         order produces a correctly SIGNED sum with no manual '-' click
+         needed -- this is the fix for B-3 ("grid ไม่รู้เครื่องหมายลบ"). */
+      var body=String(editorInput.value||'').replace(/^=/,'');
+      var lastCh=lastMeaningfulChar(body);
+      var hasExplicitOp=(lastCh==='+'||lastCh==='-'||lastCh==='*'||lastCh==='/');
+      var text=ref;
+      if(!hasExplicitOp){
+        var neg=rowSignOf(y)<0;
+        var isFirst=body.replace(/\s+/g,'')==='';
+        text=(neg?'-':(isFirst?'':'+'))+ref;
+      }
+      insertAtCaret(text);
     },true);
   }
 
   /* ---------- persistence ---------- */
+  /* B-3/B-10-in-passing (REVIEW ledger slice B/4): rows are the rich seed
+     objects [{name,area,page,...}], not [name,area] pairs -- the hash now
+     includes each row's page index, so two rows with the SAME name+area on
+     DIFFERENT pages (plausible once grid shows every page, e.g. the same
+     category repeated per floor) no longer collide into the same
+     localStorage key. This does NOT fully close B-10 (still a plain
+     content hash, still no cross-project namespacing / orphan GC -- flagged,
+     out of scope this slice); old-format keys from before this change
+     simply won't match on load (acceptable, no migration code per spec). */
   function makeHash(rows){
-    return rows.map(function(r){return r[0]+'|'+r[1];}).join('||');
+    return (rows||[]).map(function(r){
+      var pg=(r&&r.page!=null)?r.page:'';
+      var nm=(r&&r.name!=null)?r.name:'';
+      var ar=(r&&r.area!=null)?r.area:'';
+      return pg+'|'+nm+'|'+ar;
+    }).join('||');
   }
   function lsKey(hash){ return 'bmaReportEdit.v1::'+hash; }
   function saveState(seedHash){
     if(!jss) return;
     try{
-      var payload=JSON.stringify({data:jss.getData(),baseline:baseline,areaCount:areaCount(),subMeta:subMeta});
+      var payload=JSON.stringify({data:jss.getData(),baseline:baseline,areaCount:areaCount(),subMeta:subMeta,rowSign:rowSign});
       localStorage.setItem(lsKey(seedHash),payload);
     }catch(e){}
   }
@@ -179,13 +228,23 @@ var ReportEdit = (function(){
     var data=saved&&saved.data?saved.data:seedData.map(function(r){return r.slice();});
     if(saved&&saved.baseline) baseline=saved.baseline.slice();
     else baseline=seedData.map(function(r){return r[1];});
-    rowIds=[]; subMeta={}; stCounter=0;
+    rowIds=[]; subMeta={}; rowSign={}; stCounter=0;
     var nArea=saved&&saved.areaCount!=null?saved.areaCount:seedData.length;
     for(var i=0;i<data.length;i++){
       if(i<nArea){ rowIds.push('r'+i); }
       else { rowIds.push('st'+(++stCounter)); }
     }
     if(saved&&saved.subMeta){ subMeta=JSON.parse(JSON.stringify(saved.subMeta)); }
+    /* B-3: restore persisted per-row sign if this session had one saved,
+       else derive fresh from the rich seed rows (_currentRows) set by
+       mount()/reset() just before this call. */
+    if(saved&&saved.rowSign){ rowSign=JSON.parse(JSON.stringify(saved.rowSign)); }
+    else{
+      for(var si=0; si<nArea; si++){
+        var src=_currentRows&&_currentRows[si];
+        rowSign['r'+si]=(src&&src.sign===-1)?-1:1;
+      }
+    }
 
     hostEl.innerHTML='';
     jss=jspreadsheet(hostEl,{
@@ -246,12 +305,15 @@ var ReportEdit = (function(){
   function mount(el, rows){
     if(jss) unmount();
     hostEl=el;
-    /* build seedData from rows [{name,area}] */
-    var seedData=rows&&rows.length
-      ? rows.map(function(r){return [r.name,r.area];})
-      : DEFAULT_SEED.map(function(r){return r.slice();});
+    /* build seedData from rows [{name,area,sign,page}]; keep the rich rows
+       around (_currentRows) for rowSign derivation + the page-aware hash */
+    var srcRows=rows&&rows.length
+      ? rows
+      : DEFAULT_SEED.map(function(r){return {name:r[0],area:r[1],sign:1};});
+    var seedData=srcRows.map(function(r){return [r.name,r.area];});
+    _currentRows=srcRows;
     _currentSeed=seedData;
-    _currentSeedHash=makeHash(seedData);
+    _currentSeedHash=makeHash(srcRows);
 
     /* inject picker CSS into page if not already there */
     if(!document.getElementById('re-picker-style')){
@@ -323,30 +385,32 @@ var ReportEdit = (function(){
     if(hostEl){ hostEl.innerHTML=''; }
     jss=null; hostEl=null;
     pickerActive=false; editorInput=null; editorCellX=-1; editorCellY=-1;
-    rowIds=[]; subMeta={}; stCounter=0; baseline=[];
-    _currentSeed=null; _currentSeedHash=null;
+    rowIds=[]; subMeta={}; rowSign={}; stCounter=0; baseline=[];
+    _currentSeed=null; _currentSeedHash=null; _currentRows=null;
   }
 
   /* ---------- test automation API (window.ReportEditAPI) ---------- */
   function _exposeAPI(){
     window.ReportEditAPI={
       reset: function(rows){
-        var seedData=rows&&rows.length
-          ? rows.map(function(r){return [r.name,r.area];})
-          : DEFAULT_SEED.map(function(r){return r.slice();});
-        var saved=null;
+        var srcRows=rows&&rows.length
+          ? rows
+          : DEFAULT_SEED.map(function(r){return {name:r[0],area:r[1],sign:1};});
+        var seedData=srcRows.map(function(r){return [r.name,r.area];});
         /* clear persistence for this seed so reset is clean */
-        try{ localStorage.removeItem(lsKey(makeHash(seedData))); }catch(e){}
+        try{ localStorage.removeItem(lsKey(makeHash(srcRows))); }catch(e){}
+        _currentRows=srcRows;
         _currentSeed=seedData;
-        _currentSeedHash=makeHash(seedData);
+        _currentSeedHash=makeHash(srcRows);
         baseline=seedData.map(function(r){return r[1];});
-        rowIds=[]; subMeta={}; stCounter=0;
+        rowIds=[]; subMeta={}; rowSign={}; stCounter=0;
         /* re-mount into same hostEl */
         if(hostEl){
           hostEl.innerHTML='';
           init(seedData,null);
         }
       },
+      seedHash: function(){ return _currentSeedHash; },   /* B-3/B-10-in-passing test hook */
       openEditor: function(x,y){
         var td=hostEl&&hostEl.querySelector('td[data-x="'+x+'"][data-y="'+y+'"]');
         if(!td) return false;

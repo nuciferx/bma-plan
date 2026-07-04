@@ -262,15 +262,32 @@ render();
   window.__SAMPLE_PAYLOAD=SAMPLE;
 
   function gridRows(){
-    /* flatten first measurable page's group rows into [{name,area}] */
+    /* B-2/B-3 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice B/4): flatten
+       EVERY payload page's group rows (not just pages[0]) into
+       [{page,pageTitle,name,area,sign}]. sign comes straight from the
+       group's own sign (role-derived upstream in buildReportPayload — see
+       export-annotate.js:78) so report-edit.js can default deduction rows
+       to SUBTRACT instead of silently adding them (closes B-3).
+       Grouping choice: a text-only page-title separator ROW before each
+       page's first group, rather than a 3rd jspreadsheet column — this
+       keeps report-edit.js's "area rows are one contiguous leading block"
+       invariant intact (no column-index rewiring / formula-reference risk)
+       while still reading as page-grouped. Only inserted when there is
+       more than 1 page, so a single-page payload behaves exactly as
+       before (no separator noise) -- see B-2/B-3 acceptance test. */
     var payload=null;
     try{ var raw=sessionStorage.getItem("bmaReportPayload"); if(raw) payload=JSON.parse(raw); }catch(e){}
     if(!payload) payload=window.__SAMPLE_PAYLOAD||null;
     var rows=[];
     if(payload&&payload.pages&&payload.pages.length){
-      var p=payload.pages[0];
-      (p.groups||[]).forEach(function(g){
-        (g.rows||[]).forEach(function(r){ rows.push({name:r.name,area:r.area}); });
+      var multi=payload.pages.length>1;
+      payload.pages.forEach(function(p){
+        if(multi){
+          rows.push({name:"— หน้า "+p.idx+(p.title?(" · "+p.title):"")+" —",area:"",sign:1,page:p.idx});
+        }
+        (p.groups||[]).forEach(function(g){
+          (g.rows||[]).forEach(function(r){ rows.push({name:r.name,area:r.area,sign:(g.sign<0?-1:1),page:p.idx}); });
+        });
       });
     }
     return rows;
