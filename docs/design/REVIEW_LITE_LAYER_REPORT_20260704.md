@@ -181,22 +181,22 @@ flat 6-role (05-22) → tree+folder+Σ (LST, hybrid F ที่ไม่ได�
 | A-1 | B-1 sign หักจาก role ไม่ใช่ id (`export-annotate.js:78`) + guard custom-ded-layer | A | shipped `0bf8eb2` | 2026-07-04. `id`→`role` 1 บรรทัด. guard `test_report_sign_role.py` `LITE_REPORT_SIGN_ROLE_OK` 13/13, RED-proof เอง (pre-fix net=125 → post-fix 75). regression test_report 17/17. fixture มาตรฐาน A-7 สร้างพร้อมกัน (custom_layer_report.bmaplan: 2+ หน้า, custom ded L5, excluded หน้า 1) |
 | A-2 | B-4 ส่ง opts เข้า closure ทุกจุด `report-vars.js` + guard re-render คง useLive | A | queued | ~7 จุด |
 | A-3 | B-5 heal `activeCat` (_afterHistory + removeLayer paths + sweep หลัง undo/redo) + guard | A | queued | |
-| A-4 | B-6 excluded semantics เดียว — reroute computeSummary + buildExportData เข้า tuple stream + pin test | A | queued | ปิด B2-leftover |
+| A-4 | B-6 excluded semantics เดียว — reroute computeSummary + buildExportData เข้า tuple stream + pin test | A | shipped `bb5090f` (byCategory/summaryByCategory tuple helpers) | ปิด B2-leftover |
 | A-5 | MED batch: B-7 `_rvSeq` / B-8 กรอง counting ใน move menu / B-9 buildPageStore role-based / B-11 ปิด jss context menu / B-12 DnD guard PF+floorKey | A | queued | แตกได้ถ้า diff ใหญ่ |
 | A-6 | LOW batch (§1 ท้ายตาราง): PF "+ เพิ่ม layer" pushUndo+role+floorKey, ล้าง LAYERS ตอน load ไฟล์เก่า, dead code, double-esc, observer disconnect, ฯลฯ | A | queued | |
 | A-7 | fixture มาตรฐานใหม่ (≥2 หน้า + ded + custom layer + excluded) ใช้กับ guard ของ A-1..A-5 | A | queued | ทำพร้อม A-1 ได้ |
-| S-1 | รายงานโหมดเดียว (เลือกทาง ก: grid พิมพ์ได้จริง+เลิก classic / ทาง ข: classic+override-overlay เลิก grid+vendor) | B | needs-GO | ข้อใหญ่สุด — user ต้องเลือกทาง |
+| S-1 | รายงานโหมดเดียว — **ทาง ก (user GO 2026-07-04 via idea `2026-07-04-16-01`)**: grid ครบทุกหน้า+พิมพ์ได้จริง+เลิก classic | B | shipped `fc63e72`+`52725a1` (grid-only + พิมพ์จริง + ภาคผนวกรูปแปลน) | ปิด B-2/B-3/กับดักพิมพ์ |
 | S-2 | ยุบแกนชั้น: folder membership = floorKey อัตโนมัติ, ตัด divergence banner | B | needs-GO | |
 | S-3 | ซ่อน PF jargon ทั้งหมดจาก UI text | B | needs-GO | เล็ก เสี่ยงต่ำ |
 | S-4 | ตัด user folder (📁+) + flatten migrate | B | needs-GO | |
 | S-5 | ยอดพื้นที่ 7→3 ที่ | B | needs-GO | |
-| S-6 | ประตู export เหลือ 2 + แก้ป้ายผิด | B | needs-GO | เล็ก |
+| S-6 | ประตู export เหลือ 3 ป้ายตรง + เลิกซ่อนเมนู XLSX | B | shipped `8362c3f` (3 ประตูป้ายตรง) | เล็ก |
 | S-7 | ตั้งค่าหน้าประตูเดียว + ศัพท์ floorKind ชุดเดียว | B | needs-GO | |
 | S-8 | ตัด warp-on-layer-click | B | needs-GO | เล็ก |
 | S-9 | ทางเพิ่ม layer แบบเดียว | B | needs-GO | |
 | S-10 | wizard lock เฉพาะ panel + ปุ่มข้ามไปวัดเลย | B | absorbed → INV-2026-07-04-002 (shipped 2026-07-04) | per-page JIT gate แทน SET gate — วัดหน้าไหนต้องแท็กหน้านั้น (hard) แต่ไม่บล็อกทั้งชุดอีกต่อไป; wizard เป็น optional tool |
 | S-11 | seed vars first-class + editor หลัง "ขั้นสูง" + ช่องหน่วย | B | needs-GO | |
-| S-12 | label PDF overlay เป็นชื่อ layer ไทย (display เท่านั้น) | B | needs-GO | เล็ก |
+| S-12 | label PDF overlay เป็นชื่อ layer ไทย (display เท่านั้น) | B | shipped `8362c3f` | เล็ก |
 | S-13 | cheatsheet หมวด layer | B | needs-GO | เล็ก |
 | C-1 | เพิ่มมิติ 7 "concepts added/removed" ใน invent scoring (แก้ .claude/skills + agents ที่เกี่ยว) | C | queued | docs-only |
 | C-2 | กติกา one-in-one-out ใน invent pipeline | C | queued | docs-only, รวมกับ C-1 ได้ |
