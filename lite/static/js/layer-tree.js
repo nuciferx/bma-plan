@@ -540,9 +540,25 @@ function buildPicker() {
 
   if (!state.folderCollapsed) state.folderCollapsed = {};
 
+  /* INV-2026-07-04-001 slice 1/3: rail host + PF_* scope filter. The LIVE
+     PF-mode render path is buildPagePicker() (page-folder-layers.js,
+     wrapped over this function) — layer-scope.js's post-render wrap
+     scopes that path. This direct-render path is normally reached only
+     as the buildPagePicker()-throws fallback; kept in sync so it never
+     silently regresses to an unscoped view. */
+  var host = (typeof lsEnsureRailHost === "function") ? lsEnsureRailHost(el) : null;
+  var scoping = typeof lsScopeActive === "function" && lsScopeActive();
+  if (host) host.style.display = scoping ? "" : "none";
+  if (scoping && host && typeof lsRenderRail === "function") lsRenderRail(host);
+  var activeFolder = (scoping && typeof lsFolderForPage === "function" && typeof curPage !== "undefined")
+    ? lsFolderForPage(curPage) : null;
+
   var roots = childrenOf(null);
   for (var i = 0; i < roots.length; i++) {
     var item = roots[i];
+    if (activeFolder && item.kind === "folder" && item.node.kind === "page-folder" && item.node.id !== activeFolder.id) {
+      continue; // scoped out — only the active page's PF folder renders here
+    }
     if (item.kind === "folder") {
       _ltRenderFolder(item.node, 0, el);
     } else {

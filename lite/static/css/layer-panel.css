@@ -9,11 +9,13 @@
 
 /* ── panel chrome ─────────────────────────────────────────────────────── */
 body.lt-v2 #picker {
-  width: 320px;       /* LCAL-S6 (2026-05-23): reverted 440→320 — 320 fits all
-                       * default Thai names one-line already; 440 was solving a
-                       * hypothetical long-name problem at real canvas cost
-                       * (-120px). text-overflow: ellipsis below handles overflow
-                       * for any future user-created long names. */
+  width: 260px;       /* INV-2026-07-04-001 slice 3/3: P2 Balanced (260px) —
+                       * user checkpoint decision, docs/invent/lite-layer-menu-ui-fix.md.
+                       * Was 320px (P3 Anchor, LCAL-S6) — P2 keeps the same 30px
+                       * row rhythm/radius/swatch/chip geometry below (P2 and P3
+                       * share those token values in the spike) but narrower, giving
+                       * back canvas width; #picker is position:absolute over #stage
+                       * so this never affects canvas/flex layout, only overlap area. */
   background: var(--panel);
   border-radius: 8px;
   padding: 0;
@@ -36,7 +38,7 @@ body.lt-v2 #catlist {
 /* ── row chip rhythm ──────────────────────────────────────────────────── */
 body.lt-v2 .cat {
   height: 30px;
-  padding: 0 6px;
+  padding: 0 5px;     /* INV-2026-07-04-001 slice 3/3: P2 tightens 0 6px (P3) -> 0 5px */
   margin: 2px 0;
   background: var(--row);
   border-radius: 5px;
