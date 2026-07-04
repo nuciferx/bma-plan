@@ -26,8 +26,9 @@ def main():
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
         pg.goto(HTML.as_uri())
-        # Click the toggle to mount ReportEdit
-        pg.click("#re-toggle")
+        # S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice C/4): the
+        # classic/grid toggle (#re-toggle) was removed -- grid mounts
+        # unconditionally on load now, so no click is needed to get ReportEdit.
         pg.wait_for_function("window.ReportEditAPI && true")
         pg.wait_for_timeout(500)
 

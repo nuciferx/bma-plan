@@ -295,7 +295,26 @@ var ReportEdit = (function(){
 
     bindHostPicker();
     refreshOverrideStyles();
+    tagPageBreakRows();
     if(saved) rebuildSubtotals();
+  }
+
+  /* S-1 ทาง ก / slice C (REVIEW ledger): tag each page-title separator row's
+     <tr> with 're-page-break' so lite-report.html's print CSS can start a
+     new printed page there ("page-break rules at page-separator rows where
+     feasible" per spec) — CSS-only, no jexcel fork. Best-effort: matched by
+     seed-time row index against the FRESH seed rows (_currentRows), so a
+     row insert/delete via jspreadsheet's own context menu (B-11, known gap,
+     out of scope) can desync this cosmetic tag from the real row -- print
+     output would be visually affected, nothing functional/numeric. Skips
+     index 0 so page 1 never starts on a blank leading printed page. */
+  function tagPageBreakRows(){
+    if(!hostEl||!_currentRows) return;
+    for(var i=1;i<_currentRows.length;i++){
+      if(!(_currentRows[i]&&_currentRows[i].sep)) continue;
+      var tr=hostEl.querySelector('tr[data-y="'+i+'"]');
+      if(tr) tr.classList.add('re-page-break');
+    }
   }
 
   /* ---------- PUBLIC API ---------- */

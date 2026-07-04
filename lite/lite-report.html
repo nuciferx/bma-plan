@@ -16,39 +16,17 @@
   .toolbar .sp{flex:1}
   .src{font-size:11px;color:#67d987;padding:2px 8px;border:1px solid #2f6f3a;border-radius:4px}
   button{background:#2f6df0;color:#fff;border:0;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px}
-  button.sec{background:#3a3f47}
 
   .sheetwrap{padding:22px;display:flex;flex-direction:column;align-items:center;gap:22px}
-  .empty{color:#cdd3da;font-size:14px;padding:40px}
-  .sheet{ background:#fff; width:297mm; min-height:210mm; padding:12mm 12mm 10mm;
-    box-shadow:0 6px 26px rgba(0,0,0,.45); display:flex; flex-direction:column; }
-  .hdr{display:flex;justify-content:space-between;align-items:flex-end;
-    border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
-  .hdr .ttl{font-size:18px;font-weight:700}
-  .hdr .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.5}
-  .body{display:flex;gap:8mm;flex:1}
-  .left{flex:0 0 58%;display:flex;align-items:center;justify-content:center;
-    background:#f3f5f7;border:1px solid var(--line);min-height:150mm;position:relative;overflow:hidden}
-  .planbox{position:relative;max-width:100%;max-height:172mm;line-height:0}
-  .planbox img{max-width:100%;max-height:172mm;display:block}
-  .planbox svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
-  .left .cap{position:absolute;bottom:6px;left:8px;font-size:10px;color:var(--muted);background:rgba(255,255,255,.7);padding:1px 5px;border-radius:3px}
-  .right{flex:1;display:flex;flex-direction:column}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th,td{border:1px solid var(--line);padding:4px 7px;text-align:left;vertical-align:top}
-  th{background:#eef2f6}
-  td.area,th.area{text-align:right;white-space:nowrap;width:78px}
-  td.area{background:var(--lock);color:#222;font-variant-numeric:tabular-nums}  /* read-only */
-  td.bdg,th.bdg{width:26px;text-align:center;color:#fff;font-weight:700}
-  tr.grp td{color:#fff;font-weight:700}
-  tr.sub td{background:#e9eef3;font-weight:700}
-  tr.grand td{background:var(--ink);color:#fff;font-weight:700;font-size:13px}
-  .note{font-size:11px;color:#333}
-  [contenteditable="true"]{cursor:text}
-  .editable-mark [contenteditable="true"]:hover{background:#fff7d6}
-  .editable-mark [contenteditable="true"]:focus{background:#fff3b0;box-shadow:0 0 0 2px #ffd479 inset}
-  .footdoc{margin-top:8px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;
-    display:flex;justify-content:space-between;gap:8px}
+  /* S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice C/4): grid is the
+     ONLY report view now. #re-host is the jspreadsheet-editable table itself;
+     .rptHdr is a small project name/date header printed above it (the old
+     per-sheet contenteditable header only existed in the removed classic view). */
+  .rptHdr{background:#fff;width:297mm;padding:8mm 12mm;box-shadow:0 6px 26px rgba(0,0,0,.45);
+    border-radius:4px;display:flex;justify-content:space-between;align-items:flex-end}
+  .rptHdr .ttl{font-size:18px;font-weight:700}
+  .rptHdr .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.5}
+  #re-host{background:#fff;width:297mm;padding:12mm 12mm 10mm;box-shadow:0 6px 26px rgba(0,0,0,.45);border-radius:4px}
   .rvcard{background:#fff;width:297mm;padding:10mm 12mm;box-shadow:0 6px 26px rgba(0,0,0,.45)}
   .rvcard .rv-hdr{font-size:15px;font-weight:700;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
   .rvcard table{width:auto;min-width:220px;border-collapse:collapse;font-size:13px}
@@ -56,54 +34,56 @@
   .rvcard td.rv-name{font-weight:600;background:#eef2f6}
   .rvcard td.rv-val{text-align:right;font-variant-numeric:tabular-nums;background:var(--lock);white-space:nowrap;min-width:90px}
   .rvcard td.rv-null{text-align:right;color:var(--muted);background:var(--lock);min-width:90px}
-  @media print{.rvcard{box-shadow:none;page-break-after:auto}}
 
   @page{ size: A4 landscape; margin: 8mm; }
   @media print{
     body{background:#fff}
     .toolbar{display:none !important}
-    .sheetwrap{padding:0;gap:0}
-    .sheet{box-shadow:none;width:auto;min-height:auto;padding:0;page-break-after:always}
-    .sheet:last-child{page-break-after:auto}
-    [contenteditable]{background:none !important;box-shadow:none !important}
-    .left{background:#fff;border-color:#999}
-    /* print = CLASSIC report always (grid print CSS un-validated). Grid never prints;
-       classic is forced back on-screen even if the user is viewing grid mode. */
-    #re-wrap{display:none !important}
-    #sheets{position:static !important;left:auto !important;top:auto !important}
+    .sheetwrap{padding:0;gap:6mm}
+    .rptHdr,.rvcard{box-shadow:none}
+    #re-host{box-shadow:none}
+    /* grid IS the print output now (S-1 ทาง ก) — hide jspreadsheet chrome
+       (toolbar/about-branding/select-all corner/row-number column/resize
+       corner/context-menu/selection-highlight), CSS-only, no jexcel fork. */
+    .re-ops,.re-status{display:none !important}
+    .jexcel_toolbar,.jexcel_about,.jexcel_contextmenu,.jexcel_corner,.jexcel_pagination{display:none !important}
+    #re-host td.jexcel_selectall,#re-host td.jexcel_row{display:none !important}
+    #re-host col:first-child{display:none !important}
+    #re-host .highlight,#re-host .highlight-top,#re-host .highlight-left,
+    #re-host .highlight-right,#re-host .highlight-bottom,#re-host .highlight-selected{
+      background:transparent !important;border-color:transparent !important}
+    /* page-break hint at each page-title separator row (report-edit.js tags
+       these 're-page-break', skipping the very first row so page 1 doesn't
+       start with a blank leading page) — "where feasible" per spec; browser
+       print pagination for the rest of the table is otherwise automatic. */
+    tr.re-page-break{page-break-before:always}
   }
-  /* report-edit toggle host */
-  #re-host{background:#fff;width:297mm;padding:12mm 12mm 10mm;box-shadow:0 6px 26px rgba(0,0,0,.45);border-radius:4px}
-  .printhint{font-size:11px;color:#e8b84b;max-width:250px;line-height:1.3}
-  /* View switching (GRID is default). The inactive view is moved OFF-SCREEN rather
-     than display:none, so (a) #sheets innerText stays readable for tooling and
-     (b) the off-screen grid stays fully rendered → jspreadsheet editing keeps working. */
-  body.mode-grid #sheets{position:absolute;left:-99999px;top:0}
-  body.mode-classic #re-wrap{position:absolute;left:-99999px;top:0}
 </style>
 <link rel="stylesheet" href="static/js/vendor/jsuites.min.css">
 <link rel="stylesheet" href="static/js/vendor/jspreadsheet.min.css">
 </head>
-<body class="editable-mark mode-grid">
+<body>
 
 <div class="toolbar">
   <b>📝 รายงานพื้นที่ (แก้ไขได้ก่อนพิมพ์)</b>
   <span class="src" id="srcTag">…</span>
-  <span class="hint">คลิกหัวกระดาษ / ชื่อรายการ / หมายเหตุ เพื่อแก้ — ตัวเลขพื้นที่ล็อก (จากการวัด)</span>
+  <span class="hint">คลิกช่อง "ประเภท" เพื่อแก้ชื่อรายการ, กด + แทรกแถว Subtotal เพื่อรวมยอดเอง — ตัวเลขพื้นที่ล็อก (จากการวัด)</span>
   <span class="sp"></span>
-  <button id="re-toggle" class="sec">📄 โหมดคลาสสิก</button>
-  <span class="printhint" id="printHint">พิมพ์/บันทึก PDF แนะนำโหมดคลาสสิก (โหมดตารางยังไม่ปรับหน้า print)</span>
   <button id="print">🖨 พิมพ์ / บันทึก PDF</button>
 </div>
 
-<div class="sheetwrap" id="sheets"></div>
 <div class="sheetwrap" id="re-wrap">
+  <div class="rptHdr" id="rpt-hdr"></div>
   <div id="re-host"></div>
 </div>
 
 <script>
 /* ===========================================================================
-   BMA-Plan Lite — report page (LITE-REPORT / INV-2026-05-21-002, approach A)
+   BMA-Plan Lite — report page (LITE-REPORT / INV-2026-05-21-002, approach A).
+   S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice C/4): grid is the
+   ONLY view now — the old contenteditable "classic" per-page sheet view +
+   view-toggle button were removed; what's shown/edited in the grid is what
+   prints (Ctrl+P / the print button), on A4 landscape.
    Payload from sessionStorage["bmaReportPayload"] (same-origin window.open copy),
    else a bundled SAMPLE so the page is standalone. Area numbers READ-ONLY.
    =========================================================================== */
@@ -112,24 +92,16 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
 function fmt(n){ return Number(n).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-/* --- standalone sample (no live data) --- */
-function sampleSVG(label){
-  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>"+
-   "<rect width='800' height='600' fill='#fafbfc'/>"+
-   "<rect x='90' y='90' width='420' height='300' fill='#3b82f622' stroke='#3b82f6' stroke-width='3'/>"+
-   "<rect x='540' y='110' width='180' height='150' fill='#39d98a22' stroke='#39d98a' stroke-width='3'/>"+
-   "<rect x='300' y='320' width='90' height='90' fill='#ff6b6b22' stroke='#ff6b6b' stroke-width='3'/>"+
-   "<text x='20' y='585' fill='#9aa3ad' font-size='15'>"+label+" (ตัวอย่าง — ปกติคือภาพ render หน้า PDF)</text></svg>";
-  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
-}
+/* --- standalone sample (no live data). S-1 ทาง ก: dropped the plan-image/
+   overlay fields (sampleSVG/centroid/buildSheet consumed them; both gone
+   now that the grid-only view never renders a plan thumbnail) -- flagged:
+   the printed report no longer shows the annotated plan image, only the
+   tabular rows. That tradeoff is the explicit S-1 ทาง ก GO decision. */
 var SAMPLE={ project:"โครงการบ้านพักอาศัย 2 ชั้น (ตัวอย่าง)", date:new Date().toLocaleDateString("th-TH"),
-  pages:[{ idx:1, title:"ชั้น 1 — ผังพื้น", tag:"แปลนชั้น", imgUrl:sampleSVG("ชั้น 1"), scaleSet:true,
-    overlays:[ {pts:[{x:90,y:90},{x:510,y:90},{x:510,y:390},{x:90,y:390}],color:"#3b82f6",badge:1},
-               {pts:[{x:540,y:110},{x:720,y:110},{x:720,y:260},{x:540,y:260}],color:"#39d98a",badge:2},
-               {pts:[{x:300,y:320},{x:390,y:320},{x:390,y:410},{x:300,y:410}],color:"#ff6b6b",badge:3} ],
-    groups:[ {label:"พื้นที่อาคาร",color:"#3b82f6",rows:[{name:"ห้องโถง",area:58.40,badge:1}],subtotal:58.40,sign:1},
-             {label:"พื้นที่ใช้สอย",color:"#39d98a",rows:[{name:"ห้องนอน",area:16.20,badge:2}],subtotal:16.20,sign:1},
-             {label:"ช่องว่าง/หัก",color:"#ff6b6b",rows:[{name:"ช่องบันได",area:6.10,badge:3}],subtotal:6.10,sign:-1} ],
+  pages:[{ idx:1, title:"ชั้น 1 — ผังพื้น",
+    groups:[ {label:"พื้นที่อาคาร",rows:[{name:"ห้องโถง",area:58.40}],subtotal:58.40,sign:1},
+             {label:"พื้นที่ใช้สอย",rows:[{name:"ห้องนอน",area:16.20}],subtotal:16.20,sign:1},
+             {label:"ช่องว่าง/หัก",rows:[{name:"ช่องบันได",area:6.10}],subtotal:6.10,sign:-1} ],
     net:68.50 }],
   _sample:true };
 
@@ -141,68 +113,14 @@ function loadPayload(){
   return SAMPLE;
 }
 
-function centroid(pts){ var x=0,y=0; pts.forEach(function(p){x+=p.x;y+=p.y;}); return {x:x/pts.length,y:y/pts.length}; }
-
-function buildSheet(page, total, project, date){
-  var sheet=document.createElement("div"); sheet.className="sheet";
-
-  var hdr=document.createElement("div"); hdr.className="hdr";
-  hdr.innerHTML='<div class="ttl" contenteditable="true">'+esc(project||"(ตั้งชื่อโครงการ)")+'</div>'+
-    '<div class="meta"><div>หน้า '+page.idx+'/'+total+' • <span contenteditable="true">'+esc(page.title||("หน้า "+page.idx))+'</span></div>'+
-    (page.tag?'<div>'+esc(page.tag)+'</div>':'')+
-    '<div>'+(page.scaleSet?'ตั้งสเกลแล้ว':'<span style="color:#cf222e">ยังไม่ตั้งสเกล</span>')+' • <span contenteditable="true">'+esc(date||"")+'</span></div></div>';
-
-  var body=document.createElement("div"); body.className="body";
-
-  // LEFT: plan image + SVG overlay (viewBox set on image load)
-  var left=document.createElement("div"); left.className="left";
-  var box=document.createElement("div"); box.className="planbox";
-  var img=document.createElement("img"); img.alt="plan"; img.src=page.imgUrl;
-  var svgNS="http://www.w3.org/2000/svg";
-  var svg=document.createElementNS(svgNS,"svg"); svg.setAttribute("preserveAspectRatio","none");
-  (page.overlays||[]).forEach(function(ov){
-    if(!ov.pts||!ov.pts.length) return;
-    var poly=document.createElementNS(svgNS,"polygon");
-    poly.setAttribute("points",ov.pts.map(function(p){return p.x+","+p.y;}).join(" "));
-    poly.setAttribute("fill",ov.color); poly.setAttribute("fill-opacity","0.16");
-    poly.setAttribute("stroke",ov.color); poly.setAttribute("stroke-width","3"); svg.appendChild(poly);
-    var c=centroid(ov.pts);
-    var circ=document.createElementNS(svgNS,"circle");
-    circ.setAttribute("cx",c.x); circ.setAttribute("cy",c.y); circ.setAttribute("r","16"); circ.setAttribute("fill",ov.color); svg.appendChild(circ);
-    var t=document.createElementNS(svgNS,"text"); t.setAttribute("x",c.x); t.setAttribute("y",c.y+6);
-    t.setAttribute("text-anchor","middle"); t.setAttribute("font-size","20"); t.setAttribute("fill","#fff"); t.setAttribute("font-weight","700");
-    t.textContent=ov.badge; svg.appendChild(t);
-  });
-  img.addEventListener("load",function(){
-    var w=img.naturalWidth||800, h=img.naturalHeight||600;
-    svg.setAttribute("viewBox","0 0 "+w+" "+h);
-  });
-  img.addEventListener("error",function(){ box.insertAdjacentHTML("beforeend",'<div class="cap">โหลดภาพหน้าไม่ได้ (เซิร์ฟเวอร์ lite ปิด?)</div>'); });
-  box.appendChild(img); box.appendChild(svg);
-  left.appendChild(box);
-  left.insertAdjacentHTML("beforeend",'<div class="cap">แปลน + พื้นที่ที่วัด</div>');
-
-  // RIGHT: grouped area table
-  var right=document.createElement("div"); right.className="right";
-  var rows='<tr><th class="bdg" style="background:#eef2f6;color:#222">#</th><th>รายการ</th><th class="area">พื้นที่ (ม²)</th><th>หมายเหตุ</th></tr>';
-  (page.groups||[]).forEach(function(g){
-    rows+='<tr class="grp"><td class="bdg" style="background:'+g.color+';border-color:'+g.color+'"></td><td colspan="3" style="background:'+g.color+';border-color:'+g.color+'">'+esc(g.label)+'</td></tr>';
-    g.rows.forEach(function(r){
-      rows+='<tr><td class="bdg" style="background:'+g.color+'">'+r.badge+'</td>'+
-        '<td contenteditable="true">'+esc(r.name)+'</td>'+
-        '<td class="area" title="ค่าจากการวัด — แก้ไม่ได้">'+fmt(r.area)+'</td>'+
-        '<td class="note" contenteditable="true"></td></tr>';
-    });
-    rows+='<tr class="sub"><td></td><td>รวม '+esc(g.label)+'</td><td class="area">'+(g.sign<0?'−':'')+fmt(g.subtotal)+'</td><td></td></tr>';
-  });
-  rows+='<tr class="grand"><td></td><td>รวมพื้นที่สุทธิ (หน้านี้)</td><td class="area">'+fmt(page.net)+'</td><td></td></tr>';
-  right.innerHTML='<table>'+rows+'</table>'+
-    '<div class="footdoc"><span>* ตัวเลขพื้นที่มาจากการวัด (อ้างอิงสเกลของหน้า) — แก้ไขไม่ได้</span>'+
-    '<span contenteditable="true">หมายเหตุ: —</span></div>';
-
-  body.appendChild(left); body.appendChild(right);
-  sheet.appendChild(hdr); sheet.appendChild(body);
-  return sheet;
+/* project name/date header, printed above the grid (S-1 ทาง ก: the old
+   per-sheet contenteditable header only existed in the removed classic
+   view -- this is its replacement, read-only, one per report). */
+function buildHdr(payload){
+  var hdr=document.getElementById("rpt-hdr"); if(!hdr) return;
+  var n=(payload.pages&&payload.pages.length)||0;
+  hdr.innerHTML='<div class="ttl">'+esc(payload.project||"(ยังไม่ตั้งชื่อโครงการ)")+'</div>'+
+    '<div class="meta">'+(n?n+' หน้าที่มีพื้นที่วัด • ':'')+esc(payload.date||"")+'</div>';
 }
 
 function buildVarsCard(vars){
@@ -230,41 +148,23 @@ function buildVarsCard(vars){
   return card;
 }
 
-function render(){
-  var payload=loadPayload();
-  var host=document.getElementById("sheets"); host.innerHTML="";
-  if(!payload.pages||!payload.pages.length){ host.innerHTML='<div class="empty">ไม่มีหน้าที่มีพื้นที่วัด</div>'; }
-  else {
-    var total=payload.pages.length;
-    payload.pages.forEach(function(p){ host.appendChild(buildSheet(p,total,payload.project,payload.date)); });
-    document.title="รายงานพื้นที่ — "+(payload.project||"BMA-Plan Lite");
-  }
-  var vc=buildVarsCard(payload.reportVars);
-  if(vc) host.appendChild(vc);
-}
 document.getElementById("print").onclick=function(){ window.print(); };
-render();
+/* expose SAMPLE payload reference for grid seed fallback (used below) */
+window.__SAMPLE_PAYLOAD=SAMPLE;
 </script>
 <script src="static/js/vendor/jsuites.min.js"></script>
 <script src="static/js/vendor/jspreadsheet.min.js"></script>
 <script src="static/js/report-edit.js"></script>
 <script>
-/* ---------- report view toggle: GRID is default, CLASSIC is the print escape hatch ----------
-   The editable grid is the default report view. The old contenteditable table stays
-   available as "โหมดคลาสสิก" fallback (used for printing until grid print CSS is validated).
-   The grid is mounted ONCE and never unmounted — the inactive view is only moved off-screen
-   via body.mode-* CSS, so ReportEdit / localStorage state persists across a toggle. */
+/* ---------- S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice C/4) ----------
+   Grid is the ONLY report view -- mounted unconditionally on load, no toggle,
+   no classic DOM. What's shown/edited here is what prints. */
 (function(){
-  var btn=document.getElementById("re-toggle");
   var host=document.getElementById("re-host");
-  var hint=document.getElementById("printHint");
-  /* expose SAMPLE payload reference for grid seed fallback */
-  window.__SAMPLE_PAYLOAD=SAMPLE;
 
-  function gridRows(){
-    /* B-2/B-3 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice B/4): flatten
-       EVERY payload page's group rows (not just pages[0]) into
-       [{page,pageTitle,name,area,sign}]. sign comes straight from the
+  function gridRows(payload){
+    /* B-2/B-3 (slice B/4): flatten EVERY payload page's group rows (not just
+       pages[0]) into [{page,name,area,sign}]. sign comes straight from the
        group's own sign (role-derived upstream in buildReportPayload — see
        export-annotate.js:78) so report-edit.js can default deduction rows
        to SUBTRACT instead of silently adding them (closes B-3).
@@ -273,17 +173,15 @@ render();
        keeps report-edit.js's "area rows are one contiguous leading block"
        invariant intact (no column-index rewiring / formula-reference risk)
        while still reading as page-grouped. Only inserted when there is
-       more than 1 page, so a single-page payload behaves exactly as
-       before (no separator noise) -- see B-2/B-3 acceptance test. */
-    var payload=null;
-    try{ var raw=sessionStorage.getItem("bmaReportPayload"); if(raw) payload=JSON.parse(raw); }catch(e){}
-    if(!payload) payload=window.__SAMPLE_PAYLOAD||null;
+       more than 1 page, so a single-page payload's grid is unchanged.
+       sep:true additionally tags the row for report-edit.js's print
+       page-break styling (slice C). */
     var rows=[];
     if(payload&&payload.pages&&payload.pages.length){
       var multi=payload.pages.length>1;
       payload.pages.forEach(function(p){
         if(multi){
-          rows.push({name:"— หน้า "+p.idx+(p.title?(" · "+p.title):"")+" —",area:"",sign:1,page:p.idx});
+          rows.push({name:"— หน้า "+p.idx+(p.title?(" · "+p.title):"")+" —",area:"",sign:1,page:p.idx,sep:true});
         }
         (p.groups||[]).forEach(function(g){
           (g.rows||[]).forEach(function(r){ rows.push({name:r.name,area:r.area,sign:(g.sign<0?-1:1),page:p.idx}); });
@@ -293,39 +191,13 @@ render();
     return rows;
   }
 
-  var mounted=false;
-  function ensureGrid(){
-    if(mounted) return;
-    var rows=gridRows();
-    ReportEdit.mount(host, rows.length?rows:null);
-    mounted=true;
-  }
-
-  function setMode(m){
-    if(m==="grid"){
-      ensureGrid();
-      document.body.classList.add("mode-grid");
-      document.body.classList.remove("mode-classic");
-      if(hint) hint.style.display="";
-      btn.textContent="📄 โหมดคลาสสิก";
-      btn.title="สลับไปโหมดคลาสสิก (เหมาะกับการพิมพ์)";
-      btn.style.background="";
-    } else {
-      document.body.classList.add("mode-classic");
-      document.body.classList.remove("mode-grid");
-      if(hint) hint.style.display="none";
-      btn.textContent="✏️ โหมดตาราง (แก้ไขได้)";
-      btn.title="สลับไปโหมดตารางแก้ไขได้";
-      btn.style.background="#1d4ed8";
-    }
-  }
-
-  btn.addEventListener("click",function(){
-    setMode(document.body.classList.contains("mode-grid")?"classic":"grid");
-  });
-
-  /* GRID is the default report view */
-  setMode("grid");
+  var payload=loadPayload();
+  buildHdr(payload);
+  var rows=gridRows(payload);
+  ReportEdit.mount(host, rows.length?rows:null);
+  var vc=buildVarsCard(payload.reportVars);
+  if(vc) document.getElementById("re-wrap").appendChild(vc);
+  document.title="รายงานพื้นที่ — "+(payload.project||"BMA-Plan Lite");
 })();
 </script>
 </body>

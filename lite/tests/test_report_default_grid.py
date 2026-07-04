@@ -1,19 +1,22 @@
 """
 LITE-REPORT-DEFAULT-GRID acceptance test.
 
-The editable jspreadsheet grid (report-edit.js) is now the DEFAULT report view;
-the old contenteditable table stays available as a "โหมดคลาสสิก" fallback toggle
-(used for printing until the grid print CSS is validated).
+The editable jspreadsheet grid (report-edit.js) was the DEFAULT report view
+with a "โหมดคลาสสิก" toggle fallback; S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_
+20260704 ledger, slice C/4) REMOVED the classic view + the toggle entirely --
+grid is now the ONLY view, mounted unconditionally on load. Checks 2
+(toggle-to-classic) and 4 (print-hint visibility per mode) from the original
+version of this test no longer apply (#re-toggle / #printHint / .sheet don't
+exist anymore) and were dropped; see test_report_single_mode.py for the new
+single-view acceptance checks (classic DOM gone, print CSS, reportVars,
+multi-page regression). What survives here is the persistence-across-reload
+regression, which is unrelated to the toggle and still needs guarding.
 
 Checks:
-  1. gridDefault      /report opens with the grid visible + populated by default,
-                      classic table rendered but OFF-SCREEN (hidden).
-  2. toggleClassic    clicking #re-toggle shows the classic table on-screen and moves
-                      the grid off-screen; numeric total is IDENTICAL between the two
-                      views for the same payload (classic net == sum of grid area cells).
-  3. gridPersist      an edit made in grid mode survives a full report reload
-                      (existing localStorage seed-hash mechanism).
-  4. printHint        the print hint is visible in grid mode, hidden in classic mode.
+  1. gridDefault  /report opens with the grid mounted + populated automatically,
+                  no click/toggle needed.
+  2. gridPersist  an edit made in the grid survives a full report reload
+                  (existing localStorage seed-hash mechanism).
 
 Emits LITE_REPORT_DEFAULT_GRID_OK on success.
 
@@ -36,7 +39,7 @@ def _free_port(start=8300):
     raise RuntimeError("no free port")
 
 
-# One page, two POSITIVE groups (no deduction) so classic net == sum of grid rows.
+# One page, two POSITIVE groups (no deduction) so grid sum == expected net.
 # net = 30.00 + 20.00 = 50.00
 IMG = "data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='400'%20height='300'%3E%3C/svg%3E"
 PAYLOAD = {
@@ -84,57 +87,22 @@ def main():
         pg.wait_for_function("window.ReportEditAPI && document.querySelectorAll('#re-host td[data-x]').length > 0")
         time.sleep(0.4)
 
-        # ---- 1. grid is default, classic off-screen ----
+        # ---- 1. grid mounts + populates automatically, no toggle ----
         s1 = pg.evaluate("""() => {
           var gridCells = document.querySelectorAll('#re-host td[data-x]').length;
           var wrap = document.getElementById('re-wrap').getBoundingClientRect();
-          var sheets = document.getElementById('sheets').getBoundingClientRect();
-          return {
-            modeGrid: document.body.classList.contains('mode-grid'),
-            gridCells: gridCells,
-            gridOnScreen: wrap.left >= 0 && wrap.right > 0,
-            classicOffScreen: sheets.right < 0,
-            sheetCount: document.querySelectorAll('.sheet').length
-          };
-        }""")
-        chk("1 default mode = grid", s1["modeGrid"] is True, s1)
-        chk("1 grid populated (cells>0)", s1["gridCells"] > 0, s1)
-        chk("1 grid visible on-screen", s1["gridOnScreen"] is True, s1)
-        chk("1 classic rendered but off-screen", s1["classicOffScreen"] is True, s1)
-        chk("1 classic sheet still in DOM", s1["sheetCount"] == 1, s1)
-
-        # ---- 2. toggle to classic: classic on-screen, grid off-screen, totals identical ----
-        pg.click("#re-toggle")
-        time.sleep(0.3)
-        s2 = pg.evaluate("""() => {
-          var wrap = document.getElementById('re-wrap').getBoundingClientRect();
-          var sheets = document.querySelector('#sheets .sheet').getBoundingClientRect();
-          var grand = (document.querySelector('tr.grand .area')||{}).textContent || '';
           var A = window.ReportEditAPI;
           var gridSum = (A.get('B1')||0) + (A.get('B2')||0);
-          return {
-            modeClassic: document.body.classList.contains('mode-classic'),
-            classicOnScreen: sheets.left >= 0 && sheets.right > 0,
-            gridOffScreen: wrap.right < 0,
-            grand: grand,
-            gridSum: gridSum
-          };
+          return { gridCells: gridCells, gridOnScreen: wrap.left >= 0 && wrap.right > 0, gridSum: gridSum };
         }""")
-        chk("2 mode = classic after toggle", s2["modeClassic"] is True, s2)
-        chk("2 classic visible on-screen", s2["classicOnScreen"] is True, s2)
-        chk("2 grid moved off-screen", s2["gridOffScreen"] is True, s2)
-        chk("2 classic net = 50.00", "50.00" in s2["grand"], s2["grand"])
-        chk("2 grid sum == classic net (50.00)", abs(s2["gridSum"] - 50.00) < 0.01, s2["gridSum"])
+        chk("1 grid populated (cells>0)", s1["gridCells"] > 0, s1)
+        chk("1 grid visible on-screen (no toggle needed)", s1["gridOnScreen"] is True, s1)
+        chk("1 grid sum == 50.00 (30+20, no ded)", abs(s1["gridSum"] - 50.00) < 0.01, s1["gridSum"])
 
-        # toggle back to grid for the persistence edit
-        pg.click("#re-toggle")
-        time.sleep(0.3)
-
-        # ---- 3. edit in grid persists across reload ----
+        # ---- 2. edit in grid persists across reload ----
         pg.evaluate("""() => {
           var A = window.ReportEditAPI;
           A.openEditor(1, 0);      // cell B1 (col=1,row=0)
-          // clear existing content so the typed value fully replaces it
           var td = document.querySelector('#re-host td.editor');
           var inp = td && (td.querySelector('input') || td.querySelector('textarea'));
           if(inp){ inp.value=''; inp.selectionStart = inp.selectionEnd = 0; }
@@ -143,21 +111,13 @@ def main():
         }""")
         time.sleep(0.5)  # let MutationObserver persist to localStorage
         editedBefore = pg.evaluate("() => window.ReportEditAPI.get('B1')")
-        chk("3 edit applied in grid (B1=99.99)", abs((editedBefore or 0) - 99.99) < 0.01, editedBefore)
+        chk("2 edit applied in grid (B1=99.99)", abs((editedBefore or 0) - 99.99) < 0.01, editedBefore)
 
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_function("window.ReportEditAPI && document.querySelectorAll('#re-host td[data-x]').length > 0")
         time.sleep(0.4)
         editedAfter = pg.evaluate("() => window.ReportEditAPI.get('B1')")
-        chk("3 edit survived reload (B1=99.99)", abs((editedAfter or 0) - 99.99) < 0.01, editedAfter)
-
-        # ---- 4. print hint visible in grid, hidden in classic ----
-        h_grid = pg.evaluate("() => getComputedStyle(document.getElementById('printHint')).display")
-        chk("4 print hint visible in grid mode", h_grid != "none", h_grid)
-        pg.click("#re-toggle")
-        time.sleep(0.3)
-        h_classic = pg.evaluate("() => getComputedStyle(document.getElementById('printHint')).display")
-        chk("4 print hint hidden in classic mode", h_classic == "none", h_classic)
+        chk("2 edit survived reload (B1=99.99)", abs((editedAfter or 0) - 99.99) < 0.01, editedAfter)
 
         b.close()
     server.should_exit = True

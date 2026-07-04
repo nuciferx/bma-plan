@@ -2,19 +2,23 @@
 LITE-REPORT (INV-2026-05-21-002) acceptance + regression guard.
 
 Editable web report page: Export → opens /report in a new window with a
-sessionStorage hand-off, renders one A4-landscape sheet per measured page
-(plan image + overlay left, area table grouped by category right), lets the
-user edit text inline while area numbers stay read-only, then browser-print
-to PDF.
+sessionStorage hand-off. S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_20260704
+ledger, slice C/4): the report has a SINGLE view now — an editable
+jspreadsheet grid (report-edit.js) that IS the print output; the old
+per-page plan-image+overlay "classic" sheet view was removed, so sections 2
+and 3 below were updated from classic-DOM assertions (.sheet/tr.grand/
+td.area) to grid-DOM assertions (ReportEditAPI / #re-host td[data-x]).
 
 This test (no real PDF needed — it injects PS directly):
   1. main app: inject PS with a gfa square + a deduction square at a known
      scale, call buildReportPayload(), assert grouping / area math (via the
-     vendored polyMetrics) / overlay px = pt*RS / net sign.
-  2. /report: seed that payload into sessionStorage, reload, assert sheets
-     render, area cells are READ-ONLY, row-name cells are contenteditable,
-     net total prints.
-  3. /report standalone: open with no payload -> bundled SAMPLE renders.
+     vendored polyMetrics) / overlay px = pt*RS / net sign. (unaffected by
+     slice C — buildReportPayload itself didn't change)
+  2. /report: seed that payload into sessionStorage, reload, assert the grid
+     renders the row names + areas, and that the signed net (gfa - ded,
+     independently computed here from the raw cell values) is 75.00.
+  3. /report standalone: open with no payload -> bundled SAMPLE renders in
+     the grid (3 rows, signed net 68.50).
 
 Emits LITE_REPORT_OK on success.
 
@@ -92,47 +96,51 @@ def main():
         chk("overlay px = pt*RS", ov and abs(ov[0]["pts"][1]["x"] - 150.0) < 0.5,
             ov[0]["pts"][1] if ov else None)
 
-        # ---- 2. /report renders the handed-off payload, area read-only ----
+        # ---- 2. /report renders the handed-off payload into the grid ----
         rp = b.new_page()
         rp.on("pageerror", lambda e: failures.append(f"pageerror(report): {e}"))
         rp.goto(f"{base}/report", wait_until="domcontentloaded")
         rp.evaluate("(p) => sessionStorage.setItem('bmaReportPayload', JSON.stringify(p))", payload)
         rp.reload(wait_until="domcontentloaded")
-        time.sleep(0.5)
+        rp.wait_for_function("window.ReportEditAPI && document.querySelectorAll('#re-host td[data-x]').length > 0")
+        time.sleep(0.4)
         rstate = rp.evaluate(
             """() => {
-              const sheets = document.querySelectorAll('.sheet');
-              const areaCells = document.querySelectorAll('td.area');
-              const anyAreaEditable = [...areaCells].some(td => td.getAttribute('contenteditable')==='true');
-              const nameEditable = !!document.querySelector('td[contenteditable="true"]');
-              const grand = document.querySelector('tr.grand .area');
+              const A = window.ReportEditAPI;
+              const cellCount = document.querySelectorAll('#re-host td[data-x]').length;
+              const nameEditable = !!document.querySelector('#re-host td[contenteditable="true"], #re-host td.editor');
+              const name0 = A.rawGet('A1'), area0 = A.get('B1');
+              const name1 = A.rawGet('A2'), area1 = A.get('B2');
               const src = (document.getElementById('srcTag')||{}).textContent||'';
-              return { sheets: sheets.length, areaCells: areaCells.length,
-                       anyAreaEditable, nameEditable,
-                       grandTxt: grand ? grand.textContent : '', src };
+              return { cellCount, name0, area0, name1, area1, src };
             }"""
         )
-        chk("report: 1 sheet", rstate["sheets"] == 1, rstate)
-        chk("report: area cells exist", rstate["areaCells"] >= 3, rstate)
-        chk("report: area cells READ-ONLY", rstate["anyAreaEditable"] is False, rstate)
-        chk("report: row name editable", rstate["nameEditable"] is True, rstate)
-        chk("report: net 75.00 printed", "75.00" in rstate["grandTxt"], rstate["grandTxt"])
+        chk("report: grid populated (cells>0)", rstate["cellCount"] > 0, rstate)
+        chk("report: gfa row area = 100.00", abs((rstate["area0"] or 0) - 100.0) < 0.01, rstate)
+        chk("report: ded row area = 25.00", abs((rstate["area1"] or 0) - 25.0) < 0.01, rstate)
+        # net = gfa - ded (signed, independent of the app -- ded's sign:-1 came
+        # from the payload group, same B-3 semantics slice B pinned in the grid)
+        net = (rstate["area0"] or 0) - (rstate["area1"] or 0)
+        chk("report: signed net = 75.00 (gfa - ded)", abs(net - 75.0) < 0.01, net)
         chk("report: src=real data", "จริง" in rstate["src"], rstate["src"])
 
-        # ---- 3. /report standalone (no payload) -> SAMPLE ----
+        # ---- 3. /report standalone (no payload) -> SAMPLE in the grid ----
         sp = b.new_page()
         sp.on("pageerror", lambda e: failures.append(f"pageerror(sample): {e}"))
         sp.goto(f"{base}/report", wait_until="domcontentloaded")
+        sp.wait_for_function("window.ReportEditAPI && document.querySelectorAll('#re-host td[data-x]').length > 0")
         time.sleep(0.4)
         sstate = sp.evaluate(
-            """() => ({ sheets: document.querySelectorAll('.sheet').length,
-                        groups: document.querySelectorAll('tr.grp').length,
-                        grand: (document.querySelector('tr.grand .area')||{}).textContent||'',
-                        src: (document.getElementById('srcTag')||{}).textContent||'' })"""
+            """() => {
+              const A = window.ReportEditAPI;
+              const rows = A.rowIdsSnapshot().map((_, i) => ({ name: A.rawGet('A' + (i + 1)), area: A.get('B' + (i + 1)) }));
+              const src = (document.getElementById('srcTag')||{}).textContent||'';
+              return { rowCount: rows.length, rows, src };
+            }"""
         )
-        chk("standalone: 1 sheet", sstate["sheets"] == 1, sstate)
-        chk("standalone: 3 group headers", sstate["groups"] == 3, sstate)
-        chk("standalone: net 68.50", "68.50" in sstate["grand"], sstate["grand"])
+        chk("standalone: 3 rows (SAMPLE)", sstate["rowCount"] == 3, sstate)
+        sample_net = (sstate["rows"][0]["area"] or 0) + (sstate["rows"][1]["area"] or 0) - (sstate["rows"][2]["area"] or 0)
+        chk("standalone: signed net = 68.50 (58.40+16.20-6.10)", abs(sample_net - 68.50) < 0.01, sstate)
         chk("standalone: src=sample", "ตัวอย่าง" in sstate["src"], sstate["src"])
 
         b.close()

@@ -4,6 +4,12 @@ LITE-REPORT-VARS-REPORT acceptance test (LRV-S3 sprint).
 Verifies that buildReportPayload() includes a reportVars array and that
 lite-report.html renders those vars in a project-level summary card.
 
+S-1 ทาง ก (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice C/4): the classic
+"#sheets" view was removed; the reportVars card is now re-homed into
+"#re-wrap" (the grid's parent) -- this test's text-content reads were
+updated from #sheets to #re-wrap accordingly (the card itself, .rvcard, is
+unaffected and continues to render — this test protects that).
+
 Checks:
   payloadHasVars     main page: buildReportPayload().reportVars has 3 entries
                      (the seeded presets), each with name + (value or err).
@@ -98,7 +104,10 @@ def main():
         time.sleep(0.5)
 
         rstate = rp.evaluate("""() => {
-          var host = document.getElementById('sheets');
+          /* S-1 ทาง ก (slice C/4): classic #sheets view removed -- the
+             reportVars card is now re-homed into #re-wrap (alongside the
+             grid), which is the only remaining host to read text from. */
+          var host = document.getElementById('re-wrap');
           var text = host ? host.innerText : '';
           var rvcard = document.querySelector('.rvcard');
           return {
@@ -129,7 +138,9 @@ def main():
         sp.goto(f"{base}/report", wait_until="domcontentloaded")
         time.sleep(0.4)
         old_state = sp.evaluate("""() => {
-          var host = document.getElementById('sheets');
+          /* S-1 ทาง ก (slice C/4): #sheets removed -- #re-wrap (grid host's
+             parent) is the render-success signal now. */
+          var host = document.getElementById('re-wrap');
           return { rendered: host !== null, text: host ? host.innerText : '' };
         }""")
         chk("oldPayloadNoCrash_noError",  len(old_page_errors) == 0,
