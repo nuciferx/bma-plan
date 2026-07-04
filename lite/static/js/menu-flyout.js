@@ -35,6 +35,7 @@ var FLYOUT_GROUPS = {
       { label: 'Midpoint (M)',   action: 'toggleSnapTypeMidpoint',     snapType: 'midpoint' },
       { label: 'Center (C)',     action: 'toggleSnapTypeCenter',       snapType: 'center' },
       { label: 'Intersection',   action: 'toggleSnapTypeIntersection', snapType: 'intersection' },
+      { label: 'Nearest on Edge', action: 'toggleSnapTypeNearest',     snapType: 'nearest' },   // SNAP-2026-07-04 slice 3
       { sep: true },
       { label: 'Disable All (G)', action: 'toggleSnap' }
     ]
@@ -123,7 +124,7 @@ function _buildSubItem(item) {
     el.dataset.snapType = item.snapType;
     // Initial label: use snapTypeChip if snap-types.js already loaded
     if (typeof snapTypeChip === 'function') {
-      var shortcut = { endpoint: 'E', midpoint: 'M', center: 'C', intersection: null }[item.snapType];
+      var shortcut = { endpoint: 'E', midpoint: 'M', center: 'C', intersection: null, nearest: null }[item.snapType];
       el.textContent = shortcut
         ? snapTypeChip(item.snapType) + ' (' + shortcut + ')'
         : snapTypeChip(item.snapType);

@@ -1,11 +1,17 @@
-/* LSNAP-1: snap-types.js — per-type snap toggles (Endpoint / Midpoint / Center / Intersection).
+/* LSNAP-1: snap-types.js — per-type snap toggles (Endpoint / Midpoint / Center /
+   Intersection / Nearest-on-edge — 5th type added SNAP-2026-07-04 slice 3/3).
    Loaded BEFORE menu-flyout.js. Declares globals: initSnapTypes, toggleSnapType,
    snapTypeLabel, snapTypeChip, toggleSnapTypeEndpoint, toggleSnapTypeMidpoint,
-   toggleSnapTypeCenter, toggleSnapTypeIntersection.
-   Runtime-only — snapTypes is stored in localStorage, NOT .bmaplan. */
+   toggleSnapTypeCenter, toggleSnapTypeIntersection, toggleSnapTypeNearest.
+   Runtime-only — snapTypes is stored in localStorage, NOT .bmaplan.
+   Nearest-on-edge default = true (old behavior) — the merge-over-defaults in
+   loadSnapTypesFromLocalStorage() below means an old saved payload that
+   predates this key (no `nearest` field) still resolves to true, since
+   Object.assign({}, _SNAP_DEFAULTS, parsed) only overrides keys `parsed`
+   actually has. */
 
 var _SNAP_TYPES_KEY = 'lite.snapTypes.v1';
-var _SNAP_DEFAULTS  = { endpoint: true, midpoint: true, center: true, intersection: true };
+var _SNAP_DEFAULTS  = { endpoint: true, midpoint: true, center: true, intersection: true, nearest: true };
 
 /* --------------------------------------------------------------------------
    Persistence helpers
@@ -38,7 +44,7 @@ function saveSnapTypesToLocalStorage() {
    Label helpers
 --------------------------------------------------------------------------- */
 function snapTypeLabel(name) {
-  return { endpoint: 'Endpoint', midpoint: 'Midpoint', center: 'Center', intersection: 'Intersection' }[name] || name;
+  return { endpoint: 'Endpoint', midpoint: 'Midpoint', center: 'Center', intersection: 'Intersection', nearest: 'Nearest on Edge' }[name] || name;
 }
 
 function snapTypeChip(name) {
@@ -67,7 +73,7 @@ function _refreshSnapMenuLabels() {
   var items = document.querySelectorAll('.item[data-snap-type]');
   items.forEach(function (el) {
     var stype = el.dataset.snapType;
-    var shortcut = { endpoint: 'E', midpoint: 'M', center: 'C', intersection: null }[stype];
+    var shortcut = { endpoint: 'E', midpoint: 'M', center: 'C', intersection: null, nearest: null }[stype];
     var chip = snapTypeChip(stype);
     el.textContent = shortcut ? chip + ' (' + shortcut + ')' : chip;
   });
@@ -80,10 +86,13 @@ window.toggleSnapTypeEndpoint     = function () { toggleSnapType('endpoint'); };
 window.toggleSnapTypeMidpoint     = function () { toggleSnapType('midpoint'); };
 window.toggleSnapTypeCenter       = function () { toggleSnapType('center'); };
 window.toggleSnapTypeIntersection = function () { toggleSnapType('intersection'); };
+window.toggleSnapTypeNearest      = function () { toggleSnapType('nearest'); };
 
 /* --------------------------------------------------------------------------
    Keyboard shortcuts:  e/E → endpoint,  m/M → midpoint,  c/C → center.
-   Intersection has NO keyboard shortcut (menu-only per spec).
+   Intersection and Nearest-on-edge have NO keyboard shortcut (menu-only,
+   same precedent — see cheatsheet.js, which only lists shortcuts that
+   actually exist).
    Guard: skip if focus is inside INPUT/TEXTAREA/contentEditable, or a modal
    is open, or any modifier key (shift/ctrl/alt/meta) is held.
 --------------------------------------------------------------------------- */

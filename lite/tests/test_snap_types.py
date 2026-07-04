@@ -1,7 +1,7 @@
 """
 LSNAP-1: test_snap_types.py — verifies per-type snap toggles.
 
-Seven scenarios (driven by real DOM events via Playwright):
+Nine scenarios (driven by real DOM events via Playwright):
   1. defaultsAllTrue              — state.snapTypes all true after page load
   2. keyboardEToggleEndpoint      — 'e' key flips endpoint; focus-guard proven
   3. keyboardMToggleMidpoint      — 'm' key flips midpoint; focus-guard proven
@@ -9,6 +9,13 @@ Seven scenarios (driven by real DOM events via Playwright):
   5. clickIntersectionMenuToggles — click Intersection item; label updates live
   6. snapEngineRespectsTypes      — computeSnap respects ST flags (endpoint guard)
   7. localStoragePersists         — toggle persists across page.reload()
+  8. nearestOffReturnsNull        — SNAP-2026-07-04 slice 3: nearest OFF + cursor
+                                    near an edge (but away from any endpoint/
+                                    midpoint/center/intersection) -> null
+  9. nearestOnDefaultAndOldPayload — SNAP-2026-07-04 slice 3: nearest ON (both
+                                    a fresh-default state AND an old localStorage
+                                    payload saved before the `nearest` key
+                                    existed) -> same "nearest" behavior as today
 
 Emits LITE_SNAP_TYPES_OK on success.
 
@@ -273,6 +280,95 @@ SC7_AFTER_RELOAD = """
 }
 """
 
+# ---------------------------------------------------------------------------
+# SC8 — nearestOffReturnsNull (SNAP-2026-07-04 slice 3)
+# Probe (20,2): ~20pt from the nearest corner/midpoint of a plain square, so
+# nothing but nearest-on-edge is in range. nearest=false -> null; nearest=true
+# (same probe, same fixture) -> "nearest" at the clamped point (20,0).
+# ---------------------------------------------------------------------------
+SC8 = """
+() => {
+    var pg = 89;
+    if (!PS[pg]) PS[pg] = { objects: [], scale: null, annotations: [] };
+    PS[pg].scale = { pts_per_m: 1 };
+    PS[pg].objects = [{
+        kind: 'poly',
+        pts: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+        counting: false, catId: 'gfa'
+    }];
+    var prevPage = curPage; curPage = pg;
+    var prevImg = curImg; if (!curImg) curImg = { width: 200, height: 200 };
+    state.snapOn = true;
+
+    var s = ptToScreen({ x: 20, y: 2 });
+
+    state.snapTypes.nearest = false;
+    var resOff = computeSnap(s.x, s.y);
+
+    state.snapTypes.nearest = true;
+    var resOn = computeSnap(s.x, s.y);
+
+    curPage = prevPage; curImg = prevImg;
+
+    return {
+        offType: resOff ? resOff.type : null,
+        onType: resOn ? resOn.type : null,
+        onPt: resOn ? resOn.pt : null,
+        pass: resOff === null && !!resOn && resOn.type === 'nearest' &&
+              Math.abs(resOn.pt.x - 20) < 1e-6 && Math.abs(resOn.pt.y - 0) < 1e-6
+    };
+}
+"""
+
+# ---------------------------------------------------------------------------
+# SC9 — nearestOnDefaultAndOldPayload (SNAP-2026-07-04 slice 3)
+# (i) a fresh Object.assign({}, _SNAP_DEFAULTS) (no explicit touch of
+#     'nearest') still resolves nearest=true and finds the edge point.
+# (ii) an OLD localStorage payload saved before the `nearest` key existed
+#     (only endpoint/midpoint/center/intersection) -> after
+#     loadSnapTypesFromLocalStorage()'s merge-over-defaults, nearest still
+#     resolves true and computeSnap() still finds "nearest" — proving old
+#     saved snap-type preferences are not broken by this slice.
+# ---------------------------------------------------------------------------
+SC9 = """
+() => {
+    var pg = 90;
+    if (!PS[pg]) PS[pg] = { objects: [], scale: null, annotations: [] };
+    PS[pg].scale = { pts_per_m: 1 };
+    PS[pg].objects = [{
+        kind: 'poly',
+        pts: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+        counting: false, catId: 'gfa'
+    }];
+    var prevPage = curPage; curPage = pg;
+    var prevImg = curImg; if (!curImg) curImg = { width: 200, height: 200 };
+    state.snapOn = true;
+    var s = ptToScreen({ x: 20, y: 2 });
+
+    // (i) fresh-default
+    state.snapTypes = Object.assign({}, _SNAP_DEFAULTS);
+    var resDefault = computeSnap(s.x, s.y);
+
+    // (ii) simulate an OLD saved payload from before `nearest` existed
+    var savedRaw = localStorage.getItem(_SNAP_TYPES_KEY);
+    localStorage.setItem(_SNAP_TYPES_KEY, JSON.stringify({ endpoint: true, midpoint: true, center: true, intersection: true }));
+    loadSnapTypesFromLocalStorage();
+    var oldPayloadResolvedTrue = state.snapTypes.nearest === true;
+    var resOldPayload = computeSnap(s.x, s.y);
+
+    if (savedRaw === null) localStorage.removeItem(_SNAP_TYPES_KEY); else localStorage.setItem(_SNAP_TYPES_KEY, savedRaw);
+    curPage = prevPage; curImg = prevImg;
+
+    return {
+        defaultType: resDefault ? resDefault.type : null,
+        oldPayloadResolvedTrue,
+        oldPayloadType: resOldPayload ? resOldPayload.type : null,
+        pass: !!resDefault && resDefault.type === 'nearest' &&
+              oldPayloadResolvedTrue && !!resOldPayload && resOldPayload.type === 'nearest'
+    };
+}
+"""
+
 
 def main():
     from server_lite import app as lite_app
@@ -437,6 +533,30 @@ def main():
             print(f"  {name:46s} -> {'PASS' if ok else 'FAIL'}  before={r_before}  after={r_after}")
             if not ok:
                 failures.append(f"'{name}' failed: before={r_before} after={r_after}")
+        except Exception as ex:
+            print(f"  {name:46s} -> EXCEPTION: {ex}")
+            failures.append(f"'{name}' threw: {ex}")
+
+        # ---- SC8 nearestOffReturnsNull (SNAP-2026-07-04 slice 3) ----
+        name = "nearestOffReturnsNull"
+        try:
+            result = pg.evaluate(SC8)
+            ok = result.get("pass") is True
+            print(f"  {name:46s} -> {'PASS' if ok else 'FAIL'}  {result}")
+            if not ok:
+                failures.append(f"'{name}' failed: {result}")
+        except Exception as ex:
+            print(f"  {name:46s} -> EXCEPTION: {ex}")
+            failures.append(f"'{name}' threw: {ex}")
+
+        # ---- SC9 nearestOnDefaultAndOldPayload (SNAP-2026-07-04 slice 3) ----
+        name = "nearestOnDefaultAndOldPayload"
+        try:
+            result = pg.evaluate(SC9)
+            ok = result.get("pass") is True
+            print(f"  {name:46s} -> {'PASS' if ok else 'FAIL'}  {result}")
+            if not ok:
+                failures.append(f"'{name}' failed: {result}")
         except Exception as ex:
             print(f"  {name:46s} -> EXCEPTION: {ex}")
             failures.append(f"'{name}' threw: {ex}")

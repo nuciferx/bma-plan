@@ -1,9 +1,20 @@
 /* ============================================================
    LITE-SNAP-ENGINE — lite-native snap core, extracted from
    ui-lite.html (SNAP-2026-07-04 slice 1/3; ray-lock composition
-   added in slice 2/3).
+   added in slice 2/3; nearest-on-edge made toggleable in slice 3/3).
    Plain-globals module. No IIFE, no export, no bundler.
    Loaded right after measure-engine.js, before the inline script.
+
+   SLICE 3 — snap-type symmetry: computeSnap()'s 5 candidate families are
+   endpoint / intersection / midpoint / center (all gated by state.snapTypes,
+   as before) and now nearest-on-edge too (gated by `ST.nearest!==false` —
+   see the block itself). The ONE thing that stays deliberately UNGATED is
+   the perp-from-last-point candidate (checked right before nearest, `type:
+   "perp"`) — that one only fires while `state.draft.length` is truthy (i.e.
+   mid-measurement) and exists purely to help align the NEXT point with the
+   line already being drawn; it isn't a snap onto EXISTING page geometry the
+   user would want to turn off independently, it's draw-flow assistance, so
+   it is not one of the 5 toggleable types and has no state.snapTypes.* entry.
 
    Exports: isDrawTool, edgeHandleHit, vertexHandleHit, nearOnSegS,
      pageSegs, computeSnap, footPerp, angleLock, snapInvalidate,
@@ -174,9 +185,12 @@ function computeSnap(sx,sy){
   if(state.draft&&state.draft.length){ var lp=state.draft[state.draft.length-1];
     segs.forEach(function(seg){ var foot=footPerp(lp,seg[0],seg[1]); var s=ptToScreen(foot),d=Math.hypot(s.x-sx,s.y-sy);
       if(d<bd){bd=d;best={pt:foot,screen:s,type:"perp"};} }); }
-  if(best)return best;                                  // perpendicular (from last point)
-  segs.forEach(function(seg){ var s0=ptToScreen(seg[0]),s1=ptToScreen(seg[1]),np=nearOnSegS(sx,sy,s0,s1),d=Math.hypot(np.x-sx,np.y-sy);
-    if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} });
+  if(best)return best;                                  // perpendicular (from last point) — draw-flow assistance, stays UNGATED (see file header)
+  // SNAP-2026-07-04 slice 3: nearest-on-edge is now a toggleable type like the
+  // other 4. `!==false` (not `ST.nearest`) so an ST fallback object / an old
+  // localStorage payload missing the key both default to true (old behavior).
+  if(ST.nearest!==false){ segs.forEach(function(seg){ var s0=ptToScreen(seg[0]),s1=ptToScreen(seg[1]),np=nearOnSegS(sx,sy,s0,s1),d=Math.hypot(np.x-sx,np.y-sy);
+    if(d<bd){bd=d;best={pt:screenToPt(np.x,np.y),screen:np,type:"nearest"};} }); }
   return best;
 }
 function footPerp(p,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1e-6)return{x:a.x,y:a.y};
