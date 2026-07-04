@@ -35,6 +35,25 @@
   .rvcard td.rv-val{text-align:right;font-variant-numeric:tabular-nums;background:var(--lock);white-space:nowrap;min-width:90px}
   .rvcard td.rv-null{text-align:right;color:var(--muted);background:var(--lock);min-width:90px}
 
+  /* S-1e (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice E/5, user GO):
+     plan-image APPENDIX, printed after the grid+vars card. Positioning
+     math (planbox/svg viewBox-on-load/centroid badge placement) is reused
+     from the classic view deleted in slice C (see `git show fc63e72~1:
+     lite/lite-report.html`'s buildSheet) -- scoped under .appx-page so it
+     doesn't reintroduce classic's bare global class names. */
+  details.appx{width:297mm}
+  details.appx summary{cursor:pointer;background:#fff;padding:8px 12mm;border-radius:4px;
+    box-shadow:0 6px 26px rgba(0,0,0,.45);font-weight:700;font-size:13px}
+  .appx-body{display:flex;flex-direction:column;gap:10mm;margin-top:10mm}
+  .appx-page{background:#fff;width:297mm;padding:10mm 12mm;box-shadow:0 6px 26px rgba(0,0,0,.45);border-radius:4px}
+  .appx-phdr{font-size:14px;font-weight:700;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:8px}
+  .appx-page .imgbox{width:100%;display:flex;align-items:center;justify-content:center;
+    background:#f3f5f7;border:1px solid var(--line);min-height:150mm;position:relative;overflow:hidden}
+  .appx-page .planbox{position:relative;max-width:100%;max-height:172mm;line-height:0}
+  .appx-page .planbox img{max-width:100%;max-height:172mm;display:block}
+  .appx-page .planbox svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+  .appx-page .cap{position:absolute;bottom:6px;left:8px;font-size:10px;color:var(--muted);background:rgba(255,255,255,.7);padding:1px 5px;border-radius:3px}
+
   @page{ size: A4 landscape; margin: 8mm; }
   @media print{
     body{background:#fff}
@@ -57,6 +76,14 @@
        start with a blank leading page) — "where feasible" per spec; browser
        print pagination for the rest of the table is otherwise automatic. */
     tr.re-page-break{page-break-before:always}
+    /* S-1e (slice E/5): appendix ALWAYS prints in full regardless of the
+       on-screen <details> open/closed toggle -- force the body visible,
+       hide only the screen-only summary toggle affordance. Each page block
+       starts its own printed page. */
+    details.appx summary{display:none !important}
+    .appx-body{display:block !important;margin-top:0}
+    .appx-page{box-shadow:none;page-break-before:always}
+    .appx-page .imgbox{background:#fff;border-color:#999}
   }
 </style>
 <link rel="stylesheet" href="static/js/vendor/jsuites.min.css">
@@ -92,13 +119,24 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
 function fmt(n){ return Number(n).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-/* --- standalone sample (no live data). S-1 ทาง ก: dropped the plan-image/
-   overlay fields (sampleSVG/centroid/buildSheet consumed them; both gone
-   now that the grid-only view never renders a plan thumbnail) -- flagged:
-   the printed report no longer shows the annotated plan image, only the
-   tabular rows. That tradeoff is the explicit S-1 ทาง ก GO decision. */
+/* --- standalone sample (no live data). S-1e (slice E/5, user GO): plan-image
+   fields (imgUrl/overlays) are back, feeding the appendix restored below --
+   sampleSVG draws a placeholder plan so the standalone demo has something
+   to show in the appendix too. */
+function sampleSVG(label){
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>"+
+   "<rect width='800' height='600' fill='#fafbfc'/>"+
+   "<rect x='90' y='90' width='420' height='300' fill='#3b82f622' stroke='#3b82f6' stroke-width='3'/>"+
+   "<rect x='540' y='110' width='180' height='150' fill='#39d98a22' stroke='#39d98a' stroke-width='3'/>"+
+   "<rect x='300' y='320' width='90' height='90' fill='#ff6b6b22' stroke='#ff6b6b' stroke-width='3'/>"+
+   "<text x='20' y='585' fill='#9aa3ad' font-size='15'>"+label+" (ตัวอย่าง — ปกติคือภาพ render หน้า PDF)</text></svg>";
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+}
 var SAMPLE={ project:"โครงการบ้านพักอาศัย 2 ชั้น (ตัวอย่าง)", date:new Date().toLocaleDateString("th-TH"),
-  pages:[{ idx:1, title:"ชั้น 1 — ผังพื้น",
+  pages:[{ idx:1, title:"ชั้น 1 — ผังพื้น", imgUrl:sampleSVG("ชั้น 1"),
+    overlays:[ {pts:[{x:90,y:90},{x:510,y:90},{x:510,y:390},{x:90,y:390}],color:"#3b82f6",badge:1},
+               {pts:[{x:540,y:110},{x:720,y:110},{x:720,y:260},{x:540,y:260}],color:"#39d98a",badge:2},
+               {pts:[{x:300,y:320},{x:390,y:320},{x:390,y:410},{x:300,y:410}],color:"#ff6b6b",badge:3} ],
     groups:[ {label:"พื้นที่อาคาร",rows:[{name:"ห้องโถง",area:58.40}],subtotal:58.40,sign:1},
              {label:"พื้นที่ใช้สอย",rows:[{name:"ห้องนอน",area:16.20}],subtotal:16.20,sign:1},
              {label:"ช่องว่าง/หัก",rows:[{name:"ช่องบันได",area:6.10}],subtotal:6.10,sign:-1} ],
@@ -146,6 +184,65 @@ function buildVarsCard(vars){
   });
   card.appendChild(tbl);
   return card;
+}
+
+/* S-1e (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice E/5, user GO): plan-
+   image appendix, printed after the grid+vars card. Positioning math
+   (planbox sizing, SVG viewBox set from img.naturalWidth/Height on load,
+   centroid-based badge placement) is reused verbatim from the classic view
+   deleted in slice C -- see `git show fc63e72~1:lite/lite-report.html`'s
+   buildSheet()/centroid(). overlays[].pts are already RS-multiplied render-
+   scale coords from export-annotate.js (buildReportPayload) — same
+   viewBox convention classic consumed, NOT rescaled here. */
+function centroid(pts){ var x=0,y=0; pts.forEach(function(p){x+=p.x;y+=p.y;}); return {x:x/pts.length,y:y/pts.length}; }
+
+function buildAppendixPage(page){
+  var wrap=document.createElement("div"); wrap.className="appx-page";
+  var hdr=document.createElement("div"); hdr.className="appx-phdr";
+  hdr.textContent="หน้า "+page.idx+(page.title?(" — "+page.title):"");
+
+  var imgbox=document.createElement("div"); imgbox.className="imgbox";
+  var box=document.createElement("div"); box.className="planbox";
+  var img=document.createElement("img"); img.alt="plan"; img.loading="lazy"; img.src=page.imgUrl||"";
+  var svgNS="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(svgNS,"svg"); svg.setAttribute("preserveAspectRatio","none");
+  (page.overlays||[]).forEach(function(ov){
+    if(!ov.pts||!ov.pts.length) return;
+    var poly=document.createElementNS(svgNS,"polygon");
+    poly.setAttribute("points",ov.pts.map(function(p){return p.x+","+p.y;}).join(" "));
+    poly.setAttribute("fill",ov.color); poly.setAttribute("fill-opacity","0.16");
+    poly.setAttribute("stroke",ov.color); poly.setAttribute("stroke-width","3"); svg.appendChild(poly);
+    var c=centroid(ov.pts);
+    var circ=document.createElementNS(svgNS,"circle");
+    circ.setAttribute("cx",c.x); circ.setAttribute("cy",c.y); circ.setAttribute("r","16"); circ.setAttribute("fill",ov.color); svg.appendChild(circ);
+    var t=document.createElementNS(svgNS,"text"); t.setAttribute("x",c.x); t.setAttribute("y",c.y+6);
+    t.setAttribute("text-anchor","middle"); t.setAttribute("font-size","20"); t.setAttribute("fill","#fff"); t.setAttribute("font-weight","700");
+    t.textContent=ov.badge; svg.appendChild(t);
+  });
+  img.addEventListener("load",function(){
+    var w=img.naturalWidth||800, h=img.naturalHeight||600;
+    svg.setAttribute("viewBox","0 0 "+w+" "+h);
+  });
+  img.addEventListener("error",function(){ box.insertAdjacentHTML("beforeend",'<div class="cap">โหลดภาพหน้าไม่ได้ (เซิร์ฟเวอร์ lite ปิด?)</div>'); });
+  box.appendChild(img); box.appendChild(svg);
+  imgbox.appendChild(box);
+  imgbox.insertAdjacentHTML("beforeend",'<div class="cap">แปลน + พื้นที่ที่วัด</div>');
+
+  wrap.appendChild(hdr); wrap.appendChild(imgbox);
+  return wrap;
+}
+
+function buildAppendix(payload){
+  var pages=payload.pages||[];
+  if(!pages.length) return null;
+  var det=document.createElement("details"); det.className="appx"; det.open=true;
+  var sum=document.createElement("summary");
+  sum.textContent="ภาคผนวก: แปลนที่วัด ("+pages.length+" หน้า) — คลิกเพื่อย่อ/ขยาย";
+  det.appendChild(sum);
+  var body=document.createElement("div"); body.className="appx-body";
+  pages.forEach(function(p){ body.appendChild(buildAppendixPage(p)); });
+  det.appendChild(body);
+  return det;
 }
 
 document.getElementById("print").onclick=function(){ window.print(); };
@@ -197,6 +294,8 @@ window.__SAMPLE_PAYLOAD=SAMPLE;
   ReportEdit.mount(host, rows.length?rows:null);
   var vc=buildVarsCard(payload.reportVars);
   if(vc) document.getElementById("re-wrap").appendChild(vc);
+  var ap=buildAppendix(payload);   // S-1e (slice E/5): plan-image appendix, after grid+vars
+  if(ap) document.getElementById("re-wrap").appendChild(ap);
   document.title="รายงานพื้นที่ — "+(payload.project||"BMA-Plan Lite");
 })();
 </script>
