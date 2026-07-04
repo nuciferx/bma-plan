@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Spike: lite-page-tagging-workflow — C (dual-mode grid) + minimal-A (JIT banner)</title>
+<style>
+  body{background:#0d1117;color:#e6edf3;font-family:"Tahoma","Segoe UI",sans-serif;font-size:13px;margin:0;padding:16px;}
+  h1{font-size:16px;margin:0 0 4px;}
+  .sub{color:#8b949e;font-size:12px;margin-bottom:14px;max-width:900px;}
+  #toolbar{margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  button{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px;}
+  button:hover{background:#30363d;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button.pri{background:#1f6feb;border-color:#58a6ff;}
+  select,input[type=number],input[type=text]{background:#0c0f14;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 6px;font-size:12px;}
+
+  #layout{display:flex;gap:14px;align-items:flex-start;}
+  #left{flex:1;min-width:0;}
+  #canvas-panel{width:260px;flex:0 0 260px;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px;position:sticky;top:10px;}
+  #canvas-panel h3{margin:0 0 8px;font-size:13px;}
+  #cv-page{font-size:26px;font-weight:700;text-align:center;padding:20px 0;background:#0c0f14;border-radius:6px;margin-bottom:8px;color:#8b949e;}
+  #cv-page.tagged{color:#3fb950;}
+  #cv-meta{font-size:11px;color:#8b949e;margin-bottom:8px;text-align:center;}
+  #cv-armed{font-size:11px;text-align:center;margin-bottom:8px;padding:4px;border-radius:4px;}
+  #cv-armed.armed{background:#1a4a2a;color:#3fb950;}
+  #cv-armed.idle{background:#26282d;color:#8b949e;}
+  #btn-measure{width:100%;padding:10px;font-size:13px;}
+
+  #jit-banner{display:none;margin-top:8px;padding:8px;background:#3a2a10;border:1px solid #d4a017;border-radius:6px;}
+  #jit-banner.show{display:block;}
+  #jit-banner .hd{font-size:11px;color:#e3b341;margin-bottom:6px;}
+  .chiprow{display:flex;gap:5px;flex-wrap:wrap;}
+  .tagchip{padding:3px 8px;border-radius:9px;font-size:11px;font-weight:600;cursor:pointer;color:#001218;white-space:nowrap;}
+  .tagchip:hover{outline:1px solid #58a6ff;}
+  .tc-untagged{background:#2a2f38;color:#8b949e;border:1px dashed #8b949e;}
+  .tc-site{background:#9ad14b;}.tc-floor{background:#4cc9f0;}.tc-plan{background:#8da4be;}
+  .tc-parking{background:#c87cae;color:#fff;}.tc-amenity{background:#d49a3b;}.tc-detail{background:#cf6f44;color:#fff;}
+
+  #bulkbar{display:none;background:#12233d;border:1px solid #1f6feb;border-radius:6px;padding:8px 10px;margin-bottom:10px;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;}
+  #bulkbar.show{display:flex;}
+  #bulkbar .ct{color:#58a6ff;font-weight:700;}
+  #bulkbar .apply-form{display:flex;gap:5px;align-items:center;border-left:1px solid #30363d;padding-left:8px;margin-left:4px;}
+  #bulk-start{width:46px;}
+
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;}
+  .grouphdr{grid-column:1/-1;font-size:11px;color:#58a6ff;font-weight:700;margin-top:6px;padding:3px 0;border-bottom:1px solid #30363d;}
+  .tile{background:#161b22;border:2px solid #30363d;border-radius:6px;padding:6px;cursor:pointer;position:relative;user-select:none;}
+  .tile:hover{border-color:#3a4150;}
+  .tile.sel{border-color:#58a6ff;background:#16263d;}
+  .tile.cur{outline:2px solid #3fb950;}
+  .tile .pn{font-size:10px;color:#8b949e;}
+  .tile .row{display:flex;gap:3px;align-items:center;margin-top:3px;flex-wrap:wrap;}
+  .tile .objc{position:absolute;top:4px;right:4px;background:#39d98a;color:#001;padding:0 4px;border-radius:3px;font-size:9px;font-weight:700;}
+  .tile .content{font-size:9px;color:#f0883e;margin-top:2px;}
+  .tile select,.tile input[type=text]{font-size:10px;padding:1px 2px;width:38px;}
+  .tile select{width:auto;max-width:78px;}
+
+  #confirm-modal{display:none;position:fixed;inset:0;background:#000a;align-items:center;justify-content:center;z-index:50;}
+  #confirm-modal.show{display:flex;}
+  #confirm-box{background:#161b22;border:1px solid #d4a017;border-radius:8px;padding:18px;max-width:340px;}
+  #confirm-box p{margin:0 0 12px;font-size:13px;}
+  #confirm-box .btns{display:flex;gap:8px;justify-content:flex-end;}
+
+  #eval-output{margin-top:18px;max-width:960px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;}
+  th,td{border:1px solid #30363d;padding:6px 8px;text-align:left;vertical-align:top;}
+  th{background:#161b22;}
+  .pass{color:#3fb950;font-weight:bold;}
+  .fail{color:#f85149;font-weight:bold;}
+  .notes{color:#8b949e;font-size:11px;margin-top:4px;}
+  code{background:#161b22;padding:1px 4px;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<h1>Spike C+minA — Page tagging workflow (JIT + range + verify-grid + fearless retag)</h1>
+<div class="sub">
+  idea: <code>lite-page-tagging-workflow</code> · per-page hard gate only (no SET-level gate) ·
+  reuses existing <code>overview-setup.js</code> selection/bulk-bar/sequential-floor conventions,
+  extended with floor-auto-number Apply, overwrite-confirm, single-undo wrap, and a page-order↔grouped-by-tag toggle.
+  Minimal-A JIT banner sits on a mock canvas panel.
+</div>
+
+<div id="toolbar">
+  <button id="btn-view-toggle">เรียงตามหน้า ↔ จัดกลุ่มตามแท็ก</button>
+  <button id="btn-undo">↺ Undo</button>
+  <button id="btn-reset">รีเซ็ตชุดข้อมูล (45 หน้า)</button>
+  <button id="btn-run-eval" class="pri">▶ Run Eval</button>
+  <span id="undo-count" style="color:#8b949e;font-size:11px;"></span>
+</div>
+
+<div id="layout">
+  <div id="left">
+    <div id="bulkbar"></div>
+    <div id="grid"></div>
+  </div>
+  <div id="canvas-panel">
+    <h3>Canvas (mock)</h3>
+    <div id="cv-page">p1</div>
+    <div id="cv-meta">— ยังไม่ได้แท็ก —</div>
+    <div id="cv-armed" class="idle">tool: idle</div>
+    <button id="btn-measure">📐 วัด</button>
+    <div id="jit-banner">
+      <div class="hd">หน้านี้ยังไม่ได้แท็ก — เลือกแท็กก่อนเริ่มวัด</div>
+      <div class="chiprow" id="jit-chips"></div>
+    </div>
+  </div>
+</div>
+
+<div id="confirm-modal">
+  <div id="confirm-box">
+    <p id="confirm-msg"></p>
+    <div class="btns">
+      <button id="confirm-no">ยกเลิก</button>
+      <button id="confirm-yes" class="pri">ยืนยัน เขียนทับ</button>
+    </div>
+  </div>
+</div>
+
+<div id="eval-output"></div>
+
+<script>
+"use strict";
+
+/* ============================================================ STATE */
+var PAGE_COUNT = 45;
+var TAG_CYCLE = ["site","floor","plan","parking","amenity","detail"];
+var pageTags = {}, pageFloorKind = {}, pageFloorNum = {}, pageObjects = {}, pageContent = {};
+var curPage = 1, armed = false, jitOpen = false;
+var viewMode = "order"; // 'order' | 'grouped'
+var selected = new Set(), selAnchor = null;
+var undoStack = [];
+var pendingApply = null;
+var actionCount = 0;      // counted only during the measured window (case1 grader)
+var window__pageErrors = [];
+window.addEventListener("error", function(e) { window__pageErrors.push(String(e.message || e.error)); });
+window.__pageErrors = window__pageErrors;
+
+function resetDoc() {
+  pageTags = {}; pageFloorKind = {}; pageFloorNum = {}; pageObjects = {}; pageContent = {};
+  curPage = 1; armed = false; jitOpen = false; viewMode = "order";
+  selected = new Set(); selAnchor = null; undoStack = []; pendingApply = null;
+  renderAll();
+}
+
+function snapshot() {
+  return JSON.parse(JSON.stringify({ pageTags: pageTags, pageFloorKind: pageFloorKind, pageFloorNum: pageFloorNum, pageObjects: pageObjects }));
+}
+function pushUndo() { undoStack.push(snapshot()); }
+function doUndo() {
+  if (!undoStack.length) return false;
+  var s = undoStack.pop();
+  pageTags = s.pageTags; pageFloorKind = s.pageFloorKind; pageFloorNum = s.pageFloorNum; pageObjects = s.pageObjects;
+  renderAll();
+  return true;
+}
+
+function folderKey(n) {
+  var t = pageTags[n];
+  if (!t) return null;
+  if (t !== "floor") return t;
+  var k = pageFloorKind[n] || "normal";
+  if (k === "mezzanine" || k === "mechanical" || k === "rooftop") return "floor:" + k;
+  return "floor:" + k + ":" + (pageFloorNum[n] != null ? pageFloorNum[n] : "?");
+}
+
+function nextAutoFloorNumber() {
+  var mx = 0;
+  Object.keys(pageFloorNum).forEach(function(k) {
+    var n = +k;
+    if (pageTags[n] === "floor" && typeof pageFloorNum[n] === "number" && pageFloorNum[n] > mx) mx = pageFloorNum[n];
+  });
+  return mx + 1;
+}
+
+/* Mirrors overview-setup.js _lovsSequentialFloor: renumbers all floor-tagged pages in page
+   order; mezzanine/mechanical/rooftop are skipped (no number consumed), everything else gets
+   the next sequential integer starting at `start`. (Simplified: real fn also has a
+   descending-basement special case and page-vs-floorNum sort priority — dropped here, see
+   residual-risks in the final report.) */
+function seqRenumber(start) {
+  var floors = Object.keys(pageTags).map(Number).filter(function(n) { return pageTags[n] === "floor"; }).sort(function(a, b) { return a - b; });
+  var n = start;
+  floors.forEach(function(p) {
+    var kind = pageFloorKind[p] || "normal";
+    if (kind === "mezzanine" || kind === "mechanical" || kind === "rooftop") { delete pageFloorNum[p]; return; }
+    pageFloorNum[p] = n; n++;
+  });
+}
+
+/* ============================================================ MUTATIONS */
+function performBulkApply(list, tag, kind, start) {
+  var idx = 0;
+  list.forEach(function(n) {
+    pageTags[n] = tag;
+    if (tag === "floor") {
+      pageFloorKind[n] = kind;
+      if (kind === "normal" || kind === "basement") { pageFloorNum[n] = start + idx; idx++; }
+      else delete pageFloorNum[n];
+    } else { delete pageFloorKind[n]; delete pageFloorNum[n]; }
+  });
+}
+
+function applyBulk() {
+  var tagEl = document.getElementById("bulk-tag"), kindEl = document.getElementById("bulk-kind"), startEl = document.getElementById("bulk-start");
+  if (!tagEl) return;
+  var tag = tagEl.value, kind = kindEl.value, start = parseInt(startEl.value, 10) || 1;
+  var list = Array.from(selected).sort(function(a, b) { return a - b; });
+  var overlap = list.filter(function(n) { return !!pageTags[n]; }).length;
+  if (overlap > 0) {
+    pendingApply = { list: list, tag: tag, kind: kind, start: start, overlap: overlap };
+    document.getElementById("confirm-msg").textContent = overlap + " จาก " + list.length + " หน้าที่เลือกมีแท็กอยู่แล้ว จะเขียนทับหรือไม่?";
+    document.getElementById("confirm-modal").classList.add("show");
+  } else {
+    pushUndo();
+    performBulkApply(list, tag, kind, start);
+    renderAll();
+  }
+}
+
+function cycleTag(n) {
+  pushUndo();
+  var cur = pageTags[n] || "", i = TAG_CYCLE.indexOf(cur);
+  var nt = TAG_CYCLE[(i + 1) % TAG_CYCLE.length];
+  pageTags[n] = nt;
+  if (nt !== "floor") { delete pageFloorKind[n]; delete pageFloorNum[n]; }
+  renderAll();
+}
+
+function setFloorKind(n, kind) {
+  pushUndo();
+  pageFloorKind[n] = kind;
+  if (kind === "rooftop") pageFloorNum[n] = "roof";
+  else if (kind === "mechanical" || kind === "mezzanine") delete pageFloorNum[n];
+  renderAll();
+}
+function setFloorNum(n, val) {
+  pushUndo();
+  var v = parseInt(val, 10);
+  if (isFinite(v)) pageFloorNum[n] = v; else delete pageFloorNum[n];
+  renderAll();
+}
+
+function jitTag(tag) {
+  pushUndo();
+  pageTags[curPage] = tag;
+  if (tag === "floor") { pageFloorKind[curPage] = "normal"; pageFloorNum[curPage] = nextAutoFloorNumber(); }
+  jitOpen = false;
+  armed = true;
+  renderAll();
+}
+
+function attemptMeasure() {
+  if (!pageTags[curPage]) { jitOpen = true; armed = false; }
+  else { armed = true; jitOpen = false; }
+  renderAll();
+}
+
+function gotoPage(n) { curPage = n; jitOpen = false; renderCanvas(); }
+
+/* ============================================================ RENDER */
+function renderAll() { renderGrid(); renderBulkbar(); renderCanvas(); document.getElementById("undo-count").textContent = "undo stack: " + undoStack.length; }
+
+function tileHTML(n) {
+  var tag = pageTags[n] || "";
+  var kind = pageFloorKind[n];
+  var num = pageFloorNum[n];
+  var objc = (pageObjects[n] || []).length;
+  var content = pageContent[n];
+  var cls = "tile" + (selected.has(n) ? " sel" : "") + (n === curPage ? " cur" : "");
+  var h = '<div class="' + cls + '" data-pg="' + n + '">';
+  if (objc) h += '<div class="objc">' + objc + '</div>';
+  h += '<div class="pn">p' + n + '</div>';
+  h += '<div class="row"><span class="tagchip ' + (tag ? "tc-" + tag : "tc-untagged") + '" data-cyc="' + n + '">' + (tag || "ไม่แท็ก") + '</span></div>';
+  if (tag === "floor") {
+    h += '<div class="row">' +
+      '<select data-fkind="' + n + '">' +
+        '<option value="normal"' + (kind === "normal" || !kind ? " selected" : "") + '>ชั้น</option>' +
+        '<option value="basement"' + (kind === "basement" ? " selected" : "") + '>ใต้ดิน</option>' +
+        '<option value="mezzanine"' + (kind === "mezzanine" ? " selected" : "") + '>ลอย</option>' +
+        '<option value="mechanical"' + (kind === "mechanical" ? " selected" : "") + '>เครื่อง</option>' +
+        '<option value="rooftop"' + (kind === "rooftop" ? " selected" : "") + '>ดาดฟ้า</option>' +
+      '</select>';
+    if (kind === "normal" || !kind || kind === "basement") {
+      h += '<input type="text" data-fnum="' + n + '" value="' + (num != null ? num : "") + '" placeholder="#">';
+    } else {
+      h += '<span style="font-size:9px;color:#8b949e;">' + (kind === "rooftop" ? "ROOF" : kind === "mezzanine" ? "MEZ" : "MEC") + "</span>";
+    }
+    h += "</div>";
+  }
+  if (content) h += '<div class="content">content: ' + content + "</div>";
+  h += "</div>";
+  return h;
+}
+
+function renderGrid() {
+  var g = document.getElementById("grid");
+  var h = "";
+  if (viewMode === "order") {
+    for (var n = 1; n <= PAGE_COUNT; n++) h += tileHTML(n);
+  } else {
+    var GROUPS = ["site", "floor", "plan", "parking", "amenity", "detail", ""];
+    var LABEL = { site: "site", floor: "floor", plan: "plan", parking: "parking", amenity: "amenity", detail: "detail", "": "ไม่แท็ก" };
+    GROUPS.forEach(function(tg) {
+      var members = [];
+      for (var n = 1; n <= PAGE_COUNT; n++) { if ((pageTags[n] || "") === tg) members.push(n); }
+      if (!members.length) return;
+      h += '<div class="grouphdr">' + LABEL[tg] + " (" + members.length + ")</div>";
+      members.forEach(function(n) { h += tileHTML(n); });
+    });
+  }
+  g.innerHTML = h;
+  wireGrid();
+}
+
+function wireGrid() {
+  document.querySelectorAll("#grid .tile").forEach(function(tile) {
+    var pn = +tile.dataset.pg;
+    tile.addEventListener("mousedown", function(e) {
+      if (e.target.closest(".tagchip") || e.target.closest("select") || e.target.closest("input")) return;
+      e.stopPropagation();
+    });
+    tile.addEventListener("click", function(e) {
+      if (e.target.closest(".tagchip") || e.target.closest("select") || e.target.closest("input")) return;
+      actionCount++;
+      if (e.shiftKey && selAnchor != null) {
+        var lo = Math.min(selAnchor, pn), hi = Math.max(selAnchor, pn);
+        selected.clear(); for (var i = lo; i <= hi; i++) selected.add(i);
+      } else if (e.ctrlKey || e.metaKey) {
+        if (selected.has(pn)) selected.delete(pn); else selected.add(pn);
+        selAnchor = pn;
+      } else { selected.clear(); selected.add(pn); selAnchor = pn; }
+      renderGrid(); renderBulkbar();
+    });
+    tile.addEventListener("dblclick", function(e) {
+      actionCount++;
+      gotoPage(pn);
+    });
+    var chip = tile.querySelector(".tagchip");
+    if (chip) chip.addEventListener("click", function(e) { e.stopPropagation(); actionCount++; cycleTag(pn); });
+    var fk = tile.querySelector("select[data-fkind]");
+    if (fk) { fk.addEventListener("mousedown", function(e) { e.stopPropagation(); }); fk.addEventListener("change", function() { actionCount++; setFloorKind(pn, fk.value); }); }
+    var fn = tile.querySelector("input[data-fnum]");
+    if (fn) { fn.addEventListener("mousedown", function(e) { e.stopPropagation(); }); fn.addEventListener("change", function() { actionCount++; setFloorNum(pn, fn.value); }); }
+  });
+}
+
+function renderBulkbar() {
+  var bb = document.getElementById("bulkbar");
+  if (selected.size < 2) { bb.classList.remove("show"); bb.innerHTML = ""; return; }
+  bb.classList.add("show");
+  var h = '<span>เลือก <span class="ct">' + selected.size + '</span> หน้า</span>';
+  h += '<div class="apply-form">' +
+    '<select id="bulk-tag">' + TAG_CYCLE.map(function(t) { return '<option value="' + t + '">' + t + "</option>"; }).join("") + '</select>' +
+    '<select id="bulk-kind"><option value="normal">ชั้น</option><option value="basement">ใต้ดิน</option><option value="mezzanine">ลอย</option><option value="mechanical">เครื่อง</option><option value="rooftop">ดาดฟ้า</option></select>' +
+    'เริ่ม# <input type="number" id="bulk-start" value="1" min="-5" max="99">' +
+    '<button id="bulk-apply-btn" class="pri">Apply</button>' +
+    '</div>';
+  bb.innerHTML = h;
+  document.getElementById("bulk-tag").value = "floor";
+  document.getElementById("bulk-apply-btn").addEventListener("click", function() { actionCount++; applyBulk(); });
+}
+
+function renderCanvas() {
+  var tag = pageTags[curPage];
+  var pe = document.getElementById("cv-page");
+  pe.textContent = "p" + curPage;
+  pe.classList.toggle("tagged", !!tag);
+  document.getElementById("cv-meta").textContent = tag ? ("tag: " + tag + (tag === "floor" ? " · kind " + (pageFloorKind[curPage] || "normal") + " · #" + (pageFloorNum[curPage] != null ? pageFloorNum[curPage] : "-") : "")) : "— ยังไม่ได้แท็ก —";
+  var ae = document.getElementById("cv-armed");
+  ae.className = armed ? "armed" : "idle";
+  ae.textContent = armed ? "tool: ARMED" : "tool: idle";
+  var jb = document.getElementById("jit-banner");
+  jb.classList.toggle("show", jitOpen);
+  if (jitOpen) {
+    document.getElementById("jit-chips").innerHTML = TAG_CYCLE.map(function(t) {
+      return '<span class="tagchip tc-' + t + '" data-jit="' + t + '">' + t + "</span>";
+    }).join("");
+    document.querySelectorAll("#jit-chips [data-jit]").forEach(function(el) {
+      el.addEventListener("click", function() { actionCount++; jitTag(el.dataset.jit); });
+    });
+  }
+}
+
+document.getElementById("btn-view-toggle").addEventListener("click", function() { actionCount++; viewMode = viewMode === "order" ? "grouped" : "order"; renderGrid(); });
+document.getElementById("btn-undo").addEventListener("click", function() { actionCount++; doUndo(); });
+document.getElementById("btn-reset").addEventListener("click", resetDoc);
+document.getElementById("btn-measure").addEventListener("click", function() { actionCount++; attemptMeasure(); });
+document.getElementById("confirm-yes").addEventListener("click", function() {
+  actionCount++;
+  document.getElementById("confirm-modal").classList.remove("show");
+  if (pendingApply) { pushUndo(); performBulkApply(pendingApply.list, pendingApply.tag, pendingApply.kind, pendingApply.start); pendingApply = null; renderAll(); }
+});
+document.getElementById("confirm-no").addEventListener("click", function() {
+  actionCount++;
+  document.getElementById("confirm-modal").classList.remove("show");
+  pendingApply = null;
+});
+
+/* ============================================================ EVAL HELPERS */
+function fire(el, type, opts) { el.dispatchEvent(new MouseEvent(type, Object.assign({ bubbles: true, cancelable: true }, opts || {}))); }
+function tileEl(n) { return document.querySelector('#grid .tile[data-pg="' + n + '"]'); }
+function chipEl(n) { return document.querySelector('#grid .tile[data-pg="' + n + '"] .tagchip'); }
+function fkindEl(n) { return document.querySelector('#grid .tile[data-pg="' + n + '"] select[data-fkind]'); }
+function deepEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+/* ============================================================ CASE 1: happy — JIT + range efficiency */
+function runCase1() {
+  resetDoc();
+  var notes = [];
+
+  /* generality pre-check (NOT counted toward the action budget): an untagged page
+     always refuses measure and is always navigable, before we even touch page 11. */
+  gotoPage(20);
+  var navOkBefore = true; // dblclick/gotoPage never gates — proven by not throwing + curPage updating
+  attemptMeasure();
+  var refusedGenerality = (jitOpen === true && armed === false);
+  notes.push("generality refusal on p20: " + refusedGenerality);
+
+  /* reset the measured action-count window */
+  actionCount = 0;
+
+  fire(tileEl(20), "dblclick"); // not part of the real flow but harmless; use p11 next
+  gotoPage(1); // back to a neutral starting point (function call, not counted — mirrors app boot state)
+  actionCount = 0;
+
+  fire(tileEl(11), "dblclick");                 // 1: open page 11 in canvas
+  var refusedInitially = (curPage === 11);
+  fire(document.getElementById("btn-measure"), "click"); // 2: วัด -> refused, JIT banner
+  var refused1 = (jitOpen === true && armed === false);
+  fire(document.querySelector('#jit-chips [data-jit="floor"]'), "click"); // 3: tap floor chip -> tags + arms
+  var armedAfterJit = armed === true;
+  var p11Num = pageFloorNum[11];
+
+  fire(tileEl(11), "click");                     // 4: select p11 (anchor)
+  fire(tileEl(16), "click", { shiftKey: true });  // 5: shift-click p16 -> range 11..16
+  var rangeSize = selected.size;
+
+  fire(document.getElementById("bulk-apply-btn"), "click"); // 6: Apply (tag=floor,kind=normal,start=1 defaults)
+  var confirmShown = document.getElementById("confirm-modal").classList.contains("show");
+  if (confirmShown) fire(document.getElementById("confirm-yes"), "click"); // 7: confirm overwrite (p11 already tagged)
+
+  var expected = { 11: 1, 12: 2, 13: 3, 14: 4, 15: 5, 16: 6 };
+  var actual = {};
+  for (var n = 11; n <= 16; n++) actual[n] = pageFloorNum[n];
+  var mapMatches = deepEqual(actual, expected);
+  var allFloorTag = [11, 12, 13, 14, 15, 16].every(function(n) { return pageTags[n] === "floor"; });
+
+  /* re-verify per-page gate still holds on an untouched page after all this */
+  gotoPage(30);
+  attemptMeasure();
+  var refusedAgain = (jitOpen === true && armed === false);
+
+  var pass = refusedGenerality && refusedInitially && refused1 && armedAfterJit && p11Num === 1 &&
+    rangeSize === 6 && confirmShown && mapMatches && allFloorTag && refusedAgain && actionCount <= 8;
+
+  return {
+    pass: pass, actionCount: actionCount, actualFloorMap: actual, expectedFloorMap: expected,
+    refusedGenerality: refusedGenerality, refused1: refused1, armedAfterJit: armedAfterJit,
+    confirmShown: confirmShown, allFloorTag: allFloorTag, refusedAgain: refusedAgain, notes: notes
+  };
+}
+
+/* ============================================================ CASE 2: edge — mixed run + conflict */
+function runCase2() {
+  resetDoc();
+
+  fire(tileEl(11), "click");
+  fire(tileEl(17), "click", { shiftKey: true }); // range 11..17
+  fire(document.getElementById("bulk-apply-btn"), "click"); // tag=floor,kind=normal,start=1, no overlap -> applies directly
+  var confirmedOnFirstApply = document.getElementById("confirm-modal").classList.contains("show");
+
+  fireChangeSelect(fkindEl(14), "mezzanine"); // override page 14 mid-range to mezzanine
+
+  seqRenumber(1); // re-run auto-sequence (mirrors ⚡ button) so numbering skips the mezzanine
+  renderAll();
+
+  var expectedAfterMezz = {
+    11: { kind: "normal", num: 1 }, 12: { kind: "normal", num: 2 }, 13: { kind: "normal", num: 3 },
+    14: { kind: "mezzanine", num: undefined },
+    15: { kind: "normal", num: 4 }, 16: { kind: "normal", num: 5 }, 17: { kind: "normal", num: 6 }
+  };
+  var actualAfterMezz = {};
+  for (var n = 11; n <= 17; n++) actualAfterMezz[n] = { kind: pageFloorKind[n] || "normal", num: pageFloorNum[n] };
+  var mezzMatches = deepEqual(actualAfterMezz, expectedAfterMezz);
+
+  /* conflict: range 15-18 overlaps 15,16,17 (already tagged) -> must confirm before overwrite */
+  fire(tileEl(15), "click");
+  fire(tileEl(18), "click", { shiftKey: true });
+  var snapBeforeAttempt = snapshot();
+  document.getElementById("bulk-kind").value = "basement"; // pick basement for the re-tag
+  fire(document.getElementById("bulk-apply-btn"), "click");
+  var confirmShownOnOverlap = document.getElementById("confirm-modal").classList.contains("show");
+  var overlapCountShown = pendingApply ? pendingApply.overlap : -1;
+
+  fire(document.getElementById("confirm-no"), "click"); // CANCEL -> must be a zero-op
+  var snapAfterCancel = snapshot();
+  var cancelIsNoOp = deepEqual(snapBeforeAttempt, snapAfterCancel);
+
+  /* re-select + re-apply, this time CONFIRM */
+  fire(tileEl(15), "click");
+  fire(tileEl(18), "click", { shiftKey: true });
+  document.getElementById("bulk-kind").value = "basement";
+  fire(document.getElementById("bulk-apply-btn"), "click");
+  var confirmShownAgain = document.getElementById("confirm-modal").classList.contains("show");
+  fire(document.getElementById("confirm-yes"), "click");
+
+  var expectedFinal = {
+    15: { tag: "floor", kind: "basement", num: 1 }, 16: { tag: "floor", kind: "basement", num: 2 },
+    17: { tag: "floor", kind: "basement", num: 3 }, 18: { tag: "floor", kind: "basement", num: 4 }
+  };
+  var actualFinal = {};
+  [15, 16, 17, 18].forEach(function(n) { actualFinal[n] = { tag: pageTags[n], kind: pageFloorKind[n], num: pageFloorNum[n] }; });
+  var finalMatches = deepEqual(actualFinal, expectedFinal);
+
+  var pass = !confirmedOnFirstApply && mezzMatches && confirmShownOnOverlap && overlapCountShown === 3 &&
+    cancelIsNoOp && confirmShownAgain && finalMatches;
+
+  return {
+    pass: pass, mezzMatches: mezzMatches, actualAfterMezz: actualAfterMezz, expectedAfterMezz: expectedAfterMezz,
+    confirmShownOnOverlap: confirmShownOnOverlap, overlapCountShown: overlapCountShown,
+    cancelIsNoOp: cancelIsNoOp, finalMatches: finalMatches, actualFinal: actualFinal, expectedFinal: expectedFinal
+  };
+}
+function fireChangeSelect(el, val) { el.value = val; el.dispatchEvent(new Event("change", { bubbles: true })); }
+
+/* ============================================================ CASE 3: adversarial — fearless retag + verify grid */
+function runCase3() {
+  resetDoc();
+
+  /* seed scenario directly (not part of any measured action budget — this is scenario setup,
+     equivalent to "arriving mid-project" with prior tagging already done) */
+  performBulkApply([11, 12, 13, 14, 15, 16], "floor", "normal", 1);
+  pageObjects[12] = [{ id: "o1", kind: "area" }, { id: "o2", kind: "area" }, { id: "o3", kind: "opening" }];
+  /* deliberately mis-tagged page: an elevation drawing tagged as floor */
+  pageTags[30] = "floor"; pageFloorKind[30] = "normal"; pageFloorNum[30] = 1;
+  pageContent[30] = "elevation";
+  renderAll();
+
+  /* 1) verify grid: toggle to grouped-by-tag, confirm the mis-tagged page is visually
+     detectable inside the floor bucket (content marker mismatches its tag) */
+  fire(document.getElementById("btn-view-toggle"), "click");
+  var groupTile = tileEl(30);
+  var inFloorGroup = !!(groupTile && groupTile.previousElementSibling === null ? false : true);
+  // more robust: walk backwards to nearest .grouphdr before tile 30 in DOM order
+  var groupLabel = null;
+  if (groupTile) {
+    var sib = groupTile.previousElementSibling;
+    while (sib) { if (sib.classList.contains("grouphdr")) { groupLabel = sib.textContent; break; } sib = sib.previousElementSibling; }
+  }
+  var visuallyInFloorGroup = groupLabel ? groupLabel.indexOf("floor") === 0 : false;
+  var contentMarkerVisible = !!(groupTile && groupTile.querySelector(".content") && groupTile.querySelector(".content").textContent.indexOf("elevation") !== -1);
+
+  /* retag-from-grid works: click page 30's tag chip to cycle it away from 'floor' */
+  var tagBefore30 = pageTags[30];
+  fire(chipEl(30), "click");
+  var retagFromGridWorks = pageTags[30] !== tagBefore30;
+
+  /* 2) fearless retag of page 12 (has 3 objects): floor/normal/#2 -> mezzanine */
+  var snapBeforeRetag12 = snapshot();
+  var folderBefore12 = folderKey(12);
+  var objCountBefore12 = (pageObjects[12] || []).length;
+
+  fireChangeSelect(fkindEl(12), "mezzanine"); // single UI action -> pushUndo() + mutate
+
+  var objCountAfter12 = (pageObjects[12] || []).length;
+  var folderAfter12 = folderKey(12);
+  var folderRemapped = folderBefore12 !== folderAfter12;
+  var objectsPreserved = objCountBefore12 === 3 && objCountAfter12 === 3;
+
+  /* grid re-buckets immediately: after retag, tile 12's rendered kind label must read mezzanine right away */
+  var tile12 = tileEl(12);
+  var rebucketedLive = !!(tile12 && tile12.querySelector("select[data-fkind]") && tile12.querySelector("select[data-fkind]").value === "mezzanine");
+
+  /* 3) undo restores tag+folder+object assignment deep-equal to pre-retag state */
+  var undoOk = doUndo();
+  var snapAfterUndo = snapshot();
+  var deepEqualRestore = deepEqual(snapBeforeRetag12, snapAfterUndo);
+  var objectsStillThree = (pageObjects[12] || []).length === 3;
+  var folderRestored = folderKey(12) === folderBefore12;
+
+  var pass = visuallyInFloorGroup && contentMarkerVisible && retagFromGridWorks &&
+    objectsPreserved && folderRemapped && rebucketedLive &&
+    undoOk && deepEqualRestore && objectsStillThree && folderRestored;
+
+  return {
+    pass: pass, visuallyInFloorGroup: visuallyInFloorGroup, contentMarkerVisible: contentMarkerVisible,
+    retagFromGridWorks: retagFromGridWorks, objectsPreserved: objectsPreserved, folderRemapped: folderRemapped,
+    rebucketedLive: rebucketedLive, undoOk: undoOk, deepEqualRestore: deepEqualRestore,
+    objectsStillThree: objectsStillThree, folderRestored: folderRestored,
+    objCountBefore12: objCountBefore12, objCountAfter12: objCountAfter12,
+    folderBefore12: folderBefore12, folderAfter12: folderAfter12
+  };
+}
+
+/* ============================================================ RUN EVAL */
+function runAllEval() {
+  var c1 = runCase1(), c2 = runCase2(), c3 = runCase3();
+  var allPass = c1.pass && c2.pass && c3.pass;
+  var results = { case1: c1, case2: c2, case3: c3, allPass: allPass };
+  window.__evalResults = results;
+
+  var h = "<h2>Eval results</h2><table><tr><th>case</th><th>result</th><th>detail</th></tr>";
+  h += "<tr><td>1 happy</td><td class='" + (c1.pass ? "pass'>PASS" : "fail'>FAIL") + "</td><td>" +
+    "actionCount=" + c1.actionCount + " (<=8) · floorMap=" + JSON.stringify(c1.actualFloorMap) +
+    " exp=" + JSON.stringify(c1.expectedFloorMap) + " · refusedGenerality=" + c1.refusedGenerality +
+    " refused1=" + c1.refused1 + " armedAfterJit=" + c1.armedAfterJit + " confirmShown=" + c1.confirmShown +
+    " refusedAgain=" + c1.refusedAgain + "</td></tr>";
+  h += "<tr><td>2 edge</td><td class='" + (c2.pass ? "pass'>PASS" : "fail'>FAIL") + "</td><td>" +
+    "mezzMatches=" + c2.mezzMatches + " " + JSON.stringify(c2.actualAfterMezz) +
+    " · confirmShownOnOverlap=" + c2.confirmShownOnOverlap + " overlapCountShown=" + c2.overlapCountShown +
+    " · cancelIsNoOp=" + c2.cancelIsNoOp + " · finalMatches=" + c2.finalMatches + " " + JSON.stringify(c2.actualFinal) + "</td></tr>";
+  h += "<tr><td>3 adversarial</td><td class='" + (c3.pass ? "pass'>PASS" : "fail'>FAIL") + "</td><td>" +
+    "visuallyInFloorGroup=" + c3.visuallyInFloorGroup + " contentMarkerVisible=" + c3.contentMarkerVisible +
+    " retagFromGridWorks=" + c3.retagFromGridWorks + " · objectsPreserved=" + c3.objectsPreserved +
+    " (" + c3.objCountBefore12 + "->" + c3.objCountAfter12 + ") folderRemapped=" + c3.folderRemapped +
+    " (" + c3.folderBefore12 + "->" + c3.folderAfter12 + ") rebucketedLive=" + c3.rebucketedLive +
+    " · undoOk=" + c3.undoOk + " deepEqualRestore=" + c3.deepEqualRestore + " folderRestored=" + c3.folderRestored + "</td></tr>";
+  h += "</table><p class='notes'>allPass=" + allPass + "</p>";
+  document.getElementById("eval-output").innerHTML = h;
+
+  resetDoc(); // leave the page in a clean demo state after eval
+  return results;
+}
+
+document.getElementById("btn-run-eval").addEventListener("click", runAllEval);
+
+/* ---- demo hooks for screenshot capture (called from the Python eval driver) ---- */
+window.__demoOrder = function() {
+  resetDoc();
+  performBulkApply([11, 12, 13, 14, 15, 16], "floor", "normal", 1);
+  pageTags[1] = "site"; pageTags[2] = "plan"; pageTags[40] = "detail";
+  renderAll();
+};
+window.__demoGrouped = function() {
+  window.__demoOrder();
+  viewMode = "grouped";
+  renderGrid();
+};
+window.__demoJIT = function() {
+  resetDoc();
+  gotoPage(11);
+  attemptMeasure();
+};
+
+resetDoc();
+</script>
+</body>
+</html>
