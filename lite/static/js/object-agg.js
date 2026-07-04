@@ -64,8 +64,23 @@
 
    Public API: window.ObjectAgg = {
      floorKeyOfPage, objectTuples, aggTuples, byRole, byFloor, byFloorRole,
+     byCategory, summaryByCategory,
      floorKeyLabel, floorReportRows, assertEnginesAgree
    }
+
+   --- slice A-4 (REVIEW_LITE_LAYER_REPORT_20260704.md ledger A-4, "one
+   aggregation truth") ---
+   Rerouted computeSummary() (ui-lite.html) and buildExportData()
+   (export-annotate.js) onto summaryByCategory()/byCategory() — the same
+   objectTuples() stream every other consumer already reads. This retires
+   the LAST two ad-hoc PS-walking accumulators and closes the B0/B1-flagged
+   excluded-page asymmetry for good: computeSummary()'s cur/all totals (the
+   openSum() category table) and buildExportData()'s XLSX rows/summary now
+   BOTH skip excluded[] pages, matching report vars / per-floor block /
+   buildReportPayload. XLSX detail rows keep their own per-object walk
+   (line/ref/dimension objects carry no area and were never part of any
+   aggregation truth) but now skip excluded pages too, and only the numeric
+   summary is sourced from byCategory().
    ============================================================ */
 
 /* Stable floor-bucket key for a page, mirroring pageFolderIdFor's floor/site
@@ -194,6 +209,39 @@ function byRole(tuples) {
 }
 function byFloor(tuples) {
   return aggTuples(tuples || objectTuples(), function(t) { return t.floorKey; });
+}
+/* Additive (slice A-4, REVIEW_LITE_LAYER_REPORT_20260704.md ledger A-4) —
+   per-catId aggregation over the tuple stream: {catId -> {area, count}}.
+   The "one aggregation truth" computeSummary()/buildExportData() now both
+   read from, instead of each re-walking PS with its own accumulator. */
+function byCategory(tuples) {
+  return aggTuples(tuples || objectTuples(), function(t) { return t.catId; });
+}
+/* Additive (slice A-4) — the {cur,all,curCnt,allCnt,pagesWith} shape
+   computeSummary() has always returned, now built from objectTuples()
+   (already excludes excluded[] pages) grouped by catId via byCategory().
+   UNIFIES the B0/B1-documented asymmetry noted above: computeSummary()'s
+   own cur/all totals now ALSO skip excluded[] pages, matching every other
+   tuple-sourced consumer (report vars, per-floor block, XLSX summary/rows).
+   A category lands in curCnt/allCnt (not cur/all) iff its tuples carry
+   count>0 -- true exactly when it is a counting category, since only
+   counting:true tuples contribute a nonzero count (mirrors the pre-A-4
+   split between separate all/allCnt dicts). */
+function summaryByCategory(curPage) {
+  var tuples = objectTuples();
+  var all = byCategory(tuples);
+  var curTuples = tuples.filter(function(t) { return t.pg === curPage; });
+  var cur = byCategory(curTuples);
+  var pages = {};
+  tuples.forEach(function(t) { pages[t.pg] = true; });
+  var out = {cur: {}, all: {}, curCnt: {}, allCnt: {}, pagesWith: Object.keys(pages).length};
+  Object.keys(all).forEach(function(k) {
+    if (all[k].count > 0) out.allCnt[k] = all[k].count; else out.all[k] = all[k].area;
+  });
+  Object.keys(cur).forEach(function(k) {
+    if (cur[k].count > 0) out.curCnt[k] = cur[k].count; else out.cur[k] = cur[k].area;
+  });
+  return out;
 }
 /* Nested {floorKey -> {role -> {area, count}}} — per-floor role separation
    that no existing engine (computeSummary/_lovsFolderArea/_lovsRoleArea)
@@ -353,6 +401,8 @@ var _ObjectAgg = {
   byRole: byRole,
   byFloor: byFloor,
   byFloorRole: byFloorRole,
+  byCategory: byCategory,
+  summaryByCategory: summaryByCategory,
   floorKeyLabel: floorKeyLabel,
   floorReportRows: floorReportRows,
   detectDivergence: detectDivergence,

@@ -1061,14 +1061,8 @@ function openOv(){ if(!caseId)return; var g=document.getElementById("ov-grid"); 
 document.getElementById("btn-ov").onclick=openOv;
 
 /* LITE-REVIEW: summary — area totals by category (current page + all pages) + site metrics */
-function computeSummary(){ var cur={},all={},curCnt={},allCnt={},pagesWith=0;
-  Object.keys(PS).forEach(function(k){ var pg=+k, has=false;
-    PS[k].objects.forEach(function(o){
-      if(o.counting){ allCnt[o.catId]=(allCnt[o.catId]||0)+1; if(pg===curPage)curCnt[o.catId]=(curCnt[o.catId]||0)+1; has=true; return; }
-      var _cid=(typeof rollupCatId==="function")?rollupCatId(o):o.catId; var a=(typeof rollupAreaM2==="function")?rollupAreaM2(o,pg):(o.kind==="poly"?polyMetricsAnyShape(o,pg).area:null); if(a==null||_cid==null)return; // arc+instance inclusive (BUG-20260702-lite-arc/cfss-summary)
-      all[_cid]=(all[_cid]||0)+a; if(pg===curPage)cur[_cid]=(cur[_cid]||0)+a; has=true; });
-    if(has)pagesWith++; });
-  return {cur:cur,all:all,curCnt:curCnt,allCnt:allCnt,pagesWith:pagesWith}; }
+/* A-4 (REVIEW_LITE_LAYER_REPORT_20260704 ledger): rerouted onto ObjectAgg.summaryByCategory() — one tuple-stream aggregation truth shared with buildExportData/report vars; now also skips excluded[] pages (unifies the old B0/B1 asymmetry). */
+function computeSummary(){ return (typeof summaryByCategory==="function")?summaryByCategory(curPage):{cur:{},all:{},curCnt:{},allCnt:{},pagesWith:0}; }
 function openSum(){ if(!caseId)return; var s=computeSummary();
   var fmt=function(v){return v==null?"—":v.toFixed(2);};
   var rows="";

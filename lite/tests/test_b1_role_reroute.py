@@ -31,12 +31,14 @@ Checks:
                       hand-computed expectations (not just each other).
   excludedOutOk        after excluded[P4]=true and a FRESH computeSummary()
                       -based agg rebuild (mirrors openSum() re-opening the
-                      panel): legacy v_net is UNCHANGED (computeSummary()
-                      does not skip excluded[] pages -- pre-existing gap,
-                      untouched by B1) but live (useLive:true) v_net drops
-                      by exactly gfa4's area (49 m2) -- new, correct
-                      semantics per the B1 decision documented in
-                      object-agg.js.
+                      panel): BOTH legacy and live (useLive:true) v_net now
+                      drop by exactly gfa4's area (49 m2). Updated for A-4
+                      (REVIEW_LITE_LAYER_REPORT_20260704.md ledger A-4):
+                      computeSummary() itself was rerouted onto the tuple
+                      stream and now skips excluded[] pages too, closing the
+                      B0/B1-documented asymmetry this check used to pin
+                      (legacy used to stay UNCHANGED on exclusion -- that
+                      pre-existing gap is exactly what A-4 fixed).
   perFloorRowsOk       floorReportRows() (post-exclusion) gives floor1.net
                       == gfa1-ded1, floor2.net == gfa2-ded2 (independent
                       per-floor deduction, not a single global pool -- the
@@ -163,9 +165,12 @@ SC_B1 = r"""
   var legacy1 = computeReportVars(agg1);
   var live1 = computeReportVars(agg1, {useLive: true});
   var l1net = find(legacy1, 'v_net'), v1net = find(live1, 'v_net');
-  var legacyUnchangedOk = !!l1net && l1net.err === null && close(l1net.value, expNetBefore);   // legacy still includes P4 (pre-existing gap)
+  // A-4 (REVIEW_LITE_LAYER_REPORT_20260704 ledger A-4): computeSummary() now
+  // also sources from the tuple stream (summaryByCategory), so legacy agg
+  // built via buildAgg()/computeSummary() drops P4 too -- both engines agree.
+  var legacyDroppedOk = !!l1net && l1net.err === null && close(l1net.value, expNetBefore - 49);
   var liveDroppedOk = !!v1net && v1net.err === null && close(v1net.value, expNetBefore - 49);  // live excludes P4's 49 m2
-  var excludedOutOk = legacyUnchangedOk && liveDroppedOk;
+  var excludedOutOk = legacyDroppedOk && liveDroppedOk;
 
   /* -------------------------------------------------------------- */
   /* (iii) per-floor rows (post-exclusion)                           */

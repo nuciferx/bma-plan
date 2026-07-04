@@ -2,23 +2,33 @@
    Globals read: PS, caseId, pdfName, pageTags, PAGE_TAGS, pageFloorKind, pageFloorNum,
    pageNames, FLOOR_KIND_LABELS, excluded, CATS, projectInfo, RS (measure-engine.js),
    polyMetricsAnyShape (measure-engine.js — arc-inclusive), catOf, annStyle, api, closeMenus,
-   computeSummary (ui-lite.html inline), computeReportVars (report-vars.js).
+   computeSummary (ui-lite.html inline), computeReportVars (report-vars.js),
+   byCategory (object-agg.js — A-4 tuple-stream summary aggregation).
    All functions exposed on window.ExportAnnotate for call-sites in ui-lite.html.
    DOM binding (onclick) lives here — runs after all <script> tags in head/body. */
 
-/* LITE-6: export XLSX + PDF overlay */
-function buildExportData(){ var rows=[],sum={},cnt={};
-  Object.keys(PS).forEach(function(k){ var pg=+k; PS[k].objects.forEach(function(o){
+/* LITE-6: export XLSX + PDF overlay.
+   A-4 (REVIEW_LITE_LAYER_REPORT_20260704 ledger): summary now sourced from
+   ObjectAgg.byCategory(objectTuples()) — the same tuple-stream truth
+   computeSummary()/report-vars/buildReportPayload already read — instead of
+   its own ad-hoc per-object accumulator. Detail rows keep their own walk
+   (line/ref/dimension objects carry no area, never part of the aggregation
+   truth) but now also skip excluded[] pages, so rows and summary agree on
+   which pages count. */
+function buildExportData(){ var rows=[];
+  var byCat=(typeof byCategory==="function")?byCategory():{};
+  Object.keys(PS).forEach(function(k){ var pg=+k;
+    if(typeof excluded!=="undefined"&&excluded[pg])return;
+    PS[k].objects.forEach(function(o){
     var cid=(typeof rollupCatId==="function")?rollupCatId(o):o.catId; var cat=catOf(cid); var nm=cat?cat.name:"—";
-    if(o.counting){ rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:"count",area:null,count:1}); cnt[cid]=(cnt[cid]||0)+1; return; }
+    if(o.counting){ rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:"count",area:null,count:1}); return; }
     if(o.kind==="instance"){ var ia=(typeof rollupAreaM2==="function")?rollupAreaM2(o,pg):null; var mm=(typeof masterById==="function")?masterById(o.masterId):null;
-      rows.push({page:pg,category:nm,semanticTag:(mm&&mm.semanticTag)||null,kind:"area",area:ia==null?null:+ia.toFixed(3),count:null}); if(ia!=null&&cid!=null)sum[cid]=(sum[cid]||0)+ia; return; }
+      rows.push({page:pg,category:nm,semanticTag:(mm&&mm.semanticTag)||null,kind:"area",area:ia==null?null:+ia.toFixed(3),count:null}); return; }
     if(o.kind!=="poly"){ rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:o.kind,area:null,count:null}); return; }
     var a=polyMetricsAnyShape(o,pg).area;
-    rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:"area",area:a==null?null:+a.toFixed(3),count:null});
-    if(cid!=null)sum[cid]=(sum[cid]||0)+(a||0); }); });
-  var summary=Object.keys(sum).map(function(id){var c=catOf(id);return {category:(c?c.name:"—"),total:+sum[id].toFixed(3)};})
-    .concat(Object.keys(cnt).map(function(id){var c=catOf(id);return {category:(c?c.name:"—")+" (จุด)",total:cnt[id]};}));
+    rows.push({page:pg,category:nm,semanticTag:o.semanticTag,kind:"area",area:a==null?null:+a.toFixed(3),count:null}); }); });
+  var summary=Object.keys(byCat).map(function(id){var c=catOf(id),ent=byCat[id];
+    return ent.count>0?{category:(c?c.name:"—")+" (จุด)",total:ent.count}:{category:(c?c.name:"—"),total:+ent.area.toFixed(3)}; });
   return {rows:rows,summary:summary}; }
 async function dlPost(url,payload,fname){ var res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   if(!res.ok){alert("export ล้มเหลว ("+res.status+")\nลองใหม่อีกครั้ง หรือตรวจว่ายังเปิดไฟล์อยู่และตัวเซิร์ฟเวอร์ยังทำงาน");return;} var blob=await res.blob();
