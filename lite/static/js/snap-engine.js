@@ -1,15 +1,17 @@
 /* ============================================================
    LITE-SNAP-ENGINE — lite-native snap core, extracted from
-   ui-lite.html (SNAP-2026-07-04 slice 1/3).
+   ui-lite.html (SNAP-2026-07-04 slice 1/3; ray-lock composition
+   added in slice 2/3).
    Plain-globals module. No IIFE, no export, no bundler.
    Loaded right after measure-engine.js, before the inline script.
 
    Exports: isDrawTool, edgeHandleHit, vertexHandleHit, nearOnSegS,
-     pageSegs, computeSnap, footPerp, angleLock, snapInvalidate
+     pageSegs, computeSnap, footPerp, angleLock, snapInvalidate,
+     _lockedAngle, computeSnapOnRay
    Reads (inline-script globals, defined later — fine, only read at
      CALL time, never at parse time): state, PSpage, ptToScreen,
      screenToPt, SNAP_PX, centroid, effVisible, _isHidden, catOf,
-     curPage, V, PageRenderer
+     curPage, V, PageRenderer, cv
    Calls: segIntersect (vendored VERBATIM in measure-engine.js —
      never copy/modify it here; this module always calls it in
      SCREEN-space coordinates, exactly like the pre-extraction code,
@@ -50,20 +52,49 @@
        restore a same-object-count-but-different-shape state that
        the fingerprint's cheap heuristic might miss.
 
-   KNOWN RESIDUAL RISK (documented per SNAP-2026-07-04 spec): an
-   in-place vertex-drag or move-object drag (ui-lite.html's
-   `cv.addEventListener("mousemove", ...)` handler — the branches
-   that do `ve.obj.pts[ve.idx].x = ...` / `go.pts[mi].x = ...`)
-   mutates existing point objects WITHOUT changing objects.length or
-   any object's pts.length, so `_staticFp()` does not detect it.
-   During an active drag, computeSnap() is never invoked (those
-   branches `return` before reaching the snap call), so the cache is
-   only ever read at a stale position AFTER the drag ends, and only
-   until the next invalidating event (add/remove/undo/redo/page
-   change/view change). No test in this slice's own matrix exercises
-   this path end-to-end; flagged here for a follow-up (e.g. wiring
-   snapInvalidate() into the vertEdit/moveObj mouseup handler) if it
-   proves to matter in practice.
+   RESIDUAL RISK FROM SLICE 1 — CLOSED IN SLICE 2: an in-place
+   vertex-drag or move-object drag mutates existing point objects
+   WITHOUT changing objects.length or any object's pts.length, so
+   `_staticFp()` alone could not detect it. As of slice 2, ui-lite.html's
+   `mouseup` handler now calls `snapInvalidate()` whenever a vertex-drag
+   or move-object drag actually moved something (`.moved===true`),
+   closing the gap directly instead of relying on the fingerprint.
+
+   ------------------------------------------------------------------
+   SLICE 2 — angle-lock + snap COMPOSITION (computeSnapOnRay):
+   When Shift/Ortho angle-lock is active, the user still wants CAD-style
+   "apparent intersection" snapping: the point returned is the nearest
+   (to the cursor) of — (i) where the LOCKED RAY (from the draft's last
+   point, along the locked 45°-stepped direction) crosses an existing
+   segment, or (ii) an existing endpoint whose perpendicular distance to
+   that ray is within SNAP_PX, projected onto the ray. If nothing
+   qualifies, the caller falls back to the plain angleLock() point.
+   `_lockedAngle(prev,p)` factors out the exact angle-quantization
+   angleLock() has always used (same 45° step, same atan2/round formula)
+   so both the pure-lock fallback and the ray composition agree on
+   direction — no drift between the two.
+
+   Gating: computeSnapOnRay() is gated on `state.snapOn` ONLY (plus
+   PageRenderer.ready()) — NOT subdivided by state.snapTypes.* — because
+   apparent-ray-intersection is one composed behavior, not a member of
+   the endpoint/midpoint/center/intersection type family; slicing it by
+   type would be arbitrary (an "intersection-flavoured" hit that also
+   depends on the endpoint set). Slice 3 can revisit this if per-type
+   ray gating turns out to be wanted.
+
+   The ray is built as a screen-space segment: origin -> ptToScreen(origin),
+   direction derived by transforming a real PDF-space reference point 100pt
+   along lockedAngle through ptToScreen (exact under the view's similarity
+   transform, not an approximation), length = a generous multiple of the
+   current canvas's screen diagonal (per spec wording) so it reaches
+   anything visibly relevant regardless of zoom/pan. Both the ray x segment
+   and the endpoint-perpendicular-distance checks are done with the SAME
+   ptToScreen()+segIntersect()/footPerp() primitives computeSnap() already
+   uses, so precision/epsilon behavior stays consistent across the module.
+   Degenerate self-touch is filtered explicitly: the draft's own segments
+   necessarily meet the ray exactly AT the origin (shared vertex), and the
+   origin point itself would otherwise register as a trivial "ray-end" —
+   both are excluded on purpose (see ORIGIN_EPS / origin-equality checks).
    ------------------------------------------------------------------ */
 
 /* --- LITE-SNAP: lite-native snap (endpoint / intersection / nearest-on-edge).
@@ -150,5 +181,49 @@ function computeSnap(sx,sy){
 }
 function footPerp(p,a,b){ var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy; if(l2<1e-6)return{x:a.x,y:a.y};
   var t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; return {x:a.x+t*dx,y:a.y+t*dy}; }   // projection onto infinite line
-function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy),step=Math.PI/4;
-  var la=Math.round(Math.atan2(dy,dx)/step)*step; return {x:prev.x+Math.cos(la)*len,y:prev.y+Math.sin(la)*len}; }
+// angle-quantization shared by angleLock() and computeSnapOnRay() (SNAP-2026-07-04
+// slice 2) — factored out so the two can never drift apart on direction. Same
+// 45-degree step, same formula angleLock always used.
+function _lockedAngle(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,step=Math.PI/4; return Math.round(Math.atan2(dy,dx)/step)*step; }
+function angleLock(prev,p){ var dx=p.x-prev.x,dy=p.y-prev.y,len=Math.hypot(dx,dy); var la=_lockedAngle(prev,p);
+  return {x:prev.x+Math.cos(la)*len,y:prev.y+Math.sin(la)*len}; }
+
+/* --------------------------------------------------------------------------
+   computeSnapOnRay(sx, sy, origin, lockedAngle) — CAD apparent-intersection
+   snap along a locked ray. See file header (SLICE 2) for the full rationale.
+--------------------------------------------------------------------------- */
+function computeSnapOnRay(sx, sy, origin, lockedAngle){
+  if(!PageRenderer.ready()||!state.snapOn)return null;
+  var originScreen=ptToScreen(origin);
+  var refScreen=ptToScreen({x:origin.x+Math.cos(lockedAngle)*100,y:origin.y+Math.sin(lockedAngle)*100});
+  var dx=refScreen.x-originScreen.x, dy=refScreen.y-originScreen.y, dlen=Math.hypot(dx,dy);
+  if(dlen<1e-9)return null;   // degenerate — should not happen (view transform is non-singular)
+  var ux=dx/dlen, uy=dy/dlen;
+  var r=cv.getBoundingClientRect(), rayLen=Math.hypot(r.width,r.height)*4+1000;   // generous screen diag + pan margin
+  var rayA=originScreen, rayB={x:originScreen.x+ux*rayLen,y:originScreen.y+uy*rayLen};
+  var ORIGIN_EPS=0.05;   // screen px — filters the degenerate self-touch at the ray origin (see header)
+  var best=null,bd=SNAP_PX;
+
+  // (i) ray x every existing segment (static + fresh draft — same source as computeSnap/pageSegs)
+  var segs=pageSegs();
+  for(var i=0;i<segs.length;i++){
+    var a0=ptToScreen(segs[i][0]),a1=ptToScreen(segs[i][1]);
+    var ix=segIntersect(rayA.x,rayA.y,rayB.x,rayB.y,a0.x,a0.y,a1.x,a1.y);   // vendored
+    if(!ix)continue;
+    if(Math.hypot(ix.x-rayA.x,ix.y-rayA.y)<ORIGIN_EPS)continue;   // shared vertex with the ray's own origin — not a real target
+    var d=Math.hypot(ix.x-sx,ix.y-sy); if(d<bd){bd=d;best={pt:screenToPt(ix.x,ix.y),screen:ix,type:"ray-x"};}
+  }
+
+  // (ii) endpoints within SNAP_PX perpendicular distance of the ray, projected onto it
+  var objs=PSpage().objects.concat(state.draft?[{pts:state.draft,counting:false}]:[]);
+  objs.forEach(function(o){ if(o.counting||!o.pts)return; o.pts.forEach(function(p){
+    if(p.x===origin.x&&p.y===origin.y)return;   // the lock origin itself — not a real target
+    var s=ptToScreen(p), foot=footPerp(s,rayA,rayB);
+    var t=(foot.x-rayA.x)*ux+(foot.y-rayA.y)*uy; if(t<0)return;   // behind the origin — unreachable along a forward ray
+    var perpD=Math.hypot(s.x-foot.x,s.y-foot.y); if(perpD>=SNAP_PX)return;
+    var d=Math.hypot(foot.x-sx,foot.y-sy);
+    if(d<bd){bd=d;best={pt:screenToPt(foot.x,foot.y),screen:foot,type:"ray-end"};}
+  }); });
+
+  return best;
+}

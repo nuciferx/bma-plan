@@ -440,7 +440,14 @@ cv.addEventListener("mousedown",function(e){
     dragging=true; panning=true; moved=false; lastX=e.clientX; lastY=e.clientY; setCursor(); return; }
   if(e.button!==0)return;
   var p;
-  if((state.shift||state.orthoOn)&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){ p=angleLock(state.draft[state.draft.length-1],screenToPt(e.offsetX,e.offsetY)); }
+  if((state.shift||state.orthoOn)&&state.draft&&state.draft.length&&isDrawTool()&&state.tool!=="count"){
+    // SNAP-2026-07-04 slice 2: try the ray-composed apparent-intersection first
+    // (computeSnapOnRay — SAME function liveTarget() uses for the preview, so
+    // click == preview by construction), fall back to the pure angle lock.
+    var _prev=state.draft[state.draft.length-1], _raw=screenToPt(e.offsetX,e.offsetY);
+    var _ray=computeSnapOnRay(e.offsetX,e.offsetY,_prev,_lockedAngle(_prev,_raw));
+    p=_ray?_ray.pt:angleLock(_prev,_raw);
+  }
   else if(state.snapOn&&state.snapHint&&isDrawTool()){ p=state.snapHint.pt; }
   else { p=screenToPt(e.offsetX,e.offsetY); }
   if((state.tool==="count"||state.tool==="poly"||state.tool==="dist"||state.tool==="path"||state.tool==="ref")&&state.catLock[state.activeCat]){
@@ -503,12 +510,28 @@ cv.addEventListener("mousemove",function(e){
     ve.obj.pts[ve.idx].x=gp.x; ve.obj.pts[ve.idx].y=gp.y; state.dirty=true; setCursor(); draw(); return; }
   if(dragging)return; lastMouse={x:e.offsetX,y:e.offsetY}; if(!PageRenderer.ready())return;
   var need=state.loupe||isDrawTool()||(isAnnTool()&&state.draft&&state.draft.length===1);   // draw-tool/annotation drafting = redraw every move so live guide/rubber-band follow the cursor
-  if(state.snapOn&&isDrawTool()&&!state.shift){ var h=computeSnap(e.offsetX,e.offsetY);
+  var _locked=(state.shift||state.orthoOn)&&isDrawTool()&&state.tool!=="count"&&state.draft&&state.draft.length;
+  if(_locked){
+    // SNAP-2026-07-04 slice 2: while angle-locked, state.snapHint carries the
+    // ray-composed result (or null) so drawSnap()'s indicator and liveTarget()'s
+    // preview both read the SAME decision computeSnap() would otherwise drive.
+    var _prev=state.draft[state.draft.length-1], _la=_lockedAngle(_prev,screenToPt(e.offsetX,e.offsetY));
+    var h=computeSnapOnRay(e.offsetX,e.offsetY,_prev,_la);
     var changed=(!!h)!==(!!state.snapHint)||(h&&state.snapHint&&(h.screen.x!==state.snapHint.screen.x||h.screen.y!==state.snapHint.screen.y));
-    if(changed){state.snapHint=h;need=true;} }
+    if(changed){state.snapHint=h;need=true;}
+  }
+  else if(state.snapOn&&isDrawTool()&&!state.shift){ var h2=computeSnap(e.offsetX,e.offsetY);
+    var changed2=(!!h2)!==(!!state.snapHint)||(h2&&state.snapHint&&(h2.screen.x!==state.snapHint.screen.x||h2.screen.y!==state.snapHint.screen.y));
+    if(changed2){state.snapHint=h2;need=true;} }
   else if(state.snapHint){state.snapHint=null;need=true;}
   if(need)draw(); });
-window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();} if(state.moveObj){state.moveObj=null;setCursor();} if(state.vertEdit){state.vertEdit=null;setCursor();} dragging=false;panning=false;setCursor();});
+window.addEventListener("mouseup",function(){ if(state.dragLabel){state.dragLabel=null;setCursor();}
+  // SNAP-2026-07-04 slice 2: closes the slice-1 residual risk — an in-place
+  // vertex-drag / move-object drag changes point positions without changing
+  // objects.length, so the cache fingerprint alone can't see it. Bust it here.
+  if(state.moveObj){ if(state.moveObj.moved&&typeof snapInvalidate==="function")snapInvalidate(); state.moveObj=null; setCursor(); }
+  if(state.vertEdit){ if(state.vertEdit.moved&&typeof snapInvalidate==="function")snapInvalidate(); state.vertEdit=null; setCursor(); }
+  dragging=false;panning=false;setCursor();});
 cv.addEventListener("dblclick",function(e){
   if(!state.draft){
     if(state.selAnn&&state.selAnn.label){ var lb=_labelBox(state.selAnn);
@@ -633,7 +656,12 @@ function distSeg(px,py,a,b){var dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1)ret
    live target honours Shift angle-lock and snap exactly like the mousedown path. --- */
 function liveTarget(){ if(!lastMouse||!isDrawTool())return null;
   var raw=screenToPt(lastMouse.x,lastMouse.y), hasLast=state.draft&&state.draft.length;
-  if((state.shift||state.orthoOn)&&hasLast&&state.tool!=="count")return {pt:angleLock(state.draft[state.draft.length-1],raw),locked:true};
+  if((state.shift||state.orthoOn)&&hasLast&&state.tool!=="count"){
+    // SNAP-2026-07-04 slice 2: state.snapHint already holds computeSnapOnRay()'s
+    // result (set by the mousemove handler) — same function the mousedown commit
+    // path calls, so preview == click for the same cursor.
+    if(state.snapOn&&state.snapHint)return {pt:state.snapHint.pt,locked:true,snapped:true};
+    return {pt:angleLock(state.draft[state.draft.length-1],raw),locked:true}; }
   if(state.snapOn&&state.snapHint)return {pt:state.snapHint.pt,snapped:true};
   return {pt:raw}; }
 function fmtPtLen(ptd){ var s=getScaleForPage(curPage); return s?(ptd/s.pts_per_m).toFixed(2)+" m":ptd.toFixed(1)+" pt"; }
@@ -774,10 +802,12 @@ function annHit(sx,sy){ var anns=PSpage().annotations||[];
 function drawSnap(){ if(!state.snapHint)return; var s=state.snapHint.screen,t=state.snapHint.type;
   ctx.strokeStyle="#ffd60a"; ctx.lineWidth=2; ctx.setLineDash([]);
   if(t==="endpoint"){ ctx.strokeRect(s.x-5,s.y-5,10,10); }
-  else if(t==="intersection"){ ctx.beginPath();ctx.moveTo(s.x-6,s.y-6);ctx.lineTo(s.x+6,s.y+6);ctx.moveTo(s.x+6,s.y-6);ctx.lineTo(s.x-6,s.y+6);ctx.stroke(); }
+  else if(t==="intersection"||t==="ray-x"){ ctx.beginPath();ctx.moveTo(s.x-6,s.y-6);ctx.lineTo(s.x+6,s.y+6);ctx.moveTo(s.x+6,s.y-6);ctx.lineTo(s.x-6,s.y+6);ctx.stroke(); }
   else { ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.stroke(); }
   ctx.fillStyle="#ffd60a"; ctx.font="10px Segoe UI"; ctx.textAlign="left"; ctx.textBaseline="bottom";
-  ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น",midpoint:"กึ่งกลาง",center:"ศูนย์กลาง",perp:"ตั้งฉาก"}[t],s.x+9,s.y-7); }
+  /* SNAP-2026-07-04 slice 2: ray-x/ray-end = angle-lock + snap composition (computeSnapOnRay) */
+  ctx.fillText({endpoint:"ปลาย",intersection:"ตัด",nearest:"บนเส้น",midpoint:"กึ่งกลาง",center:"ศูนย์กลาง",perp:"ตั้งฉาก",
+    "ray-x":"ตัด(ล็อก)","ray-end":"ปลาย(ล็อก)"}[t],s.x+9,s.y-7); }
 function drawLoupe(){ if(!state.loupe||!lastMouse||!PageRenderer.ready())return; var DPR=window.devicePixelRatio||1;
   var mx=lastMouse.x,my=lastMouse.y,LR=64,MAG=2.6,sw=2*LR/MAG; var r=cv.getBoundingClientRect();
   var lx=mx+90,ly=my-90; if(lx+LR>r.width)lx=mx-90; if(ly-LR<0)ly=my+90;
