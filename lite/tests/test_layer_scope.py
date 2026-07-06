@@ -274,6 +274,136 @@ CHECK_ACTIVE_RESTORE = SEED + r"""
   })();
 """
 
+# ---------------------------------------------------------------------------
+# Check 7 — activeLayerDefaultsOnFirstVisit
+# BUG-20260706-lite-active-layer-not-following-page (fix part a): navigating
+# to a folder NEVER visited this session (no per-folder memory) must default
+# state.activeCat to a layer OF that folder — not leave it pointing at the
+# previous folder's layer (user screenshot: on roof page, "วาดที่: ที่ดิน").
+# ---------------------------------------------------------------------------
+CHECK_DEFAULT_ON_FIRST_VISIT = SEED + r"""
+  curPage = 6; // PF_floor_2
+  var floor2Base = LAYERS.find(function(l) { return l.parentId === 'PF_floor_2'; });
+  state.activeCat = floor2Base.id;
+  buildPicker();
+
+  window._origLoadPage = loadPage;
+  loadPage = function(n) { curPage = n; afterPage(); return Promise.resolve(); };
+""" + r"""
+  return (async function() {
+    // PF_floor_roof has never been visited -> no mem entry for it
+    await loadPage(7);
+    loadPage = window._origLoadPage;
+
+    var f = (typeof pageFolderOfLayer === 'function') ? pageFolderOfLayer(state.activeCat) : null;
+    var belongsToRoof = !!(f && f.id === 'PF_floor_roof');
+    var isRealLayer = !!layerById(state.activeCat);
+    return {
+      activeCat: state.activeCat,
+      belongsToRoof: belongsToRoof,
+      isRealLayer: isRealLayer,
+      allOk: belongsToRoof && isRealLayer
+    };
+  })();
+"""
+
+# ---------------------------------------------------------------------------
+# Check 8 — foreignDrawCommitBlocked
+# BUG-20260706 (fix part b, belt-and-suspenders): even if some path leaves
+# state.activeCat pointing at another folder's layer, finishDraft() must
+# REFUSE the commit (no object pushed) and show a hint — never silently
+# misattribute measured area to the wrong floor's layer.
+# ---------------------------------------------------------------------------
+CHECK_FOREIGN_DRAW_BLOCKED = SEED + r"""
+  curPage = 6; // PF_floor_2
+  buildPicker();
+  // force a FOREIGN activeCat (bypass the picker sync deliberately)
+  var roofBase = LAYERS.find(function(l) { return l.parentId === 'PF_floor_roof'; });
+  state.activeCat = roofBase.id;
+  state.catLock[roofBase.id] = false;
+  state.tool = 'poly';
+  state.draft = [{x: 10, y: 10}, {x: 110, y: 10}, {x: 110, y: 110}];
+""" + r"""
+  return (function() {
+    var before = PS['6'].objects.length;
+    finishDraft();
+    var after = PS['6'].objects.length;
+    var hintEl = document.getElementById('hint');
+    var blocked = after === before;
+    var draftCleared = state.draft === null;
+    var hintWarns = !!(hintEl && hintEl.innerHTML.indexOf('⚠') >= 0);
+    return {
+      before: before, after: after,
+      blocked: blocked, draftCleared: draftCleared, hintWarns: hintWarns,
+      allOk: blocked && draftCleared && hintWarns
+    };
+  })();
+"""
+
+# ---------------------------------------------------------------------------
+# Check 9 — multiPageFolderRailReachesAllPages
+# BUG-20260706-lite-multi-site-page-tag: a PF folder holding MORE than one
+# page (2 site-plan sheets -> PF_site.pages=[5,6]) must be fully reachable
+# from the rail: counter shows "แผ่น i/N", ▶ steps within the folder before
+# crossing folders, and _lsGoTo() on the already-active folder advances to
+# the folder's next page (wrap) instead of always resetting to pages[0].
+# ---------------------------------------------------------------------------
+CHECK_MULTI_PAGE_FOLDER = SEED + r"""
+  pageTags      = {5: 'site', 6: 'site', 7: 'floor'};
+  pageFloorNum  = {7: 1};
+  pageFloorKind = {7: 'normal'};
+  reseedActivePageFolders();
+
+  curPage = 5; // PF_site page 1 of 2
+  buildPicker();
+
+  window._origLoadPage = loadPage;
+  loadPage = function(n) { curPage = n; afterPage(); return Promise.resolve(); };
+""" + r"""
+  return (async function() {
+    function counterText() {
+      var c = document.querySelector('.ls-rail-counter');
+      return c ? c.textContent : '';
+    }
+    var sitePagesOk = JSON.stringify(folderById('PF_site').pages) === JSON.stringify([5, 6]);
+    var counterShowsSheet1 = counterText().indexOf('แผ่น 1/2') >= 0;
+
+    // ▶ steps WITHIN the folder first: page 5 -> 6
+    document.getElementById('ls-rail-next').click();
+    await new Promise(function(r) { setTimeout(r, 40); });
+    var steppedWithin = curPage === 6;
+    var counterShowsSheet2 = counterText().indexOf('แผ่น 2/2') >= 0;
+
+    // ▶ again: end of folder pages -> crosses to the NEXT folder (page 7)
+    document.getElementById('ls-rail-next').click();
+    await new Promise(function(r) { setTimeout(r, 40); });
+    var crossedFolder = curPage === 7;
+
+    // jump back to PF_site from another folder -> lands on pages[0]
+    _lsGoTo(folderById('PF_site'));
+    await new Promise(function(r) { setTimeout(r, 40); });
+    var landedFirst = curPage === 5;
+
+    // re-select the folder the canvas is already in -> advances (wrap)
+    _lsGoTo(folderById('PF_site'));
+    await new Promise(function(r) { setTimeout(r, 40); });
+    var advancedOnReselect = curPage === 6;
+
+    loadPage = window._origLoadPage;
+    return {
+      sitePagesOk: sitePagesOk,
+      counterShowsSheet1: counterShowsSheet1,
+      steppedWithin: steppedWithin,
+      counterShowsSheet2: counterShowsSheet2,
+      crossedFolder: crossedFolder,
+      landedFirst: landedFirst,
+      advancedOnReselect: advancedOnReselect,
+      allOk: sitePagesOk && counterShowsSheet1 && steppedWithin && counterShowsSheet2 &&
+             crossedFolder && landedFirst && advancedOnReselect
+    };
+  })();
+"""
+
 CHECKS = [
     ("scopedRenderShowsOnlyActive",  CHECK_SCOPED_RENDER,   ["allOk"]),
     ("railListsKindAwareOrder",      CHECK_RAIL_ORDER,      ["allOk"]),
@@ -281,6 +411,9 @@ CHECKS = [
     ("untaggedPageFallsBack",        CHECK_FALLBACK,        ["allOk"]),
     ("pfModeOffNoRail",              CHECK_MODE_OFF,        ["allOk"]),
     ("activeLayerRestoredOnReturn",  CHECK_ACTIVE_RESTORE,  ["allOk"]),
+    ("activeLayerDefaultsOnFirstVisit", CHECK_DEFAULT_ON_FIRST_VISIT, ["allOk"]),
+    ("foreignDrawCommitBlocked",     CHECK_FOREIGN_DRAW_BLOCKED, ["allOk"]),
+    ("multiPageFolderRailReachesAllPages", CHECK_MULTI_PAGE_FOLDER, ["allOk"]),
 ]
 
 
@@ -294,6 +427,7 @@ def main():
 
     failures = []
     page_errors = []
+    passed = set()
 
     with sync_playwright() as pw:
         b = pw.chromium.launch()
@@ -314,6 +448,8 @@ def main():
                 continue
 
             ok = all(result.get(k) is True for k in required_keys)
+            if ok:
+                passed.add(name)
             status = "PASS" if ok else "FAIL"
             print(f"  {name:32s} -> {status}  {result}")
             if not ok:
@@ -335,6 +471,10 @@ def main():
         print("LITE_LAYER_SCOPE_FAIL")
         sys.exit(1)
     else:
+        if {"activeLayerDefaultsOnFirstVisit", "foreignDrawCommitBlocked"} <= passed:
+            print("LITE_ACTIVE_LAYER_FOLLOW_OK")
+        if "multiPageFolderRailReachesAllPages" in passed:
+            print("LITE_LAYER_SCOPE_MULTI_PAGE_FOLDER_OK")
         print("LITE_LAYER_SCOPE_OK")
 
 

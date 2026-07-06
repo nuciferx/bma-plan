@@ -146,15 +146,20 @@ function lsEnsureRailHost(catlistEl) {
 
 /* ------------------------------------------------------------------
    _lsGoTo(folder)
-   Shared navigation: warps the canvas to folder.pages[0] via the real
-   loadPage(). Used by both the rail controls (prev/select/next) and
-   search-result clicks.
+   Shared navigation via the real loadPage(). Used by both the rail
+   controls (prev/select/next) and search-result clicks. Page-aware
+   (BUG-20260706-lite-multi-site-page-tag): a PF folder can hold more
+   than one page (e.g. 2 site-plan sheets in PF_site) — arriving from a
+   DIFFERENT folder lands on pages[0], but re-selecting the folder the
+   canvas is already in steps to its NEXT page (wrapping), so every
+   page of a multi-page folder is reachable from the rail/search.
    ------------------------------------------------------------------ */
 function _lsGoTo(folder) {
-  if (folder && Array.isArray(folder.pages) && folder.pages.length &&
-      typeof loadPage === "function") {
-    loadPage(folder.pages[0]);
-  }
+  if (!(folder && Array.isArray(folder.pages) && folder.pages.length &&
+        typeof loadPage === "function")) return;
+  var pages = folder.pages;
+  var at = pages.indexOf(typeof curPage !== "undefined" ? curPage : null);
+  loadPage((at >= 0 && pages.length > 1) ? pages[(at + 1) % pages.length] : pages[0]);
 }
 
 /* ------------------------------------------------------------------
@@ -195,6 +200,10 @@ function lsRenderRail(hostEl) {
   for (var i = 0; i < ordered.length; i++) {
     if (ordered[i].id === activeFolder.id) { idx = i; break; }
   }
+  // Multi-page folder support (BUG-20260706): ◀/▶ step pages WITHIN the
+  // active folder first, then cross folder boundaries.
+  var fPages = Array.isArray(activeFolder.pages) ? activeFolder.pages : [];
+  var pIdx = fPages.indexOf(typeof curPage !== "undefined" ? curPage : null);
 
   var prevBtn = document.createElement("button");
   prevBtn.type = "button";
@@ -202,8 +211,11 @@ function lsRenderRail(hostEl) {
   prevBtn.id = "ls-rail-prev";
   prevBtn.textContent = "◀";
   prevBtn.title = "ชั้นก่อนหน้า";
-  prevBtn.disabled = idx <= 0;
-  prevBtn.addEventListener("click", function() { if (idx > 0) _lsGoTo(ordered[idx - 1]); });
+  prevBtn.disabled = idx <= 0 && pIdx <= 0;
+  prevBtn.addEventListener("click", function() {
+    if (pIdx > 0 && typeof loadPage === "function") loadPage(fPages[pIdx - 1]);
+    else if (idx > 0) _lsGoTo(ordered[idx - 1]);
+  });
 
   var sel = document.createElement("select");
   sel.className = "ls-rail-select";
@@ -223,14 +235,17 @@ function lsRenderRail(hostEl) {
   nextBtn.id = "ls-rail-next";
   nextBtn.textContent = "▶";
   nextBtn.title = "ชั้นถัดไป";
-  nextBtn.disabled = (idx < 0) || (idx >= ordered.length - 1);
+  nextBtn.disabled = !((pIdx >= 0 && pIdx < fPages.length - 1) ||
+                       (idx >= 0 && idx < ordered.length - 1));
   nextBtn.addEventListener("click", function() {
-    if (idx >= 0 && idx < ordered.length - 1) _lsGoTo(ordered[idx + 1]);
+    if (pIdx >= 0 && pIdx < fPages.length - 1 && typeof loadPage === "function") loadPage(fPages[pIdx + 1]);
+    else if (idx >= 0 && idx < ordered.length - 1) _lsGoTo(ordered[idx + 1]);
   });
 
   var counter = document.createElement("span");
   counter.className = "ls-rail-counter";
-  counter.textContent = "ชั้น " + (idx >= 0 ? (idx + 1) : "?") + "/" + ordered.length;
+  counter.textContent = "ชั้น " + (idx >= 0 ? (idx + 1) : "?") + "/" + ordered.length +
+    (fPages.length > 1 && pIdx >= 0 ? " · แผ่น " + (pIdx + 1) + "/" + fPages.length : "");
 
   controls.appendChild(prevBtn);
   controls.appendChild(sel);
@@ -461,13 +476,62 @@ function _lsSyncActiveCatToFolder(activeFolder) {
 
   // Restore: if the active layer doesn't belong to the now-scoped folder,
   // switch to whichever layer was last active there (if it still exists).
+  // BUG-20260706-lite-active-layer-not-following-page: a folder never
+  // visited this session has no memory — without the fallback below,
+  // activeCat kept pointing at the PREVIOUS folder's layer (e.g. "ที่ดิน"
+  // from PF_site while viewing the roof page) and drawing silently
+  // landed in the wrong floor's layer. Fallback: first layer in the
+  // now-scoped folder's subtree (model order).
   var nowFolder = state.activeCat ? pageFolderOfLayer(state.activeCat) : null;
-  if ((!nowFolder || nowFolder.id !== activeFolder.id) &&
-      mem[activeFolder.id] && typeof layerById === "function" && layerById(mem[activeFolder.id])) {
-    state.activeCat = mem[activeFolder.id];
-    return state.activeCat; // changed — caller re-syncs the DOM ".active" class
+  if (!nowFolder || nowFolder.id !== activeFolder.id) {
+    var want = mem[activeFolder.id];
+    if (!(want && typeof layerById === "function" && layerById(want))) {
+      want = null;
+      var ids = _lsSubtreeIds(activeFolder.id);
+      for (var i = 0; i < ids.length; i++) {
+        if (ids[i] !== activeFolder.id &&
+            typeof layerById === "function" && layerById(ids[i])) { want = ids[i]; break; }
+      }
+    }
+    if (want) {
+      state.activeCat = want;
+      return state.activeCat; // changed — caller re-syncs the DOM ".active" class
+    }
   }
   return null;
+}
+
+/* ------------------------------------------------------------------
+   lsForeignDrawBlocked()
+   Commit-path guard (BUG-20260706, belt-and-suspenders with the
+   fallback in _lsSyncActiveCatToFolder): returns true — and blocks the
+   draw — when the active layer belongs to a DIFFERENT page-folder than
+   the current page (drawing would silently misattribute area to the
+   wrong floor). Called from finishDraft() and the count-tool commit in
+   ui-lite.html. Same refuse+hint pattern as the catLock guard.
+   Layers outside any PF folder (pf null) and untagged pages (cf null,
+   already gated by tag-jit) are allowed through.
+   ------------------------------------------------------------------ */
+function lsForeignDrawBlocked() {
+  if (!lsScopeActive() || typeof pageFolderOfLayer !== "function" ||
+      !state || !state.activeCat) return false;
+  var lf = pageFolderOfLayer(state.activeCat);
+  var cf = lsFolderForPage(typeof curPage !== "undefined" ? curPage : null);
+  if (!lf || !cf || lf.id === cf.id) return false;
+  state.draft = null;
+  if (typeof arcCancel === "function") arcCancel();
+  var lyr = (typeof layerById === "function") ? layerById(state.activeCat) : null;
+  // hintFlash (not direct #hint write): draw()->updateHUD() rewrites #hint
+  // every frame; hintFlash is the mechanism that survives redraws (LMENU-1),
+  // same pattern as verify-scale.js flashMsg().
+  state.hintFlash = "⚠️ layer “" + ((lyr && lyr.name) || "?") +
+    "” อยู่ใน “" + lf.name + "” ไม่ใช่หน้านี้ — คลิกเลือก layer ของหน้านี้ในแผงขวาก่อนวาด";
+  setTimeout(function() {
+    state.hintFlash = "";
+    if (typeof updateHUD === "function") updateHUD();
+  }, 5000);
+  if (typeof draw === "function") draw();
+  return true;
 }
 
 /* ------------------------------------------------------------------
