@@ -6,7 +6,34 @@
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: 2026-07-04 full-day block — 8 ships — layer/report/measure/render (lite)
+# Latest: BUG-20260706-lite-layer-page-binding — PASS
+
+**Date:** 2026-07-06
+**Branch:** main
+
+## Outcome
+
+Two user-reported field bugs in `lite/`, both traced to the page↔layer binding introduced by `INV-2026-07-04-001`, fixed and shipped in one commit (`ba109f0`). Bug 1 was a silent data-correctness defect (BROKEN): the active draw layer did not follow the page when navigating to a folder never visited this session, so measurements could land in the wrong floor's layer with no warning — confirmed by a user screenshot on page 29. Bug 2 was a discoverability gap (FRICTION): a 2-sheet site plan's second sheet was unreachable from the new floor-rail/dropdown/search nav surface, so it was correctly tagged but never drawn, leaving the report showing only one sheet.
+
+## What was delivered
+
+- Active-layer fallback: entering a folder never visited this session now selects that folder's first layer (model order) instead of leaving the previous folder's category active
+- New `lsForeignDrawBlocked()` commit-path guard on `finishDraft()` + the count tool, refusing a commit whose target layer doesn't match the current page's folder, with a 5s `state.hintFlash` warning
+- `_lsGoTo` made page-aware: re-selecting the active folder steps to the next page within it (wrapping); arriving from another folder goes to `pages[0]`
+- Floor-rail ◀/▶ now steps pages within a folder before crossing folders; counter shows "ชั้น i/N · แผ่น i/N"
+- `test_layer_scope.py` expanded 6→9 checks; first run caught a real bug in the fix itself (hint write silently overwritten by `draw()`→`updateHUD()`), fixed same session
+
+## What's next
+
+User field re-test of `ba109f0` (active-layer follow + 2-sheet site plan) and the still-pending `e1c6a76` layer re-test; then `BUG-20260605-lite-load-color-null` (still NEEDS-REPRO), `INV-2026-05-25-001` centerline (awaiting user field data), and the lowest-priority `UX-20260703` export-entry consolidation.
+
+## Position in Plan
+
+Phase 1 (Raster PDF Measurement Assistant), `lite/` track. Bug-report intake/fix cycle (Pack I pattern) closing out a same-day field-report pair from the 2026-07-04 layer-panel ship. No proto work, no forbidden-surface touches. Next up: user field validation before further feature work.
+
+---
+
+# Previous: 2026-07-04 full-day block — 8 ships — layer/report/measure/render (lite)
 
 **Date:** 2026-07-04
 
@@ -31,7 +58,7 @@ Phase 1 (Raster PDF Measurement Assistant), `lite/` track. This block continues 
 
 ---
 
-# Previous: AUDIT-20260703-roadmap-staleness — process / roadmap hygiene
+# AUDIT-20260703-roadmap-staleness — process / roadmap hygiene
 
 **Date:** 2026-07-03
 
