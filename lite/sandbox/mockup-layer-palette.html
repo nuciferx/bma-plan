@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Mockup — จานสีประเภทพื้นที่ (แทน Layer Tree)</title>
+<style>
+  :root{--bg:#0c0f14;--panel:#161a22;--line:#2a3140;--ink:#e8ecf3;--muted:#8b94a7;
+        --accent:#4c8dff;--amber:#ffb454;--red:#ff453a;--green:#34c77b;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#06080c;color:var(--ink);font:14px/1.5 "Sarabun","Segoe UI",sans-serif;padding:24px}
+  h1{font-size:16px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+  .row{display:flex;gap:22px;max-width:1100px;margin:0 auto;align-items:flex-start}
+  .col-note{flex:1;color:var(--muted);font-size:12.5px}
+  .col-note li{margin:6px 0 6px 18px}
+  .col-note b{color:var(--ink)}
+  .k{background:#222a37;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+  /* ===== the panel ===== */
+  .panel{width:300px;flex:0 0 300px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+         overflow:hidden;box-shadow:0 14px 44px rgba(0,0,0,.45)}
+  .ctx{padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(22,26,34,.97);
+       font-size:12px;color:var(--muted)}
+  .ctx b{color:var(--ink);font-size:13px}
+  .sec{padding:8px 10px 4px;font-size:11px;color:var(--muted);letter-spacing:.4px}
+  /* type cards */
+  .type{display:flex;align-items:center;gap:8px;margin:3px 8px;padding:7px 9px;border-radius:8px;
+        border:1px solid transparent;cursor:pointer}
+  .type:hover{background:#1b2230}
+  .type.active{border-color:var(--accent);background:#17223a}
+  .dot{width:12px;height:12px;border-radius:3px;flex:0 0 12px}
+  .tname{flex:1;font-size:13px}
+  .tname small{display:block;color:var(--muted);font-size:10.5px}
+  .tsum{font-size:11.5px;color:var(--muted);text-align:right;white-space:nowrap}
+  .tsum b{color:var(--ink);font-weight:600}
+  .sign{font-size:10px;border-radius:4px;padding:0 4px;margin-left:4px}
+  .sign.plus{background:#1d2c4d;color:#7fb0ff}
+  .sign.minus{background:#43242a;color:#ff8f87}
+  .sign.info{background:#1e3a2f;color:#66d9a3}
+  .eye{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:13px}
+  .drawing{font-size:10px;color:var(--accent)}
+  .addbtn{margin:6px 8px 10px;width:calc(100% - 16px);padding:7px;border-radius:8px;border:1px dashed var(--line);
+          background:transparent;color:var(--muted);cursor:pointer;font-size:12.5px}
+  .addbtn:hover{color:var(--accent);border-color:var(--accent)}
+  /* floors (read-only) */
+  .floors{border-top:1px solid var(--line);padding-bottom:8px}
+  .floor{display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12.5px;color:var(--muted)}
+  .floor.cur{color:var(--ink)}
+  .floor .fsum{margin-left:auto;font-size:11.5px}
+  .lockicon{font-size:10px;opacity:.6}
+  /* dialog */
+  .dlg{width:300px;flex:0 0 300px;background:var(--panel);border:1px solid var(--accent);border-radius:12px;
+       overflow:hidden;box-shadow:0 14px 44px rgba(0,0,0,.45)}
+  .dlg-h{padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+  .dlg-b{padding:10px 12px}
+  .qq{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .rolebtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin:4px 0;padding:8px 10px;
+           border-radius:8px;border:1px solid var(--line);background:#0c0f14;color:var(--ink);cursor:pointer;font-size:13px}
+  .rolebtn:hover{border-color:var(--accent)}
+  .rolebtn.sel{border-color:var(--accent);background:#17223a}
+  .rolebtn small{display:block;color:var(--muted);font-size:10.5px}
+  .nm{width:100%;margin-top:10px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);
+      background:#0c0f14;color:var(--ink);font:inherit;font-size:13px}
+  .dlg-f{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+  .btn{border-radius:7px;padding:6px 14px;font-size:13px;cursor:pointer;border:1px solid var(--line);
+       background:#222a37;color:var(--ink)}
+  .btn.primary{background:var(--accent);border:0;color:#fff}
+  .preview{margin-top:10px;font-size:12px;padding:8px 10px;border-radius:8px;background:#0c0f14;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<h1>Mockup — 🎨 จานสีประเภทพื้นที่ (แทน Layer Tree เดิม)</h1>
+<div class="sub">วิธีคิดใหม่: ผู้ใช้ไม่ได้ "จัดการเลเยอร์" — ผู้ใช้แค่เลือกว่า "กำลังจะวาดพื้นที่ประเภทไหน" · โครงสร้างชั้นเป็นของระบบ อ่านได้อย่างเดียว</div>
+
+<div class="row">
+
+  <!-- ===== LEFT: the palette panel ===== -->
+  <div class="panel">
+    <div class="ctx">กำลังทำงานบน <b>หน้า 3 · ชั้น 2</b> · ⚖ 1:100</div>
+
+    <div class="sec">วาดเป็นประเภท… (คลิกเพื่อเลือก)</div>
+
+    <div class="type active">
+      <span class="dot" style="background:#4c8dff"></span>
+      <span class="tname">พื้นที่อาคาร<small>นับเข้าพื้นที่รวม</small></span>
+      <span class="sign plus">+ บวก</span>
+      <span class="tsum"><b>212.4</b> ตร.ม. · 6 รูป<br><span class="drawing">● กำลังวาดประเภทนี้</span></span>
+      <button class="eye" title="ซ่อน/แสดงบนแปลน">👁</button>
+    </div>
+
+    <div class="type">
+      <span class="dot" style="background:#ff453a"></span>
+      <span class="tname">หักช่องเปิด / ช่องลิฟต์<small>หักออกจากพื้นที่รวม</small></span>
+      <span class="sign minus">− หัก</span>
+      <span class="tsum"><b>18.6</b> ตร.ม. · 3 รูป</span>
+      <button class="eye">👁</button>
+    </div>
+
+    <div class="type">
+      <span class="dot" style="background:#34c77b"></span>
+      <span class="tname">ที่ดิน<small>ข้อมูลผังบริเวณ ไม่รวมกับอาคาร</small></span>
+      <span class="sign info">ข้อมูล</span>
+      <span class="tsum">— · 0 รูป</span>
+      <button class="eye">👁</button>
+    </div>
+
+    <div class="type">
+      <span class="dot" style="background:#b48cff"></span>
+      <span class="tname">นับจุด (ที่จอดรถ)<small>นับจำนวน ไม่คิดพื้นที่</small></span>
+      <span class="sign info">นับ</span>
+      <span class="tsum"><b>24</b> จุด</span>
+      <button class="eye">👁</button>
+    </div>
+
+    <button class="addbtn">＋ เพิ่มประเภทพื้นที่…</button>
+
+    <div class="floors">
+      <div class="sec">ชั้นทั้งหมด (จัดกลุ่มอัตโนมัติจากป้ายหน้า — แก้ที่ 🗂 ศูนย์หน้า) <span class="lockicon">🔒</span></div>
+      <div class="floor">ชั้น 1 <span class="fsum">198.2 ตร.ม.</span></div>
+      <div class="floor cur">▸ ชั้น 2 (หน้านี้) <span class="fsum">193.8 ตร.ม.</span></div>
+      <div class="floor">ชั้น 3 <span class="fsum">—</span></div>
+      <div class="floor">ดาดฟ้า <span class="fsum">12.0 ตร.ม.</span></div>
+    </div>
+  </div>
+
+  <!-- ===== MIDDLE: role-first add dialog ===== -->
+  <div class="dlg">
+    <div class="dlg-h">＋ เพิ่มประเภทพื้นที่</div>
+    <div class="dlg-b">
+      <div class="qq">ขั้น 1 — พื้นที่แบบนี้คิดยังไง? <b style="color:var(--ink)">(ตัวกำหนดการคำนวณ เลือกก่อนตั้งชื่อ)</b></div>
+      <button class="rolebtn"><span class="dot" style="background:#4c8dff"></span>
+        <span>นับเข้าพื้นที่อาคาร (+)<small>เช่น ห้อง, ระเบียง, ส่วนกลาง</small></span></button>
+      <button class="rolebtn sel"><span class="dot" style="background:#ff453a"></span>
+        <span>หักออก (−)<small>เช่น ช่องเปิด ช่องลิฟต์ โถงบันได</small></span></button>
+      <button class="rolebtn"><span class="dot" style="background:#34c77b"></span>
+        <span>ข้อมูลผังบริเวณ<small>ที่ดิน / ที่ว่าง — ไม่รวมกับอาคาร</small></span></button>
+      <button class="rolebtn"><span class="dot" style="background:#b48cff"></span>
+        <span>นับจำนวนจุด<small>ที่จอดรถ, สุขภัณฑ์ — ไม่คิดพื้นที่</small></span></button>
+
+      <div class="qq" style="margin-top:12px">ขั้น 2 — ตั้งชื่อ</div>
+      <input class="nm" value="หักช่องลิฟต์">
+      <div class="preview">ตัวอย่างผล: รูปที่วาดเป็น "หักช่องลิฟต์" จะ<b style="color:#ff8f87"> −ลบออกจาก</b>ยอดพื้นที่อาคารของชั้นนี้</div>
+    </div>
+    <div class="dlg-f">
+      <span style="flex:1"></span>
+      <button class="btn">ยกเลิก</button>
+      <button class="btn primary">สร้าง</button>
+    </div>
+  </div>
+
+  <!-- ===== RIGHT: rationale ===== -->
+  <div class="col-note">
+    <b>สิ่งที่หายไปจาก UI เดิม (โดยตั้งใจ):</b>
+    <ol>
+      <li><b>ไม่มี tree ให้ลาก</b> — โครงชั้นเป็นของระบบ (🔒 อ่านอย่างเดียว) แก้ป้าย/ชั้นที่ 🗂 ศูนย์หน้า ที่เดียว → บั๊กตระกูล "ลากแล้วหาย / ย้ายข้ามชั้นยอดไม่ตาม / โฟลเดอร์ un-hide เอง" ตายทั้งตระกูลเพราะไม่มีท่าให้ทำผิด</li>
+      <li><b>ไม่มีคำว่า layer/folder/PF</b> ให้ผู้ใช้เห็นเลย (= S-3 ใน ledger) — เหลือ "ประเภทพื้นที่" กับ "ชั้น"</li>
+      <li><b>ไม่มีกุญแจล็อกรายแถว</b> — เหลือ 👁 ซ่อน/แสดงพอ (แนวคิดจาก 18 → ~7)</li>
+    </ol>
+    <b>สิ่งที่เพิ่มเข้ามา:</b>
+    <ol>
+      <li><b>Role เด่นก่อนชื่อ</b> — ป้าย <span class="sign plus">+ บวก</span>/<span class="sign minus">− หัก</span> ติดทุกแถว และตอนสร้างต้องเลือก "คิดยังไง" ก่อนตั้งชื่อ พร้อมประโยคพยากรณ์ผล → ปิดบั๊กร้ายแรงสุด (ตั้งชื่อ "หัก…" แต่ระบบ +)</li>
+      <li><b>ยอดแสดงในบริบทเดียว</b> — ต่อประเภท (ในจานสี) + ต่อชั้น (ล่าง) ส่วนยอดรวมโครงการอยู่ที่ Σ สรุปที่เดียว (= ทิศ S-5: 7 ที่ → 3 ที่)</li>
+      <li><b>บรรทัดบริบทบนสุด</b> ตอบ 3 คำถามตลอดเวลา: อยู่หน้าไหน/ชั้นไหน · scale ตั้งหรือยัง · กำลังวาดประเภทไหน</li>
+      <li><b>ย้ายรูปไปประเภทอื่น</b> = เมนูเลือกประเภท (กรองเฉพาะที่เข้ากันได้ — พื้นที่ย้ายเข้า "นับจุด" ไม่ได้ = ปิด B-8 ที่ระดับดีไซน์)</li>
+    </ol>
+    <b>สิ่งที่ไม่เปลี่ยน:</b> โมเดลข้อมูลข้างใต้ทั้งหมด (role/semanticTag/PF derive) — นี่คือ UI ใหม่บนสัญญาเดิม ตรงกับคำตัดสินค้างใน ledger: S-2, S-3, S-4, S-5, S-9 ถูก execute พร้อมกันอย่างสอดคล้อง
+    </div>
+</div>
+</body>
+</html>
