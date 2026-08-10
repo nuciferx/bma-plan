@@ -107,7 +107,7 @@ function _pmuiBuildOverlay() {
   closeBtn.id = 'pm-close';
   closeBtn.textContent = '✕';
   closeBtn.title = 'ปิด (Esc)';
-  closeBtn.onclick = _pmCloseOverlay;
+  closeBtn.onclick = function () { _pmTryClose('close'); };
   hdr.appendChild(closeBtn);
   shell.appendChild(hdr);
 
@@ -122,20 +122,172 @@ function _pmuiBuildOverlay() {
   ov.appendChild(shell);
   document.body.appendChild(ov);
 
-  /* Backdrop click closes */
+  /* Backdrop click routes through the single close funnel (guarded). */
   ov.addEventListener('click', function (e) {
-    if (e.target === ov) _pmCloseOverlay();
+    if (e.target === ov) _pmTryClose('backdrop');
   });
 
   return ov;
 }
 
 /* ============================================================
-   _pmCloseOverlay() — hide the PM overlay.
+   _pmCloseOverlay() — hide the PM overlay UNCONDITIONALLY.
+   Internal — callers that must respect the pending guard use
+   _pmTryClose() instead. Kept because it is still the correct action
+   AFTER the guard has already passed (see _pmTryClose below).
    ============================================================ */
 function _pmCloseOverlay() {
   var ov = document.getElementById('pm-overlay');
   if (ov) ov.classList.remove('show');
+  _pmHidePendingWarning();
+  _pmHideDeleteConfirm();
+}
+
+/* ============================================================
+   PM-GUARD (page-manager-redesign approach D, slice 1 —
+   docs/invent/page-manager-redesign.md, GO 2026-08-10).
+
+   _pmTryClose(src) — THE single close funnel. Backdrop click, Esc, and
+   the ✕ button all route through here. If pending mutations exist,
+   refuses to close and shows an in-shell warning bar instead of
+   silently discarding unsaved page-manager work (BUG-20260810 CASE 2).
+   Returns true if it actually closed, false if it refused.
+   ============================================================ */
+function _pmTryClose(src) {
+  if (pageMgr && pageMgr.pending && pageMgr.pending.length > 0) {
+    _pmShowPendingWarning();
+    return false;
+  }
+  _pmCloseOverlay();
+  return true;
+}
+
+/* ---- in-shell "pending mutations" warning bar (replaces silent close) ---- */
+function _pmShowPendingWarning() {
+  if (!pageMgr) return;
+  var shell = document.getElementById('pm-shell');
+  var wrap = document.getElementById('pm-grid-wrap');
+  if (!shell || !wrap) return;
+
+  var bar = document.getElementById('pmui-warn');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pmui-warn';
+    bar.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'background:#2a1c10;border:1px solid #ffb454;color:#ffb454;' +
+      'border-radius:7px;padding:6px 12px;margin:0 14px 8px 14px;font-size:12px;';
+    var txt = document.createElement('span');
+    txt.className = 'pmui-warn-text';
+    bar.appendChild(txt);
+    var discardBtn = document.createElement('button');
+    discardBtn.id = 'pmui-discard';
+    discardBtn.textContent = 'ทิ้งการแก้ไข';
+    discardBtn.style.cssText = 'margin-left:auto;background:#ff453a;border:0;color:#fff;' +
+      'border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px;';
+    discardBtn.onclick = _pmDiscardPending;
+    bar.appendChild(discardBtn);
+    shell.insertBefore(bar, wrap);
+  }
+  var txtEl = bar.querySelector('.pmui-warn-text');
+  if (txtEl) {
+    txtEl.textContent = '⚠ มีการแก้ไขค้าง (' + pageMgr.pending.length +
+      ') — บันทึก หรือ ทิ้งการแก้ไข';
+  }
+  bar.style.display = 'flex';
+}
+
+function _pmHidePendingWarning() {
+  var bar = document.getElementById('pmui-warn');
+  if (bar) bar.style.display = 'none';
+}
+
+/* ---- discard pending: reverse safely via the undo stack (each pending-
+   generating mutation snapshots BEFORE pushing to pending, 1:1 — see
+   page-manager.js reorder/del/duplicate/merge, all call _snap() then
+   push exactly one pending entry), not a raw pending=[] wipe. ---- */
+function _pmDiscardPending() {
+  if (!pageMgr) return;
+  var guard = 0;
+  while (pageMgr.pending.length > 0 && guard < 10000) {
+    if (!pageMgr.undo()) break;
+    guard++;
+  }
+  if (pageMgr.pending.length > 0) pageMgr.pending = []; // defensive: undo stack exhausted
+  _pmHidePendingWarning();
+  _pmuiRenderGrid();
+  _pmuiWire();
+}
+
+/* ---- in-shell delete confirm (replaces window.confirm) ---- */
+function _pmShowDeleteConfirm(idx) {
+  if (!pageMgr) return;
+  var shell = document.getElementById('pm-shell');
+  var wrap = document.getElementById('pm-grid-wrap');
+  if (!shell || !wrap) return;
+
+  var displayPage = idx + 1;
+  var objCount = (typeof PS !== 'undefined' && PS[displayPage] &&
+                  Array.isArray(PS[displayPage].objects))
+    ? PS[displayPage].objects.length : 0;
+
+  var bar = document.getElementById('pmui-delcfm');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pmui-delcfm';
+    bar.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'background:#1c1114;border:1px solid #ff453a;color:var(--ink,#e8ecf3);' +
+      'border-radius:7px;padding:6px 12px;margin:0 14px 8px 14px;font-size:12px;';
+    shell.insertBefore(bar, wrap);
+  }
+  bar.innerHTML =
+    '<span>ลบหน้า ' + displayPage + '? หน้านี้มีงานวัด ' + objCount + ' ชิ้น</span>' +
+    '<span style="margin-left:auto;display:flex;gap:8px">' +
+    '<button id="pmui-delcfm-cancel" style="border-radius:6px;padding:3px 10px;cursor:pointer;' +
+    'border:1px solid var(--line,#2a3140);background:#222a37;color:var(--ink,#e8ecf3);">ยกเลิก</button>' +
+    '<button id="pmui-delcfm-go" style="border-radius:6px;padding:3px 10px;cursor:pointer;' +
+    'border:0;background:#ff453a;color:#fff;">ลบหน้า</button></span>';
+  bar.style.display = 'flex';
+
+  document.getElementById('pmui-delcfm-cancel').onclick = _pmHideDeleteConfirm;
+  document.getElementById('pmui-delcfm-go').onclick = function () {
+    _pmHideDeleteConfirm();
+    pageMgr.del(idx);
+    if (typeof state !== 'undefined') state.dirty = true;
+    _pmuiRenderGrid();
+    _pmuiWire();
+  };
+}
+
+function _pmHideDeleteConfirm() {
+  var bar = document.getElementById('pmui-delcfm');
+  if (bar) bar.style.display = 'none';
+}
+
+/* ---- no-PDF hint: pmOpenManager() with no PDF loaded must give
+   VISIBLE feedback, never a silent return. Uses the app's own
+   state.hintFlash mechanism if a hintFlash() global exists; otherwise
+   a tiny self-made toast. ---- */
+function _pmShowNoPdfHint() {
+  var msg = 'ยังไม่ได้เปิดไฟล์ PDF — เปิดไฟล์ก่อนจึงจะจัดการหน้าได้';
+  if (typeof hintFlash === 'function') {
+    hintFlash(msg);
+    return;
+  }
+  var el = document.getElementById('pmui-nopdf-hint');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pmui-nopdf-hint';
+    el.style.cssText = 'position:fixed;left:50%;top:16px;transform:translateX(-50%);' +
+      'z-index:400;background:#2a1c10;border:1px solid #ffb454;color:#ffb454;' +
+      'border-radius:8px;padding:8px 16px;font-size:13px;transition:opacity .4s;' +
+      'pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.opacity = '1';
+  clearTimeout(el._pmuiTimer);
+  el._pmuiTimer = setTimeout(function () { el.style.opacity = '0'; }, 2500);
 }
 
 /* ============================================================
@@ -276,12 +428,10 @@ function _pmuiWire() {
       e.stopPropagation();
       var idx = parseInt(btn.getAttribute('data-pmui-idx'), 10);
       if (pageMgr.count() <= 1) return;   // guard: refuse last page
-      if (!confirm('ลบหน้า ' + (idx + 1) + '?')) return;
-      pageMgr.del(idx);
-      // FIX-B5: mark document dirty after delete
-      if (typeof state !== 'undefined') state.dirty = true;
-      _pmuiRenderGrid();   // re-render grid after delete
-      _pmuiWire();
+      // PM-GUARD: in-shell confirm (shows live object count), no window.confirm.
+      // Actual delete + dirty flag + re-render happen in _pmShowDeleteConfirm's
+      // "ลบหน้า" button handler.
+      _pmShowDeleteConfirm(idx);
     });
   });
 
@@ -489,7 +639,11 @@ async function _pmuiMergePdf(evt) {
    Exposed as window.pmOpenManager for menu items.
    ============================================================ */
 function pmOpenManager() {
-  if (!caseId || !pageMgr) return;
+  if (!caseId || !pageMgr) {
+    // PM-GUARD: give visible feedback instead of a silent no-op.
+    _pmShowNoPdfHint();
+    return;
+  }
   _pmuiInjectCss();
   _pmuiBuildOverlay();
   _pmuiRenderGrid();
@@ -521,7 +675,9 @@ document.addEventListener('keydown', function (e) {
       // good measure. When closed, fall through so app Esc behaves normally.
       e.preventDefault();
       e.stopPropagation();
-      _pmCloseOverlay();
+      // PM-GUARD: route through the single close funnel — refuses to close
+      // (shows warning bar) while pending mutations exist.
+      _pmTryClose('esc');
     }
   }
 });
