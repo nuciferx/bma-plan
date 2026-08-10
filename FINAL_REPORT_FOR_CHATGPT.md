@@ -1,12 +1,38 @@
 # FINAL_REPORT_FOR_CHATGPT.md — Sprint Outcome Report
 
-> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md) · [docs/archive/reports-2026-07-04.md](docs/archive/reports-2026-07-04.md) · [docs/archive/reports-2026-07-06.md](docs/archive/reports-2026-07-06.md)
+> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md) · [docs/archive/reports-2026-07-04.md](docs/archive/reports-2026-07-04.md) · [docs/archive/reports-2026-07-06.md](docs/archive/reports-2026-07-06.md) · [docs/archive/reports-2026-08.md](docs/archive/reports-2026-08.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PKG-PORTABLE + PM-REDESIGN-D + SHELL — PASS
+# Latest: GOV-MAXLEN ratchet + extraction project-io.js + idea + Bluebeam research — PASS
+
+**Date:** 2026-08-10 (ดึก)
+**Branch:** main
+
+## Outcome
+
+Governance-and-tooling batch, all committed and pushed to `main` (local HEAD == remote == `5ad9e3d`, working tree clean, `TRUTH_CHECK_OK` 6/6). The user closed the open "how do we cap file size" question by keeping line caps and adding an ESLint-style `max-len` ratchet, closing a real gameability gap (a single 855-character line had let `ui-lite.html` reach 109KB while still reporting only ~1189 "lines"). The same-day extraction sprint used the newly-restored headroom rule correctly: it moved the `.bmaplan` save/load region out of `ui-lite.html` (1191→1086 lines) into a new `project-io.js` file, byte-verbatim, proven with zero behavior change and a clean 105/106 full-suite run. Alongside the engineering work, one new idea was filed (Track AI อ่านแบบแปลน) and a 4-candidate Bluebeam-feature-parity research pass (Viewports / Compare-revisions / cost-formulas / vector-snap-port) completed research+diverge+score and correctly HALTED at the human checkpoint per the invention-pipeline rule. **Process note:** this batch is also where a user self-audit question ("opus เราทำตามกฎไหม") caught that the 7-mandatory-output discipline had partially lapsed — `log.md` and the `SHIPS.jsonl` ledger stayed current, but the other 6 docs (this file among them) had stalled at the earlier evening batch while code work continued. This finalize is that catch-up.
+
+## What was delivered
+
+- **GOV-MAXLEN ratchet** (`033ad5c`): new check-1b `maxlen-ratchet` in `scripts/check_executable_truth.py` — no file may exceed its frozen long-line-count baseline (total may only shrink, may move between files during extractions); gate grew from 5 to 6 checks; RED-proven by planting a 320-char line then reverting
+- **Extraction** (`df5a1f2`): `lite/ui-lite.html` 1191→1086 lines, `.bmaplan` save/load region moved byte-verbatim into NEW `lite/static/js/project-io.js` (154 lines); persist battery 7/7; full suite 105/106 (same sole pre-existing failure as before, zero new failures)
+- **Idea capture** (`ffc763f`): "Track AI อ่านแบบแปลน" filed as `invent-queued` — a 5-step plan to eventually let AI assist reading/measuring plan PDFs, gated behind two open policy decisions
+- **Bluebeam-batch research** (`2e8ba9e`+`5ad9e3d`): 4 candidates researched and scored, `docs/invent/bluebeam-batch.md`, HALTED at the human checkpoint awaiting GO/NOGO/RESHAPE — Viewports (multi-scale-per-page) is recommended first (small, mature, additive); Compare/Overlay revisions is the one candidate needing full diverge+spike; cost-formula UX and the vector-snap port are lower-priority follow-ons
+
+## What's next
+
+Two sets of decisions lead the queue: (1) the Bluebeam-batch checkpoint — GO/NOGO/RESHAPE on Viewports (recommended first), a decision on whether to invest diverge+spike in Compare/Overlay revisions or park it, when to schedule the cost-formula grid-bug fix, and confirming the vector-snap port stays queued-low; (2) the Track AI track-opening decisions — amending the Phase 1 no-AI/OCR scope rule (or keeping the track out of Phase 1 permanently), a cloud-API-vs-local-Ollama data policy, and picking a project as eval ground truth. Underneath both of those, the evening batch's 8-item user manual-test checklist (including the clean-Windows-machine `dist-portable` test) is still outstanding and untouched by this batch — nothing further should build on the Page Manager/wizard/shell surface until it's walked. The engineering backlog (`test_closing_dup_strip.py` investigation, module-review top-10 leftovers, page-pipeline slice 3-4, จานสี needs-GO, pywebview E ruling, Page Hub long-term vision) remains queued behind those decisions.
+
+## Position in Plan
+
+Phase 1 (Raster PDF Measurement Assistant), `lite/` track, with one cross-cutting piece (`scripts/check_executable_truth.py` is process tooling, not app runtime). This batch is governance (size-cap tooling) + a size-cap-compliant extraction + invention-pipeline research, not feature work. No proto work, no forbidden-surface touches, no `.bmaplan` schema change. The invention pipeline (Bluebeam-batch) is deliberately halted pending a human GO — per Pack H's design, the loop never auto-promotes research into a build.
+
+---
+
+# Previous: PKG-PORTABLE + PM-REDESIGN-D + SHELL — PASS
 
 **Date:** 2026-08-10 (ค่ำ)
 **Branch:** main
@@ -34,33 +60,7 @@ Phase 1 (Raster PDF Measurement Assistant), `lite/` track. This is the invention
 
 ---
 
-# Previous: PM-META + PM-ID — PASS
-
-**Date:** 2026-08-10
-**Branch:** main
-
-## Outcome
-
-Fixed the actual root cause underneath the user symptom "เลเยอร์มั่ว การจัดการหน้ามั่ว" (layers/page management scrambled) in `lite/`. Two bugs: PM-META, where every Save/Apply/Merge silently reverted page tags/rotations/floor numbers/exclusions to their open-time state because `_pmCommit` sourced live content but stale meta snapshots — the reverted meta then fed layer-folder re-derivation, producing the "scrambled layers" the user saw with no error shown. PM-ID, where the page-identity mint counter didn't advance on load/seed, so reopening a `.bmaplan` with a duplicate page could re-mint a colliding id and overwrite another page's data. Both fixed with additive, in-place changes (net 0 lines in `ui-lite.html`) and proven with RED-before/GREEN-after guard tests.
-
-## What was delivered
-
-- `PageModel.prototype._liveMetaFor` (mirrors the existing `_liveContentFor`) so `projectToGlobals(livePS, liveMeta)` resolves meta from live state instead of stale open-time snapshots
-- `adoptId()` now advances the `_idc` mint counter past every adopted `pg<N>` id at both call sites, closing the duplicate-id collision on reopen
-- New guard markers `LITE_PM_META_LIVE_OK` (E21) and `LITE_PM_ID_SEED_OK` (E22), both proven RED pre-fix then GREEN post-fix
-- Full regression: `test_page_manager.py` 23/23, `check_executable_truth.py` 5/5, full suite 101/102 (1 pre-existing failure confirmed via git-stash, not this sprint's regression)
-- Sprint delegated end-to-end: Opus wrote a ready-to-build work order after a 35-module review; `lite-builder` (sonnet) implemented; orchestrator reviewed diffs and committed
-
-## What's next
-
-File `test_closing_dup_strip.py`'s pre-existing failure as its own known-issue investigation; then the "slice 3-4" follow-ups from the 2026-08-10 page-pipeline review (pageRot/`_scanned` remap by identity on reorder, PM-overlay canvas/pageCount sync, wizard thumbnails via `serverNum()`); the tag-jit banner wrong-page-write + bootstrap-flag fix; and the top-10 list from today's module review (layer role=gfa hardcode, mixed count/area category m² loss, CFSS freeze dropping catId, etc.).
-
-## Position in Plan
-
-Phase 1 (Raster PDF Measurement Assistant), `lite/` track. Root-cause fix closing out the second half of `BUG-20260703` (I5) plus `I9`, both surfaced by the same-day 35-module review. No proto work, no forbidden-surface touches, no `.bmaplan` schema change. Next up: file the pre-existing test failure, then continue the page-pipeline follow-up queue.
-
----
-
+<!-- PM-META + PM-ID (2026-08-10) archived to docs/archive/reports-2026-08.md on 2026-08-10 (ดึก finalize: GOV-MAXLEN + extraction, to keep root at Latest + 1 Previous) -->
 <!-- BUG-20260706-lite-layer-page-binding archived to docs/archive/reports-2026-07-06.md on 2026-08-10 (ค่ำ finalize: PKG-PORTABLE + PM-REDESIGN-D + SHELL, to keep root at Latest + 1 Previous) -->
 <!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/reports-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 

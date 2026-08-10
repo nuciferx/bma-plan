@@ -1,12 +1,42 @@
 # TEST_RESULT.md — Latest Test Result
 
-> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md) · [docs/archive/test-history-2026-07-03.md](docs/archive/test-history-2026-07-03.md) · [docs/archive/test-history-2026-07-04.md](docs/archive/test-history-2026-07-04.md) · [docs/archive/test-history-2026-07-06.md](docs/archive/test-history-2026-07-06.md)
+> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md) · [docs/archive/test-history-2026-07-03.md](docs/archive/test-history-2026-07-03.md) · [docs/archive/test-history-2026-07-04.md](docs/archive/test-history-2026-07-04.md) · [docs/archive/test-history-2026-07-06.md](docs/archive/test-history-2026-07-06.md) · [docs/archive/test-history-2026-08.md](docs/archive/test-history-2026-08.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PKG-PORTABLE + PM-REDESIGN-D + SHELL
+# Latest: GOV-MAXLEN ratchet + extraction project-io.js
+
+Date: 2026-08-10 (ดึก) · Area: test-infra governance + size-cap extraction (lite)
+
+_lite-only + governance-tooling, proto untouched. No forbidden surface (measure-engine/pdfToC/RS/snap untouched) — no proto E2E run._
+
+| Slice | Check | RED (pre-fix) | GREEN (post-fix) |
+|---|---|---|---|
+| GOV-MAXLEN (`033ad5c`) | `scripts/check_executable_truth.py` check-1b `maxlen-ratchet` | planted a 320-char line → `TRUTH_CHECK_FAIL` | reverted → `TRUTH_CHECK_OK` (6/6, gate grew by 1) |
+| Extraction (`df5a1f2`) | `node --check lite/static/js/project-io.js` | n/a (new file) | OK |
+| Extraction (`df5a1f2`) | Persist battery (7 files) | — | 7/7 pass |
+| Extraction (`df5a1f2`) | `cross-floor-shapes.js` wrapper landing check | — | `wrappersInstalled=True` |
+| Extraction (`df5a1f2`) | Full suite `run_all_tests.py` | — | 105/106 in 16.6 min |
+
+**Persist battery (7/7):** `test_cfss_persist`, `test_custom_layer_persist`, `test_page_folder_persist`, `test_report_vars_persist`, `test_tree_persist`, `test_save_clickpath`, `test_metamorphic_pages` — all green, proving the `.bmaplan` save/load region extracted byte-verbatim into `lite/static/js/project-io.js` behaves identically to the pre-extraction inline code.
+
+**Full suite:** 105/106 (unchanged from the evening batch's final count) — sole failure `test_closing_dup_strip.py`, the already-confirmed pre-existing one (see the PM-META+PM-ID entry, archived to [docs/archive/test-history-2026-08.md](docs/archive/test-history-2026-08.md)). Zero new failures introduced by this batch.
+
+`python scripts/check_executable_truth.py` → `TRUTH_CHECK_OK` (6/6) — the gate itself grew by one check in this batch (`maxlen-ratchet`), and that new check was proven RED-first before being confirmed GREEN, matching the project's own guard-test discipline applied to its own tooling.
+
+**Disclosure (not a test failure, a process note):** the extraction builder subagent also deleted the untracked scratch file `lite/out.txt` (already recommended for deletion by the same-day module review) — accepted, no recovery needed, but it motivates a new builder-prompt rule that subagents must not delete files outside their allowed list (previously only git write operations were forbidden in subagent specs).
+
+Commits: `033ad5c`, `df5a1f2`, `ffc763f` (idea capture, no test — see no-test rationale below), `2e8ba9e`, `5ad9e3d` (Bluebeam-batch research, no test — docs/research only). Closes: none (idea capture + invent research are not "closing" work); extends the truth-check gate and restores `ui-lite.html` line-cap headroom.
+
+## No-Test Rationale (idea capture + Bluebeam research pieces)
+
+Per AGENTS.md §1, the idea-capture commit (`ffc763f`) and the Bluebeam-batch research commits (`2e8ba9e`+`5ad9e3d`) are docs/research-only — no source code, UI, test code, or `.bmaplan` schema changed by either. `ffc763f` appends to `~/.claude/ideas/IDEAS.md` (outside the repo) and a one-line `invent-queued` bullet to `docs/status/PHASE_INDEX.md`. `2e8ba9e`/`5ad9e3d` write `docs/invent/bluebeam-batch.md` (research + diverge + score, HALTED at the human checkpoint per Pack H — no spike code was written, since the checkpoint precedes SPIKE for 3 of the 4 candidates and (a) Compare/Overlay is the only one needing SPIKE, not yet reached). Therefore `py_compile`/smoke/full were not run for these two pieces specifically; they are covered by the same full-suite 105/106 run reported above (run after all 5 commits, confirming zero regression from the docs-only pieces).
+
+---
+
+# Previous: PKG-PORTABLE + PM-REDESIGN-D + SHELL
 
 Date: 2026-08-10 (ค่ำ) · Area: packaging + page-manager + shell UI (lite)
 
@@ -32,33 +62,7 @@ Commits: `fc4a407`, `c88a379`, `b0a13bf`, `fb9b2af`, `2b1887f`, `d231be5`, `3534
 
 ---
 
-# Previous: PM-META + PM-ID
-
-Date: 2026-08-10 · Area: page-manager / layer identity (lite)
-
-_lite-only, proto untouched. No forbidden surface (measure-engine/pdfToC/RS/snap untouched) — no proto E2E run._
-
-Both guard tests proven RED before the fix, then GREEN after — a genuine regression-proof cycle, not just a green run:
-
-- **E21 (`LITE_PM_META_LIVE_OK`, PM-META):** before the fix, `_pmCommit` reverted page meta (tags/rotations/floor numbers/exclusions) to the open-time snapshot on every Save/Apply/Merge — proven by asserting a tag set post-open survives a commit cycle (FAILED pre-fix, PASSED post-fix with `_liveMetaFor` + `projectToGlobals(livePS, liveMeta)`).
-- **E22 (`LITE_PM_ID_SEED_OK`, PM-ID):** before the fix, `adoptId()` did not advance the `_idc` mint counter past adopted `pg<N>` ids on load/seed — proven by reopening a `.bmaplan` with a duplicate page and asserting no id collision on next mint (FAILED pre-fix, PASSED post-fix).
-
-| Marker / Suite | Result |
-|---|---|
-| `page_manager_eval.js` E21 `LITE_PM_META_LIVE_OK` | FAIL (pre-fix) → PASS (post-fix) |
-| `page_manager_eval.js` E22 `LITE_PM_ID_SEED_OK` | FAIL (pre-fix) → PASS (post-fix) |
-| `lite/tests/test_page_manager.py` (`LITE_PAGE_MANAGER_OK`) | PASS (23/23) |
-| `scripts/check_executable_truth.py` (`TRUTH_CHECK_OK`) | PASS (5/5) |
-| `lite/tests/run_all_tests.py` (full suite) | 101/102 in 15.9 min — 1 pre-existing failure, see below |
-
-**Pre-existing failure (not caused by this sprint):** `test_closing_dup_strip.py` failed with `LITE_CLOSING_DUP_STRIP_FAIL` ("5 poly objects on page 26, got 244.17"). Verified PRE-EXISTING by re-running the same test against the unmodified tree via `git stash` — the failure reproduces identically with none of this sprint's changes applied. Not a regression from PM-META/PM-ID; filed as a known issue needing its own investigation, not blocking this ship.
-
-**Baseline comparison:** prior full-suite run (2026-07-04 full-day block, archived) was 97/98 green with the same single pre-existing failure category (`test_closing_dup_strip.py`) already present at that time — this sprint's 101/102 confirms the suite has otherwise grown (98→102 files) with zero new failures introduced.
-
-Commits: `1107e2e`, `d0b3881`, `878effd`. Closes: PM-META (I5 second half of BUG-20260703), PM-ID (I9)
-
----
-
+<!-- PM-META + PM-ID (2026-08-10) archived to docs/archive/test-history-2026-08.md on 2026-08-10 (ดึก finalize: GOV-MAXLEN + extraction, to keep root at Latest + 1 Previous) -->
 <!-- BUG-20260706-lite-layer-page-binding archived to docs/archive/test-history-2026-07-06.md on 2026-08-10 (ค่ำ finalize: PKG-PORTABLE + PM-REDESIGN-D + SHELL, to keep root at Latest + 1 Previous) -->
 <!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/test-history-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 

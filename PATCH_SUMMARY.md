@@ -1,12 +1,61 @@
 # PATCH_SUMMARY.md — Latest Sprint
 
-> Full patch history: [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) · [docs/archive/patch-history-2026-07-02.md](docs/archive/patch-history-2026-07-02.md) · [docs/archive/patch-history-2026-07-03.md](docs/archive/patch-history-2026-07-03.md) · [docs/archive/patch-history-2026-07-04.md](docs/archive/patch-history-2026-07-04.md) · [docs/archive/patch-history-2026-07-06.md](docs/archive/patch-history-2026-07-06.md)
+> Full patch history: [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) · [docs/archive/patch-history-2026-07-02.md](docs/archive/patch-history-2026-07-02.md) · [docs/archive/patch-history-2026-07-03.md](docs/archive/patch-history-2026-07-03.md) · [docs/archive/patch-history-2026-07-04.md](docs/archive/patch-history-2026-07-04.md) · [docs/archive/patch-history-2026-07-06.md](docs/archive/patch-history-2026-07-06.md) · [docs/archive/patch-history-2026-08.md](docs/archive/patch-history-2026-08.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PKG-PORTABLE + PM-REDESIGN-D + SHELL — evening ship batch (lite)
+# Latest: GOV-MAXLEN ratchet + extraction project-io.js + idea capture + Bluebeam research (lite + governance)
+
+Branch: main
+
+Date: 2026-08-10 (ดึก)
+
+## Outcome: PASS — maxlen ratchet closes the "long line" size-cap gameability gap; ui-lite.html headroom restored via extraction (1191→1086) without raising the 1200 cap; new idea filed; Bluebeam-batch invent research HALTED at checkpoint
+
+## Summary
+
+User decided the file-size-limit question ("นับตัวอักษรดีไหม" → keep line caps, ADD an ESLint-style `max-len` pair) — `033ad5c` adds check-1b `maxlen-ratchet` to `scripts/check_executable_truth.py`: no file may hold more lines >300 chars than its frozen baseline (`ui-lite.html` 10, vendored `measure-engine.js` 11, everything else 0), baseline may move between files during extractions but the TOTAL may only decrease, RED-proven by planting a 320-char line then reverting. `df5a1f2` then extracted the `.bmaplan` save/load region out of `lite/ui-lite.html` (1191→1086) byte-verbatim into NEW `lite/static/js/project-io.js` (154 lines, header documents the globals contract), restoring headroom under the unmoved 1200-line cap — byte-identity proven programmatically, `cross-floor-shapes.js` monkey-patches verified still landing post-extraction. `ffc763f` files a new invent-queued idea (Track AI อ่านแบบแปลน). `2e8ba9e`+`5ad9e3d` complete `/lite-invent` Phase 2 (research→diverge→score) for a 4-candidate Bluebeam-batch, HALTED at the human checkpoint per Pack H. This finalize also closes a self-audit gap: the 6 mandatory docs below had stalled at the evening (`ค่ำ`) batch while `log.md`/`SHIPS.jsonl` stayed current and code work (the extraction) continued.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `scripts/check_executable_truth.py` | NEW check-1b `maxlen-ratchet` — gate now 6 checks (was 5) |
+| `lite/ui-lite.html` | 1191→1086 lines — `.bmaplan` save/load region extracted out, byte-verbatim |
+| `lite/static/js/project-io.js` | NEW (154 lines) — `SEM_REV`/`annFwd`/`annRev`/`buildPageStore`/`#mi-save`/`#mi-load`/`loadProto`/`#file-bma` moved from `ui-lite.html` |
+| `~/.claude/ideas/IDEAS.md` (outside repo) + Drive mirror | Track AI อ่านแบบแปลน idea appended |
+| `docs/status/PHASE_INDEX.md` | +`invent-queued` idea entry (Track AI); Bluebeam-batch checkpoint recorded |
+| `docs/invent/bluebeam-batch.md` | NEW — 4-candidate research+diverge+score, HALTED at human checkpoint |
+| `docs/status/SHIPS.jsonl` | +`GOV-MAXLEN-EXTRACT-20260810` row (already current before this finalize) |
+| `lite/out.txt` | Deleted (untracked scratch file, already recommended for deletion by same-day module review; disclosed, accepted) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — untouched
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — untouched
+- `pdfToC`, `cToPdf`, `RS`, scale math, snap engine — untouched
+- `.bmaplan` schema version stays 1; no schema fields touched (the extraction moved code, not data shape)
+
+## Tests Run
+
+`node --check lite/static/js/project-io.js` → OK. Persist battery 7/7 (`test_cfss_persist`, `test_custom_layer_persist`, `test_page_folder_persist`, `test_report_vars_persist`, `test_tree_persist`, `test_save_clickpath`, `test_metamorphic_pages`). `python scripts/check_executable_truth.py` → `TRUTH_CHECK_OK` (6/6, gate grew by 1 check this batch). Full suite `python lite/tests/run_all_tests.py` → 105/106 in 16.6 min — sole failure `test_closing_dup_strip.py`, the already-confirmed pre-existing one, zero new failures. `maxlen-ratchet` itself RED-proven by temporarily planting a 320-char line (→ `TRUTH_CHECK_FAIL`) then reverting.
+
+## Phase 1 Scope Check
+
+- ✅ No legal checker / OCR / AI / rule engine / FAR-OSR-setback touched
+- ✅ proto/ untouched
+- ✅ No forbidden surface touched
+- ✅ `.bmaplan` schema untouched — extraction moved code location only, not data shape
+
+**Commits:** `033ad5c` (chore: GOV-MAXLEN ratchet), `df5a1f2` (refactor(lite): extract project-io.js), `ffc763f` (chore: idea capture — Track AI อ่านแบบแปลน), `2e8ba9e` + `5ad9e3d` (docs(invent): Bluebeam-batch research HALTED@checkpoint)
+
+**Process note:** self-audit ("opus เราทำตามกฎไหม") found the 7-output discipline partially skipped — `log.md`/`SHIPS.jsonl` were kept current but the other 6 docs stalled at the evening batch while runtime-affecting code work (the extraction) continued. This finalize closes that gap. Lesson: a governance/refactor batch still triggers the full 7-output rule the moment it touches runtime code.
+
+---
+
+# Previous: PKG-PORTABLE + PM-REDESIGN-D + SHELL — evening ship batch (lite)
 
 Branch: main
 
@@ -67,53 +116,7 @@ Every code slice had a RED-first guard test: `LITE_PM_GUARD_OK` RED 5/5 → GREE
 
 ---
 
-# Previous: PM-META + PM-ID — page-meta/globals live-sync fix + duplicate-id mint-counter fix (lite)
-
-Branch: main
-
-Date: 2026-08-10
-
-## Outcome: PASS — 2 root-cause bugs fixed underneath the user symptom "เลเยอร์มั่ว การจัดการหน้ามั่ว"
-
-## Summary
-
-PM-META (I5, second half of BUG-20260703): `_pmCommit` called `projectToGlobals(PS)` with live content but page meta (tags/rotations/floor numbers/exclusions) still came from `meta_by_id` snapshots taken at open-time — every Save/Apply/Merge silently reverted all meta edits made since open, then `reseedActivePageFolders()` re-derived layer folders from the reverted data, producing the visible "layers scrambled" symptom. Fixed with a new `PageModel.prototype._liveMetaFor` (mirror of `_liveContentFor`) so `projectToGlobals(livePS, liveMeta)` resolves and refreshes meta from live state; `ui-lite.html:424` now passes live meta dicts (in-place edit, net 0 lines). PM-ID (I9): the `_idc` mint counter reset to 0 each session but `load()`/`seedFromGlobals()` adopted existing `pageIdentities` without advancing it, so reopening a `.bmaplan` with a duplicate page could re-mint `pg0` and overwrite page 1's data. Fixed by advancing `_idc` past adopted `pg<N>` ids at both adopt sites. Both proven RED before fix, GREEN after (new markers `LITE_PM_META_LIVE_OK`, `LITE_PM_ID_SEED_OK`).
-
-## Files Changed
-
-| File | Change |
-|---|---|
-| `lite/static/js/page-manager.js` | 533→565 lines: `_liveMetaFor` + `projectToGlobals(livePS, liveMeta)`, `adoptId()` advances `_idc` past adopted ids |
-| `lite/ui-lite.html` | net 0 lines — line 424 passes live meta dicts into `_pmCommit` |
-| `lite/tests/page_manager_eval.js` | 743→821 lines — new E21 (`LITE_PM_META_LIVE_OK`), E22 (`LITE_PM_ID_SEED_OK`) |
-| `docs/status/PHASE_INDEX.md` | −2 rows (2 shipped items reconciled out) |
-| `docs/status/ROADMAP_DONE.md` | +2 rows |
-| `sprints/completed/2026-08-10-page-meta-identity/RUN_PAGE_META_IDENTITY.md` | sprint card / work order (Opus-authored after 35-module review) |
-
-## Source Files NOT Touched (Forbidden Surfaces)
-
-- `proto/server.py` — untouched, lite-only sprint
-- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — untouched
-- `pdfToC`, `cToPdf`, `RS`, scale math, snap engine — untouched
-- `.bmaplan` schema version stays 1; `liveMeta` is an in-memory arg only, not a persisted field
-
-## Tests Run
-
-Guard tests proven RED before fix then GREEN after — E21 `LITE_PM_META_LIVE_OK`, E22 `LITE_PM_ID_SEED_OK`. `python lite/tests/test_page_manager.py` → 23/23 `LITE_PAGE_MANAGER_OK`. `python scripts/check_executable_truth.py` → `TRUTH_CHECK_OK` (5/5). Full suite `python lite/tests/run_all_tests.py` → 101/102 in 15.9 min; sole failure `test_closing_dup_strip.py` (`LITE_CLOSING_DUP_STRIP_FAIL`, "5 poly objects on page 26, got 244.17") confirmed PRE-EXISTING via git-stash re-run on the unmodified tree — not caused by this sprint; filed as a known issue for its own investigation.
-
-## Phase 1 Scope Check
-
-- ✅ No legal checker / OCR / AI / rule engine / FAR-OSR-setback touched
-- ✅ proto/ untouched, lite-only
-- ✅ No forbidden surface touched
-- ✅ `.bmaplan` schema additive-only (no field added — in-memory arg only)
-
-**Commits:** `1107e2e` (sprint card work order), `d0b3881` (docs: reconcile 2 shipped rows PHASE_INDEX → ROADMAP_DONE, unblocking the roadmap-recon preflight gate — TRUTH_CHECK_OK 5/5 restored), `878effd` (fix(lite): PM-META + PM-ID)
-
-**Closes:** PM-META (I5 second half of BUG-20260703), PM-ID (I9)
-
----
-
+<!-- PM-META + PM-ID (2026-08-10) archived to docs/archive/patch-history-2026-08.md on 2026-08-10 (ดึก finalize: GOV-MAXLEN + extraction, to keep root at Latest + 1 Previous) -->
 <!-- BUG-20260706-lite-layer-page-binding archived to docs/archive/patch-history-2026-07-06.md on 2026-08-10 (ค่ำ finalize: PKG-PORTABLE + PM-REDESIGN-D + SHELL, to keep root at Latest + 1 Previous) -->
 <!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/patch-history-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
