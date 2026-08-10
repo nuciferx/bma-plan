@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<title>Mockup — Shell v2: จอหลัก lite (toolbar + status bar)</title>
+<title>Mockup — Shell v2 rev.3: เมนูเดิม + canvas เต็ม + panel เลเยอร์ลอยแบบ Photoshop</title>
 <style>
   :root{--bg:#0c0f14;--panel:#161a22;--line:#2a3140;--ink:#e8ecf3;--muted:#8b94a7;
         --accent:#4c8dff;--amber:#ffb454;--red:#ff453a;--green:#34c77b;}
@@ -10,35 +10,22 @@
   body{background:#06080c;color:var(--ink);font:13px/1.5 "Sarabun","Segoe UI",sans-serif;padding:20px}
   h1{font-size:16px;margin-bottom:4px}
   .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
-  /* ===== app frame ===== */
   .app{max-width:1150px;margin:0 auto;border:1px solid var(--line);border-radius:12px;overflow:hidden;
        display:flex;flex-direction:column;height:640px;background:var(--bg);box-shadow:0 18px 60px rgba(0,0,0,.5)}
-  /* top bar */
+  /* ── top bar: เหมือนปัจจุบันทุกอย่าง ── */
   .top{display:flex;align-items:center;gap:2px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px}
-  .logo{font-weight:700;margin-right:8px}.tag{font-size:9px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;margin-right:12px}
-  .mn{padding:4px 10px;border-radius:6px;color:var(--ink);cursor:pointer}
+  .logo{font-weight:700;margin-right:6px}.tag{font-size:9px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;margin-right:10px}
+  .mn{padding:4px 9px;border-radius:6px;cursor:pointer}
   .mn:hover{background:#222a37}
   .sp{flex:1}
-  .door{padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--line);background:#0c0f14;margin-left:6px;font-size:12px}
-  .door:hover{border-color:var(--accent)}
-  /* body row */
-  .mid{flex:1;display:flex;min-height:0}
-  /* tool strip */
-  .tools{width:52px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;
-         align-items:center;padding:8px 0;gap:2px}
-  .t{width:40px;height:40px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-     cursor:pointer;color:var(--muted);font-size:15px;border:1px solid transparent}
-  .t small{font-size:8.5px;line-height:1;margin-top:2px}
-  .t:hover{background:#222a37;color:var(--ink)}
-  .t.on{background:#17223a;border-color:var(--accent);color:var(--accent)}
-  .tsep{width:26px;border-top:1px solid var(--line);margin:6px 0}
-  /* canvas */
+  .rb{padding:3px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--line);background:#0c0f14;margin-left:5px;font-size:11.5px}
+  /* ── stage: canvas เต็ม 100% ── */
   .stage{flex:1;position:relative;background:
     repeating-linear-gradient(0deg,#0d1117 0 34px,#0f141b 34px 35px),
-    repeating-linear-gradient(90deg,#0d1117 0 34px,#0f141b 34px 35px)}
-  .plan{position:absolute;inset:40px 60px;border:1px dashed #2c3a52;border-radius:4px;
+    repeating-linear-gradient(90deg,#0d1117 0 34px,#0f141b 34px 35px);min-height:0}
+  .plan{position:absolute;inset:34px 40px;border:1px dashed #2c3a52;border-radius:4px;
         display:flex;align-items:center;justify-content:center;color:#2c3a52;font-size:30px}
-  .shape{position:absolute;left:22%;top:24%;width:34%;height:38%;border:2px solid #4c8dff;
+  .shape{position:absolute;left:18%;top:22%;width:32%;height:40%;border:2px solid #4c8dff;
          background:rgba(76,141,255,.13);border-radius:2px}
   .shape .lbl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
               background:#4c8dff;color:#fff;font-size:11px;border-radius:99px;padding:1px 9px;white-space:nowrap}
@@ -46,93 +33,103 @@
             background:rgba(6,8,12,.7);border-radius:6px;padding:3px 9px}
   .zoom{position:absolute;right:10px;bottom:8px;display:flex;gap:4px}
   .zoom button{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
-  /* palette (right) */
-  .pal{width:230px;background:var(--panel);border-left:1px solid var(--line);padding:8px;font-size:12px}
-  .pal .h{color:var(--muted);font-size:11px;margin:2px 4px 6px}
-  .pt{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+  /* ── ✨ floating layer palette (Photoshop-style) ── */
+  .fpal{position:absolute;right:22px;top:20px;width:225px;background:rgba(22,26,34,.94);
+        border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.55);
+        backdrop-filter:blur(3px);font-size:12px;overflow:hidden}
+  .fpal-h{display:flex;align-items:center;gap:6px;padding:6px 9px;background:rgba(12,15,20,.85);
+          border-bottom:1px solid var(--line);cursor:grab;font-size:11.5px;color:var(--muted)}
+  .fpal-h .grip{letter-spacing:-1px;color:#3b465a}
+  .fpal-h .ttl{flex:1;color:var(--ink)}
+  .fpal-h button{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:12px;padding:0 3px}
+  .fpal-b{padding:5px;max-height:300px;overflow:auto}
+  .pt{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent}
   .pt.on{background:#17223a;border-color:var(--accent)}
   .pt:hover{background:#1b2230}
-  .dot{width:10px;height:10px;border-radius:3px}
+  .dot{width:10px;height:10px;border-radius:3px;flex:0 0 10px}
   .pt .nm{flex:1}
-  .sign{font-size:9.5px;border-radius:4px;padding:0 4px}
-  .sign.p{background:#1d2c4d;color:#7fb0ff}.sign.m{background:#43242a;color:#ff8f87}
   .pt .a{font-size:10.5px;color:var(--muted)}
-  /* status bar */
+  .fld{padding:4px 8px;color:var(--muted);font-size:11px}
+  .fpal-f{border-top:1px solid var(--line);padding:5px 9px;display:flex;gap:8px;color:var(--muted);font-size:11px}
+  /* collapsed state demo */
+  .fpal.min .fpal-b,.fpal.min .fpal-f{display:none}
+  /* ── status bar (บาง 26px — เก็บไว้ตามที่ตกลง) ── */
   .status{display:flex;align-items:center;background:var(--panel);border-top:1px solid var(--line);
           font-size:11.5px;color:var(--muted)}
-  .cell{padding:5px 12px;border-right:1px solid #1b2230;display:flex;align-items:center;gap:6px;cursor:default}
+  .cell{padding:5px 12px;border-right:1px solid #1b2230;display:flex;align-items:center;gap:6px}
   .cell b{color:var(--ink);font-weight:500}
   .cell.click{cursor:pointer}.cell.click:hover{background:#1b2230}
   .ok{color:var(--green)}.warn{color:var(--amber)}
-  /* notes */
+  .k{background:#222a37;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:10.5px}
   .notes{max-width:1150px;margin:18px auto 0;color:var(--muted);font-size:12.5px;border-top:1px dashed var(--line);padding-top:12px}
   .notes li{margin:5px 0 5px 18px}
   .notes b{color:var(--ink)}
-  .k{background:#222a37;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:10.5px}
 </style>
 </head>
 <body>
-<h1>Mockup — Shell v2 (rev.2 ตามคำตัดสิน user 2026-08-10: ② ④ คงเดิม)</h1>
-<div class="sub">คงของเดิม: ไม่มี tool strip (เครื่องมืออยู่ในเมนู+คีย์ลัดเหมือนวันนี้) · panel ขวาใช้ layer panel แบบปัจจุบัน — สิ่งที่เพิ่มเหลือ 2 อย่าง: จัดแถบบน (①) + status bar ล่าง (⑤)</div>
+<h1>Mockup — Shell v2 rev.3 (คำตัดสิน user 2026-08-10: เมนูเดิม + canvas ใหญ่สุด + panel เลเยอร์ลอยแบบ Photoshop)</h1>
+<div class="sub">อิงงานวิจัยเดิม docs/invent/fullscreen-canvas-ui.md (GO 2026-05-19 — แม่ของ lite) + ระบบ Widget Placement ของ proto (ลาก+จำตำแหน่ง) · ลองกด ▾ บนหัว panel เพื่อดูสถานะพับ</div>
 
 <div class="app">
-  <!-- ① top bar: เมนูไทย + ประตู overlay เหลือ 2 -->
+  <!-- top bar: คงปัจจุบันทุกตัวอักษร -->
   <div class="top">
     <span class="logo">◯ BMA-Plan</span><span class="tag">LITE</span>
-    <span class="mn">ไฟล์ ▾</span><span class="mn">แก้ไข ▾</span><span class="mn">มุมมอง ▾</span>
+    <span class="mn">File ▾</span><span class="mn">Edit ▾</span><span class="mn">Measure ▾</span>
+    <span class="mn">Page ▾</span><span class="mn">Annotate ▾</span>
     <span class="sp"></span>
-    <span class="door">Σ สรุปโครงการ</span>
-    <span class="door">🗂 ศูนย์หน้า <span class="k">F12</span></span>
+    <span class="rb">Σ สรุป</span><span class="rb">🔍 ⌘K</span><span class="rb">🐦 F12</span><span class="rb">◯ ⇧F</span>
   </div>
 
-  <div class="mid">
-    <!-- ② (คงเดิม) ไม่มี tool strip — เครื่องมืออยู่ในเมนู Measure ▾ + คีย์ลัด เหมือนวันนี้ -->
+  <!-- canvas เต็มจอ — ไม่มีคอลัมน์ข้างใดๆ -->
+  <div class="stage">
+    <div class="plan">▦ แบบแปลน (canvas 100% กว้างเต็ม)</div>
+    <div class="shape"><span class="lbl">พื้นที่อาคาร · 24.30 ตร.ม.</span></div>
+    <div class="hud-hint">คลิกวางจุด · ดับเบิลคลิก=จบรูป · Esc=ยกเลิก</div>
+    <div class="zoom"><button>+</button><button>−</button><button>⤢</button></div>
 
-    <!-- ③ canvas -->
-    <div class="stage">
-      <div class="plan">▦ แบบแปลน</div>
-      <div class="shape"><span class="lbl">ห้องนอน 1 · 24.30 ตร.ม.</span></div>
-      <div class="hud-hint">คลิกวางจุด · ดับเบิลคลิก=จบรูป · Esc=ยกเลิก</div>
-      <div class="zoom"><button>+</button><button>−</button><button>⤢</button></div>
-    </div>
-
-    <!-- ④ (คงเดิม) panel ขวา = layer panel ปัจจุบัน (tree + โฟลเดอร์ชั้น) — ไม่เปลี่ยนในรอบนี้ -->
-    <div class="pal">
-      <div class="h">กำลังวัดอะไร (= layer = semantic) <span style="float:right">＋ 📁+</span></div>
-      <div class="pt" style="color:var(--muted)">📁 ชั้น 2 (หน้านี้)</div>
-      <div class="pt on" style="margin-left:10px"><span class="dot" style="background:#4c8dff"></span><span class="nm">พื้นที่อาคาร</span><span class="a">👁 212.4</span></div>
-      <div class="pt" style="margin-left:10px"><span class="dot" style="background:#ff453a"></span><span class="nm">ช่องเปิด/หัก</span><span class="a">👁 18.6</span></div>
-      <div class="pt" style="margin-left:10px"><span class="dot" style="background:#b48cff"></span><span class="nm">นับจุด (จอดรถ)</span><span class="a">👁 24</span></div>
-      <div class="pt" style="color:var(--muted)">📁 ผังบริเวณ</div>
-      <div class="h" style="margin-top:8px;font-size:10px">— แบบเดิมทุกอย่าง (จานสีเก็บเป็นข้อเสนอไว้ก่อน) —</div>
+    <!-- ✨ panel เลเยอร์ลอย -->
+    <div class="fpal" id="fp">
+      <div class="fpal-h" title="ลากเพื่อย้าย — ตำแหน่งถูกจำไว้">
+        <span class="grip">⠿</span><span class="ttl">กำลังวัดอะไร</span>
+        <button title="พับ/กาง" onclick="document.getElementById('fp').classList.toggle('min')">▾</button>
+        <button title="ซ่อน (⇧F ซ่อนทั้งหมดได้เหมือนเดิม)">✕</button>
+      </div>
+      <div class="fpal-b">
+        <div class="fld">📁 ชั้น 2 (หน้านี้)</div>
+        <div class="pt on"><span class="dot" style="background:#4c8dff"></span><span class="nm">พื้นที่อาคาร</span><span class="a">👁 212.4</span></div>
+        <div class="pt"><span class="dot" style="background:#ff453a"></span><span class="nm">ช่องเปิด/หัก</span><span class="a">👁 18.6</span></div>
+        <div class="pt"><span class="dot" style="background:#b48cff"></span><span class="nm">นับจุด (จอดรถ)</span><span class="a">👁 24</span></div>
+        <div class="fld">📁 ผังบริเวณ</div>
+        <div class="pt"><span class="dot" style="background:#34c77b"></span><span class="nm">ที่ดิน</span><span class="a">👁 —</span></div>
+      </div>
+      <div class="fpal-f"><span>＋ layer</span><span>📁+</span><span style="margin-left:auto">เนื้อในเหมือน panel ปัจจุบัน</span></div>
     </div>
   </div>
 
-  <!-- ⑤ status bar -->
+  <!-- status bar บาง (ตามที่ตกลงรอบก่อน) -->
   <div class="status">
-    <span class="cell click" title="คลิก = เปิดศูนย์หน้า"><b>หน้า 3/45</b> · ชั้น 2</span>
-    <span class="cell click"><span class="ok">⚖ 1:100 ✓</span></span>
+    <span class="cell click"><b>หน้า 3/45</b> · ชั้น 2</span>
+    <span class="cell"><span class="ok">⚖ 1:100 ✓</span></span>
     <span class="cell">เครื่องมือ: <b>วัดพื้นที่ (A)</b></span>
     <span class="cell">วาดเป็น: <b style="color:#7fb0ff">■ พื้นที่อาคาร</b></span>
-    <span class="cell">🧲 Snap <span class="ok">เปิด</span> <span class="k">G</span></span>
-    <span class="cell"><span class="warn">● ยังไม่บันทึก</span> <span class="k">Ctrl+S</span></span>
+    <span class="cell">🧲 <span class="ok">เปิด</span></span>
+    <span class="cell"><span class="warn">● ยังไม่บันทึก</span></span>
     <span class="sp" style="flex:1"></span>
     <span class="cell">สุทธิชั้นนี้ <b>193.8 ตร.ม.</b></span>
-    <span class="cell click" title="F1">⌨ F1</span>
   </div>
 </div>
 
 <div class="notes">
-  <b>rev.2 — ขอบเขตหลังคำตัดสิน user (② ④ คงเดิม):</b>
+  <b>rev.3 — สรุปแนวคิด:</b>
   <ol>
-    <li><b>① Top bar จัดใหม่</b> — เมนูไทย + ประตู overlay เหลือ 2 (Σ สรุป, 🗂 ศูนย์หน้า) — เมนู Measure ▾ ยังอยู่ครบเพราะเป็นบ้านหลักของเครื่องมือ (ไม่มี strip แล้ว)</li>
-    <li><b>② คงเดิม</b> — ไม่เพิ่ม tool strip · เครื่องมือใช้ผ่านเมนู + คีย์ลัดเหมือนวันนี้ · ผลพวง: สถานะ snap ที่เคยหายไปกับเมนู ย้ายไปอยู่ status bar แทน (ช่อง 🧲)</li>
-    <li><b>③ Canvas + HUD เดิมทุกอย่าง</b></li>
-    <li><b>④ คงเดิม</b> — layer panel แบบ tree ปัจจุบันใช้ต่อ · จานสีเก็บเป็นข้อเสนอในลิ้นชัก (S-2..S-9 ยังค้าง needs-GO ตามเดิม) · บั๊ก layer ที่รู้แล้ว (role=gfa, DnD) จะแก้แบบ point-fix ในต้นไม้เดิม</li>
-    <li><b>⑤ Status bar ล่าง — หัวใจของรอบนี้</b> — ตอบ 7 คำถามตลอดเวลา: หน้า/ชั้น (คลิก=ศูนย์หน้า) · ⚖ scale ✓/✗ · เครื่องมือ · วาดเป็นประเภทไหน · 🧲 snap · ● บันทึกหรือยัง · ยอดชั้นนี้</li>
+    <li><b>Top bar = ปัจจุบันเป๊ะ</b> ไม่แตะสักปุ่ม (ตามคำตัดสิน "เมนูเหมือนที่ใช้อยู่")</li>
+    <li><b>Canvas เต็มจอจริง</b> — ไม่มีคอลัมน์ขวา/ซ้ายกินพื้นที่อีกต่อไป (แบบเดิม #picker ก็ลอยอยู่แล้วแต่ตำแหน่งตายตัว)</li>
+    <li><b>Panel เลเยอร์ลอยแบบ Photoshop</b> — หัว panel มี ⠿ ลากย้ายได้ (จำตำแหน่งใน localStorage — precedent: proto Widget Placement) · ▾ พับเหลือแถบหัว · ✕ ซ่อน · โปร่งแสง+เบลอ ให้เห็นแบบข้างใต้ · <b>เนื้อในคือ panel ปัจจุบันยกมาทั้งดุ้น ไม่เปลี่ยน</b> (ตามคำตัดสิน ④ คงเดิม)</li>
+    <li><b>⇧F focus mode = ปุ่ม Tab ของ Photoshop</b> — ซ่อนทุกอย่างเหลือ canvas ล้วน (มีอยู่แล้ว ได้ฟรี)</li>
+    <li><b>Status bar บางเก็บไว้</b>ตามที่ตกลงรอบก่อน (สูง ~26px ไม่เบียด canvas อย่างมีนัย)</li>
   </ol>
-  <b>สิ่งที่ไม่เปลี่ยน:</b> คีย์ลัดทุกตัว · พฤติกรรม canvas · โหมดโฟกัส (⇧F ซ่อน status bar+panel → จอเดิม 100%) · โมเดลข้อมูล · layer panel
-  <br><br><b>ต้นทุนหลังลดขอบเขต:</b> โมดูลใหม่ 1 ไฟล์ <code>status-bar.js</code> (~200 บรรทัด อ่านค่าอย่างเดียวจาก state ที่มีอยู่แล้ว — เสี่ยงต่ำมาก) + จัดปุ่มแถบบนใน ui-lite.html เล็กน้อย · ศูนย์หน้า (🗂) เป็นงานแยกที่รอ GO ของตัวเอง
+  <b>งานจริงถ้า GO:</b> โมดูลใหม่ <code>float-panel.js</code> (~120 บรรทัด: ลาก title bar + clamp ขอบจอ + พับ + จำตำแหน่ง) ครอบ #picker เดิม — เนื้อใน picker ไม่แตะเลย · + <code>status-bar.js</code> (~200) · ความเสี่ยงที่รู้ล่วงหน้า: z-index ชนกับ overlay อื่น (มี audit list จากรีวิวแล้ว) และต้อง reset ตำแหน่งได้จากเมนู (กัน panel หลุดจอเมื่อเปลี่ยนขนาดหน้าต่าง)
 </div>
+<script></script>
 </body>
 </html>
