@@ -421,7 +421,7 @@ function _pmSeed(pageIdentities){
 }
 function _pmCommit(){  // projects pageMgr order + LIVE page content back to globals
   if(!pageMgr)return;
-  var g=pageMgr.projectToGlobals(PS);  // BUG-20260703: pass live PS — stale seed snapshots wiped saves
+  var g=pageMgr.projectToGlobals(PS,{pageTags:pageTags,pageFloorKind:pageFloorKind,pageFloorNum:pageFloorNum,pageNames:pageNames,pageRot:pageRot,excluded:excluded});
   PS=g.PS; pageTags=g.pageTags; pageFloorKind=g.pageFloorKind; pageFloorNum=g.pageFloorNum;
   pageNames=g.pageNames; pageRot=g.pageRot; excluded=g.excluded; pageCount=g.pageCount;
   if(typeof reseedActivePageFolders==="function")reseedActivePageFolders(); state.dirty=true;

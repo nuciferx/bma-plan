@@ -30,6 +30,14 @@
   // Reset between test runs by the eval harness via PageModel._resetIdc().
   function newId() { return 'pg' + (_idc++); }
 
+  // Adopted ids from a prior session must advance the mint counter,
+  // or newId() re-mints pg0 and overwrites page 1 (I9).
+  function adoptId(id) {
+    var m = /^pg(\d+)$/.exec(String(id));
+    if (m && +m[1] >= _idc) _idc = +m[1] + 1;
+    return id;
+  }
+
   function deepCopy(o) { return (o == null) ? o : JSON.parse(JSON.stringify(o)); }
   function deepEq(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
@@ -339,7 +347,7 @@
     }
 
     nums.forEach(function (n, i) {
-      var id  = hasIds ? doc.pageIdentities[i] : newId();  // legacy: mint fresh ids
+      var id  = hasIds ? adoptId(doc.pageIdentities[i]) : newId();  // legacy: mint fresh ids
       var key = String(n);
       self.pageOrder.push(id);
       self.PS_by_id[id] = deepCopy(doc.pageStore[key]);
@@ -406,7 +414,7 @@
     var self = this;
     for (var n = 1; n <= count; n++) {
       var key = String(n);
-      var id  = hasIds ? g.pageIdentities[n - 1] : newId();
+      var id  = hasIds ? adoptId(g.pageIdentities[n - 1]) : newId();
       self.pageOrder.push(id);
       self.PS_by_id[id] = deepCopy((g.PS && g.PS[n]) || { objects: [] });
       var mt = blankMeta();
@@ -473,7 +481,30 @@
     return null;   // merged page — no live content in this doc yet
   };
 
-  PageModel.prototype.projectToGlobals = function (livePS) {
+  /* Meta twin of _liveContentFor (BUG-20260703 second half):
+   * live number-keyed meta dicts are the runtime truth — liteSetTag / rotatePage /
+   * exclude write ONLY there. Resolve each id's meta from live dicts via its
+   * baseline position; dup pages resolve via dupSrc; merged pages keep model meta. */
+  PageModel.prototype._liveMetaFor = function (id, liveMeta) {
+    if (!liveMeta) return null;
+    var b = this._initialIds.indexOf(id);
+    if (b < 0) {
+      var src = this.dupSrc && this.dupSrc[id];
+      if (src) b = this._initialIds.indexOf(src);
+    }
+    if (b < 0) return null;               // merged page — model meta is authority
+    var n = b + 1, mt = blankMeta();
+    mt.rot       = (liveMeta.pageRot       && liveMeta.pageRot[n])       || 0;
+    mt.tag       = (liveMeta.pageTags      && liveMeta.pageTags[n])      || '';
+    mt.name      = (liveMeta.pageNames     && liveMeta.pageNames[n])     || '';
+    mt.floorKind = (liveMeta.pageFloorKind && liveMeta.pageFloorKind[n]) || '';
+    var fn = liveMeta.pageFloorNum && liveMeta.pageFloorNum[n];
+    mt.floorNum  = (fn === undefined || fn === null) ? null : fn;
+    mt.excl      = !!(liveMeta.excluded && liveMeta.excluded[n]);
+    return mt;
+  };
+
+  PageModel.prototype.projectToGlobals = function (livePS, liveMeta) {
     var self = this;
     var out = {
       PS:            {},
@@ -488,7 +519,8 @@
     };
     this.pageOrder.forEach(function (id, i) {
       var n  = i + 1;
-      var mt = self.meta_by_id[id] || blankMeta();
+      var mt = self._liveMetaFor(id, liveMeta) || self.meta_by_id[id] || blankMeta();
+      self.meta_by_id[id] = mt;            // refresh snapshot (mirrors PS_by_id refresh below)
       // PS: live content by identity (see BUG-20260703 note above); model
       // snapshot only as fallback. Refresh the snapshot to stay in sync.
       var live = self._liveContentFor(id, livePS);

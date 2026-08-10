@@ -721,6 +721,84 @@ function dataOf(m, id) {
 })();
 
 // ============================================================
+// E21–E22 (RUN_PAGE_META_IDENTITY 2026-08-10 — meta-wipe + id-collision guards)
+// Doc calls these "E17-meta-live" / "E18-id-no-collision" by marker name, but
+// E17/E18 are already taken above (Slice 2 suite) — renumbered to avoid a
+// collision in this combined E1-E20 file. Markers match the doc exactly.
+// ============================================================
+
+// E21 (doc: E17-meta-live, marker LITE_PM_META_LIVE_OK): projectToGlobals must
+// resolve meta from LIVE number-keyed dicts (liteSetTag/rotatePage/exclude
+// write ONLY there), not from the meta_by_id snapshot taken at seed time.
+(function () {
+  resetIds();
+  var m = new PageModel();
+  m.seedFromGlobals({
+    pageCount: 3,
+    pageIdentities: undefined,
+    PS: {}, pageTags: {}, pageRot: {}, pageFloorNum: {},
+    pageNames: {}, pageFloorKind: {}, excluded: {},
+  });
+
+  var livePS = { 1: { objects: [] }, 2: { objects: [] }, 3: { objects: [] } };
+  var liveMeta = {
+    pageTags:      { 1: 'floor' },
+    pageRot:       { 2: 90 },
+    pageFloorNum:  { 1: 3 },
+    pageNames:     {},
+    pageFloorKind: { 1: 'normal' },
+    excluded:      { 3: true },
+  };
+
+  var g = m.projectToGlobals(livePS, liveMeta);
+
+  var e21 = g.pageTags[1] === 'floor' && g.pageRot[2] === 90 &&
+            g.pageFloorNum[1] === 3 && g.pageFloorKind[1] === 'normal' &&
+            g.excluded[3] === true;
+
+  check('E21', 'adversarial',
+    '[LITE_PM_META_LIVE_OK] projectToGlobals(livePS, liveMeta) resolves meta from LIVE dicts, not the seed-time meta_by_id snapshot',
+    e21);
+})();
+
+// E22 (doc: E18-id-no-collision, marker LITE_PM_ID_SEED_OK): ids adopted from a
+// prior session's saved doc (load) or live globals (seedFromGlobals) must
+// advance the mint counter, so duplicate() never re-mints an id already in use.
+(function () {
+  resetIds();
+
+  // Case 1: via load() — simulates reopening a saved .bmaplan
+  var m1 = new PageModel();
+  m1.load({
+    version: 1,
+    pageStore: { '1': { objects: ['A'] }, '2': { objects: ['B'] }, '3': { objects: ['C'] } },
+    pageIdentities: ['pg0', 'pg1', 'pg2'],
+  });
+  m1.duplicate(1);
+  var ord1 = m1.pageOrder;
+  var noDupe1 = new Set(ord1).size === ord1.length;
+  var newIdNotReused1 = ['pg0', 'pg1', 'pg2'].indexOf(ord1[2]) < 0;
+
+  // Case 2: via seedFromGlobals() — simulates the live app after page reload
+  resetIds();
+  var m2 = new PageModel();
+  m2.seedFromGlobals({
+    pageCount: 3,
+    pageIdentities: ['pg0', 'pg1', 'pg2'],
+    PS: { 1: { objects: ['A'] }, 2: { objects: ['B'] }, 3: { objects: ['C'] } },
+    pageTags: {}, pageFloorKind: {}, pageFloorNum: {}, pageNames: {}, pageRot: {}, excluded: {},
+  });
+  m2.duplicate(1);
+  var ord2 = m2.pageOrder;
+  var noDupe2 = new Set(ord2).size === ord2.length;
+  var newIdNotReused2 = ['pg0', 'pg1', 'pg2'].indexOf(ord2[2]) < 0;
+
+  check('E22', 'adversarial',
+    '[LITE_PM_ID_SEED_OK] ids adopted from a prior session (load/seedFromGlobals) advance the mint counter — duplicate() cannot re-mint pg0',
+    noDupe1 && newIdNotReused1 && noDupe2 && newIdNotReused2);
+})();
+
+// ============================================================
 // REPORT
 // ============================================================
 var pass = results.filter(function (r) { return r.pass; }).length;
