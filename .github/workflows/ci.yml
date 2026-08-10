@@ -1,0 +1,75 @@
+name: CI
+
+# Automates the gates that until now only ran when someone remembered to run them
+# (INFRA-CI-20260810). Fast lane on every push; the 16-minute Playwright suite is
+# opt-in (manual dispatch) + nightly, so a normal push stays cheap.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * *'   # 01:00 Asia/Bangkok — nightly full suite
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  truth-gate:
+    name: executable-truth (6 checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # ships-commits resolves hashes via git cat-file
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: check_executable_truth
+        run: python scripts/check_executable_truth.py --verbose
+
+  fast-tests:
+    name: t0 math + t1 server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'      # test_measure_parity runs the vendored math through Node
+      - name: install deps
+        run: pip install fastapi uvicorn aiofiles python-multipart pymupdf openpyxl requests
+      - name: t0 — measure parity + property-based math
+        run: python lite/tests/run_all_tests.py --tier t0
+      - name: t1 — server endpoints + case lock
+        run: python lite/tests/run_all_tests.py --tier t1
+
+  full-suite:
+    name: full suite (Playwright)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: windows-latest      # matches the dev environment the suite was written on
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: install deps
+        run: |
+          pip install fastapi uvicorn aiofiles python-multipart pymupdf openpyxl requests playwright
+          playwright install chromium
+      - name: run everything
+        run: python lite/tests/run_all_tests.py
+      # Known: test_closing_dup_strip.py fails pre-existing (filed) — this job is
+      # expected RED until that is fixed; it is informational, not a merge gate.
+        continue-on-error: true
