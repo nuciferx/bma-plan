@@ -13,6 +13,10 @@ was arc-correct:
   4. buildReportPayload    (export-annotate.js)     — report rows/subtotal/net
   5. _ltOwnArea            (layer-tree.js)          — layer-panel per-layer total
   6. _lovsLayerArea        (overview-setup.js)      — site-setup layer rollup
+  7. _sbFloorNet           (status-bar.js)          — SHELL-STATUS "สุทธิชั้นนี้" cell
+                                                       (added SHELL-STATUS 2026-08-10,
+                                                       INVARIANTS.md I2 ritual — new
+                                                       consumer of the rollup)
 
 Fixture: one arc-edge poly (square 100x100 pt + semicircle bulge r=50 on edge 1)
 plus one plain poly (50x40), scale 1 pt/m. Independent closed-form expected:
@@ -47,6 +51,12 @@ var _TST_PAGE = 99;
 PS = {};                                   // isolate: only the fixture page exists
 PS[_TST_PAGE] = {objects:[], scale:{pts_per_m:1}, annotations:[]};
 curPage = _TST_PAGE;
+// SHELL-STATUS I2 fixture: tag the fixture page as a floor so
+// ObjectAgg.floorKeyOfPage(_TST_PAGE) (and hence _sbFloorNet()) resolves
+// to a real floor bucket instead of "" (untagged pages are not a rollup
+// consumer target — see status-bar.js's null-when-untagged contract).
+pageTags = {}; pageFloorKind = {}; pageFloorNum = {};
+pageTags[_TST_PAGE] = 'floor'; pageFloorKind[_TST_PAGE] = 'normal'; pageFloorNum[_TST_PAGE] = 1;
 
 var v0={x:0,y:0}, v1={x:100,y:0}, v2={x:100,y:100}, v3={x:0,y:100};
 var tp={x:150,y:50};   // semicircle through-point (outward bulge, r=50)
@@ -129,16 +139,34 @@ async () => {
     ltOk = Math.abs(Math.abs(ltArea) - labelSum) < 1e-6 * expectedTotal;
   }
 
+  // Site 7: _sbFloorNet (status-bar.js "สุทธิชั้นนี้" cell) — SHELL-STATUS
+  // I2 fixture. Fixture has only 'gfa'-role objects (no 'ded'), so net ==
+  // gfa == labelSum. Independent oracle: ObjectAgg.byFloorRole() directly
+  // (the SAME public API _sbFloorNet is required to use, never a private
+  // PS re-walk) for the floor bucket this fixture page was tagged into.
+  var sbSkipped = true, sbOk = true, sbNet = null, sbExpected = null;
+  if (typeof _sbFloorNet === "function" && typeof ObjectAgg !== "undefined") {
+    sbSkipped = false;
+    sbNet = _sbFloorNet();
+    var _sbFk = ObjectAgg.floorKeyOfPage(_TST_PAGE);
+    var _sbBfr = ObjectAgg.byFloorRole(ObjectAgg.objectTuples());
+    var _sbRow = _sbBfr[_sbFk] || {};
+    sbExpected = ((_sbRow.gfa && _sbRow.gfa.area) || 0) - ((_sbRow.ded && _sbRow.ded.area) || 0);
+    sbOk = sbNet != null && Math.abs(sbNet - labelSum) < 1e-6 * expectedTotal &&
+           Math.abs(sbNet - sbExpected) < 1e-9;
+  }
+
   // Discrimination proof: old chord-only totals sit far outside every tolerance
   var deltaCatchesRegression = Math.abs(expectedTotal - chordOnlyTotal) > 100;
 
   return {
     perObjArc, perObjPlain, expectedArc, expectedTotal, chordOnlyTotal,
     summaryTotal, exportRowTotal, overlayLabelArea, reportNet, lovsArea, ltArea, ltSkipped,
-    perObjOk, summaryOk, exportRowsOk, exportSummaryOk, overlayOk, reportOk, lovsOk, ltOk,
+    sbNet, sbExpected, sbSkipped,
+    perObjOk, summaryOk, exportRowsOk, exportSummaryOk, overlayOk, reportOk, lovsOk, ltOk, sbOk,
     deltaCatchesRegression,
     pass: perObjOk && summaryOk && exportRowsOk && exportSummaryOk &&
-          overlayOk && reportOk && lovsOk && ltOk && deltaCatchesRegression
+          overlayOk && reportOk && lovsOk && ltOk && sbOk && deltaCatchesRegression
   };
 }
 """
