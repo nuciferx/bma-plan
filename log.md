@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-08-10 (ดึก) — GOV-MAXLEN ratchet + extraction project-io.js (ui-lite 1191→1086) — PASS (branch: main)
+
+**ทำอะไร:** user ตัดสินเรื่องลิมิตไฟล์ ("จัดไป"): (1) `033ad5c` เพิ่มด่าน `maxlen-ratchet` ใน `check_executable_truth.py` (คู่ ESLint max-lines+max-len: บรรทัด >300 ตัวอักษรห้ามเพิ่มจาก baseline ที่ freeze ไว้ — ui-lite 10, measure-engine 11 (vendored), อื่นๆ 0; ยอดรวมลดได้อย่างเดียว; RED-proven ด้วยการแอบเติมบรรทัดยาวแล้วด่านจับได้จริง) — ด่านรวมเป็น 6 ตัว; (2) `df5a1f2` extraction sprint: ย้าย region save/load `.bmaplan` (เดิม ui-lite.html:934-1038) แบบ byte-verbatim (พิสูจน์ programmatic) ไป `static/js/project-io.js` (154 บรรทัด + header สัญญา globals ครบ) — `ui-lite.html` 1191→1086 คืน headroom ~114 บรรทัดโดยเพดาน 1200 ไม่ขยับ; MAXLEN_BASELINE ย้ายตาม (10→8 + project-io 2, ยอดรวมเท่าเดิม). cfssWrapSave/Load ยังเกาะถูกตัว (`wrappersInstalled=True`), persist battery 7/7, suite เต็ม 105/106 (fail เดียว pre-existing), `TRUTH_CHECK_OK` 6/6.
+
+**หมายเหตุ:** builder เผลอลบ `lite/out.txt` (ไฟล์ scratch untracked ที่รีวิว 2026-08-10 แนะนำให้ลบอยู่แล้ว) — ยอมรับได้ ไม่ต้องกู้. **Idea filed:** Track AI อ่านแบบแปลน (`invent-queued`, ffc763f) + คุยยุทธศาสตร์ engine ระดับ Bluebeam (vector-snap port / Compare revisions / Viewports เป็น candidate ไอเดียถัดไป — ยังไม่ file).
+
+---
+
 ## 2026-08-10 (ค่ำ) — PKG-PORTABLE (zero-install build) + PM-REDESIGN approach D (PM-GUARD/TAG-JIT/WIZ-UNLOCK) + SHELL (status-bar+float-panel) — PASS (branch: main)
 
 **ทำอะไร:** ต่อจาก /lite-invent 2 pipeline ที่ HALT ไว้ที่ human checkpoint ตอนบ่าย (`lite-zero-install-packaging` + `page-manager-redesign`) — user ตัดสิน "go ทั้งสองตัว" แล้วสั่ง build วันเดียวกัน รวม 3 ก้อนงาน + ledger close, ship ขึ้น `main` + push ตลอด, suite เขียวทุกจุด, `TRUTH_CHECK_OK` 5/5, ทุก code slice มี RED-first guard test:
