@@ -1,0 +1,236 @@
+{
+ "spike": "invent-lite-packaging (invent pipeline Phase 6)",
+ "date": "2026-08-10",
+ "machine": "Windows 10 Home 10.0.19045, system Python 3.14.3 (C:/Python314)",
+ "artifacts": {
+  "A": {
+   "kind": "PyInstaller one-file exe",
+   "file": "dist/BMA-Plan-Lite-A.exe",
+   "size_bytes": 81478161,
+   "size_mb": 77.7,
+   "toolchain": "PyInstaller 6.22.0 on Python 3.14.3; build ~160 s; workpath in %TEMP% (Google Drive too slow for build churn)",
+   "entry": "launch_wrapper_a.py (sandbox-only wrapper; lite/launch_lite.py untouched); server_lite.py + ui-lite.html + lite-report.html + static/** bundled as datas under lite/; uvicorn imports server_lite:app from sys._MEIPASS/lite",
+   "results": {
+    "artifact": "A",
+    "ts": "2026-08-10 16:05:07",
+    "case1": {
+     "pass": true,
+     "port": 8100,
+     "cold_start_sec": 20.91,
+     "sanitized_path": "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+     "stdout_head": [
+      "[lite] BMA-Plan Lite (packaged A) -> http://127.0.0.1:8100/",
+      "INFO:     Started server process [14876]",
+      "INFO:     Waiting for application startup.",
+      "INFO:     Application startup complete.",
+      "INFO:     Uvicorn running on http://127.0.0.1:8100 (Press CTRL+C to quit)",
+      "[lite][static] serving from: C:\\Users\\nucif\\AppData\\Local\\Temp\\_MEI65162\\lite\\static"
+     ]
+    },
+    "case2": {
+     "steps": {
+      "upload": {
+       "status": 200,
+       "sec": 0.13,
+       "pages": 45,
+       "name_echo": "โครงการทดสอบ_แบบก่อสร้าง.pdf"
+      },
+      "pageinfo_1": {
+       "status": 200,
+       "sec": 0.0
+      },
+      "page_1": {
+       "status": 200,
+       "sec": 0.43,
+       "bytes": 245933
+      },
+      "page_20": {
+       "status": 200,
+       "sec": 0.95,
+       "bytes": 1048964
+      },
+      "thumb_45": {
+       "status": 200,
+       "sec": 0.07,
+       "bytes": 19955
+      },
+      "export_xlsx": {
+       "status": 200,
+       "sec": 0.76,
+       "bytes": 5514,
+       "openpyxl_parses": true,
+       "sheets": [
+        "Measurements",
+        "Summary"
+       ]
+      }
+     },
+     "upload_plus_first_render_sec": 0.56,
+     "pass": true,
+     "working_sets_after": {
+      "9468": [
+       "pythonw.exe",
+       "27,384 K"
+      ],
+      "3868": [
+       "pythonw.exe",
+       "30,352 K"
+      ],
+      "8604": [
+       "python.exe",
+       "49,124 K"
+      ],
+      "6516": [
+       "BMA-Plan-Lite-A.exe",
+       "6,640 K"
+      ],
+      "14876": [
+       "BMA-Plan-Lite-A.exe",
+       "115,900 K"
+      ]
+     }
+    },
+    "case3": {
+     "pass": true,
+     "port_instance1": 8100,
+     "port_instance2": 8101,
+     "instance2_cold_start_sec": 8.29,
+     "instance1_health_during_instance2": 200,
+     "instance2_stdout_head": [
+      "[lite] BMA-Plan Lite (packaged A) -> http://127.0.0.1:8101/",
+      "INFO:     Started server process [10816]",
+      "INFO:     Waiting for application startup.",
+      "INFO:     Application startup complete.",
+      "INFO:     Uvicorn running on http://127.0.0.1:8101 (Press CTRL+C to quit)",
+      "[lite][static] serving from: C:\\Users\\nucif\\AppData\\Local\\Temp\\_MEI25562\\lite\\static"
+     ]
+    }
+   }
+  },
+  "B": {
+   "kind": "portable embeddable-Python folder",
+   "file": "portable/ (folder is the artifact)",
+   "size_mb": 112.3,
+   "file_count": 2993,
+   "toolchain": "python-3.11.9-embed-amd64.zip; ._pth = python311.zip / . / Lib\\\\site-packages / import site; get-pip.py bootstrap; pip install DIRECTLY into embedded interpreter (not --target)",
+   "deps": "fastapi 0.141.1, uvicorn 0.52.1, pymupdf 1.28.2, openpyxl 3.1.5, aiofiles 25.1.0, python-multipart 0.0.32",
+   "results": {
+    "artifact": "B",
+    "ts": "2026-08-10 16:06:12",
+    "case1": {
+     "pass": true,
+     "port": 8100,
+     "cold_start_sec": 6.54,
+     "sanitized_path": "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+     "stdout_head": [
+      "'tlocal' is not recognized as an internal or external command,",
+      "operable program or batch file.",
+      "'BMA-Plan' is not recognized as an internal or external command,",
+      "operable program or batch file.",
+      "[lite] BMA-Plan Lite -> http://127.0.0.1:8100/",
+      "warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead."
+     ]
+    },
+    "case2": {
+     "steps": {
+      "upload": {
+       "status": 200,
+       "sec": 0.25,
+       "pages": 45,
+       "name_echo": "โครงการทดสอบ_แบบก่อสร้าง.pdf"
+      },
+      "pageinfo_1": {
+       "status": 200,
+       "sec": 0.01
+      },
+      "page_1": {
+       "status": 200,
+       "sec": 0.43,
+       "bytes": 245933
+      },
+      "page_20": {
+       "status": 200,
+       "sec": 0.94,
+       "bytes": 1048964
+      },
+      "thumb_45": {
+       "status": 200,
+       "sec": 0.08,
+       "bytes": 19955
+      },
+      "export_xlsx": {
+       "status": 200,
+       "sec": 1.55,
+       "bytes": 5494,
+       "openpyxl_parses": true,
+       "sheets": [
+        "Measurements",
+        "Summary"
+       ]
+      }
+     },
+     "upload_plus_first_render_sec": 0.68,
+     "pass": true,
+     "working_sets_after": {
+      "9468": [
+       "pythonw.exe",
+       "27,384 K"
+      ],
+      "3868": [
+       "pythonw.exe",
+       "30,252 K"
+      ],
+      "22480": [
+       "python.exe",
+       "49,004 K"
+      ],
+      "17404": [
+       "python.exe",
+       "102,860 K"
+      ]
+     }
+    },
+    "case3": {
+     "pass": true,
+     "port_instance1": 8100,
+     "port_instance2": 8101,
+     "instance2_cold_start_sec": 5.79,
+     "instance1_health_during_instance2": 200,
+     "instance2_stdout_head": [
+      "'tlocal' is not recognized as an internal or external command,",
+      "operable program or batch file.",
+      "'BMA-Plan' is not recognized as an internal or external command,",
+      "operable program or batch file.",
+      "[lite] BMA-Plan Lite -> http://127.0.0.1:8101/",
+      "warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead."
+     ]
+    }
+   }
+  }
+ },
+ "side_check_E": {
+  "pywebview": "6.2.1",
+  "gui": "edgechromium",
+  "webview2_window_opened": true,
+  "notes": "Window opened, loaded the full lite UI (all /static/js/* fetched through it), auto-closed after 8 s, exited cleanly (WEBVIEW_EXITED_CLEANLY)."
+ },
+ "matrix": {
+  "A": {
+   "case1": true,
+   "case2": true,
+   "case3": true
+  },
+  "B": {
+   "case1": true,
+   "case2": true,
+   "case3": true
+  }
+ },
+ "caveats": [
+  "Case 1 approximates a no-Python machine via sanitized PATH + unset PYTHONHOME/PYTHONPATH only; VC++ runtime, WebView2 runtime and OS DLLs already present on this dev machine — a truly clean machine could still differ.",
+  "Artifact A one-file cold start is 20.9 s first launch / 8.3 s warm (self-extraction of a 78 MB archive to %TEMP%/_MEI...). Antivirus or slow disks make this worse; a --onedir build would remove most of it.",
+  "lite/launch_lite.py has no browser-suppress flag: Artifact B pops the default browser on every launch (accepted); Artifact A suppresses via BMA_LITE_NO_BROWSER handled in the sandbox wrapper only.",
+  "run.bat must be saved with CRLF line endings — the first LF-only version made cmd.exe mis-parse setlocal (harmless but noisy); fixed and re-verified.",
+  "tasklist working-set numbers are current (not peak) values sampled right after Case 2."
+ ]
+}

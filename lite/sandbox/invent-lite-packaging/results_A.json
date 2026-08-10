@@ -1,0 +1,96 @@
+{
+ "artifact": "A",
+ "ts": "2026-08-10 16:05:07",
+ "case1": {
+  "pass": true,
+  "port": 8100,
+  "cold_start_sec": 20.91,
+  "sanitized_path": "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+  "stdout_head": [
+   "[lite] BMA-Plan Lite (packaged A) -> http://127.0.0.1:8100/",
+   "INFO:     Started server process [14876]",
+   "INFO:     Waiting for application startup.",
+   "INFO:     Application startup complete.",
+   "INFO:     Uvicorn running on http://127.0.0.1:8100 (Press CTRL+C to quit)",
+   "[lite][static] serving from: C:\\Users\\nucif\\AppData\\Local\\Temp\\_MEI65162\\lite\\static"
+  ]
+ },
+ "case2": {
+  "steps": {
+   "upload": {
+    "status": 200,
+    "sec": 0.13,
+    "pages": 45,
+    "name_echo": "โครงการทดสอบ_แบบก่อสร้าง.pdf"
+   },
+   "pageinfo_1": {
+    "status": 200,
+    "sec": 0.0
+   },
+   "page_1": {
+    "status": 200,
+    "sec": 0.43,
+    "bytes": 245933
+   },
+   "page_20": {
+    "status": 200,
+    "sec": 0.95,
+    "bytes": 1048964
+   },
+   "thumb_45": {
+    "status": 200,
+    "sec": 0.07,
+    "bytes": 19955
+   },
+   "export_xlsx": {
+    "status": 200,
+    "sec": 0.76,
+    "bytes": 5514,
+    "openpyxl_parses": true,
+    "sheets": [
+     "Measurements",
+     "Summary"
+    ]
+   }
+  },
+  "upload_plus_first_render_sec": 0.56,
+  "pass": true,
+  "working_sets_after": {
+   "9468": [
+    "pythonw.exe",
+    "27,384 K"
+   ],
+   "3868": [
+    "pythonw.exe",
+    "30,352 K"
+   ],
+   "8604": [
+    "python.exe",
+    "49,124 K"
+   ],
+   "6516": [
+    "BMA-Plan-Lite-A.exe",
+    "6,640 K"
+   ],
+   "14876": [
+    "BMA-Plan-Lite-A.exe",
+    "115,900 K"
+   ]
+  }
+ },
+ "case3": {
+  "pass": true,
+  "port_instance1": 8100,
+  "port_instance2": 8101,
+  "instance2_cold_start_sec": 8.29,
+  "instance1_health_during_instance2": 200,
+  "instance2_stdout_head": [
+   "[lite] BMA-Plan Lite (packaged A) -> http://127.0.0.1:8101/",
+   "INFO:     Started server process [10816]",
+   "INFO:     Waiting for application startup.",
+   "INFO:     Application startup complete.",
+   "INFO:     Uvicorn running on http://127.0.0.1:8101 (Press CTRL+C to quit)",
+   "[lite][static] serving from: C:\\Users\\nucif\\AppData\\Local\\Temp\\_MEI25562\\lite\\static"
+  ]
+ }
+}

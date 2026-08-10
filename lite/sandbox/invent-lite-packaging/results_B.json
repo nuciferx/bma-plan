@@ -1,0 +1,92 @@
+{
+ "artifact": "B",
+ "ts": "2026-08-10 16:06:12",
+ "case1": {
+  "pass": true,
+  "port": 8100,
+  "cold_start_sec": 6.54,
+  "sanitized_path": "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+  "stdout_head": [
+   "'tlocal' is not recognized as an internal or external command,",
+   "operable program or batch file.",
+   "'BMA-Plan' is not recognized as an internal or external command,",
+   "operable program or batch file.",
+   "[lite] BMA-Plan Lite -> http://127.0.0.1:8100/",
+   "warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead."
+  ]
+ },
+ "case2": {
+  "steps": {
+   "upload": {
+    "status": 200,
+    "sec": 0.25,
+    "pages": 45,
+    "name_echo": "โครงการทดสอบ_แบบก่อสร้าง.pdf"
+   },
+   "pageinfo_1": {
+    "status": 200,
+    "sec": 0.01
+   },
+   "page_1": {
+    "status": 200,
+    "sec": 0.43,
+    "bytes": 245933
+   },
+   "page_20": {
+    "status": 200,
+    "sec": 0.94,
+    "bytes": 1048964
+   },
+   "thumb_45": {
+    "status": 200,
+    "sec": 0.08,
+    "bytes": 19955
+   },
+   "export_xlsx": {
+    "status": 200,
+    "sec": 1.55,
+    "bytes": 5494,
+    "openpyxl_parses": true,
+    "sheets": [
+     "Measurements",
+     "Summary"
+    ]
+   }
+  },
+  "upload_plus_first_render_sec": 0.68,
+  "pass": true,
+  "working_sets_after": {
+   "9468": [
+    "pythonw.exe",
+    "27,384 K"
+   ],
+   "3868": [
+    "pythonw.exe",
+    "30,252 K"
+   ],
+   "22480": [
+    "python.exe",
+    "49,004 K"
+   ],
+   "17404": [
+    "python.exe",
+    "102,860 K"
+   ]
+  }
+ },
+ "case3": {
+  "pass": true,
+  "port_instance1": 8100,
+  "port_instance2": 8101,
+  "instance2_cold_start_sec": 5.79,
+  "instance1_health_during_instance2": 200,
+  "instance2_stdout_head": [
+   "'tlocal' is not recognized as an internal or external command,",
+   "operable program or batch file.",
+   "'BMA-Plan' is not recognized as an internal or external command,",
+   "operable program or batch file.",
+   "[lite] BMA-Plan Lite -> http://127.0.0.1:8101/",
+   "warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead."
+  ]
+ }
+}
