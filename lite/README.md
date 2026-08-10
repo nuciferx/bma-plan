@@ -91,6 +91,39 @@ area appears. **D** = distance, **N** = count, **R** = reference line. **⌘K** 
 pages, **F12** overview, **F** focus mode. Right-click a shape to hide/show its
 dimensions. Ctrl+S saves a `.bmaplan`.
 
+## แจกจ่ายแบบ Portable (zero-install)
+
+ผลจาก invent decision `lite-zero-install-packaging` (GO 2026-08-10, ดู
+`docs/invent/lite-zero-install-packaging.md`) — แจกให้เจ้าหน้าที่ใช้บนเครื่อง
+ราชการที่ไม่มี Python/pip/เน็ตได้ โดยไม่ต้องติดตั้งอะไรเลย
+
+**สร้าง build (เครื่องที่มีเน็ต):**
+```
+lite\build_portable.bat
+```
+ได้โฟลเดอร์ `lite\dist-portable\BMA-Plan-Lite\` ประกอบด้วย Python 3.11.9 แบบ
+embeddable + dependency ที่ติดตั้งไว้แล้ว (`fastapi`, `uvicorn`, `aiofiles`,
+`python-multipart`, `pymupdf`, `openpyxl`) + ไฟล์ lite runtime (`server_lite.py`,
+`launch_lite.py`, `ui-lite.html`, `lite-report.html`, `static/`) + `run.bat`
+ตัวรันหลัก สคริปต์รันซ้ำได้ (ล้างของเก่าแล้วสร้างใหม่ทุกครั้ง — ดูหัวไฟล์
+`build_portable.bat` สำหรับรายละเอียด) และใช้ไฟล์ที่แคชไว้ใน
+`lite/sandbox/invent-lite-packaging/` (embeddable zip + get-pip.py จาก spike)
+ถ้ามีอยู่แล้ว ไม่ต้องดาวน์โหลดซ้ำ
+
+**เจ้าหน้าที่ใช้ (เครื่องปลายทาง ไม่มี Python):**
+1. คัดลอกโฟลเดอร์ `BMA-Plan-Lite\` ทั้งก้อนไปที่เครื่อง (USB / แชร์ไฟล์ / zip แล้วแตก)
+2. ดับเบิลคลิก `run.bat` — เปิดเบราว์เซอร์ให้อัตโนมัติ
+3. ปิดหน้าต่าง cmd (หรือ Ctrl+C) เพื่อหยุดเซิร์ฟเวอร์
+
+**Flag `BMA_LITE_NO_BROWSER`:** ตั้ง environment variable นี้เป็น `1` หรือ
+`true` ก่อนรัน `launch_lite.py` (ทั้งแบบ portable หรือแบบปกติ) เพื่อข้ามการเปิด
+เบราว์เซอร์อัตโนมัติ — มีประโยชน์เวลารันแบบ headless/embed ในเครื่องมืออื่น เช่น
+```
+set BMA_LITE_NO_BROWSER=1
+python lite\launch_lite.py
+```
+ค่า default (ไม่ตั้ง flag) พฤติกรรมเหมือนเดิมทุกประการ — เปิดเบราว์เซอร์อัตโนมัติ.
+
 ## Roadmap (sub-sprints — see PHASE_INDEX INV-2026-05-21-001)
 
 LITE-0 scaffold ✅ · LITE-1 backend endpoints · LITE-2 single-row chrome ·

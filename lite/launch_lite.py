@@ -5,6 +5,7 @@ but for the standalone lite tree.
 
     python lite/launch_lite.py
 """
+import os
 import socket
 import threading
 import webbrowser
@@ -24,7 +25,8 @@ def main():
     port = _free_port()
     url = f"http://127.0.0.1:{port}/"
     print(f"[lite] BMA-Plan Lite -> {url}")
-    threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    if os.environ.get("BMA_LITE_NO_BROWSER", "").lower() not in ("1", "true"):
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     # import string form so uvicorn can run from this file directly
     uvicorn.run("server_lite:app", host="127.0.0.1", port=port, app_dir=str(__import__("pathlib").Path(__file__).resolve().parent))
 

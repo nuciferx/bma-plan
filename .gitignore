@@ -24,6 +24,9 @@ artifacts/
 pic/
 *.log
 
+# lite portable build output (lite/build_portable.bat)
+lite/dist-portable/
+
 # User / generated files
 *.pdf
 *.xlsx
