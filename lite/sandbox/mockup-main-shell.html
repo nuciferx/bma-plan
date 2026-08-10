@@ -72,8 +72,8 @@
 </style>
 </head>
 <body>
-<h1>Mockup — Shell v2: จอหลัก lite</h1>
-<div class="sub">โครงเดิม (เมนู + canvas เต็ม + คีย์ลัด) คงไว้ทั้งหมด — เพิ่ม "ชั้นมองเห็นได้" 2 แถบ: tool strip ซ้าย + status bar ล่าง</div>
+<h1>Mockup — Shell v2 (rev.2 ตามคำตัดสิน user 2026-08-10: ② ④ คงเดิม)</h1>
+<div class="sub">คงของเดิม: ไม่มี tool strip (เครื่องมืออยู่ในเมนู+คีย์ลัดเหมือนวันนี้) · panel ขวาใช้ layer panel แบบปัจจุบัน — สิ่งที่เพิ่มเหลือ 2 อย่าง: จัดแถบบน (①) + status bar ล่าง (⑤)</div>
 
 <div class="app">
   <!-- ① top bar: เมนูไทย + ประตู overlay เหลือ 2 -->
@@ -86,22 +86,7 @@
   </div>
 
   <div class="mid">
-    <!-- ② tool strip -->
-    <div class="tools">
-      <div class="t" title="เลือก/แก้ไข (V)">➤<small>V</small></div>
-      <div class="t" title="ตั้งสเกล (S)">⚖<small>S</small></div>
-      <div class="t on" title="วัดพื้นที่ (A)">⬠<small>A</small></div>
-      <div class="t" title="ระยะ (D)">↔<small>D</small></div>
-      <div class="t" title="นับจุด (N)">◉<small>N</small></div>
-      <div class="t" title="เส้นอ้างอิง (R)">╱<small>R</small></div>
-      <div class="tsep"></div>
-      <div class="t" title="ข้อความ">🗛</div>
-      <div class="t" title="ลูกศร">↗</div>
-      <div class="t" title="ไฮไลต์">▤</div>
-      <div class="tsep"></div>
-      <div class="t" title="Snap (G) — เปิดอยู่" style="color:var(--green)">🧲<small>G</small></div>
-      <div class="t" title="โหมดโฟกัส (⇧F)">◯</div>
-    </div>
+    <!-- ② (คงเดิม) ไม่มี tool strip — เครื่องมืออยู่ในเมนู Measure ▾ + คีย์ลัด เหมือนวันนี้ -->
 
     <!-- ③ canvas -->
     <div class="stage">
@@ -111,13 +96,15 @@
       <div class="zoom"><button>+</button><button>−</button><button>⤢</button></div>
     </div>
 
-    <!-- ④ palette ขวา (จาก mockup จานสี — ย่อ) -->
+    <!-- ④ (คงเดิม) panel ขวา = layer panel ปัจจุบัน (tree + โฟลเดอร์ชั้น) — ไม่เปลี่ยนในรอบนี้ -->
     <div class="pal">
-      <div class="h">วาดเป็นประเภท…</div>
-      <div class="pt on"><span class="dot" style="background:#4c8dff"></span><span class="nm">พื้นที่อาคาร</span><span class="sign p">+</span><span class="a">212.4</span></div>
-      <div class="pt"><span class="dot" style="background:#ff453a"></span><span class="nm">หักช่องเปิด</span><span class="sign m">−</span><span class="a">18.6</span></div>
-      <div class="pt"><span class="dot" style="background:#34c77b"></span><span class="nm">ที่ดิน</span><span class="a">—</span></div>
-      <div class="pt"><span class="dot" style="background:#b48cff"></span><span class="nm">นับจุด (จอดรถ)</span><span class="a">24 จุด</span></div>
+      <div class="h">กำลังวัดอะไร (= layer = semantic) <span style="float:right">＋ 📁+</span></div>
+      <div class="pt" style="color:var(--muted)">📁 ชั้น 2 (หน้านี้)</div>
+      <div class="pt on" style="margin-left:10px"><span class="dot" style="background:#4c8dff"></span><span class="nm">พื้นที่อาคาร</span><span class="a">👁 212.4</span></div>
+      <div class="pt" style="margin-left:10px"><span class="dot" style="background:#ff453a"></span><span class="nm">ช่องเปิด/หัก</span><span class="a">👁 18.6</span></div>
+      <div class="pt" style="margin-left:10px"><span class="dot" style="background:#b48cff"></span><span class="nm">นับจุด (จอดรถ)</span><span class="a">👁 24</span></div>
+      <div class="pt" style="color:var(--muted)">📁 ผังบริเวณ</div>
+      <div class="h" style="margin-top:8px;font-size:10px">— แบบเดิมทุกอย่าง (จานสีเก็บเป็นข้อเสนอไว้ก่อน) —</div>
     </div>
   </div>
 
@@ -127,6 +114,7 @@
     <span class="cell click"><span class="ok">⚖ 1:100 ✓</span></span>
     <span class="cell">เครื่องมือ: <b>วัดพื้นที่ (A)</b></span>
     <span class="cell">วาดเป็น: <b style="color:#7fb0ff">■ พื้นที่อาคาร</b></span>
+    <span class="cell">🧲 Snap <span class="ok">เปิด</span> <span class="k">G</span></span>
     <span class="cell"><span class="warn">● ยังไม่บันทึก</span> <span class="k">Ctrl+S</span></span>
     <span class="sp" style="flex:1"></span>
     <span class="cell">สุทธิชั้นนี้ <b>193.8 ตร.ม.</b></span>
@@ -135,16 +123,16 @@
 </div>
 
 <div class="notes">
-  <b>สิ่งที่เปลี่ยน (5 จุด) และเหตุผล:</b>
+  <b>rev.2 — ขอบเขตหลังคำตัดสิน user (② ④ คงเดิม):</b>
   <ol>
-    <li><b>① Top bar จัดใหม่</b> — เมนูเหลือ 3 (ไทย: ไฟล์/แก้ไข/มุมมอง) เพราะเครื่องมือย้ายไป strip · ประตู overlay เหลือ 2 (Σ สรุป, 🗂 ศูนย์หน้า) จากเดิม 4 ปุ่มปนศัพท์ (Overview🐦/⌘K/Focus) — ⌘K กับ Focus ยังอยู่เป็นคีย์ลัด+เมนูมุมมอง</li>
-    <li><b>② Tool strip ซ้าย</b> — เครื่องมือทุกตัวมองเห็นตลอด + ตัวอักษรคีย์กำกับ (มือใหม่คลิกได้ มือเก่ากดคีย์เหมือนเดิม) · สถานะ snap เห็นที่นี่ถาวร (แก้ปัญหา indicator ถูกเมนู rebuild กลืน)</li>
-    <li><b>③ Canvas + HUD เดิมทุกอย่าง</b> — ไม่แตะพฤติกรรมวาด/pan/zoom เลย</li>
-    <li><b>④ ขวา = จานสีประเภทพื้นที่</b> (จาก mockup ก่อนหน้า) — จุดเชื่อม: เลือกประเภทที่นี่ → status bar ล่างเปลี่ยนตาม</li>
-    <li><b>⑤ Status bar ล่าง (ของที่ lite ตัดทิ้งแล้วควรเอาคืน)</b> — ตอบ 6 คำถามตลอดเวลา: หน้า/ชั้นไหน (คลิก=ศูนย์หน้า) · scale ✓/✗ · เครื่องมืออะไร · วาดลงประเภทไหน · บันทึกหรือยัง (จุดส้ม = dirty) · ยอดชั้นนี้เท่าไร — คือ workflow ทั้งเส้น (เปิด→scale→วัด→ตรวจ→export) ย่อเป็นแถบเดียว</li>
+    <li><b>① Top bar จัดใหม่</b> — เมนูไทย + ประตู overlay เหลือ 2 (Σ สรุป, 🗂 ศูนย์หน้า) — เมนู Measure ▾ ยังอยู่ครบเพราะเป็นบ้านหลักของเครื่องมือ (ไม่มี strip แล้ว)</li>
+    <li><b>② คงเดิม</b> — ไม่เพิ่ม tool strip · เครื่องมือใช้ผ่านเมนู + คีย์ลัดเหมือนวันนี้ · ผลพวง: สถานะ snap ที่เคยหายไปกับเมนู ย้ายไปอยู่ status bar แทน (ช่อง 🧲)</li>
+    <li><b>③ Canvas + HUD เดิมทุกอย่าง</b></li>
+    <li><b>④ คงเดิม</b> — layer panel แบบ tree ปัจจุบันใช้ต่อ · จานสีเก็บเป็นข้อเสนอในลิ้นชัก (S-2..S-9 ยังค้าง needs-GO ตามเดิม) · บั๊ก layer ที่รู้แล้ว (role=gfa, DnD) จะแก้แบบ point-fix ในต้นไม้เดิม</li>
+    <li><b>⑤ Status bar ล่าง — หัวใจของรอบนี้</b> — ตอบ 7 คำถามตลอดเวลา: หน้า/ชั้น (คลิก=ศูนย์หน้า) · ⚖ scale ✓/✗ · เครื่องมือ · วาดเป็นประเภทไหน · 🧲 snap · ● บันทึกหรือยัง · ยอดชั้นนี้</li>
   </ol>
-  <b>สิ่งที่ไม่เปลี่ยน:</b> คีย์ลัดทุกตัว · พฤติกรรม canvas · โหมดโฟกัส (⇧F ซ่อน strip+panel เหลือ canvas ล้วน — ผู้ใช้เดิมได้จอเดิมคืน 100%) · โมเดลข้อมูลทั้งหมด
-  <br><br><b>ต้นทุนโดยประมาณ:</b> strip+status = โมดูลใหม่ 2 ไฟล์ (~250+200 บรรทัด ใต้เพดาน) + แก้ ui-lite.html เฉพาะโครง div (ไฟล์เต็มแล้ว → ต้อง extract บาง region ก่อนตามกติกา) · เข้ากับ 🗂 ศูนย์หน้า + 🎨 จานสี เป็นชุดเดียว "Shell v2"
+  <b>สิ่งที่ไม่เปลี่ยน:</b> คีย์ลัดทุกตัว · พฤติกรรม canvas · โหมดโฟกัส (⇧F ซ่อน status bar+panel → จอเดิม 100%) · โมเดลข้อมูล · layer panel
+  <br><br><b>ต้นทุนหลังลดขอบเขต:</b> โมดูลใหม่ 1 ไฟล์ <code>status-bar.js</code> (~200 บรรทัด อ่านค่าอย่างเดียวจาก state ที่มีอยู่แล้ว — เสี่ยงต่ำมาก) + จัดปุ่มแถบบนใน ui-lite.html เล็กน้อย · ศูนย์หน้า (🗂) เป็นงานแยกที่รอ GO ของตัวเอง
 </div>
 </body>
 </html>
