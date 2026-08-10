@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-08-10 (บ่าย) — analysis/design bundle: module review 35 ไฟล์ + invent zero-install (HALTED@checkpoint) + BUG pagemgr-blocked + mockup 2 ใบ + system map (branch: main)
+
+**ทำอะไร (กิจกรรมวิเคราะห์/ออกแบบ ไม่มีการแก้โค้ด runtime — ทั้งหมดต่อจาก sprint PM-META เช้านี้):**
+
+1. **Governance audit ของ lite** — ตรวจกฎทั้ง 4 ชั้น (README caps / INVARIANTS I1-I10 / check_executable_truth 5 ด่าน / needs-GO process) → ข้อเสนอ 7 ข้อ เด่นสุด: เพดานวัดเป็น "บรรทัด" ถูกเกมด้วยบรรทัดยาว + hidden module loader, roadmap-recon เป็น run-blocking gate ที่เรียงลำดับผิด (ควรเป็น finalize-gate), กฎ semantic-grouping มีแต่ใน prose ไม่มี guard. ยังไม่ file เป็น sprint — รอ user เลือกข้อ.
+2. **Module-by-module review 35 ไฟล์ / 12,758 บรรทัด** (5 agent ขนาน: pages/layers/measure-CFSS/report/chrome) → คะแนน เขียว 11 · เหลือง 18 · แดง 6 (`page-rotate`, `layer-dnd`, `layer-move`, `page-folder-layers`, `wiz-auto`) + **top-10 บั๊กเรียงความเสียหาย** (อันดับ 1-2 กลายเป็น sprint PM-META เช้านี้; ที่เหลือคิว: role=gfa hardcode `page-folder-layers.js:712`, mixed-category m² loss `object-agg.js:238`, CFSS freeze ทิ้ง catId, arc sweep sign จาก partial centroid, B-8 counting move, wizard modal ไม่อยู่ใน modalOpen(), listener leak overview-grid, export-pdf ไม่ข้าม excluded) + pattern เชิงระบบ 5 ข้อ (monkey-patch ซ้อน, guard-flag-ก่อน-wrap, listener รั่ว, number-keyed dicts ไม่ remap, สัญญาณตรวจสอบที่ตรวจไม่ได้แล้ว เช่น assertEnginesAgree เทียบตัวเอง).
+3. **สถาปัตยกรรม "server ดีสุดแล้วหรือไม่" + /lite-invent เต็ม pipeline** — idea `lite-serverless` → research (haiku) verdict `PRIOR_ART_PARTIAL` (mupdf.js ติด AGPL, pdf-lib unproven >100MB, PDF.js worker heap เพดานเดิมจาก lite-range-streaming NOGO) → **reshape เป็น `lite-zero-install-packaging`** → diverge 5 ทาง score เสมอ 3 ที่ 25 (A onefile exe / B portable embed / E pywebview) → **spike A+B จริง ผ่าน eval ครบ 3 เคสทั้งคู่** (zero-Python launch / permit 45 หน้าชื่อไทย / double-launch): A=77.7MB cold 8-21s, B=112MB cold 6.5s, E side-check WebView2 เปิดได้จริง → **HALTED ที่ human checkpoint** (`docs/invent/lite-zero-install-packaging.md`) รอ GO/NOGO/RESHAPE + คำตัดสิน E ว่านับเป็น Electron ต้องห้ามไหม. Spike evidence: `lite/sandbox/invent-lite-packaging/` (commit เฉพาะ spec/script/results — binary ไม่เข้า git).
+4. **BUG-20260810-lite-pagemgr-blocked** — user field report "เปิด pagemanager ไม่ได้" → Playwright repro ยืนยัน root cause: wiz-auto capture lock กลืน ⇧F12 + เมนูอยู่ใต้ #ov จนกว่าจะ tag ≥1 หน้า; `pmOpenManager()` เองปกติ (direct call เปิดได้) — **ไม่ใช่ regression จาก 878effd**. Workaround แจ้ง user แล้ว (tag 1 หน้าก่อน). Filed ใน PHASE_INDEX `### findings 2026-08-10` สถานะ bug-queued, fix direction: allowlist ⇧F12 ใน lock + hint แทน silent return — รอ user สั่งแก้.
+5. **UI review + mockup 2 ใบ (mockup-first, ยังไม่ตัดสิน):** (a) Page Manager → ข้อเสนอ "🗂 ศูนย์หน้า" รวม F12+⇧F12 เป็นจอเดียว 2 โหมด, tile บอก tag/scale/จำนวนงานวัด, in-overlay delete confirm, pending มองเห็น — `lite/sandbox/mockup-page-hub.html`; (b) Layer panel → คำตัดสิน "วิธีคิดชั้นข้อมูลถูก ชั้น UI ควรเปลี่ยน" → mockup "🎨 จานสีประเภทพื้นที่" แทน layer tree: role เด่นก่อนชื่อ (+/−), โครงชั้น read-only, ตัด jargon — เป็นการ execute S-2/S-3/S-4/S-5/S-9 ที่ค้าง needs-GO ใน ledger `/lite-simplify` พร้อมกัน — `lite/sandbox/mockup-layer-palette.html`.
+6. **แผนผังระบบ** — `docs/design/LITE_SYSTEM_MAP.html`: ภาพใหญ่ browser/server, เส้นทางข้อมูล 6 เส้น, แผนที่ 35 โมดูลพร้อมสีสุขภาพ, กฎแก้ 3 สี, ตาราง "แก้เรื่อง X → ไฟล์ไหน + ระวังอะไร".
+
+**Tests:** ไม่มีการแก้โค้ด runtime — no-test rationale ยกเว้น repro script (ข้อ 4, scratchpad) และ spike eval (ข้อ 3, ผลใน `SPIKE_RESULTS.md`). `check_executable_truth` ยืนยัน TRUTH_CHECK_OK หลังแก้ PHASE_INDEX.
+
+**Commits:** `812d7df` (invent doc + PHASE_INDEX findings 2026-08-10 + spike evidence), `38f483a` (mockup Page Hub), `ea97ac3` (mockup Layer Palette), `fb31206` (LITE_SYSTEM_MAP).
+
+**รอ user ตัดสิน (4 เรื่องค้าง):** (1) GO/NOGO/RESHAPE zero-install packaging + คำตัดสิน E; (2) GO mockup ศูนย์หน้า; (3) GO mockup จานสี (=ตัดสิน S-2..S-9 batch); (4) สั่งแก้ BUG-20260810-lite-pagemgr-blocked. บวกงานเทสต์มือ: field re-test PM-META fix + ทดสอบ artifact A/B บนเครื่อง Windows สดจริง (เช็คลิสต์ 7 ข้อแจ้งไว้ในแชทแล้ว).
+
+---
+
 ## 2026-08-10 — PM-META + PM-ID: page-meta/globals live-sync fix + duplicate-id mint-counter fix (lite) — PASS (branch: main)
 
 **ทำอะไร:** สืบต่อจาก user symptom "เลเยอร์มั่ว การจัดการหน้ามั่ว" ใน lite. Opus ทำ 35-module review + เขียน work order พร้อม build (`sprints/completed/2026-08-10-page-meta-identity/RUN_PAGE_META_IDENTITY.md`), delegate build ให้ `lite-builder` subagent (sonnet), orchestrator รีวิว diff + commit. 2 บั๊กเก่าจาก BUG-20260703 (ครึ่งหลังของ I5) และ I9:
