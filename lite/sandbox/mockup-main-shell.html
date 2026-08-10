@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Shell v2: จอหลัก lite (toolbar + status bar)</title>
+<style>
+  :root{--bg:#0c0f14;--panel:#161a22;--line:#2a3140;--ink:#e8ecf3;--muted:#8b94a7;
+        --accent:#4c8dff;--amber:#ffb454;--red:#ff453a;--green:#34c77b;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#06080c;color:var(--ink);font:13px/1.5 "Sarabun","Segoe UI",sans-serif;padding:20px}
+  h1{font-size:16px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  /* ===== app frame ===== */
+  .app{max-width:1150px;margin:0 auto;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+       display:flex;flex-direction:column;height:640px;background:var(--bg);box-shadow:0 18px 60px rgba(0,0,0,.5)}
+  /* top bar */
+  .top{display:flex;align-items:center;gap:2px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px}
+  .logo{font-weight:700;margin-right:8px}.tag{font-size:9px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;margin-right:12px}
+  .mn{padding:4px 10px;border-radius:6px;color:var(--ink);cursor:pointer}
+  .mn:hover{background:#222a37}
+  .sp{flex:1}
+  .door{padding:4px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--line);background:#0c0f14;margin-left:6px;font-size:12px}
+  .door:hover{border-color:var(--accent)}
+  /* body row */
+  .mid{flex:1;display:flex;min-height:0}
+  /* tool strip */
+  .tools{width:52px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;
+         align-items:center;padding:8px 0;gap:2px}
+  .t{width:40px;height:40px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+     cursor:pointer;color:var(--muted);font-size:15px;border:1px solid transparent}
+  .t small{font-size:8.5px;line-height:1;margin-top:2px}
+  .t:hover{background:#222a37;color:var(--ink)}
+  .t.on{background:#17223a;border-color:var(--accent);color:var(--accent)}
+  .tsep{width:26px;border-top:1px solid var(--line);margin:6px 0}
+  /* canvas */
+  .stage{flex:1;position:relative;background:
+    repeating-linear-gradient(0deg,#0d1117 0 34px,#0f141b 34px 35px),
+    repeating-linear-gradient(90deg,#0d1117 0 34px,#0f141b 34px 35px)}
+  .plan{position:absolute;inset:40px 60px;border:1px dashed #2c3a52;border-radius:4px;
+        display:flex;align-items:center;justify-content:center;color:#2c3a52;font-size:30px}
+  .shape{position:absolute;left:22%;top:24%;width:34%;height:38%;border:2px solid #4c8dff;
+         background:rgba(76,141,255,.13);border-radius:2px}
+  .shape .lbl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+              background:#4c8dff;color:#fff;font-size:11px;border-radius:99px;padding:1px 9px;white-space:nowrap}
+  .hud-hint{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--muted);
+            background:rgba(6,8,12,.7);border-radius:6px;padding:3px 9px}
+  .zoom{position:absolute;right:10px;bottom:8px;display:flex;gap:4px}
+  .zoom button{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+  /* palette (right) */
+  .pal{width:230px;background:var(--panel);border-left:1px solid var(--line);padding:8px;font-size:12px}
+  .pal .h{color:var(--muted);font-size:11px;margin:2px 4px 6px}
+  .pt{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+  .pt.on{background:#17223a;border-color:var(--accent)}
+  .pt:hover{background:#1b2230}
+  .dot{width:10px;height:10px;border-radius:3px}
+  .pt .nm{flex:1}
+  .sign{font-size:9.5px;border-radius:4px;padding:0 4px}
+  .sign.p{background:#1d2c4d;color:#7fb0ff}.sign.m{background:#43242a;color:#ff8f87}
+  .pt .a{font-size:10.5px;color:var(--muted)}
+  /* status bar */
+  .status{display:flex;align-items:center;background:var(--panel);border-top:1px solid var(--line);
+          font-size:11.5px;color:var(--muted)}
+  .cell{padding:5px 12px;border-right:1px solid #1b2230;display:flex;align-items:center;gap:6px;cursor:default}
+  .cell b{color:var(--ink);font-weight:500}
+  .cell.click{cursor:pointer}.cell.click:hover{background:#1b2230}
+  .ok{color:var(--green)}.warn{color:var(--amber)}
+  /* notes */
+  .notes{max-width:1150px;margin:18px auto 0;color:var(--muted);font-size:12.5px;border-top:1px dashed var(--line);padding-top:12px}
+  .notes li{margin:5px 0 5px 18px}
+  .notes b{color:var(--ink)}
+  .k{background:#222a37;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:10.5px}
+</style>
+</head>
+<body>
+<h1>Mockup — Shell v2: จอหลัก lite</h1>
+<div class="sub">โครงเดิม (เมนู + canvas เต็ม + คีย์ลัด) คงไว้ทั้งหมด — เพิ่ม "ชั้นมองเห็นได้" 2 แถบ: tool strip ซ้าย + status bar ล่าง</div>
+
+<div class="app">
+  <!-- ① top bar: เมนูไทย + ประตู overlay เหลือ 2 -->
+  <div class="top">
+    <span class="logo">◯ BMA-Plan</span><span class="tag">LITE</span>
+    <span class="mn">ไฟล์ ▾</span><span class="mn">แก้ไข ▾</span><span class="mn">มุมมอง ▾</span>
+    <span class="sp"></span>
+    <span class="door">Σ สรุปโครงการ</span>
+    <span class="door">🗂 ศูนย์หน้า <span class="k">F12</span></span>
+  </div>
+
+  <div class="mid">
+    <!-- ② tool strip -->
+    <div class="tools">
+      <div class="t" title="เลือก/แก้ไข (V)">➤<small>V</small></div>
+      <div class="t" title="ตั้งสเกล (S)">⚖<small>S</small></div>
+      <div class="t on" title="วัดพื้นที่ (A)">⬠<small>A</small></div>
+      <div class="t" title="ระยะ (D)">↔<small>D</small></div>
+      <div class="t" title="นับจุด (N)">◉<small>N</small></div>
+      <div class="t" title="เส้นอ้างอิง (R)">╱<small>R</small></div>
+      <div class="tsep"></div>
+      <div class="t" title="ข้อความ">🗛</div>
+      <div class="t" title="ลูกศร">↗</div>
+      <div class="t" title="ไฮไลต์">▤</div>
+      <div class="tsep"></div>
+      <div class="t" title="Snap (G) — เปิดอยู่" style="color:var(--green)">🧲<small>G</small></div>
+      <div class="t" title="โหมดโฟกัส (⇧F)">◯</div>
+    </div>
+
+    <!-- ③ canvas -->
+    <div class="stage">
+      <div class="plan">▦ แบบแปลน</div>
+      <div class="shape"><span class="lbl">ห้องนอน 1 · 24.30 ตร.ม.</span></div>
+      <div class="hud-hint">คลิกวางจุด · ดับเบิลคลิก=จบรูป · Esc=ยกเลิก</div>
+      <div class="zoom"><button>+</button><button>−</button><button>⤢</button></div>
+    </div>
+
+    <!-- ④ palette ขวา (จาก mockup จานสี — ย่อ) -->
+    <div class="pal">
+      <div class="h">วาดเป็นประเภท…</div>
+      <div class="pt on"><span class="dot" style="background:#4c8dff"></span><span class="nm">พื้นที่อาคาร</span><span class="sign p">+</span><span class="a">212.4</span></div>
+      <div class="pt"><span class="dot" style="background:#ff453a"></span><span class="nm">หักช่องเปิด</span><span class="sign m">−</span><span class="a">18.6</span></div>
+      <div class="pt"><span class="dot" style="background:#34c77b"></span><span class="nm">ที่ดิน</span><span class="a">—</span></div>
+      <div class="pt"><span class="dot" style="background:#b48cff"></span><span class="nm">นับจุด (จอดรถ)</span><span class="a">24 จุด</span></div>
+    </div>
+  </div>
+
+  <!-- ⑤ status bar -->
+  <div class="status">
+    <span class="cell click" title="คลิก = เปิดศูนย์หน้า"><b>หน้า 3/45</b> · ชั้น 2</span>
+    <span class="cell click"><span class="ok">⚖ 1:100 ✓</span></span>
+    <span class="cell">เครื่องมือ: <b>วัดพื้นที่ (A)</b></span>
+    <span class="cell">วาดเป็น: <b style="color:#7fb0ff">■ พื้นที่อาคาร</b></span>
+    <span class="cell"><span class="warn">● ยังไม่บันทึก</span> <span class="k">Ctrl+S</span></span>
+    <span class="sp" style="flex:1"></span>
+    <span class="cell">สุทธิชั้นนี้ <b>193.8 ตร.ม.</b></span>
+    <span class="cell click" title="F1">⌨ F1</span>
+  </div>
+</div>
+
+<div class="notes">
+  <b>สิ่งที่เปลี่ยน (5 จุด) และเหตุผล:</b>
+  <ol>
+    <li><b>① Top bar จัดใหม่</b> — เมนูเหลือ 3 (ไทย: ไฟล์/แก้ไข/มุมมอง) เพราะเครื่องมือย้ายไป strip · ประตู overlay เหลือ 2 (Σ สรุป, 🗂 ศูนย์หน้า) จากเดิม 4 ปุ่มปนศัพท์ (Overview🐦/⌘K/Focus) — ⌘K กับ Focus ยังอยู่เป็นคีย์ลัด+เมนูมุมมอง</li>
+    <li><b>② Tool strip ซ้าย</b> — เครื่องมือทุกตัวมองเห็นตลอด + ตัวอักษรคีย์กำกับ (มือใหม่คลิกได้ มือเก่ากดคีย์เหมือนเดิม) · สถานะ snap เห็นที่นี่ถาวร (แก้ปัญหา indicator ถูกเมนู rebuild กลืน)</li>
+    <li><b>③ Canvas + HUD เดิมทุกอย่าง</b> — ไม่แตะพฤติกรรมวาด/pan/zoom เลย</li>
+    <li><b>④ ขวา = จานสีประเภทพื้นที่</b> (จาก mockup ก่อนหน้า) — จุดเชื่อม: เลือกประเภทที่นี่ → status bar ล่างเปลี่ยนตาม</li>
+    <li><b>⑤ Status bar ล่าง (ของที่ lite ตัดทิ้งแล้วควรเอาคืน)</b> — ตอบ 6 คำถามตลอดเวลา: หน้า/ชั้นไหน (คลิก=ศูนย์หน้า) · scale ✓/✗ · เครื่องมืออะไร · วาดลงประเภทไหน · บันทึกหรือยัง (จุดส้ม = dirty) · ยอดชั้นนี้เท่าไร — คือ workflow ทั้งเส้น (เปิด→scale→วัด→ตรวจ→export) ย่อเป็นแถบเดียว</li>
+  </ol>
+  <b>สิ่งที่ไม่เปลี่ยน:</b> คีย์ลัดทุกตัว · พฤติกรรม canvas · โหมดโฟกัส (⇧F ซ่อน strip+panel เหลือ canvas ล้วน — ผู้ใช้เดิมได้จอเดิมคืน 100%) · โมเดลข้อมูลทั้งหมด
+  <br><br><b>ต้นทุนโดยประมาณ:</b> strip+status = โมดูลใหม่ 2 ไฟล์ (~250+200 บรรทัด ใต้เพดาน) + แก้ ui-lite.html เฉพาะโครง div (ไฟล์เต็มแล้ว → ต้อง extract บาง region ก่อนตามกติกา) · เข้ากับ 🗂 ศูนย์หน้า + 🎨 จานสี เป็นชุดเดียว "Shell v2"
+</div>
+</body>
+</html>
