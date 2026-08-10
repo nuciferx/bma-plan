@@ -85,8 +85,9 @@ JS_ALLOWLIST = {
 MAXLEN = 300
 MAXLEN_BASELINE = {
     # measured 2026-08-10 (ratchet introduction)
-    "ui-lite.html": 10,
+    "ui-lite.html": 8,   # extraction 2026-08-10 project-io: 2 long lines moved to project-io.js (10 -> 8)
     "measure-engine.js": 11,   # vendored + sha-pinned — cannot change by definition
+    "project-io.js": 2,   # extraction 2026-08-10 project-io: verbatim-moved from ui-lite.html
 }
 
 # ---- check-2 config: vendored measure engine -----------------------------------
