@@ -167,8 +167,14 @@ function _jitShowTagBanner(n) {
   });
   el.innerHTML = h;
   el.style.display = "flex";
+  // page-manager-redesign approach D, slice 2 (TAG-JIT-FIX): re-read curPage
+  // AT CLICK TIME, never the closed-over `n` from render time — if the user
+  // navigates away before tapping a chip, the stale page must NOT get tagged.
   el.querySelectorAll("[data-jit-tag]").forEach(function(chip) {
-    chip.addEventListener("click", function() { _jitCompleteTag(n, chip.dataset.jitTag); });
+    chip.addEventListener("click", function() {
+      var live = (typeof curPage !== "undefined") ? curPage : n;
+      _jitCompleteTag(live, chip.dataset.jitTag);
+    });
   });
 }
 
@@ -206,16 +212,29 @@ function _jitScaleCommitted() {
   }
 }
 
-/* -- bootstrap — wraps setTool() exactly once.
-   Same safe-timing idiom as overview-setup.js's _lovsBootstrap: this
-   script is injected dynamically AFTER DOMContentLoaded may already have
-   fired, so setTimeout(0) is used to let in-progress scripts finish when
-   that's the case; otherwise wait for the event. Guard via
-   window.__jitWrapped for idempotency. */
-function _jitBootstrap() {
-  if (window.__jitWrapped) return;
-  window.__jitWrapped = true;
-  if (typeof setTool === "function" && !setTool.__jitWrapped) {
+/* -- page-manager-redesign approach D, slice 2 (TAG-JIT-FIX) bug (b):
+   hide the banner (and clear any pending-tool arm request) on every page
+   navigation, so a stale banner from a page the user has left can never
+   be tapped. Wraps the REAL global afterPage() (called by loadPage() in
+   page-renderer.js on every navigation branch) — no ui-lite.html edit. */
+function _jitTryWrapAfterPage() {
+  if (typeof window.afterPage !== "function") return false;
+  if (window.afterPage.__jitWrapped) return true;
+  var _origAfterPage = window.afterPage;
+  window.afterPage = function() {
+    var ret = _origAfterPage.apply(this, arguments);
+    _jitHideBanner();
+    _jitPendingTool = null;
+    return ret;
+  };
+  window.afterPage.__jitWrapped = true;
+  return true;
+}
+
+/* -- setTool wrap, extracted so bootstrap can retry it independently. -- */
+function _jitTryWrapSetTool() {
+  if (typeof setTool !== "function") return false;
+  if (!setTool.__jitWrapped) {
     var _origSetTool = setTool;
     setTool = function(t) {
       if (!jitGuardTool(t)) return; // refuse to arm; banner already shown
@@ -223,7 +242,31 @@ function _jitBootstrap() {
     };
     setTool.__jitWrapped = true;
   }
-  _jitWrapScaleCommit();
+  return true;
+}
+
+/* -- bootstrap — wraps setTool(), the two scale-commit buttons, and
+   afterPage(), each independently idempotent (own .__xWrapped guard).
+   Same safe-timing idiom as overview-setup.js's _lovsBootstrap: this
+   script is injected dynamically AFTER DOMContentLoaded may already have
+   fired, so setTimeout(0) is used to let in-progress scripts finish when
+   that's the case; otherwise wait for the event.
+
+   BUG-FIX (c): window.__jitWrapped used to be set to true BEFORE
+   confirming setTool actually got wrapped — a bootstrap race (setTool not
+   yet defined) could leave setTool permanently unwrapped while
+   __jitWrapped lied that the gate was live. Now __jitWrapped is set ONLY
+   after a successful setTool wrap; whichever piece(s) aren't ready yet
+   (setTool / #cal-ok+#su-ok / afterPage) retry on a 5x200ms ladder. */
+function _jitBootstrap(attempt) {
+  attempt = attempt || 0;
+  var setToolOk = _jitTryWrapSetTool();
+  var scaleOk   = _jitWrapScaleCommit();
+  var afterOk   = _jitTryWrapAfterPage();
+  if (setToolOk) window.__jitWrapped = true;
+  if ((!setToolOk || !scaleOk || !afterOk) && attempt < 5) {
+    setTimeout(function() { _jitBootstrap(attempt + 1); }, 200);
+  }
 }
 
 /* -- SCALE-GATE-2026-07-04: wrap the two user-facing scale-commit points.
@@ -232,13 +275,20 @@ function _jitBootstrap() {
    the original handler, diff scale-presence before/after calling it, fire
    _jitScaleCommitted() only on a genuine none->some transition (so an
    invalid #cal-ok input, which its own handler alert()s+returns early
-   without setting a scale, correctly does NOT retrigger). -- */
+   without setting a scale, correctly does NOT retrigger).
+
+   BUG-FIX (c): returns true only when BOTH buttons end up wrapped (either
+   just now or already, from a prior attempt) — false if either #cal-ok or
+   #su-ok isn't in the DOM yet / has no onclick yet, so _jitBootstrap's
+   retry ladder can try again instead of silently giving up forever. -- */
 function _jitWrapScaleCommit() {
+  var allOk = true;
   ["cal-ok", "su-ok"].forEach(function(id) {
     var btn = document.getElementById(id);
-    if (!btn || btn.__jitScaleWrapped) return;
+    if (!btn) { allOk = false; return; }
+    if (btn.__jitScaleWrapped) return; // already wrapped -> fine
     var _origOnClick = btn.onclick;
-    if (typeof _origOnClick !== "function") return;
+    if (typeof _origOnClick !== "function") { allOk = false; return; }
     btn.onclick = function(e) {
       var n = (typeof curPage !== "undefined") ? curPage : 0;
       var hadScaleBefore = n ? jitPageScaled(n) : true;
@@ -249,6 +299,7 @@ function _jitWrapScaleCommit() {
     };
     btn.__jitScaleWrapped = true;
   });
+  return allOk;
 }
 
 if (document.readyState === "loading") {
