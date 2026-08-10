@@ -1,12 +1,59 @@
 # PATCH_SUMMARY.md — Latest Sprint
 
-> Full patch history: [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) · [docs/archive/patch-history-2026-07-02.md](docs/archive/patch-history-2026-07-02.md) · [docs/archive/patch-history-2026-07-03.md](docs/archive/patch-history-2026-07-03.md)
+> Full patch history: [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) · [docs/archive/patch-history-2026-07-02.md](docs/archive/patch-history-2026-07-02.md) · [docs/archive/patch-history-2026-07-03.md](docs/archive/patch-history-2026-07-03.md) · [docs/archive/patch-history-2026-07-04.md](docs/archive/patch-history-2026-07-04.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: BUG-20260706-lite-layer-page-binding — active-layer-not-following-page + multi-site-page-tag (lite)
+# Latest: PM-META + PM-ID — page-meta/globals live-sync fix + duplicate-id mint-counter fix (lite)
+
+Branch: main
+
+Date: 2026-08-10
+
+## Outcome: PASS — 2 root-cause bugs fixed underneath the user symptom "เลเยอร์มั่ว การจัดการหน้ามั่ว"
+
+## Summary
+
+PM-META (I5, second half of BUG-20260703): `_pmCommit` called `projectToGlobals(PS)` with live content but page meta (tags/rotations/floor numbers/exclusions) still came from `meta_by_id` snapshots taken at open-time — every Save/Apply/Merge silently reverted all meta edits made since open, then `reseedActivePageFolders()` re-derived layer folders from the reverted data, producing the visible "layers scrambled" symptom. Fixed with a new `PageModel.prototype._liveMetaFor` (mirror of `_liveContentFor`) so `projectToGlobals(livePS, liveMeta)` resolves and refreshes meta from live state; `ui-lite.html:424` now passes live meta dicts (in-place edit, net 0 lines). PM-ID (I9): the `_idc` mint counter reset to 0 each session but `load()`/`seedFromGlobals()` adopted existing `pageIdentities` without advancing it, so reopening a `.bmaplan` with a duplicate page could re-mint `pg0` and overwrite page 1's data. Fixed by advancing `_idc` past adopted `pg<N>` ids at both adopt sites. Both proven RED before fix, GREEN after (new markers `LITE_PM_META_LIVE_OK`, `LITE_PM_ID_SEED_OK`).
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/static/js/page-manager.js` | 533→565 lines: `_liveMetaFor` + `projectToGlobals(livePS, liveMeta)`, `adoptId()` advances `_idc` past adopted ids |
+| `lite/ui-lite.html` | net 0 lines — line 424 passes live meta dicts into `_pmCommit` |
+| `lite/tests/page_manager_eval.js` | 743→821 lines — new E21 (`LITE_PM_META_LIVE_OK`), E22 (`LITE_PM_ID_SEED_OK`) |
+| `docs/status/PHASE_INDEX.md` | −2 rows (2 shipped items reconciled out) |
+| `docs/status/ROADMAP_DONE.md` | +2 rows |
+| `sprints/completed/2026-08-10-page-meta-identity/RUN_PAGE_META_IDENTITY.md` | sprint card / work order (Opus-authored after 35-module review) |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — untouched, lite-only sprint
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — untouched
+- `pdfToC`, `cToPdf`, `RS`, scale math, snap engine — untouched
+- `.bmaplan` schema version stays 1; `liveMeta` is an in-memory arg only, not a persisted field
+
+## Tests Run
+
+Guard tests proven RED before fix then GREEN after — E21 `LITE_PM_META_LIVE_OK`, E22 `LITE_PM_ID_SEED_OK`. `python lite/tests/test_page_manager.py` → 23/23 `LITE_PAGE_MANAGER_OK`. `python scripts/check_executable_truth.py` → `TRUTH_CHECK_OK` (5/5). Full suite `python lite/tests/run_all_tests.py` → 101/102 in 15.9 min; sole failure `test_closing_dup_strip.py` (`LITE_CLOSING_DUP_STRIP_FAIL`, "5 poly objects on page 26, got 244.17") confirmed PRE-EXISTING via git-stash re-run on the unmodified tree — not caused by this sprint; filed as a known issue for its own investigation.
+
+## Phase 1 Scope Check
+
+- ✅ No legal checker / OCR / AI / rule engine / FAR-OSR-setback touched
+- ✅ proto/ untouched, lite-only
+- ✅ No forbidden surface touched
+- ✅ `.bmaplan` schema additive-only (no field added — in-memory arg only)
+
+**Commits:** `1107e2e` (sprint card work order), `d0b3881` (docs: reconcile 2 shipped rows PHASE_INDEX → ROADMAP_DONE, unblocking the roadmap-recon preflight gate — TRUTH_CHECK_OK 5/5 restored), `878effd` (fix(lite): PM-META + PM-ID)
+
+**Closes:** PM-META (I5 second half of BUG-20260703), PM-ID (I9)
+
+---
+
+# Previous: BUG-20260706-lite-layer-page-binding — active-layer-not-following-page + multi-site-page-tag (lite)
 
 Date: 2026-07-06 · Area: layer / page-tagging (lite) · 1 commit, lite-only, proto untouched
 
@@ -20,19 +67,7 @@ Two user-reported field bugs fixed together, both traced to the page↔layer bin
 
 ---
 
-# Previous: 2026-07-04 full-day block — 8 ships (layer-menu, page-tagging, report-truth, native-rotate bug, snap-engine, scale-gate)
-
-Date: 2026-07-04 · Area: layer / report / measure / render (lite) · 18 commits, lite-only, proto untouched
-
-One-day block covering 2 invent→build arcs (layer-menu-ui-fix GO `c35c1a7`→`7600fde`+`e1c6a76`; page-tagging-workflow GO `0a6677a`→`2df5d40`), a 5-slice report-truth rework from a Fable export-pipeline review (`bb5090f`,`6ba7ea3`,`fc63e72`,`8362c3f`,`52725a1`), a user-reported CRASH-adjacent bug fix (native page rotate ignored intrinsic /Rotate, `fbe28fb`), a 3-commit snap-engine extraction from a Fable snap review (`cd6a960`,`23f3914`,`42a0767`), and a second JIT gate for scale (`a5044aa`). Model ladder: haiku/sonnet build → opus first-stage review → Fable final GO on every invent. `ui-lite.html` net DOWN (1197→1188) despite 6 feature ships thanks to 2 size-cap extractions (`overview-grid.js`, `snap-engine.js`).
-
-**Commits:** `c35c1a7`, `7600fde`, `e1c6a76`, `dafb932`, `0a6677a`, `2df5d40`, `bb5090f`, `6ba7ea3`, `fc63e72`, `8362c3f`, `52725a1`, `fbe28fb`, `cd6a960`, `23f3914`, `42a0767`, `a5044aa` (+2 docs-only commits)
-
-**Files touched:** `lite/static/js/layer-scope.js` (NEW), `lite/static/js/overview-grid.js` (extracted 1059→845), `lite/static/js/tag-jit.js` (NEW), `lite/static/js/snap-engine.js` (NEW, extracted), `lite/static/js/export-annotate.js`, `lite/static/js/report-vars.js`, `lite/lite-report.html` (332→204), `lite/ui-lite.html` (1197→1188 net), `lite/server_lite.py`, 15+ `lite/tests/test_*.py` (new/updated), `docs/status/PHASE_INDEX.md`
-
-**Closes:** INV-2026-07-04-001 (layer panel, absorbs LFOC-1e), INV-2026-07-04-002 (page tagging, absorbs REVIEW S-10), report-truth A-4/B-6/B-2/B-3/S-1/S-6/S-12, BUG-20260704-lite-native-rotate, SNAP-2026-07-04 (3 blocks kept; centerline-unification + wall-trace deferred), SCALE-GATE same-day finding
-
----
+<!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/patch-history-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
 # AUDIT-20260703-roadmap-staleness
 

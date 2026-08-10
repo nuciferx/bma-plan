@@ -1,12 +1,39 @@
 # FINAL_REPORT_FOR_CHATGPT.md — Sprint Outcome Report
 
-> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md)
+> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md) · [docs/archive/reports-2026-07-04.md](docs/archive/reports-2026-07-04.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: BUG-20260706-lite-layer-page-binding — PASS
+# Latest: PM-META + PM-ID — PASS
+
+**Date:** 2026-08-10
+**Branch:** main
+
+## Outcome
+
+Fixed the actual root cause underneath the user symptom "เลเยอร์มั่ว การจัดการหน้ามั่ว" (layers/page management scrambled) in `lite/`. Two bugs: PM-META, where every Save/Apply/Merge silently reverted page tags/rotations/floor numbers/exclusions to their open-time state because `_pmCommit` sourced live content but stale meta snapshots — the reverted meta then fed layer-folder re-derivation, producing the "scrambled layers" the user saw with no error shown. PM-ID, where the page-identity mint counter didn't advance on load/seed, so reopening a `.bmaplan` with a duplicate page could re-mint a colliding id and overwrite another page's data. Both fixed with additive, in-place changes (net 0 lines in `ui-lite.html`) and proven with RED-before/GREEN-after guard tests.
+
+## What was delivered
+
+- `PageModel.prototype._liveMetaFor` (mirrors the existing `_liveContentFor`) so `projectToGlobals(livePS, liveMeta)` resolves meta from live state instead of stale open-time snapshots
+- `adoptId()` now advances the `_idc` mint counter past every adopted `pg<N>` id at both call sites, closing the duplicate-id collision on reopen
+- New guard markers `LITE_PM_META_LIVE_OK` (E21) and `LITE_PM_ID_SEED_OK` (E22), both proven RED pre-fix then GREEN post-fix
+- Full regression: `test_page_manager.py` 23/23, `check_executable_truth.py` 5/5, full suite 101/102 (1 pre-existing failure confirmed via git-stash, not this sprint's regression)
+- Sprint delegated end-to-end: Opus wrote a ready-to-build work order after a 35-module review; `lite-builder` (sonnet) implemented; orchestrator reviewed diffs and committed
+
+## What's next
+
+File `test_closing_dup_strip.py`'s pre-existing failure as its own known-issue investigation; then the "slice 3-4" follow-ups from the 2026-08-10 page-pipeline review (pageRot/`_scanned` remap by identity on reorder, PM-overlay canvas/pageCount sync, wizard thumbnails via `serverNum()`); the tag-jit banner wrong-page-write + bootstrap-flag fix; and the top-10 list from today's module review (layer role=gfa hardcode, mixed count/area category m² loss, CFSS freeze dropping catId, etc.).
+
+## Position in Plan
+
+Phase 1 (Raster PDF Measurement Assistant), `lite/` track. Root-cause fix closing out the second half of `BUG-20260703` (I5) plus `I9`, both surfaced by the same-day 35-module review. No proto work, no forbidden-surface touches, no `.bmaplan` schema change. Next up: file the pre-existing test failure, then continue the page-pipeline follow-up queue.
+
+---
+
+# Previous: BUG-20260706-lite-layer-page-binding — PASS
 
 **Date:** 2026-07-06
 **Branch:** main
@@ -33,30 +60,7 @@ Phase 1 (Raster PDF Measurement Assistant), `lite/` track. Bug-report intake/fix
 
 ---
 
-# Previous: 2026-07-04 full-day block — 8 ships — layer/report/measure/render (lite)
-
-**Date:** 2026-07-04
-
-One-day block, 18 commits, lite-only, proto untouched. 2 invent→build arcs (layer-menu-ui-fix `c35c1a7`→`7600fde`+`e1c6a76` closing INV-2026-07-04-001, absorbing LFOC-1e; page-tagging-workflow `0a6677a`→`2df5d40` closing INV-2026-07-04-002, absorbing REVIEW S-10) both driven by Fable reviews and closed with opus first-stage review + Fable final GO. A 5-slice report-truth rework (`bb5090f`/`6ba7ea3`/`fc63e72`/`8362c3f`/`52725a1`) moved XLSX/grid/report onto the object-agg tuple stream, made the grid the single source of truth (classic table deleted), added 3 truthful export doors + Thai PDF-overlay labels, and a plan-image appendix with SVG overlays. A user field report ("pdf เปิดกลับข้าง") led to `BUG-20260704-lite-native-rotate` (`fbe28fb`) — PDF.js explicit-rotation viewport was silently overriding intrinsic `/Rotate`, a regression from the prior day's streaming work; fixed with a 2-line change, repro-first (6 checks RED pre-fix → 24/24 GREEN). A Fable snap review led to `SNAP-2026-07-04` (`cd6a960`/`23f3914`/`42a0767`) — snap-engine extraction + static-intersection cache, angle-lock composing with snap, and 5-type nearest-on-edge symmetry; centerline-unification and wall-trace were explicitly deferred per user choice. `SCALE-GATE` (`a5044aa`) added a second JIT gate refusing measurement on an unscaled page. Full lite suite 97/98 green (1 pre-existing test-side bug, not app). `ui-lite.html` net DOWN (1197→1188) across 6 feature ships thanks to 2 size-cap extractions.
-
-## What was delivered
-
-- Context-scoped layer panel (floor-rail + grouped search) replacing the flat 100-floor layer list
-- Reworked page-tagging workflow: bulk apply, group-by-tag verify view, per-page JIT gate
-- Truthful report/export pipeline: single tuple-stream source of truth, deduction sign shown, grid-only printing, plan-image appendix
-- Fixed native page-rotation bug reported by the user in the field
-- Extracted, faster snap engine with angle-lock composition and edge-symmetry toggle
-- Second JIT gate blocking measurement before scale is set
-
-## What's next
-
-User field re-test of everything shipped today; then centerline-snap robustness (`INV-2026-05-25-001`, awaiting field data), LFOC queue, a housekeeping pair (`test_closing_dup_strip` + `test_undo_layers` cp1252 crash), and the wall-trace-assist invent idea.
-
-## Position in Plan
-
-Phase 1 (Raster PDF Measurement Assistant), `lite/` track. This block continues the post-GO-20260703 cadence of Fable-reviewed invent→build cycles plus field-driven bugfixes; no proto work, no forbidden-surface touches. Next up per user: field validation pass before further feature work.
-
----
+<!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/reports-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
 # AUDIT-20260703-roadmap-staleness — process / roadmap hygiene
 

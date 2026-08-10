@@ -1,12 +1,39 @@
 # TEST_RESULT.md — Latest Test Result
 
-> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md) · [docs/archive/test-history-2026-07-03.md](docs/archive/test-history-2026-07-03.md)
+> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md) · [docs/archive/test-history-2026-07-03.md](docs/archive/test-history-2026-07-03.md) · [docs/archive/test-history-2026-07-04.md](docs/archive/test-history-2026-07-04.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: BUG-20260706-lite-layer-page-binding
+# Latest: PM-META + PM-ID
+
+Date: 2026-08-10 · Area: page-manager / layer identity (lite)
+
+_lite-only, proto untouched. No forbidden surface (measure-engine/pdfToC/RS/snap untouched) — no proto E2E run._
+
+Both guard tests proven RED before the fix, then GREEN after — a genuine regression-proof cycle, not just a green run:
+
+- **E21 (`LITE_PM_META_LIVE_OK`, PM-META):** before the fix, `_pmCommit` reverted page meta (tags/rotations/floor numbers/exclusions) to the open-time snapshot on every Save/Apply/Merge — proven by asserting a tag set post-open survives a commit cycle (FAILED pre-fix, PASSED post-fix with `_liveMetaFor` + `projectToGlobals(livePS, liveMeta)`).
+- **E22 (`LITE_PM_ID_SEED_OK`, PM-ID):** before the fix, `adoptId()` did not advance the `_idc` mint counter past adopted `pg<N>` ids on load/seed — proven by reopening a `.bmaplan` with a duplicate page and asserting no id collision on next mint (FAILED pre-fix, PASSED post-fix).
+
+| Marker / Suite | Result |
+|---|---|
+| `page_manager_eval.js` E21 `LITE_PM_META_LIVE_OK` | FAIL (pre-fix) → PASS (post-fix) |
+| `page_manager_eval.js` E22 `LITE_PM_ID_SEED_OK` | FAIL (pre-fix) → PASS (post-fix) |
+| `lite/tests/test_page_manager.py` (`LITE_PAGE_MANAGER_OK`) | PASS (23/23) |
+| `scripts/check_executable_truth.py` (`TRUTH_CHECK_OK`) | PASS (5/5) |
+| `lite/tests/run_all_tests.py` (full suite) | 101/102 in 15.9 min — 1 pre-existing failure, see below |
+
+**Pre-existing failure (not caused by this sprint):** `test_closing_dup_strip.py` failed with `LITE_CLOSING_DUP_STRIP_FAIL` ("5 poly objects on page 26, got 244.17"). Verified PRE-EXISTING by re-running the same test against the unmodified tree via `git stash` — the failure reproduces identically with none of this sprint's changes applied. Not a regression from PM-META/PM-ID; filed as a known issue needing its own investigation, not blocking this ship.
+
+**Baseline comparison:** prior full-suite run (2026-07-04 full-day block, archived) was 97/98 green with the same single pre-existing failure category (`test_closing_dup_strip.py`) already present at that time — this sprint's 101/102 confirms the suite has otherwise grown (98→102 files) with zero new failures introduced.
+
+Commits: `1107e2e`, `d0b3881`, `878effd`. Closes: PM-META (I5 second half of BUG-20260703), PM-ID (I9)
+
+---
+
+# Previous: BUG-20260706-lite-layer-page-binding
 
 Date: 2026-07-06 · Area: layer / page-tagging (lite)
 
@@ -28,35 +55,7 @@ Commit: `ba109f0`. Closes: BUG-20260706-lite-active-layer-not-following-page, BU
 
 ---
 
-# Previous: 2026-07-04 full-day block — 8 ships
-
-Date: 2026-07-04 · Area: layer / report / measure / render (lite)
-
-_lite-only, proto untouched. Full lite suite: 97/98 files green — the 1 failure (`test_closing_dup_strip.py`) is a pre-existing bug in the test itself (verified against HEAD), not an app regression; queued for housekeeping._
-
-| Marker | Result |
-|---|---|
-| LITE_LAYER_SCOPE_OK | PASS (6/6) |
-| LITE_LAYER_SEARCH_OK | PASS (5/5) |
-| LITE_BULK_APPLY_OK | PASS (5/5) |
-| LITE_GRID_GROUP_VIEW_OK | PASS (5/5) |
-| LITE_TAG_JIT_OK | PASS (6/6) |
-| LITE_EXPORT_TRUTH_OK | PASS (5/5) |
-| LITE_GRID_ALL_PAGES_OK | PASS (5/5) |
-| LITE_REPORT_SINGLE_MODE_OK | PASS (5/5) |
-| LITE_EXPORT_DOORS_OK | PASS (4/4) |
-| LITE_REPORT_APPENDIX_OK | PASS (5/5) |
-| LITE_NATIVE_ROTATE_OK | PASS (24/24) |
-| LITE_SNAP_ENGINE_OK | PASS (5/5) |
-| LITE_SNAP_RAY_OK | PASS (6/6) |
-| LITE_SNAP_TYPES_OK | PASS (9/9) |
-| LITE_SCALE_GATE_OK | PASS (5/5) |
-
-Visual proof: 10 screenshots in `artifacts/report-truth-proof/` (8 feature + 2 native-rotate), zero console errors. `LITE_NATIVE_ROTATE_OK` repro-first fixture: 6/6 checks proven RED pre-fix → 24/24 GREEN post-fix; registration ≤0.5px.
-
-Closes: INV-2026-07-04-001, INV-2026-07-04-002, report-truth A-4/B-6/B-2/B-3/S-1/S-6/S-12, BUG-20260704-lite-native-rotate, SNAP-2026-07-04, SCALE-GATE
-
----
+<!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/test-history-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
 # AUDIT-20260703-roadmap-staleness
 
