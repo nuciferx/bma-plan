@@ -1,29 +1,61 @@
 /* ============================================================
-   WIZ-AUTO — LWIZ-AUTO: auto-open Overview Setup wizard on PDF upload complete.
+   WIZ-AUTO — compat shim for the Overview Setup wizard.
    Plain-globals module. No IIFE, no export, no bundler.
    Injected dynamically from page-folder-layers.js.
 
-   Globals required (ui-lite.html):
-     state, pageTags, openOv(), loadProto(), liteSetTag(), uploadPdf()
+   HISTORY: this file used to auto-open the wizard on PDF upload / first
+   scale commit AND enforce a document-wide keyboard+mouse hard lock until
+   at least one page was tagged (BUG-20260526-lite-force-setup).
 
-   Behavior:
-   - Installs state.scaleStatus accessor (get/set) on state object (kept for compat).
-   - Wraps uploadPdf to fire wizard when PDF upload completes (primary trigger).
-   - scaleStatus='manual' remains as fallback trigger if wizard not yet fired.
-   - Wraps loadProto to set __lwizAutoFired=true BEFORE body runs.
-   - Wraps liteSetTag to lift hard-block when pageTags has ≥1 real tag.
-   - Hard-block: ALL key/mouse/wheel/contextmenu events outside #ov-panel
-     are stopped while __lwizAutoLockActive===true.
+   RETIRED (page-manager-redesign approach D — docs/invent/
+   page-manager-redesign.md, GO 2026-08-10, Decision note): "ปลด wizard
+   เด้งอัตโนมัติ + hard-lock ตอนเปิดไฟล์ (แทนด้วย JIT banner)". Auto-open
+   and the hard lock are now STRUCTURALLY GONE — not patched around — so
+   there is no more auto-open trigger to accidentally swallow Shift+F12
+   (BUG-20260810). Per-page measure discipline is owned by tag-jit.js's
+   JIT banner instead: arming a measure tool on an untagged page shows a
+   1-tap banner right there on the canvas, never a document-wide lock.
+   The wizard itself (⇧F12 / F12 / btn-ov, wired in ui-lite.html /
+   page-manager-ui.js / overview-setup.js — none of which this file
+   touches) remains fully usable, just opened MANUALLY, never forced.
+
+   What stays here (compat only — see each function's comment):
+     - state.scaleStatus get/set accessor: no consumer left in
+       ui-lite.html, kept only so external/legacy reads don't throw.
+     - window.__lwizAutoLockActive (declared false): overview-grid.js
+       still branches on it for its dblclick-guard path
+       (locked by test_wiz_followup.py); only test harnesses simulating
+       the OLD lock set it true now — nothing in this file does anymore.
+     - _lwizShowBlockHint() / _lwizShowHint alias: still called by
+       overview-grid.js's __lwizAutoLockActive branch above.
+     - _lwizWrapCalOk(): keeps state.scaleStatus in sync after a
+       successful calibration commit (compat bookkeeping only — nothing
+       reads it to auto-open anything anymore).
+
+   Removed (approach D, slice 3 — page-manager-redesign):
+     - _lwizWrapUploadPdf() / the auto-open-on-upload trigger
+     - the scaleStatus setter's auto-open-on-first-scale fallback trigger
+     - _lwizInstallLock() / _lwizAutoLiftLock() / _lwizCheckLiftLock() /
+       the global-capture keydown+keypress+keyup+click+mousedown+mouseup+
+       wheel+contextmenu hard-block listeners
+     - _lwizWrapLiteSetTag() (existed only to lift the removed lock)
+     - _lwizWrapLoadProto() / window.__lwizAutoFired /
+       window.__lwizAutoSuppressed bookkeeping (existed only to stop the
+       removed triggers from double-firing)
+
+   Globals required (ui-lite.html): state, #cal-ok button
    ============================================================ */
 
-window.__lwizAutoFired       = false;  // fired once per session
-window.__lwizAutoSuppressed  = false;  // set by loadProto wrap
-window.__lwizAutoLockActive  = false;  // hard-block guard active
+// Legacy flag — kept because overview-grid.js still branches on it
+// (test_wiz_followup.py locks that branch). Only test harnesses set it
+// true now; nothing in this file installs an automatic lock anymore.
+window.__lwizAutoLockActive  = false;
 
-// ---- internal storage for state.scaleStatus accessor ----
+// ---- internal storage for state.scaleStatus accessor (compat only) ----
 var _lwizScaleStatusVal = (typeof state !== 'undefined' && state._lwizScaleStatus) || 'unknown';
 
-// ---- HUD block hint ---------------------------------------------------------
+// ---- HUD block hint — still called by overview-grid.js's
+//      __lwizAutoLockActive branch when a test simulates the old lock ----
 function _lwizShowBlockHint() {
   var panel = document.getElementById('ov-panel');
   if (!panel) return;
@@ -48,58 +80,8 @@ function _lwizShowBlockHint() {
 // Keep old name as alias for backward compat
 var _lwizShowHint = _lwizShowBlockHint;
 
-// ---- hard-block guard -------------------------------------------------------
-var _lwizBlockGuards = [];  // array of {event, fn} for removal
-
-function _lwizInstallLock() {
-  if (window.__lwizAutoLockActive) return;
-  window.__lwizAutoLockActive = true;
-
-  var BLOCKED_EVENTS = ['keydown', 'keypress', 'keyup', 'click', 'mousedown', 'mouseup', 'wheel', 'contextmenu'];
-
-  BLOCKED_EVENTS.forEach(function(evtName) {
-    var handler = function(e) {
-      if (!window.__lwizAutoLockActive) return;
-      var ov = document.getElementById('ov');
-      // Only block when overlay is shown
-      if (!ov || !ov.classList.contains('show')) return;
-      var panel = document.getElementById('ov-panel');
-      // Allow all events that target inside the wizard panel
-      if (panel && panel.contains(e.target)) return;
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
-      // Show hint on keydown AND mousedown (UX batch2 F-5: mouse was blocked
-      // silently before). mousedown only (not click/mouseup) to avoid hint spam
-      // — the hint element self-debounces via clearTimeout.
-      if (evtName === 'keydown' || evtName === 'mousedown') _lwizShowBlockHint();
-    };
-    document.addEventListener(evtName, handler, true);
-    _lwizBlockGuards.push({event: evtName, fn: handler});
-  });
-}
-
-function _lwizAutoLiftLock() {
-  if (!window.__lwizAutoLockActive) return;
-  window.__lwizAutoLockActive = false;
-  _lwizBlockGuards.forEach(function(g) {
-    document.removeEventListener(g.event, g.fn, true);
-  });
-  _lwizBlockGuards = [];
-}
-
-// ---- check tag count, lift lock if ≥1 real tag set -------------------------
-function _lwizCheckLiftLock() {
-  if (!window.__lwizAutoLockActive) return;
-  if (typeof pageTags === 'undefined') return;
-  var keys = Object.keys(pageTags);
-  for (var i = 0; i < keys.length; i++) {
-    var v = pageTags[keys[i]];
-    if (v && v !== 'excluded') { _lwizAutoLiftLock(); return; }
-  }
-}
-
-// ---- state.scaleStatus accessor (kept for compat + fallback trigger) --------
+// ---- state.scaleStatus accessor (compat only — the setter no longer
+//      triggers anything; nothing in ui-lite.html reads this value) ----
 function _lwizInstallWatcher() {
   if (typeof state === 'undefined') return;
   if (Object.getOwnPropertyDescriptor(state, 'scaleStatus') &&
@@ -113,67 +95,12 @@ function _lwizInstallWatcher() {
     configurable: true,
     enumerable: true,
     get: function() { return _lwizScaleStatusVal; },
-    set: function(newVal) {
-      var oldVal = _lwizScaleStatusVal;
-      _lwizScaleStatusVal = newVal;
-      // Fallback trigger: if upload trigger didn't fire yet, scaleStatus=manual still fires wizard
-      if (oldVal !== 'manual' && newVal === 'manual' &&
-          !window.__lwizAutoFired && !window.__lwizAutoSuppressed) {
-        window.__lwizAutoFired = true;
-        setTimeout(function() {
-          if (typeof window.openOv === 'function') {
-            window.openOv();
-            _lwizInstallLock();
-          }
-        }, 0);
-      }
-    }
+    set: function(newVal) { _lwizScaleStatusVal = newVal; }
   });
 }
 
-// ---- primary trigger: wrap uploadPdf to fire wizard on upload complete ------
-function _lwizWrapUploadPdf() {
-  if (window.__lwizUploadWrapped) return;
-  if (typeof uploadPdf !== 'function') return;
-  window.__lwizUploadWrapped = true;
-  var origUP = uploadPdf;
-  uploadPdf = function(file) {
-    // Reset fired flag on new upload so second PDF retriggers wizard
-    window.__lwizAutoFired = false;
-    window.__lwizAutoSuppressed = false;
-    var result = origUP.apply(this, arguments);
-    // origUP is async; we hook completion via a MutationObserver on caseId change
-    // by polling after the async function settles.
-    if (result && typeof result.then === 'function') {
-      result.then(function() {
-        // Upload completed — fire wizard if not suppressed
-        setTimeout(function() {
-          if (!window.__lwizAutoFired && !window.__lwizAutoSuppressed &&
-              typeof caseId !== 'undefined' && caseId &&
-              typeof pageCount !== 'undefined' && pageCount > 0) {
-            window.__lwizAutoFired = true;
-            if (typeof window.openOv === 'function') {
-              window.openOv();
-              _lwizInstallLock();
-            }
-          }
-        }, 0);
-      }).catch(function() { /* upload failed — do nothing */ });
-    }
-    return result;
-  };
-  // Copy own properties from original (e.g. introspection flags from other wrappers)
-  try {
-    var keys = Object.getOwnPropertyNames(origUP);
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (k === 'length' || k === 'name' || k === 'prototype' || k === 'arguments' || k === 'caller') continue;
-      try { uploadPdf[k] = origUP[k]; } catch(_) {}
-    }
-  } catch(_) {}
-}
-
-// ---- wrap cal-ok to set scaleStatus='manual' after calib confirmed ----------
+// ---- wrap cal-ok to keep scaleStatus in sync after calib confirmed
+//      (compat bookkeeping only — see file header) ----
 function _lwizWrapCalOk() {
   var btn = document.getElementById('cal-ok');
   if (!btn || btn.__lwizCalWrapped) return;
@@ -191,51 +118,6 @@ function _lwizWrapCalOk() {
   btn.__lwizCalWrapped = true;
 }
 
-// ---- wrap loadProto to suppress auto-fire -----------------------------------
-function _lwizWrapLoadProto() {
-  if (window.__lwizAutoWrapped) return;
-  if (typeof loadProto !== 'function') return;
-  window.__lwizAutoWrapped = true;
-  var origLP = loadProto;
-  loadProto = function(doc) {
-    window.__lwizAutoFired = true;  // suppress wizard for any scale set after load
-    origLP.apply(this, arguments);
-  };
-  // LWIZ-CFSS-WRAP-FIX: preserve introspection flags set by prior wrappers
-  // (e.g. CFSS sets loadProto.__cfssWrapped=true). Copy own enumerable properties.
-  try {
-    var keys = Object.getOwnPropertyNames(origLP);
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (k === 'length' || k === 'name' || k === 'prototype' || k === 'arguments' || k === 'caller') continue;
-      try { loadProto[k] = origLP[k]; } catch(_) {}
-    }
-  } catch(_) {}
-  window.__lwizAutoWrappedFn = loadProto;  // for diagnostics
-}
-
-// ---- wrap liteSetTag to lift soft-force lock --------------------------------
-function _lwizWrapLiteSetTag() {
-  if (window.__lwizSetTagWrapped) return;
-  if (typeof liteSetTag !== 'function') return;
-  window.__lwizSetTagWrapped = true;
-  var origST = liteSetTag;
-  liteSetTag = function(n, val) {
-    origST.apply(this, arguments);
-    _lwizCheckLiftLock();
-  };
-  // LWIZ-CFSS-WRAP-FIX: preserve introspection flags set by prior wrappers
-  // (same pattern as _lwizWrapLoadProto — copy own enumerable properties)
-  try {
-    var keys = Object.getOwnPropertyNames(origST);
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (k === 'length' || k === 'name' || k === 'prototype' || k === 'arguments' || k === 'caller') continue;
-      try { liteSetTag[k] = origST[k]; } catch(_) {}
-    }
-  } catch(_) {}
-}
-
 // ---- bootstrap --------------------------------------------------------------
 function _lwizBootstrap() {
   if (window.__lwizBootDone) return;
@@ -243,9 +125,6 @@ function _lwizBootstrap() {
 
   _lwizInstallWatcher();
   _lwizWrapCalOk();
-  _lwizWrapLoadProto();
-  _lwizWrapLiteSetTag();
-  _lwizWrapUploadPdf();
 }
 
 // Dynamic injection: DOMContentLoaded may have already fired.
