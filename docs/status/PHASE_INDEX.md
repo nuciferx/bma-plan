@@ -107,6 +107,13 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### ideas 2026-08-10
 
+- [ ] **Bluebeam-inspired batch (4 candidates)** — `invent-in-progress` (user สั่งวิจัยก่อน Track AI, 2026-08-10 ดึก) — from Bluebeam feature review ในแชท
+    - (a) **Compare/Overlay revisions** — ซ้อนแบบ rev เก่า-ใหม่คนละสีหา diff (โจทย์แฝง: สแกนสองรอบไม่ตรงกัน ต้อง auto-registration) — candidate อันดับ 1 สำหรับงานตรวจแบบแก้ไข
+    - (b) **Viewports** — หลาย scale ในหน้าเดียว (แปลน 1:100 + ขยาย 1:50) — กระทบ data model scale ต่อหน้า
+    - (c) **Custom columns/สูตรราคา** ใน report — ต่อยอด LRV
+    - (d) **พอร์ต vector-snap (pdfium) จาก proto เข้า lite** — ความแม่นระดับ Bluebeam เมื่อไฟล์มี vector
+    - Tags: bma-plan, lite, bluebeam, measure, report, p-high
+
 - [ ] **Track AI อ่านแบบแปลน — AI เสนอ 80% แรก คนยืนยัน 20% สุดท้าย** — `invent-queued` — from /idea 2026-08-10 22:01 (full body IDEAS.md `2026-08-10-22-01`)
     - Gist: แผน 5 ขั้น eval-first→จำแนกหน้า→auto-scale (เข้า auto-unverified เดิม)→ร่าง polygon ลูกผสม (AI ชี้หยาบ + centerline-snap ดูดแม่น)→วัดทั้งเล่ม-คน review; ต้องเปิด track อย่างเป็นทางการก่อน (แก้ scope rule Phase 1 ห้าม AI/OCR) + ตัดสินนโยบาย cloud API vs local (ชนกฎข้อมูลไม่ออกนอกเครื่อง)
     - Tags: bma-plan, lite, ai-track, phase2, p-high
