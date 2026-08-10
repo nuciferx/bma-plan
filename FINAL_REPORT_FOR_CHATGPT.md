@@ -5,6 +5,8 @@
 ---
 
 <!-- GEN:START gen_status_docs -->
+**เพิ่มเติม (ดึก-2, `9e72502`):** ship CI ตัวแรกของ repo (GitHub Actions) — ปิดช่องว่างที่ใหญ่สุดเทียบมาตรฐานอุตสาหกรรม: ด่านทั้งหมดที่โปรเจกต์สร้างมา เดิมรันเฉพาะเมื่อมีคนสั่ง. ค้าง: ผลรันรอบแรกบน GitHub, nightly ผูกกับการตัดสิน default branch, ปลด continue-on-error เมื่อ test_closing_dup_strip ถูกแก้.
+
 
 # Latest: GOV-MAXLEN ratchet + extraction project-io.js + idea + Bluebeam research — PASS
 

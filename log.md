@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-08-10 (ดึก-2) — INFRA-CI: GitHub Actions ทำให้ด่านทั้งหมดรันเอง — SHIPPED (branch: main)
+
+**ทำอะไร:** `9e72502` เพิ่ม `.github/workflows/ci.yml` (repo นี้ไม่เคยมี CI มาก่อน). แรงจูงใจ: จากบทสนทนาเทียบแนวปฏิบัติ Anthropic/OpenAI — ด่าน 6 ตัว + test pyramid ที่โปรเจกต์ลงทุนสร้างมาทั้งหมด "มีอยู่จริงเฉพาะตอนมีคนสั่งรัน" = ช่องว่างอันดับ 1 เทียบมาตรฐานอุตสาหกรรม. โครง 3 job: `truth-gate` (ubuntu, `check_executable_truth --verbose`, `fetch-depth: 0` เพราะ ships-commits ต้อง resolve hash จริง) + `fast-tests` (ubuntu, tier t0 parity/PBT ผ่าน Node + tier t1 server endpoints) ทั้งคู่ยิงทุก push; `full-suite` (windows-latest ให้ตรงกับเครื่อง dev, Playwright เต็มชุด) เฉพาะ manual dispatch + nightly cron 01:00 น. ตั้ง `concurrency.cancel-in-progress` กัน queue ซ้อน.
+
+**Why:** ที่ผ่านมาถ้า session ไหนลืมรัน suite หรือ subagent ข้ามด่าน ก็ไม่มีอะไรจับได้เลย — CI ทำให้วินัยที่เขียนไว้ในเอกสารกลายเป็นสิ่งที่บังคับได้จริงโดยไม่ขึ้นกับความจำของใคร.
+
+**Files touched:** `.github/workflows/ci.yml` (NEW, 75 บรรทัด), `docs/status/PHASE_INDEX.md` (การ์ด INFRA-CI + ข้อจำกัด).
+
+**Tests:** ยืนยัน `python lite/tests/run_all_tests.py --tier t0` ในเครื่อง → 2/2 PASS (`MEASURE_PARITY_OK`, `LITE_PBT_MEASURE_OK`); YAML parse ผ่าน (3 jobs, triggers ครบ 4); `check_executable_truth` → `TRUTH_CHECK_OK` 6/6. **ยังไม่ได้พิสูจน์ผลรันจริงบน GitHub** — `gh` ในเครื่องไม่ได้ auth.
+
+**Known gaps (บันทึกในการ์ดแล้ว):** (1) job ubuntu ยังไม่เคยพิสูจน์ว่าเทสต์ที่เขียนบน Windows รันผ่านบน Linux — รอผลรันรอบแรก ถ้าแดงเพราะสภาพแวดล้อมให้ย้ายไป windows; (2) nightly cron ยิงจาก **default branch เท่านั้น** ซึ่งตอนนี้คือ `main` สายเก่า ส่วนงานอยู่ `main-v2-2026-05-19` → nightly ยังไม่ทำงานจนกว่าจะตัดสินเรื่อง default branch; (3) `full-suite` ตั้ง `continue-on-error` ชั่วคราวเพราะ `test_closing_dup_strip.py` แดง pre-existing (ไม่งั้น badge แดงถาวรจนคนเลิกมอง = อาการเดียวกับ `--no-truth-check` ที่เคยตำหนิ) — ต้องปลดเมื่อบั๊กถูกแก้.
+
+---
+
 ## 2026-08-10 (ดึก) — GOV-MAXLEN ratchet + extraction project-io.js (ui-lite 1191→1086) — PASS (branch: main)
 
 **ทำอะไร:** user ตัดสินเรื่องลิมิตไฟล์ ("จัดไป"): (1) `033ad5c` เพิ่มด่าน `maxlen-ratchet` ใน `check_executable_truth.py` (คู่ ESLint max-lines+max-len: บรรทัด >300 ตัวอักษรห้ามเพิ่มจาก baseline ที่ freeze ไว้ — ui-lite 10, measure-engine 11 (vendored), อื่นๆ 0; ยอดรวมลดได้อย่างเดียว; RED-proven ด้วยการแอบเติมบรรทัดยาวแล้วด่านจับได้จริง) — ด่านรวมเป็น 6 ตัว; (2) `df5a1f2` extraction sprint: ย้าย region save/load `.bmaplan` (เดิม ui-lite.html:934-1038) แบบ byte-verbatim (พิสูจน์ programmatic) ไป `static/js/project-io.js` (154 บรรทัด + header สัญญา globals ครบ) — `ui-lite.html` 1191→1086 คืน headroom ~114 บรรทัดโดยเพดาน 1200 ไม่ขยับ; MAXLEN_BASELINE ย้ายตาม (10→8 + project-io 2, ยอดรวมเท่าเดิม). cfssWrapSave/Load ยังเกาะถูกตัว (`wrappersInstalled=True`), persist battery 7/7, suite เต็ม 105/106 (fail เดียว pre-existing), `TRUTH_CHECK_OK` 6/6.

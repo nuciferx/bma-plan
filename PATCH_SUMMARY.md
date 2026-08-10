@@ -5,6 +5,8 @@
 ---
 
 <!-- GEN:START gen_status_docs -->
+**เพิ่มเติม (ดึก-2, `9e72502`):** INFRA-CI — `.github/workflows/ci.yml` (NEW): truth-gate + tier t0/t1 ทุก push (ubuntu), full Playwright suite บน windows-latest เฉพาะ manual/nightly. repo นี้ไม่เคยมี CI มาก่อน.
+
 
 # Latest: GOV-MAXLEN ratchet + extraction project-io.js + idea capture + Bluebeam research (lite + governance)
 

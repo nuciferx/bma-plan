@@ -5,6 +5,8 @@
 ---
 
 <!-- GEN:START gen_status_docs -->
+**เพิ่มเติม (ดึก-2, `9e72502`) — INFRA-CI:** ยืนยัน `run_all_tests.py --tier t0` ในเครื่อง 2/2 PASS · YAML ของ workflow parse ผ่าน (3 jobs / 4 triggers) · `TRUTH_CHECK_OK` 6/6. **ยังไม่มีผลรันจริงบน GitHub** (gh ไม่ได้ auth) — ต้องดูแท็บ Actions รอบแรกเอง; job ubuntu ยังไม่พิสูจน์ว่าเทสต์ที่เขียนบน Windows ผ่านบน Linux.
+
 
 # Latest: GOV-MAXLEN ratchet + extraction project-io.js
 

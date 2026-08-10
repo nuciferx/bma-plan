@@ -5,6 +5,9 @@ Date: 2026-08-10 (ดึก) (GOV-MAXLEN ratchet + extraction project-io.js + id
 <!-- GEN:START gen_status_docs -->
 ## Ship Ledger (generated)
 
+**INFRA-CI-20260810** (`9e72502`, 2026-08-10) — CI ตัวแรกของ repo: `.github/workflows/ci.yml`, truth-gate + tier t0/t1 ทุก push (ubuntu), full Playwright suite windows-latest manual/nightly (continue-on-error until test_closing_dup_strip fixed). ค้าง: ผลรันรอบแรก, nightly ผูก default branch, gh ไม่ได้ auth
+
+
 | id | date | area | guards | commits |
 |---|---|---|---|---|
 | GOV-MAXLEN-EXTRACT-20260810 | 2026-08-10 | governance gate + shell extraction (lite) | TRUTH_CHECK_OK | `033ad5c`, `df5a1f2` |

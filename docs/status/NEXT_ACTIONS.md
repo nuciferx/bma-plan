@@ -4,6 +4,9 @@ Date: 2026-08-10 ดึก (updated: GOV-MAXLEN ratchet + extraction project-io.
 
 ## Immediate Next
 
+**0.5 — ดูผล CI รอบแรก** (ใหม่ 2026-08-10 ดึก-2): เปิดแท็บ Actions ที่ github.com/nuciferx/bma-plan ดูว่า `truth-gate` + `fast-tests` เขียวไหมบน ubuntu — ถ้าแดงเพราะสภาพแวดล้อม (เทสต์เขียนบน Windows) ให้ย้าย job ไป windows-latest · ตัดสินเรื่อง default branch (nightly cron ยิงจาก default เท่านั้น ตอนนี้คือ `main` สายเก่า) · ปลด `continue-on-error` ของ full-suite เมื่อ `test_closing_dup_strip.py` ถูกแก้ · (ถ้าต้องการให้ผมเช็คผลรันเองได้ ให้ auth `gh` ในเครื่อง)
+
+
 **GOV-MAXLEN ratchet + extraction SHIPPED (commits `033ad5c`+`df5a1f2`+`ffc763f`+`2e8ba9e`+`5ad9e3d`) — see "Recently Done" below for the full narrative. Nothing in this batch touched the Page Manager/wizard/shell UI runtime, so the evening batch's user manual-test checklist is still item (0) and still not walked.**
 
 - **(0, TOP PRIORITY — USER MANUAL TEST, machine cannot verify these, carried forward from the evening batch — still NOT done) 8-item field checklist + clean-Windows-machine test:**
