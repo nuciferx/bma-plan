@@ -1,12 +1,38 @@
 # TEST_RESULT.md — Latest Test Result
 
-> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md) · [docs/archive/test-history-2026-07-03.md](docs/archive/test-history-2026-07-03.md) · [docs/archive/test-history-2026-07-04.md](docs/archive/test-history-2026-07-04.md)
+> Full test history: [docs/archive/test-history-2026-05-09.md](docs/archive/test-history-2026-05-09.md) · [docs/archive/test-history-2026-07-02.md](docs/archive/test-history-2026-07-02.md) · [docs/archive/test-history-2026-07-03.md](docs/archive/test-history-2026-07-03.md) · [docs/archive/test-history-2026-07-04.md](docs/archive/test-history-2026-07-04.md) · [docs/archive/test-history-2026-07-06.md](docs/archive/test-history-2026-07-06.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PM-META + PM-ID
+# Latest: PKG-PORTABLE + PM-REDESIGN-D + SHELL
+
+Date: 2026-08-10 (ค่ำ) · Area: packaging + page-manager + shell UI (lite)
+
+_lite-only, proto untouched. No forbidden surface (measure-engine/pdfToC/RS/snap untouched) — no proto E2E run. Every code slice had a RED-first guard test, and the full suite was re-run after each ship, showing a clean progression._
+
+| Slice | Marker | RED (pre-fix) | GREEN (post-fix) |
+|---|---|---|---|
+| PM-GUARD (`c88a379`) | `LITE_PM_GUARD_OK` | 5/5 fail | 7/7 pass |
+| TAG-JIT (`b0a13bf`) | `LITE_TAG_JIT_BANNER_OK` | 2/2 fail | pass |
+| WIZ-UNLOCK (`fb9b2af`) | `test_wiz_auto.py` + `test_bug_force_setup.py` | rewritten to new no-lock contract (old lock-based checks retired, non-lock coverage kept) | 8/8 + 8/8 |
+| SHELL status-bar (`2b1887f`) | `LITE_STATUS_BAR_OK` | RED-first | 6/6 pass |
+| SHELL float-panel (`2b1887f`) | `LITE_FLOAT_PANEL_OK` | RED-first | 7/7 pass |
+
+**Full suite progression this batch:** 103/104 (measured after WIZ-UNLOCK landed) → 105/106 (measured after SHELL landed). The suite is growing (2 new test files, `test_status_bar.py` + `test_float_panel.py`, on top of the 2 added by PM-GUARD/TAG-JIT) while staying at exactly one failing file throughout — `test_closing_dup_strip.py`, already confirmed **pre-existing** by the prior `PM-META + PM-ID` sprint's `git stash` verification against the unmodified tree (not a regression from this batch or any commit in it).
+
+`python scripts/check_executable_truth.py` → `TRUTH_CHECK_OK` (5/5), confirmed after the ledger/roadmap close commit (`f89659d`).
+
+**I2 invariant discipline note (SHELL):** `status-bar.js`'s new `_sbFloorNet` consumer of `ObjectAgg.byFloorRole` was registered in `lite/tests/INVARIANTS.md`'s I2 consumer list, and an arc-inclusive parity fixture was added to `test_summary_arc_parity.py` (`sbOk: True`) in the same commit — the standing rule from `INVARIANTS.md` for any new consumer of the tuple-aggregation engine.
+
+**PKG-PORTABLE verification (not an automated test — a manual/scripted build-and-launch check):** `lite/build_portable.bat` build verified with sanitized PATH launch, cold start 6.22s, `/health` returning 200. Not part of `run_all_tests.py`; still outstanding is a user test on one genuinely clean Windows machine (7-point checklist communicated separately, not yet run).
+
+Commits: `fc4a407`, `c88a379`, `b0a13bf`, `fb9b2af`, `2b1887f`, `d231be5`, `3534d35`, `f89659d`. Closes: BUG-20260810-lite-pagemgr-blocked (structurally), invent `page-manager-redesign` (SHIPPED), invent `lite-zero-install-packaging` (SHIPPED, approach B), sprint cards `SHELL-STATUS` + `SHELL-FLOAT`
+
+---
+
+# Previous: PM-META + PM-ID
 
 Date: 2026-08-10 · Area: page-manager / layer identity (lite)
 
@@ -33,28 +59,7 @@ Commits: `1107e2e`, `d0b3881`, `878effd`. Closes: PM-META (I5 second half of BUG
 
 ---
 
-# Previous: BUG-20260706-lite-layer-page-binding
-
-Date: 2026-07-06 · Area: layer / page-tagging (lite)
-
-_lite-only, proto untouched. No forbidden surface (measure-engine/pdfToC/RS/snap untouched) — no proto E2E run._
-
-First run of `test_layer_scope.py` (9 checks incl. 2 new) FAILED at `foreignDrawCommitBlocked` — the guard's warning wrote directly to `#hint`, which `draw()` → `updateHUD()` immediately overwrote. Fixed by switching to the `state.hintFlash` pattern (same as SCALE-GATE). Second run: 9/9 green.
-
-| Marker / Suite | Result |
-|---|---|
-| test_layer_scope.py (incl. `LITE_ACTIVE_LAYER_FOLLOW_OK`, `LITE_LAYER_SCOPE_MULTI_PAGE_FOLDER_OK`) | FAIL (1st run, hintFlash) → PASS (9/9, 2nd run) |
-| test_page_folder_ui.py | PASS |
-| test_pf_folder_order.py | PASS (4/4) |
-| test_pf_kind_folders.py | PASS (11/11) |
-| test_custom_layer_ui.py | PASS |
-| test_wiz_auto.py | PASS (8/8) |
-| test_measure_parity.py (`MEASURE_PARITY_OK`) | PASS |
-
-Commit: `ba109f0`. Closes: BUG-20260706-lite-active-layer-not-following-page, BUG-20260706-lite-multi-site-page-tag
-
----
-
+<!-- BUG-20260706-lite-layer-page-binding archived to docs/archive/test-history-2026-07-06.md on 2026-08-10 (ค่ำ finalize: PKG-PORTABLE + PM-REDESIGN-D + SHELL, to keep root at Latest + 1 Previous) -->
 <!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/test-history-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
 # AUDIT-20260703-roadmap-staleness

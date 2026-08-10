@@ -1,12 +1,73 @@
 # PATCH_SUMMARY.md — Latest Sprint
 
-> Full patch history: [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) · [docs/archive/patch-history-2026-07-02.md](docs/archive/patch-history-2026-07-02.md) · [docs/archive/patch-history-2026-07-03.md](docs/archive/patch-history-2026-07-03.md) · [docs/archive/patch-history-2026-07-04.md](docs/archive/patch-history-2026-07-04.md)
+> Full patch history: [docs/archive/patch-history-2026-05-09.md](docs/archive/patch-history-2026-05-09.md) · [docs/archive/patch-history-2026-07-02.md](docs/archive/patch-history-2026-07-02.md) · [docs/archive/patch-history-2026-07-03.md](docs/archive/patch-history-2026-07-03.md) · [docs/archive/patch-history-2026-07-04.md](docs/archive/patch-history-2026-07-04.md) · [docs/archive/patch-history-2026-07-06.md](docs/archive/patch-history-2026-07-06.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PM-META + PM-ID — page-meta/globals live-sync fix + duplicate-id mint-counter fix (lite)
+# Latest: PKG-PORTABLE + PM-REDESIGN-D + SHELL — evening ship batch (lite)
+
+Branch: main
+
+Date: 2026-08-10 (ค่ำ)
+
+## Outcome: PASS — closed both /lite-invent pipelines HALTED at this morning's checkpoint (zero-install portable build + hardened Page Manager + new bottom-bar/floating-panel shell)
+
+## Summary
+
+Evening batch shipping the two invent pipelines that halted at their human checkpoint earlier the same day, after the user GO'd both ("go ทั้งสองตัว"). PKG-PORTABLE (`fc4a407`) ships a zero-install portable build (`lite/build_portable.bat` → `dist-portable/BMA-Plan-Lite/`, Python 3.11.9 embed + deps + runtime, 115MB/3193 files, cold start 6.22s verified) plus an additive `BMA_LITE_NO_BROWSER` launch flag. PM-REDESIGN approach D (3 commits, spike 14/14 PASS before build) hardens the Page Manager: PM-GUARD (`c88a379`) routes every close path through a single guarded funnel so pending edits can no longer be silently discarded by clicking outside — directly fixing the user field report "เปิด page manager แล้วคลิกนอก = งานหาย"; TAG-JIT (`b0a13bf`) fixes the tag banner acting on a stale closure page; WIZ-UNLOCK (`fb9b2af`, user-approved breaking-ish UX policy change) retires the wizard's forced auto-open and global input hard-lock, structurally closing `BUG-20260810`. SHELL (`2b1887f`, needs-GO sprint cards, `PRIOR_ART_MATURE` so full invent was correctly skipped per rule) adds a new 7-cell bottom status bar and a Photoshop-style floating layer panel. Every code slice had a RED-first guard test; suite went 103/104 (after WIZ-UNLOCK) → 105/106 (after SHELL), the one remaining failure being the already-known pre-existing `test_closing_dup_strip.py`.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lite/build_portable.bat` | NEW — produces `dist-portable/BMA-Plan-Lite/` zero-install build |
+| `lite/launch_lite.py` | +additive `BMA_LITE_NO_BROWSER` flag |
+| `lite/README.md` | +portable build section |
+| `.gitignore` | +dist-portable output dir |
+| `lite/static/js/page-manager-ui.js` | PM-GUARD — single `_pmTryClose()` funnel, in-shell pending-edit warning, in-shell delete confirm with measurement count, no-PDF hint |
+| `lite/tests/test_pm_guarded_close.py` | NEW — `LITE_PM_GUARD_OK` RED 5/5 → GREEN 7/7 |
+| `lite/static/js/tag-jit.js` | TAG-JIT — chips re-read `curPage` at click; banner hides + pending tool clears on `afterPage`; `__jitWrapped` set post-success + 5×200ms retry ladder |
+| `lite/tests/test_tag_jit_banner_fix.py` | NEW — `LITE_TAG_JIT_BANNER_OK` RED 2/2 → GREEN |
+| `lite/static/js/wiz-auto.js` | WIZ-UNLOCK — 256→135 lines; auto-open triggers + global keydown/mousedown hard-lock removed |
+| `lite/tests/test_wiz_auto.py` | Rewritten to new no-lock contract, 8/8 |
+| `lite/tests/test_bug_force_setup.py` | Rewritten to new no-lock contract, 8/8 (non-lock coverage kept verbatim) |
+| `lite/static/js/status-bar.js` | NEW (210L) — 7-cell bottom bar: page/floor, scale state, tool, draw-target layer, snap indicator, dirty dot, current-floor net via `ObjectAgg.byFloorRole` |
+| `lite/static/js/float-panel.js` | NEW (232L) — Photoshop-style `#picker` wrapper: drag/collapse/hide/dblclick-reset, position persisted |
+| `lite/tests/test_status_bar.py` | NEW — `LITE_STATUS_BAR_OK` 6/6 |
+| `lite/tests/test_float_panel.py` | NEW — `LITE_FLOAT_PANEL_OK` 7/7 |
+| `lite/tests/INVARIANTS.md` | +I2 consumer registration for `_sbFloorNet` |
+| `lite/tests/test_summary_arc_parity.py` | +arc-inclusive parity fixture (`sbOk`) |
+| `lite/ui-lite.html` | +2 script tags only (1189→1191/1200) |
+| `docs/status/PHASE_INDEX.md`, `docs/status/SHIPS.jsonl` | 3 new ship rows, `BUG-20260810` closed structurally, both invents + both SHELL cards marked SHIPPED |
+| `docs/invent/page-manager-redesign.md`, `docs/invent/lite-zero-install-packaging.md` | +Decision sections |
+
+## Source Files NOT Touched (Forbidden Surfaces)
+
+- `proto/server.py` — untouched, lite-only batch
+- `polyAreaM2`, `polyMetrics`, `polySelfIntersects` — untouched
+- `pdfToC`, `cToPdf`, `RS`, scale math, snap engine — untouched
+- `.bmaplan` schema version stays 1; no schema fields touched
+
+## Tests Run
+
+Every code slice had a RED-first guard test: `LITE_PM_GUARD_OK` RED 5/5 → GREEN 7/7, `LITE_TAG_JIT_BANNER_OK` RED 2/2 → GREEN, `test_wiz_auto.py` 8/8 + `test_bug_force_setup.py` 8/8 (rewritten to the new no-lock contract), `LITE_STATUS_BAR_OK` 6/6, `LITE_FLOAT_PANEL_OK` 7/7. Full suite progression: 103/104 (after WIZ-UNLOCK) → 105/106 (after SHELL) — sole failure throughout is `test_closing_dup_strip.py`, already confirmed pre-existing by the prior PM-META+PM-ID sprint's `git stash` verification, unrelated to this batch. `python scripts/check_executable_truth.py` → `TRUTH_CHECK_OK` (5/5).
+
+## Phase 1 Scope Check
+
+- ✅ No legal checker / OCR / AI / rule engine / FAR-OSR-setback touched
+- ✅ proto/ untouched, lite-only
+- ✅ No forbidden surface touched
+- ✅ `.bmaplan` schema untouched (additive-only rule not exercised — no new fields this batch)
+
+**Commits:** `fc4a407` (feat: PKG-PORTABLE), `c88a379` (feat: PM-GUARD), `b0a13bf` (fix: TAG-JIT), `fb9b2af` (feat!: WIZ-UNLOCK), `2b1887f` (feat: SHELL status-bar+float-panel), `d231be5`+`3534d35`+`f89659d` (docs: GO both invents + ledger/roadmap close)
+
+**Closes:** BUG-20260810-lite-pagemgr-blocked (structurally, via WIZ-UNLOCK), invent `page-manager-redesign` (SHIPPED), invent `lite-zero-install-packaging` (SHIPPED, approach B), sprint cards `SHELL-STATUS` + `SHELL-FLOAT`
+
+---
+
+# Previous: PM-META + PM-ID — page-meta/globals live-sync fix + duplicate-id mint-counter fix (lite)
 
 Branch: main
 
@@ -53,20 +114,7 @@ Guard tests proven RED before fix then GREEN after — E21 `LITE_PM_META_LIVE_OK
 
 ---
 
-# Previous: BUG-20260706-lite-layer-page-binding — active-layer-not-following-page + multi-site-page-tag (lite)
-
-Date: 2026-07-06 · Area: layer / page-tagging (lite) · 1 commit, lite-only, proto untouched
-
-Two user-reported field bugs fixed together, both traced to the page↔layer binding introduced by `INV-2026-07-04-001`. Bug 1 (`BUG-20260706-lite-active-layer-not-following-page`, BROKEN — data-correctness): `_lsSyncActiveCatToFolder` had no fallback for a folder never visited this session, so `state.activeCat` stayed on the previous folder's layer — measurements landed in the wrong floor's layer silently, confirmed by a user screenshot on page 29 (roof) still showing "ผังบริเวณ · ที่ดิน (ซ่อน)". Fixed with (a) fallback to the folder's first layer in model order, (b) a new `lsForeignDrawBlocked()` commit-path guard called from `finishDraft()` + the count tool, warning via `state.hintFlash` (the direct `#hint` write was found to be wiped by `draw()`→`updateHUD()` on the test's first run — caught and fixed same session). Bug 2 (`BUG-20260706-lite-multi-site-page-tag`, FRICTION): `_lsGoTo` always warped to `pages[0]`, so a 2-sheet site plan's second sheet was unreachable from the floor-rail/dropdown/search nav surface — correctly tagged and aggregated but never drawn. Fixed by making `_lsGoTo` page-aware (same folder re-selected steps to the next page and wraps; arriving from another folder goes to `pages[0]`) and the rail ◀/▶ stepping pages within a folder before crossing folders; counter now shows "ชั้น i/N · แผ่น i/N".
-
-**Commits:** `ba109f0`
-
-**Files touched:** `lite/static/js/layer-scope.js` (+96/-17), `lite/ui-lite.html` (+2 guard call lines, 1189/1200 cap), `lite/tests/test_layer_scope.py` (6→9 checks, +140 lines)
-
-**Closes:** BUG-20260706-lite-active-layer-not-following-page, BUG-20260706-lite-multi-site-page-tag
-
----
-
+<!-- BUG-20260706-lite-layer-page-binding archived to docs/archive/patch-history-2026-07-06.md on 2026-08-10 (ค่ำ finalize: PKG-PORTABLE + PM-REDESIGN-D + SHELL, to keep root at Latest + 1 Previous) -->
 <!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/patch-history-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
 # AUDIT-20260703-roadmap-staleness

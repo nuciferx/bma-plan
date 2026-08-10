@@ -1,12 +1,40 @@
 # FINAL_REPORT_FOR_CHATGPT.md — Sprint Outcome Report
 
-> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md) · [docs/archive/reports-2026-07-04.md](docs/archive/reports-2026-07-04.md)
+> Full report history: [docs/archive/reports-2026-05-09.md](docs/archive/reports-2026-05-09.md) · [docs/archive/reports-2026-07-02.md](docs/archive/reports-2026-07-02.md) · [docs/archive/reports-2026-07-03.md](docs/archive/reports-2026-07-03.md) · [docs/archive/reports-2026-07-04.md](docs/archive/reports-2026-07-04.md) · [docs/archive/reports-2026-07-06.md](docs/archive/reports-2026-07-06.md)
 
 ---
 
 <!-- GEN:START gen_status_docs -->
 
-# Latest: PM-META + PM-ID — PASS
+# Latest: PKG-PORTABLE + PM-REDESIGN-D + SHELL — PASS
+
+**Date:** 2026-08-10 (ค่ำ)
+**Branch:** main
+
+## Outcome
+
+Evening batch closing both `/lite-invent` pipelines that halted at their human checkpoint earlier the same day — the user GO'd both ("go ทั้งสองตัว"). Zero-install portable build now exists and works. The Page Manager's most severe field-reported issue (silent data loss on click-outside) is fixed. The wizard's forced auto-open + global input hard-lock, the root mechanism behind `BUG-20260810`, is retired. A new bottom status bar and Photoshop-style floating layer panel ship as the first pieces of the approved Shell v2 mockup. Every code slice had a RED-first guard test; the full suite stayed green throughout (103/104 → 105/106, one pre-existing failure unchanged).
+
+## What was delivered
+
+- **PKG-PORTABLE** (`fc4a407`): `lite/build_portable.bat` → `dist-portable/BMA-Plan-Lite/` (Python 3.11.9 embed + deps + runtime, 115MB/3193 files), cold start 6.22s verified with sanitized PATH + `/health` 200; additive `BMA_LITE_NO_BROWSER` flag
+- **PM-GUARD** (`c88a379`): single guarded close funnel — backdrop/Esc/X can no longer silently discard pending edits; in-shell delete confirm shows measurement count; fixes the user field report "เปิด page manager แล้วคลิกนอก = งานหาย"
+- **TAG-JIT** (`b0a13bf`): tag banner now acts on the live current page instead of a stale closure reference
+- **WIZ-UNLOCK** (`fb9b2af`, user-approved breaking-ish UX change): wizard auto-open + global keydown/mousedown hard-lock removed (`wiz-auto.js` 256→135 lines); F12 wizard is manual-only now; structurally closes `BUG-20260810`
+- **SHELL** (`2b1887f`): NEW `status-bar.js` (7-cell bottom bar incl. restored snap indicator + current-floor net) and NEW `float-panel.js` (Photoshop-style draggable/collapsible layer panel wrapper)
+- Ledger/roadmap closed (`d231be5`/`3534d35`/`f89659d`): both invents + both SHELL cards marked SHIPPED, `BUG-20260810` closed structurally, `TRUTH_CHECK_OK` 5/5
+
+## What's next
+
+**User manual-test list leads the queue** (things a machine cannot verify) — wizard no longer force-opens and F12 still works, ⇧F12 reaches Page Manager right after opening a file, editing-in-progress in Page Manager then clicking outside shows a warning instead of closing, page delete confirm shows the measurement count, the new status bar shows all 7 cells and hides on ⇧F, the floating layer panel drags/collapses/hides and its position survives reload, `dist-portable` on a genuinely clean Windows machine (7-point checklist), and this morning's tag/rotate → Save fixes hold. After that: `test_closing_dup_strip.py` investigation, the module-review top-10 leftovers, page-pipeline slice 3-4, จานสี (layer palette) needs-GO, the parked E (pywebview) ruling, and Page Hub long-term merge.
+
+## Position in Plan
+
+Phase 1 (Raster PDF Measurement Assistant), `lite/` track. This is the invention-loop's build-and-ship half of two same-day `/lite-invent` pipelines (`page-manager-redesign` approach D, `lite-zero-install-packaging` approach B) plus a `PRIOR_ART_MATURE` shell sprint that correctly skipped the full invent pipeline per rule. No proto work, no forbidden-surface touches, no `.bmaplan` schema change. Next up: the 8-item user manual-test list above — do not queue further feature work on this surface until it's walked.
+
+---
+
+# Previous: PM-META + PM-ID — PASS
 
 **Date:** 2026-08-10
 **Branch:** main
@@ -33,33 +61,7 @@ Phase 1 (Raster PDF Measurement Assistant), `lite/` track. Root-cause fix closin
 
 ---
 
-# Previous: BUG-20260706-lite-layer-page-binding — PASS
-
-**Date:** 2026-07-06
-**Branch:** main
-
-## Outcome
-
-Two user-reported field bugs in `lite/`, both traced to the page↔layer binding introduced by `INV-2026-07-04-001`, fixed and shipped in one commit (`ba109f0`). Bug 1 was a silent data-correctness defect (BROKEN): the active draw layer did not follow the page when navigating to a folder never visited this session, so measurements could land in the wrong floor's layer with no warning — confirmed by a user screenshot on page 29. Bug 2 was a discoverability gap (FRICTION): a 2-sheet site plan's second sheet was unreachable from the new floor-rail/dropdown/search nav surface, so it was correctly tagged but never drawn, leaving the report showing only one sheet.
-
-## What was delivered
-
-- Active-layer fallback: entering a folder never visited this session now selects that folder's first layer (model order) instead of leaving the previous folder's category active
-- New `lsForeignDrawBlocked()` commit-path guard on `finishDraft()` + the count tool, refusing a commit whose target layer doesn't match the current page's folder, with a 5s `state.hintFlash` warning
-- `_lsGoTo` made page-aware: re-selecting the active folder steps to the next page within it (wrapping); arriving from another folder goes to `pages[0]`
-- Floor-rail ◀/▶ now steps pages within a folder before crossing folders; counter shows "ชั้น i/N · แผ่น i/N"
-- `test_layer_scope.py` expanded 6→9 checks; first run caught a real bug in the fix itself (hint write silently overwritten by `draw()`→`updateHUD()`), fixed same session
-
-## What's next
-
-User field re-test of `ba109f0` (active-layer follow + 2-sheet site plan) and the still-pending `e1c6a76` layer re-test; then `BUG-20260605-lite-load-color-null` (still NEEDS-REPRO), `INV-2026-05-25-001` centerline (awaiting user field data), and the lowest-priority `UX-20260703` export-entry consolidation.
-
-## Position in Plan
-
-Phase 1 (Raster PDF Measurement Assistant), `lite/` track. Bug-report intake/fix cycle (Pack I pattern) closing out a same-day field-report pair from the 2026-07-04 layer-panel ship. No proto work, no forbidden-surface touches. Next up: user field validation before further feature work.
-
----
-
+<!-- BUG-20260706-lite-layer-page-binding archived to docs/archive/reports-2026-07-06.md on 2026-08-10 (ค่ำ finalize: PKG-PORTABLE + PM-REDESIGN-D + SHELL, to keep root at Latest + 1 Previous) -->
 <!-- 2026-07-04 full-day block — 8 ships archived to docs/archive/reports-2026-07-04.md on 2026-08-10 (PM-META + PM-ID sprint finalize, to keep root at Latest + 1 Previous) -->
 
 # AUDIT-20260703-roadmap-staleness — process / roadmap hygiene
