@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Mockup — ศูนย์หน้า (Page Hub) รวม F12+⇧F12</title>
+<style>
+  :root{--bg:#0c0f14;--panel:#161a22;--line:#2a3140;--ink:#e8ecf3;--muted:#8b94a7;
+        --accent:#4c8dff;--amber:#ffb454;--red:#ff453a;--green:#34c77b;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#06080c;color:var(--ink);font:14px/1.5 "Sarabun","Segoe UI",sans-serif;padding:24px}
+  h1{font-size:16px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+  /* ===== overlay shell ===== */
+  .hub{width:min(96vw,1100px);margin:0 auto;background:var(--panel);border:1px solid var(--line);
+       border-radius:12px;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+  .hub-head{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);
+            background:rgba(22,26,34,.97)}
+  .hub-head h3{font-size:14px;flex:0 0 auto}
+  .modes{display:flex;background:#0c0f14;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .mode{padding:5px 14px;font-size:13px;cursor:pointer;color:var(--muted);border:0;background:transparent}
+  .mode.on{background:var(--accent);color:#fff}
+  .filters{display:flex;gap:6px;margin-left:8px}
+  .chip{font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .chip.on{border-color:var(--accent);color:var(--accent)}
+  .sp{flex:1}
+  .x{background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer}
+  /* ===== grid ===== */
+  .grid-wrap{max-height:56vh;overflow:auto;padding:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(136px,1fr));gap:10px}
+  .tile{position:relative;background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer}
+  .tile:hover{outline:1px solid var(--accent)}
+  .tile.cur{outline:2px solid var(--accent)}
+  .tile.pending{outline:2px solid var(--amber)}
+  .tile.sel{outline:2px solid var(--green)}
+  .thumb{height:86px;border-radius:4px;margin-bottom:5px;
+         background:linear-gradient(135deg,#1a212c 0%,#232c3a 60%,#1a212c 100%);
+         display:flex;align-items:center;justify-content:center;color:#3b465a;font-size:22px}
+  .pnum{font-size:12px;text-align:center;display:block}
+  .badges{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:4px;min-height:18px}
+  .b{font-size:10px;padding:1px 6px;border-radius:99px;line-height:1.5}
+  .b.tag-site{background:#1e3a2f;color:#66d9a3}
+  .b.tag-floor{background:#1d2c4d;color:#7fb0ff}
+  .b.tag-none{background:#3a2a1d;color:var(--amber)}
+  .b.scale{background:#243043;color:#9fc2ff}
+  .b.scale.no{background:#43242a;color:#ff8f87}
+  .b.obj{background:#222a37;color:var(--muted)}
+  .warn-pending{position:absolute;top:6px;left:6px;font-size:10px;background:var(--amber);color:#000;
+                border-radius:4px;padding:0 5px}
+  .ck{position:absolute;top:6px;left:6px;width:16px;height:16px;accent-color:var(--green)}
+  .acts{position:absolute;top:4px;right:4px;display:flex;gap:3px}
+  .abtn{background:rgba(0,0,0,.72);border:1px solid var(--line);color:var(--ink);border-radius:5px;
+        padding:1px 5px;font-size:12px;cursor:pointer}
+  .abtn:hover{background:var(--accent)}
+  /* ===== bottom bar ===== */
+  .bar{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--line);
+       background:rgba(22,26,34,.97);font-size:13px;flex-wrap:wrap}
+  .btn{border-radius:7px;padding:6px 14px;font-size:13px;cursor:pointer;border:1px solid var(--line);
+       background:#222a37;color:var(--ink)}
+  .btn.primary{background:var(--accent);border:0;color:#fff}
+  .btn.ghost{background:transparent;color:var(--muted)}
+  .hint{color:var(--muted);font-size:12px}
+  /* ===== in-overlay confirm ===== */
+  .confirm{margin:14px;border:1px solid var(--red);background:#1c1114;border-radius:10px;padding:12px 14px;
+           display:flex;gap:12px;align-items:center}
+  .confirm .t{flex:1}
+  .confirm b{color:#ff8f87}
+  /* ===== notes ===== */
+  .notes{max-width:1100px;margin:22px auto 0;border-top:1px dashed var(--line);padding-top:14px;
+         color:var(--muted);font-size:12.5px}
+  .notes li{margin:5px 0 5px 18px}
+  .k{background:#222a37;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<h1>Mockup — 🗂 ศูนย์หน้า (Page Hub)</h1>
+<div class="sub">แนวคิด: รวม F12 (ติดป้าย) + ⇧F12 (จัดระเบียบ) เป็นหน้าจอเดียว สลับโหมดได้ · กดปุ่มโหมดด้านบนเพื่อดูทั้งสองสถานะ</div>
+
+<div class="hub">
+  <div class="hub-head">
+    <h3>🗂 ศูนย์หน้า</h3>
+    <div class="modes">
+      <button class="mode on" id="m1" onclick="setMode(1)">📋 ติดป้าย / ตั้งชั้น</button>
+      <button class="mode" id="m2" onclick="setMode(2)">↕ จัดระเบียบ / ลบ / รวมไฟล์</button>
+    </div>
+    <div class="filters">
+      <span class="chip on">ทั้งหมด (8)</span><span class="chip">ยังไม่ติดป้าย (2)</span>
+      <span class="chip">มีงานวัด (3)</span><span class="chip">ยกเว้น (1)</span>
+    </div>
+    <span class="sp"></span>
+    <button class="x" title="ปิด (Esc)">✕</button>
+  </div>
+
+  <!-- in-overlay delete confirm: shown in organize mode -->
+  <div class="confirm hidden" id="confirm">
+    <div class="t">ลบ <b>หน้า 3 (ชั้น 2)</b> ? — หน้านี้มี<b>งานวัด 12 ชิ้น</b> และตั้งมาตราส่วนแล้ว
+      การลบจะเอางานวัดออกด้วยทั้งหมด (เลิกทำได้ด้วยปุ่ม ↶ ก่อนบันทึก)</div>
+    <button class="btn" onclick="hideConfirm()">ยกเลิก</button>
+    <button class="btn" style="background:var(--red);border:0;color:#fff" onclick="hideConfirm()">ลบหน้า</button>
+  </div>
+
+  <div class="grid-wrap"><div class="grid" id="grid"></div></div>
+
+  <!-- bar: classify mode -->
+  <div class="bar" id="bar1">
+    <span class="hint">เลือกแล้ว 2 หน้า —</span>
+    <button class="btn primary">ติดป้าย: ชั้น (floor)</button>
+    <button class="btn">ผังบริเวณ</button>
+    <button class="btn">แบบขยาย</button>
+    <button class="btn ghost">✕ ยกเว้นหน้า</button>
+    <span class="sp"></span>
+    <span class="hint">คีย์ลัด: <span class="k">1-6</span> ติดป้าย · <span class="k">X</span> ยกเว้น · <span class="k">คลิก</span>=เลือก · <span class="k">ดับเบิลคลิก</span>=ไปที่หน้า</span>
+  </div>
+
+  <!-- bar: organize mode -->
+  <div class="bar hidden" id="bar2">
+    <button class="btn primary">✓ บันทึกการแก้ไขหน้า (2)</button>
+    <button class="btn">↶ เลิกทำ</button>
+    <span class="hint" style="color:var(--amber)">● มีการแก้ไขยังไม่บันทึก — ปิดหน้าต่างจะถามยืนยัน</span>
+    <span class="sp"></span>
+    <button class="btn">＋ รวมไฟล์ PDF</button>
+    <span class="hint">ลาก=ย้าย · <span class="k">คลิก</span>=เลือกหลายหน้า · ปุ่มบน tile: ลบ/สำเนา/หมุน</span>
+  </div>
+</div>
+
+<div class="notes">
+  <b>หลักการออกแบบ (ต่างจากปัจจุบันอย่างไร):</b>
+  <ol>
+    <li><b>ทางเข้าเดียว จำง่าย</b> — ปุ่ม 🗂 บน status bar + <span class="k">F12</span> เดียว (⇧F12 ยกเลิก) · wizard แรกเปิดคือ "ศูนย์หน้า โหมดติดป้าย" ตัวเดียวกัน ไม่ใช่คนละจอ</li>
+    <li><b>tile ชุดเดียวใช้ทั้งสองโหมด</b> — badge บอกครบ: ป้าย/ชั้น (สี), ⚖ ตั้ง scale แล้ว/ยัง, ✏ จำนวนงานวัด — ผู้ใช้เห็นก่อนตัดสินใจลบเสมอ (แก้จุดอันตรายของ confirm เปล่าๆ วันนี้)</li>
+    <li><b>การแก้ค้าง (pending) มองเห็นได้</b> — tile ที่ย้าย/สำเนา ขอบส้ม + ป้าย "ยังไม่บันทึก" · ปิดหน้าต่างทั้งที่ค้างจะถามยืนยัน (วันนี้ปิดเงียบ)</li>
+    <li><b>คำเตือนลบแบบมีข้อมูล ใน overlay เอง</b> — ไม่ใช้ confirm() ของ browser · บอกจำนวนงานวัด + ทางถอย (↶)</li>
+    <li><b>multi-select ทั้งสองโหมด</b> — ลบหน้าขยะ 10 หน้าในครั้งเดียว / ติดป้ายเป็นชุด (ยกความสามารถ bulk ของ wizard เดิมมาใช้ร่วม)</li>
+    <li><b>ปุ่มบน tile มองเห็นตลอดในโหมดจัดระเบียบ</b> (ไม่ซ่อนใต้ hover) + เพิ่ม ⟳ หมุนหน้า ที่วันนี้ต้องไปหาในเมนูอื่น</li>
+    <li><b>thumbnail ชี้ด้วย identity ไม่ใช่เลขหน้า</b> — ใช้ serverNum() แก้บั๊กรูปผิดหน้าหลัง reorder ของทั้งสองจอเดิมพร้อมกัน</li>
+  </ol>
+</div>
+
+<script>
+var pages=[
+ {n:1,tag:"site",tagT:"ผังบริเวณ",fl:"",scale:1,obj:3,cur:1},
+ {n:2,tag:"floor",tagT:"ชั้น 1",fl:"1",scale:1,obj:12},
+ {n:3,tag:"floor",tagT:"ชั้น 2",fl:"2",scale:1,obj:12,pend:"ย้ายมา (เดิมหน้า 5)"},
+ {n:4,tag:"floor",tagT:"ชั้น 3",fl:"3",scale:0,obj:0,sel:1},
+ {n:5,tag:"",tagT:"",fl:"",scale:0,obj:0,sel:1},
+ {n:6,tag:"",tagT:"",fl:"",scale:0,obj:0},
+ {n:7,tag:"floor",tagT:"ดาดฟ้า",fl:"R",scale:0,obj:0,pend:"สำเนาจากหน้า 6"},
+ {n:8,tag:"site",tagT:"ยกเว้น",fl:"",scale:0,obj:0,excl:1}
+];
+var mode=1;
+function render(){
+ var g=document.getElementById('grid'),h='';
+ pages.forEach(function(p){
+  var cls='tile'+(p.cur?' cur':'')+((mode===2&&p.pend)?' pending':'')+((p.sel&&mode===1)?' sel':'');
+  h+='<div class="'+cls+'">';
+  if(mode===2&&p.pend)h+='<div class="warn-pending">● ยังไม่บันทึก</div>';
+  if(mode===2&&!p.pend)h+='<input type="checkbox" class="ck"'+(p.sel?' checked':'')+'>';
+  if(mode===2)h+='<div class="acts"><button class="abtn" title="ลบ" onclick="showConfirm(event)">🗑</button><button class="abtn" title="สำเนา">⧉</button><button class="abtn" title="หมุน 90°">⟳</button></div>';
+  h+='<div class="thumb">▦</div><span class="pnum">หน้า '+p.n+(p.tagT&&p.tag=='floor'?' · '+p.tagT:'')+'</span>';
+  h+='<div class="badges">';
+  if(p.excl)h+='<span class="b tag-none">✕ ยกเว้น</span>';
+  else if(p.tag==='site')h+='<span class="b tag-site">ผังบริเวณ</span>';
+  else if(p.tag==='floor')h+='<span class="b tag-floor">'+p.tagT+'</span>';
+  else h+='<span class="b tag-none">ยังไม่ติดป้าย</span>';
+  if(!p.excl)h+=p.scale?'<span class="b scale">⚖ 1:100</span>':'<span class="b scale no">⚖ ยังไม่ตั้ง</span>';
+  if(p.obj)h+='<span class="b obj">✏ '+p.obj+'</span>';
+  h+='</div></div>';
+ });
+ g.innerHTML=h;
+}
+function setMode(m){mode=m;
+ document.getElementById('m1').classList.toggle('on',m===1);
+ document.getElementById('m2').classList.toggle('on',m===2);
+ document.getElementById('bar1').classList.toggle('hidden',m!==1);
+ document.getElementById('bar2').classList.toggle('hidden',m!==2);
+ hideConfirm();render();}
+function showConfirm(e){e.stopPropagation();document.getElementById('confirm').classList.remove('hidden');}
+function hideConfirm(){document.getElementById('confirm').classList.add('hidden');}
+render();
+</script>
+</body>
+</html>
