@@ -107,7 +107,7 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### ideas 2026-08-10
 
-- [ ] **Bluebeam-inspired batch (4 candidates)** — `invent-in-progress` (user สั่งวิจัยก่อน Track AI, 2026-08-10 ดึก) — from Bluebeam feature review ในแชท
+- [ ] **Bluebeam-inspired batch (4 candidates)** — `invent-research-done, awaiting checkpoint` — full doc `docs/invent/bluebeam-batch.md` (2026-08-10 ดึก). Verdicts: (b) Viewports MATURE→sprint card needs-GO อันดับ 1 · (c) สูตรราคา core ship แล้ว (LRV) เหลือแก้ B-10/B-11 ก่อนต่อยอด · (d) vector-snap MATURE แต่คุ้มต่ำ (ไฟล์จริงเป็นสแกน)→queued-low · (a) Compare/Overlay PARTIAL ตัวเดียวที่ต้อง diverge+spike (ปม: scan registration + two-doc lifecycle) — รอ user เลือกลงทุนต่อหรือพัก
     - (a) **Compare/Overlay revisions** — ซ้อนแบบ rev เก่า-ใหม่คนละสีหา diff (โจทย์แฝง: สแกนสองรอบไม่ตรงกัน ต้อง auto-registration) — candidate อันดับ 1 สำหรับงานตรวจแบบแก้ไข
     - (b) **Viewports** — หลาย scale ในหน้าเดียว (แปลน 1:100 + ขยาย 1:50) — กระทบ data model scale ต่อหน้า
     - (c) **Custom columns/สูตรราคา** ใน report — ต่อยอด LRV
