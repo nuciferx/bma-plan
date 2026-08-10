@@ -58,4 +58,6 @@ Caveat ที่ต้องรู้ก่อนตัดสิน:
 3. งานที่จะเข้า sprint card ถ้า GO: `lite/build_portable.bat` หรือ `BMA-Plan-Lite.spec --onedir` production + flag `BMA_LITE_NO_BROWSER` (additive 1 บรรทัด) + ทดสอบบนเครื่อง Windows สดจริง 1 เครื่องก่อนแจก
 4. NOGO/RESHAPE: ถ้าต้องการกลับไปทาง serverless เต็มตัว (pdf-lib) — research ชี้ว่าควรรอให้พิสูจน์ pdf-lib กับไฟล์ 300MB+ ก่อน และเก็บ C (degrade mode) เป็น invent pass แยก
 
-**Pipeline หยุดที่นี่ — ไม่ promote จนกว่า human จะ GO**
+## Decision
+
+**GO** (user, 2026-08-10) — ship รูปแบบ **portable folder (B)** เป็น artifact หลัก + flag `BMA_LITE_NO_BROWSER` (additive 1 บรรทัดใน launch_lite.py) · **E (pywebview) ยังไม่ตัดสิน — พักไว้** ไม่อยู่ในขอบเขต build นี้ · เงื่อนไขก่อนแจกจริง: user ทดสอบบนเครื่อง Windows สดจริง 1 เครื่อง (เช็คลิสต์ 7 ข้อในแชท 2026-08-10)

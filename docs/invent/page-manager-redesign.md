@@ -45,4 +45,7 @@ Artifact: `lite/sandbox/invent-page-manager-redesign/spike.html` (self-verifying
 3. ถ้าไม่เอาการปลด wizard: **RESHAPE → A** (เกราะอย่างเดียว ~45 บรรทัด ปิดอาการที่รายงานครบ แต่ BUG-20260810 ต้อง fix แยกอีกดอก)
 4. หมายเหตุ: mockup ศูนย์หน้า (แนวทาง C) ไม่ตาย — เก็บเป็นวิสัยทัศน์ระยะยาว ถ้าวันหน้าอยากรวมจอค่อยเปิด invent ใหม่เมื่อ headroom พร้อม
 
-**Pipeline หยุดที่นี่ — รอ GO / NOGO / RESHAPE**
+## Decision
+
+**GO แนวทาง D** (user, 2026-08-10 — "go ทั้งสองตัว delegate เอเจนต์ให้เหมาะสม") — build 3 slices ผ่าน /bma-lite-dev
+หมายเหตุ orchestrator: JIT gate มีอยู่แล้วในรูป `tag-jit.js` (ship แล้ว INV-2026-07-04-002) — slice 2 จึงเป็นการ**แก้บั๊กที่รู้แล้วของ tag-jit** (banner ปิด closure หน้าเก่า + `__jitWrapped` ตั้งก่อน wrap สำเร็จ) ไม่ใช่สร้าง `canvas-tag-banner.js` ใหม่ซ้ำซ้อนตามที่ inventor ร่างไว้
