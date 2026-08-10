@@ -73,6 +73,22 @@ JS_ALLOWLIST = {
     },
 }
 
+# ---- check-1b config: max-line-length ratchet (2026-08-10 governance fix) ------
+# Line caps alone are gameable: one 855-char line adds unbounded code at zero
+# line-cost (the loophole that let ui-lite.html hit 109KB at 1189 "lines").
+# Standard pair (ESLint max-lines + max-len): cap line LENGTH too. Retrofit as a
+# RATCHET: existing long lines are frozen as baseline; a file may only hold its
+# baseline or fewer lines >MAXLEN chars. New files / files not listed = 0 allowed.
+# Baseline maintenance: an extraction sprint MAY move baseline between files but
+# the TOTAL across all files must never increase (recount + edit this dict in the
+# same commit, with the sprint id in a comment).
+MAXLEN = 300
+MAXLEN_BASELINE = {
+    # measured 2026-08-10 (ratchet introduction)
+    "ui-lite.html": 10,
+    "measure-engine.js": 11,   # vendored + sha-pinned — cannot change by definition
+}
+
 # ---- check-2 config: vendored measure engine -----------------------------------
 MEASURE_ENGINE = "lite/static/js/measure-engine.js"
 # Pinned sha256 of the drift-locked vendored file. If measure-engine.js is edited
@@ -174,6 +190,35 @@ def check_line_caps():
 
     kept = sum(1 for _, ok in r.items if ok)
     r.summary = f"{kept}/{len(r.items)} files within cap ({len(JS_ALLOWLIST)} allowlisted)"
+    return r
+
+
+def check_maxlen_ratchet():
+    r = Result("maxlen-ratchet")
+    targets = []
+    ui = rp(UI_LITE)
+    if os.path.exists(ui):
+        targets.append((os.path.basename(UI_LITE), ui))
+    jdir = rp(JS_DIR)
+    if os.path.isdir(jdir):
+        for name in sorted(f for f in os.listdir(jdir) if f.endswith(".js")):
+            targets.append((name, os.path.join(jdir, name)))
+
+    total_over = 0
+    for name, path in targets:
+        with open(path, encoding="utf-8") as f:
+            n = sum(1 for line in f if len(line.rstrip("\n")) > MAXLEN)
+        allowed = MAXLEN_BASELINE.get(name, 0)
+        ok = n <= allowed
+        total_over += n
+        if n or allowed:
+            r.item(f"{name}: {n} lines >{MAXLEN} chars (baseline {allowed})", ok)
+        if not ok:
+            r.fail(f"{name}: {n} lines exceed {MAXLEN} chars > baseline {allowed} "
+                   f"(ratchet: split the line or extract; never add new long lines)")
+
+    r.summary = (f"{total_over} long lines across {len(targets)} files, all within ratchet baseline"
+                 if r.ok else "new over-length lines introduced")
     return r
 
 
@@ -324,6 +369,7 @@ def check_ships_commits():
 # ================================ driver =======================================
 CHECKS = [
     ("line-caps", check_line_caps),
+    ("maxlen-ratchet", check_maxlen_ratchet),
     ("measure-vendor", check_measure_vendor),
     ("marker-inventory", check_marker_inventory),
     ("roadmap-recon", check_roadmap_recon),
