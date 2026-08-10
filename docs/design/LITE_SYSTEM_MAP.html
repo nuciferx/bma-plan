@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>แผนผังการทำงาน BMA-Plan lite — คู่มือก่อนปรับแก้</title>
+<style>
+  :root{--bg:#0c0f14;--panel:#161a22;--line:#2a3140;--ink:#e8ecf3;--muted:#8b94a7;
+        --accent:#4c8dff;--amber:#ffb454;--red:#ff453a;--green:#34c77b;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#06080c;color:var(--ink);font:14px/1.6 "Sarabun","Segoe UI",sans-serif;padding:28px;max-width:1150px;margin:0 auto}
+  h1{font-size:19px;margin-bottom:4px}
+  h2{font-size:15px;margin:30px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line);color:var(--accent)}
+  .sub{color:var(--muted);font-size:12.5px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  .muted{color:var(--muted)}
+  .k{background:#222a37;border:1px solid var(--line);border-radius:4px;padding:0 6px;font-size:11.5px;white-space:nowrap}
+  /* ===== big picture ===== */
+  .big{display:flex;gap:14px;align-items:stretch;margin-top:10px}
+  .side{flex:1;border-radius:12px;padding:12px 14px;border:1px solid var(--line)}
+  .side h3{font-size:14px;margin-bottom:8px}
+  .side.browser{background:#111a2b;border-color:#27406e}
+  .side.server{background:#16211a;border-color:#2c4a37}
+  .duty{margin:5px 0;padding:6px 10px;border-radius:7px;background:rgba(0,0,0,.28);font-size:13px}
+  .duty small{display:block;color:var(--muted);font-size:11px}
+  .link{display:flex;flex-direction:column;justify-content:center;align-items:center;color:var(--muted);font-size:11.5px;gap:4px}
+  .arrow{font-size:20px;color:var(--accent)}
+  /* ===== flows ===== */
+  .flow{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+  .st{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:12.5px}
+  .st b{display:block;font-size:12.5px}
+  .st small{color:var(--muted);font-size:10.5px}
+  .fa{color:var(--accent);font-size:15px}
+  .fnote{font-size:11.5px;color:var(--muted);margin:2px 0 14px;padding-left:4px}
+  .fnote b{color:var(--amber)}
+  /* ===== module map ===== */
+  .groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:10px}
+  .grp{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .grp h4{font-size:13px;margin-bottom:6px}
+  .m{display:flex;align-items:center;gap:6px;font-size:12px;margin:3px 0;color:var(--muted)}
+  .m b{color:var(--ink);font-weight:500}
+  .lv{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+  .lv.g{background:var(--green)} .lv.y{background:var(--amber)} .lv.r{background:var(--red)}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:8px}
+  /* ===== rules ===== */
+  .rules{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
+  .rule{border-radius:10px;padding:10px 12px;font-size:12.5px}
+  .rule h4{font-size:13px;margin-bottom:6px}
+  .rule ul{margin-left:16px}
+  .rule li{margin:3px 0}
+  .rule.red{background:#1c1114;border:1px solid #5c2a2a}
+  .rule.yellow{background:#1d1811;border:1px solid #5c4a2a}
+  .rule.green{background:#111c15;border:1px solid #2a5c3a}
+  /* ===== lookup table ===== */
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px}
+  th{color:var(--muted);text-align:left;font-weight:500;font-size:11.5px;padding:6px 10px;border-bottom:1px solid var(--line)}
+  td{padding:7px 10px;border-bottom:1px solid #1b2230;vertical-align:top}
+  td:first-child{color:var(--ink);white-space:nowrap}
+  td code{background:#222a37;border-radius:4px;padding:0 5px;font-size:11.5px;font-family:Consolas,monospace}
+  .warn{color:var(--amber)}
+</style>
+</head>
+<body>
+<h1>🗺 แผนผังการทำงาน BMA-Plan lite</h1>
+<div class="sub">คู่มือก่อนปรับแก้ — อัปเดต 2026-08-10 จากรีวิว 35 โมดูล · ไฟล์นี้: docs/design/LITE_SYSTEM_MAP.html</div>
+
+<h2>1. ภาพใหญ่: งานอยู่ฝั่งไหน</h2>
+<div class="big">
+  <div class="side browser">
+    <h3>🖥 Browser (สมองหลัก — ทำงานเกือบทั้งหมด)</h3>
+    <div class="duty">แสดงแบบ PDF บนจอ <small>PDF.js — page-renderer.js</small></div>
+    <div class="duty">วาด / วัด / snap / แปลงพิกัด <small>measure-engine.js (ห้ามแก้) + snap-engine.js + ui-lite.html</small></div>
+    <div class="duty">เก็บข้อมูลวัดทุกชิ้น <small>ตัวแปร PS[หน้า] + dicts ต่อหน้า (tag/ชั้น/หมุน)</small></div>
+    <div class="duty">เลเยอร์ / ชั้น / รวมยอด <small>layer-system + object-agg (tuple stream เดียว)</small></div>
+    <div class="duty">Save/Load ไฟล์ .bmaplan <small>ทำใน browser ล้วน — server ไม่เกี่ยว</small></div>
+    <div class="duty">หน้ารายงาน /report <small>lite-report.html + report-edit/vars</small></div>
+  </div>
+  <div class="link"><span class="arrow">⇄</span>HTTP<br>เฉพาะ 4 งาน</div>
+  <div class="side server">
+    <h3>🐍 Server (ผู้ช่วยงานหนัก — server_lite.py ~780 บรรทัด)</h3>
+    <div class="duty">รับไฟล์ PDF เข้า case <small>/upload — เก็บ temp ต่อ case</small></div>
+    <div class="duty">รูปย่อ (thumbnail) <small>/thumb/{n} — PyMuPDF</small></div>
+    <div class="duty">Export ไฟล์จริง <small>/export-xlsx (openpyxl) · /export-pdf-overlay (อบเส้นวัด+ตัวหนังสือไทยลง PDF)</small></div>
+    <div class="duty">ผ่าตัดโครงไฟล์ PDF <small>/apply-page-mutations · /merge-pages (เรียง/ลบ/รวมหน้า แล้วเขียนไฟล์ใหม่)</small></div>
+  </div>
+</div>
+<div class="fnote">จำง่ายๆ: <b>การวัดไม่เคยพึ่ง server</b> — server ถูกเรียกแค่ตอน "เอาไฟล์เข้า" กับ "เอาไฟล์ออก (export/ผ่าหน้า)"</div>
+
+<h2>2. เส้นทางข้อมูล 6 เส้นหลัก (ใครไหลไปหาใคร)</h2>
+
+<div class="flow"><span class="st"><b>① เปิดไฟล์</b><small>ผู้ใช้เลือก PDF</small></span><span class="fa">→</span>
+<span class="st">FileReader อ่านเข้า memory</span><span class="fa">→</span>
+<span class="st">PDF.js render บน canvas<small>page-renderer.js</small></span><span class="fa">→</span>
+<span class="st">ส่งขึ้น server คู่ขนาน<small>ได้ caseId ไว้ใช้ thumb/export</small></span><span class="fa">→</span>
+<span class="st">wizard ติดป้ายหน้าเด้ง<small>wiz-auto → overview-setup</small></span></div>
+<div class="fnote">ถ้า upload ล้ม: ยังวัดได้ แต่ thumbnail/export ใช้ไม่ได้ (caseId ว่าง) — ที่มาของ "Page Manager เปิดไม่ได้" กรณีหนึ่ง</div>
+
+<div class="flow"><span class="st"><b>② ตั้ง scale</b><small>กด S คลิก 2 จุด</small></span><span class="fa">→</span>
+<span class="st">คำนวณ pts_per_m</span><span class="fa">→</span>
+<span class="st">เก็บใน PS[หน้า].scale<small>ต่อหน้า ไม่ใช่ทั้งไฟล์</small></span><span class="fa">→</span>
+<span class="st">ทุกตัวเลข m² คิดสดจากนี่<small>ไม่มีการ cache ค่า — กฎเหล็ก</small></span></div>
+<div class="fnote">หน้าไม่มี scale → พื้นที่ = null แสดง "—" (ห้ามเป็น 0) = กติกา SCALE-GATE / I8</div>
+
+<div class="flow"><span class="st"><b>③ วาด/วัด</b><small>คลิกบน canvas</small></span><span class="fa">→</span>
+<span class="st">snap ปรับจุด<small>snap-engine (+centerline ถ้าเปิด)</small></span><span class="fa">→</span>
+<span class="st">cToPdf แปลงเป็นพิกัด PDF<small>measure-engine — ห้ามแก้</small></span><span class="fa">→</span>
+<span class="st">เก็บ object ลง PS[หน้า].objects<small>catId + semanticTag ติดไปด้วย</small></span><span class="fa">→</span>
+<span class="st">polyAreaM2 คิดพื้นที่โชว์ป้าย</span></div>
+
+<div class="flow"><span class="st"><b>④ หน้า+ชั้น+เลเยอร์</b><small>ป้ายหน้าคือต้นน้ำ</small></span><span class="fa">→</span>
+<span class="st">pageTags / pageFloorNum<small>แก้ที่ wizard หรือเมนู</small></span><span class="fa">→</span>
+<span class="st">สร้างโฟลเดอร์ชั้น PF_* อัตโนมัติ<small>page-folder-layers (derive ใหม่ได้ตลอด)</small></span><span class="fa">→</span>
+<span class="st">panel ขวาแสดงเฉพาะของหน้านี้<small>layer-scope กรองตอน render</small></span></div>
+<div class="fnote"><b>จุดที่เคยทำ "เลเยอร์มั่ว":</b> ป้ายหน้าถูกล้างตอน Save (แก้แล้ว 878effd) → โฟลเดอร์ derive ใหม่จากข้อมูลเก่า → เลเยอร์ดูย้ายที่เอง</div>
+
+<div class="flow"><span class="st"><b>⑤ รวมยอด</b><small>ทุกที่ต้องได้เลขเดียวกัน</small></span><span class="fa">→</span>
+<span class="st">objectTuples() ไล่ทุก object<small>object-agg — ท่อกลางท่อเดียว</small></span><span class="fa">→</span>
+<span class="st">byCategory / byRole / byFloor</span><span class="fa">→</span>
+<span class="st">Σ สรุป · รายงาน · XLSX · ตัวแปร FAR/OSR<small>ผู้บริโภคทุกตัวดูดจากท่อนี้</small></span></div>
+<div class="fnote">กฎ: การคำนวณห้ามอ่านชื่อเลเยอร์ — ใช้ role/semanticTag เท่านั้น (invariant I2)</div>
+
+<div class="flow"><span class="st"><b>⑥ Save / Export</b></span><span class="fa">→</span>
+<span class="st">Save = browser เขียน .bmaplan เอง<small>additive-only ห้าม rename/ลบ field</small></span><span class="fa">·</span>
+<span class="st">Export XLSX/PDF = ส่ง payload ให้ server อบ<small>server มี _rp() แปลงพิกัดกระจกกับ browser — ต้องตรงกัน (I5)</small></span></div>
+
+<h2>3. แผนที่โมดูล 35 ไฟล์ (สี = สุขภาพจากรีวิว 2026-08-10)</h2>
+<div class="groups">
+  <div class="grp"><h4>📄 ระบบหน้า</h4>
+    <div class="m"><span class="lv g"></span><b>page-renderer</b> แสดงผล PDF</div>
+    <div class="m"><span class="lv y"></span><b>page-manager</b> ตัวตนหน้า+journal</div>
+    <div class="m"><span class="lv y"></span><b>page-manager-ui</b> จอ ⇧F12</div>
+    <div class="m"><span class="lv r"></span><b>page-rotate</b> หมุนหน้า</div>
+    <div class="m"><span class="lv g"></span><b>page-scan-badge</b> ป้ายสแกน</div>
+    <div class="m"><span class="lv g"></span><b>verify-scale</b> สอบเทียบซ้ำ</div>
+    <div class="m"><span class="lv y"></span><b>tag-jit</b> ด่านบังคับ tag/scale</div>
+  </div>
+  <div class="grp"><h4>🗂 ระบบเลเยอร์</h4>
+    <div class="m"><span class="lv g"></span><b>layer-system</b> โมเดล (สะอาด)</div>
+    <div class="m"><span class="lv y"></span><b>layer-scope</b> กรองตามหน้า</div>
+    <div class="m"><span class="lv y"></span><b>layer-tree</b> วาดต้นไม้</div>
+    <div class="m"><span class="lv r"></span><b>layer-dnd</b> ลากย้าย (อันตราย)</div>
+    <div class="m"><span class="lv y"></span><b>layer-panel</b> เศษ helper</div>
+    <div class="m"><span class="lv r"></span><b>layer-move</b> ย้าย object (B-8)</div>
+    <div class="m"><span class="lv g"></span><b>layer-target-ui</b> ชิปเป้าวาด</div>
+    <div class="m"><span class="lv r"></span><b>page-folder-layers</b> โฟลเดอร์ชั้น + แอบโหลด script</div>
+  </div>
+  <div class="grp"><h4>📐 วัด / snap / รูปข้ามชั้น</h4>
+    <div class="m"><span class="lv g"></span><b>measure-engine</b> 🔒 vendored ห้ามแก้</div>
+    <div class="m"><span class="lv g"></span><b>snap-engine</b> snap หลัก</div>
+    <div class="m"><span class="lv y"></span><b>snap-types</b> เปิด/ปิดชนิด snap</div>
+    <div class="m"><span class="lv y"></span><b>centerline-snap</b> snap เส้นกลางผนัง</div>
+    <div class="m"><span class="lv y"></span><b>draw-arc</b> เส้นโค้ง (บั๊ก sweep)</div>
+    <div class="m"><span class="lv g"></span><b>ortho-mode</b> ล็อกแนวแกน</div>
+    <div class="m"><span class="lv y"></span><b>cross-floor-shapes</b> master/instance</div>
+    <div class="m"><span class="lv y"></span><b>cfss-dialogs</b> กล่อง CFSS</div>
+  </div>
+  <div class="grp"><h4>📊 รายงาน / export</h4>
+    <div class="m"><span class="lv y"></span><b>report-edit</b> ตารางแก้ได้</div>
+    <div class="m"><span class="lv y"></span><b>report-vars</b> ตัวแปร FAR/OSR</div>
+    <div class="m"><span class="lv g"></span><b>object-agg</b> ท่อรวมยอดกลาง</div>
+    <div class="m"><span class="lv y"></span><b>export-annotate</b> payload export</div>
+    <div class="m"><span class="lv g"></span><b>annot-style</b> สไตล์ annotation</div>
+  </div>
+  <div class="grp"><h4>🧭 wizard / เมนู / อื่นๆ</h4>
+    <div class="m"><span class="lv y"></span><b>overview-setup</b> wizard F12 (3 ขั้น)</div>
+    <div class="m"><span class="lv y"></span><b>overview-grid</b> ตาราง tag (listener รั่ว)</div>
+    <div class="m"><span class="lv r"></span><b>wiz-auto</b> ล็อกบังคับ wizard</div>
+    <div class="m"><span class="lv y"></span><b>menu-flyout</b> เมนูย่อย</div>
+    <div class="m"><span class="lv g"></span><b>cheatsheet</b> F1 คีย์ลัด</div>
+    <div class="m"><span class="lv y"></span><b>empty-hub</b> จอเริ่มต้น</div>
+    <div class="m"><span class="lv g"></span><b>empty-state</b> ม่านรอเปิดไฟล์</div>
+  </div>
+</div>
+<div class="legend"><span><span class="lv g" style="display:inline-block"></span> แข็งแรง (4/5)</span>
+<span><span class="lv y" style="display:inline-block"></span> ใช้ได้ มีจุดต้องระวัง (3/5)</span>
+<span><span class="lv r" style="display:inline-block"></span> เปราะ — แก้อะไรแถวนี้ให้เช็ครีวิว 2026-08-10 ก่อน (2/5)</span></div>
+
+<h2>4. กฎการแก้ 3 สี</h2>
+<div class="rules">
+  <div class="rule red"><h4>🔴 ห้ามแตะ</h4><ul>
+    <li><code>measure-engine.js</code> — sha256 ล็อกไว้ แก้ 1 ตัวอักษรด่านเทสต์แดงทันที</li>
+    <li><code>RS</code> / <code>pdfToC</code> / <code>cToPdf</code></li>
+    <li>schema <code>.bmaplan</code> — เพิ่ม field ใหม่ได้ (additive) ห้าม rename/ลบของเดิม</li>
+    <li>คำนวณโดยอ่านชื่อเลเยอร์</li>
+  </ul></div>
+  <div class="rule yellow"><h4>🟡 แตะได้ แต่มีพิธี</h4><ul>
+    <li>ทุกไฟล์มีเพดาน <b>1000 บรรทัด</b> (ui-lite.html 1200 — ตอนนี้ 1189 แทบเต็ม → ของใหม่ลงไฟล์แยก)</li>
+    <li>แตะ rollup/consumer → เพิ่ม fixture เข้าเทสต์ invariant ที่เกี่ยว (ตาราง I1-I10 ใน tests/INVARIANTS.md)</li>
+    <li>แก้บั๊ก → เขียน guard test ให้<b>แดงก่อน</b>แล้วค่อยแก้ให้เขียว</li>
+    <li>รัน <code>python lite/tests/run_all_tests.py</code> ก่อน commit</li>
+  </ul></div>
+  <div class="rule green"><h4>🟢 แตะสบาย</h4><ul>
+    <li>ข้อความ/ป้าย/สี/layout ใน UI</li>
+    <li>โมดูลใหม่ใน <code>static/js/</code> (ประกาศหัวไฟล์: Public API / Depends on)</li>
+    <li>mockup/spike → <code>lite/sandbox/</code> เท่านั้น</li>
+    <li>เอกสาร</li>
+  </ul></div>
+</div>
+
+<h2>5. จะแก้เรื่องนี้ → ไปดูไฟล์ไหน (ตารางใช้บ่อยสุด)</h2>
+<table>
+<tr><th>อยากแก้เรื่อง…</th><th>ไฟล์หลัก</th><th>ระวัง</th></tr>
+<tr><td>ปุ่ม/เมนู/ข้อความบนจอหลัก</td><td><code>ui-lite.html</code> (โครง) + <code>menu-flyout.js</code></td><td class="warn">ui-lite เหลือ 11 บรรทัด — logic ใหม่ห้ามลงไฟล์นี้ · flyout rebuild เมนูแบบล้างทิ้ง item ใหม่ต้องเพิ่มใน capture list ไม่งั้นหาย</td></tr>
+<tr><td>การแสดงหน้า PDF / zoom / ความชัด</td><td><code>page-renderer.js</code></td><td>double-buffer + token — อ่าน header ก่อน</td></tr>
+<tr><td>เรียง/ลบ/รวมหน้า</td><td><code>page-manager.js</code> (ข้อมูล) + <code>page-manager-ui.js</code> (จอ) + server <code>/apply-page-mutations</code></td><td class="warn">dicts ที่ key ด้วยเลขหน้า (pageRot ฯลฯ) ยังไม่ remap ตาม identity — บั๊กที่รู้แล้ว</td></tr>
+<tr><td>ป้ายหน้า / ชั้น / wizard</td><td><code>overview-setup.js</code> + <code>overview-grid.js</code> + <code>wiz-auto.js</code></td><td class="warn">#ov ไม่อยู่ใน modalOpen() คีย์ทะลุ canvas · lock ของ wiz-auto กลืน ⇧F12 (บั๊ก filed)</td></tr>
+<tr><td>เลเยอร์ / โฟลเดอร์ชั้น</td><td><code>layer-system.js</code> (โมเดล) → <code>page-folder-layers.js</code> (derive+วาด) → <code>layer-scope.js</code> (กรอง)</td><td class="warn">buildPicker ถูก 4 โมดูล wrap ซ้อน — ลำดับโหลดสำคัญ · มี script แอบโหลด 7 ตัวใน page-folder-layers:27-102</td></tr>
+<tr><td>เครื่องมือวัด / วิธีคลิก / snap</td><td><code>ui-lite.html</code> (mouse handlers) + <code>snap-engine.js</code></td><td>ห้ามลาม measure-engine — เพิ่มฟังก์ชันข้างๆ แทน</td></tr>
+<tr><td>ยอดรวม / ตัวเลขไม่ตรงกัน</td><td><code>object-agg.js</code> ที่เดียวก่อนเสมอ</td><td class="warn">ทุก consumer ต้องดูดจาก objectTuples — ถ้าเลขต่างกันแปลว่ามีใครแอบคิดเอง</td></tr>
+<tr><td>หน้ารายงาน /report</td><td><code>lite-report.html</code> + <code>report-edit.js</code> + <code>export-annotate.js</code> (payload)</td><td>payload มีข้อมูลที่หน้ารายงานยังไม่ได้ใช้ (net/subtotal/badge) — เก็บของฟรีก่อนเพิ่มใหม่</td></tr>
+<tr><td>Export XLSX / PDF</td><td><code>export-annotate.js</code> (ฝั่งส่ง) + <code>server_lite.py:224-441</code> (ฝั่งอบ)</td><td class="warn">พิกัด server _rp() ต้องกระจกกับ browser — invariant I5 มีเทสต์คุม</td></tr>
+<tr><td>Save/Load .bmaplan</td><td><code>ui-lite.html:943-1038</code></td><td class="warn">additive-only · field ที่รู้ว่าหายตอน round-trip: dimVisible=false, kind:"path"</td></tr>
+<tr><td>รูปข้ามชั้น (CFSS)</td><td><code>cross-floor-shapes.js</code> + <code>cfss-dialogs.js</code></td><td class="warn">ลบ master = irreversible + จุดบั๊กหลายตัว (freeze ทิ้ง catId) — อ่านรีวิวก่อน</td></tr>
+<tr><td>ที่เก็บบั๊ก/แผนงาน</td><td><code>docs/status/PHASE_INDEX.md</code> (คิว) · <code>lite/tests/bug-archive.jsonl</code> (ประวัติ+guard)</td><td>ทุกบั๊กใหม่ file เข้า PHASE_INDEX ก่อนแก้เสมอ</td></tr>
+</table>
+
+<div style="margin-top:22px" class="sub">คู่กันกับ: <b>tests/INVARIANTS.md</b> (กติกา 10 ข้อ + เทสต์คุม) · <b>lite/README.md</b> (สัญญา vendoring + เพดานไฟล์) · รีวิวรายโมดูลฉบับเต็มอยู่ใน session log 2026-08-10</div>
+</body>
+</html>
