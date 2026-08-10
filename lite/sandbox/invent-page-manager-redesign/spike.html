@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>SPIKE — page-manager-redesign approach D (hardened modal + JIT tag banner)</title>
+<style>
+  :root{--panel:#161a22;--line:#2a3140;--ink:#e8ecf3;--muted:#8b94a7;--accent:#4c8dff;--amber:#ffb454;--red:#ff453a;--green:#34c77b;}
+  body{background:#06080c;color:var(--ink);font:13px/1.5 "Sarabun",sans-serif;padding:18px}
+  h1{font-size:15px}.sub{color:var(--muted);font-size:11.5px;margin-bottom:12px}
+  #stage{position:relative;height:340px;border:1px solid var(--line);border-radius:10px;background:#0d1117;overflow:hidden}
+  /* mock overlay (hardened) */
+  #pm-overlay{position:absolute;inset:0;background:rgba(6,8,12,.82);display:none;align-items:flex-start;justify-content:center;padding-top:30px}
+  #pm-overlay.show{display:flex}
+  #pm-shell{width:70%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .warnbar{display:none;background:#2a1c10;border:1px solid var(--amber);color:var(--amber);border-radius:7px;padding:6px 10px;font-size:12px;margin-bottom:8px}
+  .warnbar.show{display:flex;gap:10px;align-items:center}
+  .warnbar button{margin-left:auto;background:var(--red);border:0;color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer}
+  .confirmbar{display:none;background:#1c1114;border:1px solid var(--red);border-radius:7px;padding:6px 10px;font-size:12px;margin-bottom:8px}
+  .confirmbar.show{display:flex;gap:10px;align-items:center}
+  .confirmbar button{border-radius:6px;padding:3px 10px;cursor:pointer;border:1px solid var(--line);background:#222a37;color:var(--ink)}
+  .confirmbar .del{background:var(--red);border:0;color:#fff}
+  .tiles{display:flex;gap:8px;margin:6px 0}
+  .tile{width:74px;background:#0c0f14;border:1px solid var(--line);border-radius:7px;padding:5px;text-align:center;cursor:pointer;font-size:11px;user-select:none}
+  .tile.sel{outline:2px solid var(--green)}
+  .tile.pending{outline:2px solid var(--amber)}
+  .tile .th{height:40px;background:#1a212c;border-radius:4px;margin-bottom:4px}
+  .bar{display:flex;gap:8px;align-items:center;font-size:12px}
+  .bar button{border-radius:6px;padding:4px 10px;border:1px solid var(--line);background:#222a37;color:var(--ink);cursor:pointer}
+  .bar .pri{background:var(--accent);border:0;color:#fff}
+  /* JIT banner */
+  #jit{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:none;background:rgba(22,26,34,.96);
+       border:1px solid var(--amber);border-radius:9px;padding:7px 12px;font-size:12px;gap:8px;align-items:center}
+  #jit.show{display:flex}
+  #jit .chip{background:#1d2c4d;color:#7fb0ff;border-radius:99px;padding:2px 10px;cursor:pointer}
+  #hint-nopdf{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:none;background:#2a1c10;border:1px solid var(--amber);color:var(--amber);border-radius:8px;padding:5px 12px;font-size:12px}
+  #hint-nopdf.show{display:block}
+  #results{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px;font:12px Consolas,monospace;white-space:pre-wrap}
+  .P{color:var(--green)}.F{color:var(--red)}
+</style>
+</head>
+<body>
+<h1>SPIKE — approach D: hardened Page Manager + JIT tag banner (no wizard auto-lock)</h1>
+<div class="sub">จำลอง interaction contract แล้วรัน eval 3 เคสอัตโนมัติ (ผลท้ายหน้า) — ไม่มี server, state เป็น mock ทั้งหมด</div>
+
+<div id="stage">
+  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#2c3a52">▦ canvas (mock)</div>
+  <div id="hint-nopdf">ยังไม่ได้เปิดไฟล์ PDF — เปิดไฟล์ก่อนจึงจะจัดการหน้าได้</div>
+
+  <div id="pm-overlay">
+    <div id="pm-shell">
+      <b style="font-size:13px">จัดการหน้า (mock)</b>
+      <div class="warnbar" id="warn">⚠ มีการแก้ไขค้าง (<span id="warn-n">0</span>) — ปิดไม่ได้จนกว่าจะ บันทึก หรือ ทิ้งการแก้ไข
+        <button onclick="discardPending()">ทิ้งการแก้ไข</button></div>
+      <div class="confirmbar" id="cfm">ลบ <b id="cfm-pg"></b>? หน้านี้มี<b id="cfm-obj"></b> ชิ้นงานวัด
+        <button onclick="hideCfm()">ยกเลิก</button><button class="del" onclick="doDelete()">ลบหน้า</button></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="bar">
+        <button class="pri" id="apply" onclick="applyPending()">✓ บันทึก (<span id="pn">0</span>)</button>
+        <button onclick="bulkTag('floor')">ติดป้าย: ชั้น (ที่เลือก)</button>
+        <span id="mode-hint" style="color:var(--muted)">คลิก=เลือก · ดับเบิลคลิก=ไปที่หน้า</span>
+        <button style="margin-left:auto" onclick="tryClose('x')">✕ ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="jit">หน้านี้ยังไม่ติดป้าย — เลือกป้ายเพื่อวัดต่อ:
+    <span class="chip" onclick="jitTag('floor')">ชั้น</span><span class="chip" onclick="jitTag('site')">ผังบริเวณ</span></div>
+</div>
+
+<div id="results">running eval…</div>
+
+<script>
+/* ---------- mock state ---------- */
+var S={pdfLoaded:true,curPage:1,activeLayer:"L-floor2",canvasSynced:false,
+       pages:[{n:1,tag:"",obj:0},{n:2,tag:"",obj:3},{n:3,tag:"",obj:0},{n:4,tag:"",obj:0}],
+       pending:[],sel:new Set(),order:[1,2,3,4],confirmTarget:null};
+
+function render(){
+  var t=document.getElementById('tiles');t.innerHTML='';
+  S.order.forEach(function(n){
+    var p=S.pages.find(function(x){return x.n===n});
+    var d=document.createElement('div');
+    d.className='tile'+(S.sel.has(n)?' sel':'')+(S.pending.some(function(m){return m.page===n})?' pending':'');
+    d.innerHTML='<div class="th"></div>หน้า '+n+(p.tag?' · '+p.tag:'')+(p.obj?' ✏'+p.obj:'');
+    d.onclick=function(e){ if(e.detail===2){S.curPage=n;} else {S.sel.has(n)?S.sel.delete(n):S.sel.add(n);} render();};
+    d.oncontextmenu=function(e){e.preventDefault();askDelete(n);};
+    t.appendChild(d);
+  });
+  document.getElementById('pn').textContent=S.pending.length;
+  document.getElementById('warn-n').textContent=S.pending.length;
+}
+/* ---------- entry (with no-PDF hint, not silent) ---------- */
+function openPM(){
+  if(!S.pdfLoaded){var h=document.getElementById('hint-nopdf');h.classList.add('show');return false;}
+  document.getElementById('pm-overlay').classList.add('show');render();return true;
+}
+function isOpen(){return document.getElementById('pm-overlay').classList.contains('show');}
+/* ---------- hardened close: backdrop + Esc + ✕ all funnel here ---------- */
+function tryClose(src){
+  if(S.pending.length>0){document.getElementById('warn').classList.add('show');return false;}
+  document.getElementById('pm-overlay').classList.remove('show');
+  document.getElementById('warn').classList.remove('show');return true;
+}
+document.getElementById('pm-overlay').addEventListener('click',function(e){
+  if(e.target===this) tryClose('backdrop');   /* คลิกนอก shell = เส้นทางเดียวกับ ✕ — โดน guard เดียวกัน */
+});
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&isOpen()) tryClose('esc'); });
+/* ---------- pending ops ---------- */
+function bulkTag(tag){ S.sel.forEach(function(n){S.pages.find(function(x){return x.n===n}).tag=tag;}); render(); }
+function reorder(from,to){ var i=S.order.indexOf(from);S.order.splice(i,1);var j=S.order.indexOf(to);
+  S.order.splice(j+1,0,from); S.pending.push({type:'reorder',page:from}); render(); }
+function askDelete(n){ var p=S.pages.find(function(x){return x.n===n});
+  S.confirmTarget=n;
+  document.getElementById('cfm-pg').textContent='หน้า '+n;
+  document.getElementById('cfm-obj').textContent='งานวัด '+p.obj;
+  document.getElementById('cfm').classList.add('show'); }
+function hideCfm(){document.getElementById('cfm').classList.remove('show');S.confirmTarget=null;}
+function doDelete(){ S.pending.push({type:'del',page:S.confirmTarget}); hideCfm(); render(); }
+function applyPending(){ S.pending=[]; S.canvasSynced=true; document.getElementById('warn').classList.remove('show'); render(); }
+function discardPending(){ S.pending=[]; document.getElementById('warn').classList.remove('show'); render(); }
+/* ---------- JIT tag banner (replaces wizard auto-lock) ---------- */
+function measureTap(pageN){ var p=S.pages.find(function(x){return x.n===pageN});
+  if(!p.tag){document.getElementById('jit').classList.add('show');document.getElementById('jit').dataset.pg=pageN;return 'blocked';}
+  return 'measure-ok'; }
+function jitTag(tag){ var pg=+document.getElementById('jit').dataset.pg;
+  S.pages.find(function(x){return x.n===pg}).tag=tag;
+  document.getElementById('jit').classList.remove('show'); }
+
+/* ================= EVAL HARNESS ================= */
+var out=[];function A(name,cond){out.push((cond?'  <span class="P">PASS</span> ':'  <span class="F">FAIL</span> ')+name);return !!cond;}
+function click(el){el.dispatchEvent(new MouseEvent('click',{bubbles:true}));}
+function esc(){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));}
+setTimeout(function(){
+  var ok=true;
+  /* ---- CASE 1 happy: select 2+3 → bulk tag → reorder → apply → synced ---- */
+  out.push('<b>CASE 1 — happy (เลือกหลายหน้า → tag → ย้าย → บันทึก)</b>');
+  openPM(); S.sel.add(2);S.sel.add(3); bulkTag('floor');
+  ok&=A('tag ติดครบทั้ง 2 หน้า', S.pages[1].tag==='floor'&&S.pages[2].tag==='floor');
+  reorder(4,1);
+  ok&=A('ลำดับใหม่ถูก (4 ตามหลัง 1)', S.order.join()==='1,4,2,3');
+  ok&=A('มี pending ค้าง 1 รายการ', S.pending.length===1);
+  applyPending();
+  ok&=A('Apply แล้ว pending ว่าง + canvas sync', S.pending.length===0&&S.canvasSynced===true);
+
+  /* ---- CASE 2 edge: pending อยู่ → คลิก backdrop → ห้ามปิด/ห้ามหลุด context ---- */
+  out.push('<b>CASE 2 — edge (อุบัติเหตุคลิกนอกจอ ขณะมีงานค้าง)</b>');
+  var pgBefore=S.curPage, layerBefore=S.activeLayer;
+  reorder(3,1);                                   /* สร้าง pending */
+  click(document.getElementById('pm-overlay'));    /* คลิก backdrop ตรงๆ */
+  ok&=A('overlay ยังเปิดอยู่ (ไม่ปิดตัวเอง)', isOpen());
+  ok&=A('pending ไม่หาย', S.pending.length===1);
+  ok&=A('ไม่หลุดไปหน้าอื่น', S.curPage===pgBefore);
+  ok&=A('active layer ไม่เปลี่ยน', S.activeLayer===layerBefore);
+  ok&=A('มีแถบเตือนแสดง', document.getElementById('warn').classList.contains('show'));
+
+  /* ---- CASE 3 adversarial ---- */
+  out.push('<b>CASE 3 — adversarial</b>');
+  esc();
+  ok&=A('Esc ขณะมี pending → ยังไม่ปิด + เตือน', isOpen()&&document.getElementById('warn').classList.contains('show'));
+  discardPending();
+  askDelete(2);
+  var txt=document.getElementById('cfm').textContent;
+  ok&=A('confirm ลบบอกจำนวนงานวัด (3 ชิ้น)', document.getElementById('cfm').classList.contains('show')&&txt.indexOf('3')>=0);
+  hideCfm();
+  tryClose('x');
+  S.pdfLoaded=false;
+  var opened=openPM();
+  ok&=A('เปิดตอนไม่มี PDF → มี hint มองเห็นได้ ไม่เงียบ', opened===false&&document.getElementById('hint-nopdf').classList.contains('show'));
+  S.pdfLoaded=true; document.getElementById('hint-nopdf').classList.remove('show');
+  /* JIT banner แทน wizard lock */
+  var r=measureTap(1);
+  ok&=A('แตะวัดบนหน้าไม่มีป้าย → banner JIT โผล่ (ไม่ล็อกทั้งแอป)', r==='blocked'&&document.getElementById('jit').classList.contains('show'));
+  jitTag('floor');
+  ok&=A('เลือกป้ายจาก banner → tag ติดหน้าที่ถูก + banner หาย', S.pages[0].tag==='floor'&&!document.getElementById('jit').classList.contains('show'));
+
+  out.push('');out.push(ok?'<b class="P">SPIKE_EVAL: ALL PASS</b>':'<b class="F">SPIKE_EVAL: FAIL</b>');
+  document.getElementById('results').innerHTML=out.join('\n');
+  window.__SPIKE_RESULT = ok ? 'ALL_PASS' : 'FAIL';
+},80);
+</script>
+</body>
+</html>
