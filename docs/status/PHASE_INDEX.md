@@ -107,11 +107,14 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### license 2026-08-10
 
-- [ ] **LICENSE-AUDIT: PyMuPDF เป็น AGPL แต่เราเพิ่ง ship ช่องทางแจกจ่าย** — `queued` `p-high` — จาก OSS landscape survey 2026-08-10 (`docs/design/OSS_LANDSCAPE_20260810.md`)
+- [ ] **LICENSE-AUDIT: PyMuPDF AGPL — ปรับเป็นความเสี่ยงต่ำหลัง user ยืนยันบริบท** — `queued` `p-low` — จาก OSS landscape survey 2026-08-10 (`docs/design/OSS_LANDSCAPE_20260810.md`)
     - ข้อเท็จจริง: `PyMuPDF (fitz)` = AGPL-3.0 หรือ commercial (dual) · เป็นแกน server ทั้ง proto และ lite · **PKG-PORTABLE (`fc4a407`) บรรจุมันลงโฟลเดอร์ที่ตั้งใจแจกให้เจ้าหน้าที่**
     - คำถามที่ต้องให้ user ตัดสิน: แจกในหน่วยงานเดียวกัน vs ข้ามหน่วยงาน/สาธารณะ — ภาระตาม AGPL ต่างกัน
     - ทางเลือกถ้าต้องเลี่ยง: `pypdfium2` (Apache/BSD, มีใน proto อยู่แล้ว) + `PDF.js` (Apache) ทำ render/ผ่าหน้าแทนได้เกือบหมด · ส่วนที่แทนยากคือ bake annotation ลง PDF (`/export-pdf-overlay`)
-    - **อย่าแจกโฟลเดอร์ portable ออกนอกทีมจนกว่าข้อนี้จะได้คำตอบ**
+    - **คำตัดสิน user 2026-08-11: ใช้ภายใน — เป็นเครื่องมือที่พัฒนาให้เจ้าหน้าที่ในหน่วยงานใช้เอง** → AGPL trigger ที่ distribution เป็นหลัก, internal use ไม่ก่อหน้าที่เปิดเผย source ต่อสาธารณะ; §13 network clause ไม่เข้าเพราะ server รันที่ 127.0.0.1 บนเครื่องผู้ใช้เอง ไม่ใช่ service ข้ามเครือข่าย → **ปลดสถานะ blocker, ไม่ห้ามแจกภายในทีม/หน่วยงานแล้ว**
+    - เส้นที่ต้องกลับมาทบทวน: (1) วันที่ส่งข้ามหน่วยงาน/เผยแพร่สาธารณะ = distribution จริง (2) วันที่ตั้งเป็น network service (ชนกฎ data-never-leaves อยู่แล้ว)
+    - **งานที่เหลือ (S, ทำได้เลย):** เพิ่ม `THIRD_PARTY_LICENSES.txt` เข้า `lite/build_portable.bat` ระบุ PyMuPDF(AGPL)/pypdfium2/PDF.js/fastapi/uvicorn/openpyxl + ลิงก์ source — มารยาทมาตรฐาน + ประกันไว้เผื่อเส้นที่ 1
+    - หมายเหตุ: ไม่ใช่คำแนะนำทางกฎหมาย — ถ้าจะแจกข้ามหน่วยงานจริงจัง ควรถามนิติกร กทม. หนึ่งรอบ
 
 ### infra 2026-08-10
 
