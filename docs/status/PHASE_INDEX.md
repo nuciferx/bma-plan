@@ -105,6 +105,14 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 - [x] **lite-zero-install-packaging** — **✅ SHIPPED 2026-08-10** `fc4a407` (เหลือ user ทดสอบเครื่องสดจริงก่อนแจก) — (**GO — user 2026-08-10**, ship รูปแบบ portable folder (B) + flag `BMA_LITE_NO_BROWSER` additive; E (pywebview) ยังไม่ตัดสิน — พักไว้; เหลือทดสอบเครื่อง Windows สดจริงโดย user) — full doc `docs/invent/lite-zero-install-packaging.md` (2026-08-10, `/lite-invent` 7 เฟสเต็ม). Research verdict PRIOR_ART_PARTIAL (serverless เต็มตัวติด AGPL/pdf-lib-unproven/PDF.js-worker-heap → reshape เป็น zero-install packaging). Diverge 5 ทาง เสมอ 3 ทางที่ 25 (A onefile exe / B portable embed folder / E pywebview) — spike A+B แล้ว **eval ผ่านครบ 3 เคสทั้งคู่** (zero-Python launch / permit 45 หน้าชื่อไทย / double-launch; หลักฐาน `lite/sandbox/invent-lite-packaging/SPIKE_RESULTS.md`): A = exe 77.7MB cold 8-21s · B = folder 112MB cold 6.5s · E side-check WebView2 เปิดได้จริง. คำถามที่ checkpoint: (1) GO รูปแบบไหน (ข้อเสนอ: folder-based B หรือ A `--onedir` + flag `BMA_LITE_NO_BROWSER` additive 1 บรรทัด + ทดสอบเครื่อง Windows สดจริง); (2) human ตัดสิน E ว่านับเป็น Electron ต้องห้ามหรือไม่ (ไม่ bundle browser — ใช้ WebView2 ของ OS); (3) code-signing เป็นงานแยกกระทบทุก option. **HALTED — รอ GO / NOGO / RESHAPE**
 
+### license 2026-08-10
+
+- [ ] **LICENSE-AUDIT: PyMuPDF เป็น AGPL แต่เราเพิ่ง ship ช่องทางแจกจ่าย** — `queued` `p-high` — จาก OSS landscape survey 2026-08-10 (`docs/design/OSS_LANDSCAPE_20260810.md`)
+    - ข้อเท็จจริง: `PyMuPDF (fitz)` = AGPL-3.0 หรือ commercial (dual) · เป็นแกน server ทั้ง proto และ lite · **PKG-PORTABLE (`fc4a407`) บรรจุมันลงโฟลเดอร์ที่ตั้งใจแจกให้เจ้าหน้าที่**
+    - คำถามที่ต้องให้ user ตัดสิน: แจกในหน่วยงานเดียวกัน vs ข้ามหน่วยงาน/สาธารณะ — ภาระตาม AGPL ต่างกัน
+    - ทางเลือกถ้าต้องเลี่ยง: `pypdfium2` (Apache/BSD, มีใน proto อยู่แล้ว) + `PDF.js` (Apache) ทำ render/ผ่าหน้าแทนได้เกือบหมด · ส่วนที่แทนยากคือ bake annotation ลง PDF (`/export-pdf-overlay`)
+    - **อย่าแจกโฟลเดอร์ portable ออกนอกทีมจนกว่าข้อนี้จะได้คำตอบ**
+
 ### infra 2026-08-10
 
 - [x] **INFRA-CI: GitHub Actions — ด่านทั้งหมดรันเองทุก push** — **✅ SHIPPED 2026-08-10** — `.github/workflows/ci.yml`. เหตุผล: ด่าน 6 ตัว + suite ที่สร้างมาทั้งหมด "มีอยู่จริงเฉพาะตอนมีคนสั่งรัน" — ช่องว่างอันดับ 1 เทียบกับมาตรฐานอุตสาหกรรม (จากบทสนทนาแนวปฏิบัติ Anthropic/OpenAI). โครง 3 job: (1) `truth-gate` ubuntu — `check_executable_truth --verbose` (fetch-depth 0 เพราะ ships-commits ต้องมี git history); (2) `fast-tests` ubuntu — tier t0 (parity+PBT ผ่าน Node) + t1 (server endpoints) ทุก push, เร็ว ไม่ต้อง browser; (3) `full-suite` windows-latest (ตรงกับเครื่อง dev ที่เขียนเทสต์) — Playwright เต็มชุด เฉพาะ manual dispatch + nightly cron, ตั้ง `continue-on-error` ชั่วคราวเพราะ `test_closing_dup_strip.py` แดง pre-existing (ถ้าไม่ตั้ง badge จะแดงถาวรจนคนเลิกมอง)

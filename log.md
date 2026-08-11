@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-08-11 (ต่อจากคืน 08-10) — OSS landscape survey + พบความเสี่ยง license AGPL — ANALYSIS (branch: main)
+
+**ทำอะไร:** user ถาม "มี open source บ้างไหม / หาแล้วยัง" — ตอบตรงว่ายังไม่เคยสำรวจเป็นระบบ แล้วส่ง `bma-researcher` สำรวจ 6 หมวด (แอปทั้งตัว / PDF engine / raster→geometry / floor-plan AI / CAD-GIS lib / infra) โดยบังคับให้ระบุ **license เป็นตัวตัดสิน** เพราะเป็นเครื่องมือแจกให้ราชการ. บันทึกผล + คำวินิจฉัยของ orchestrator ไว้ที่ `docs/design/OSS_LANDSCAPE_20260810.md`.
+
+**ผลสำคัญ 3 ข้อ:**
+1. 🔴 **PyMuPDF เป็น AGPL** และเราเพิ่ง ship `PKG-PORTABLE` ที่บรรจุมันลงโฟลเดอร์แจกจ่ายเมื่อวาน → file การ์ด `LICENSE-AUDIT` (p-high) + ระบุห้ามแจกออกนอกทีมจนกว่าจะตัดสิน
+2. ❌ **orchestrator ปฏิเสธข้อเสนอ Tier-1 ของ researcher** ที่ให้เอา `flatten-js` แทน `polyAreaM2` — ละเมิดสัญญา vendoring/parity ที่ sha-lock ไว้, ทำ `.bmaplan` ข้าม proto↔lite ไม่ตรง, และแทนที่คณิตที่ผ่าน PBT ~500 เคสด้วย dependency 80KB โดยไม่ได้อะไรเพิ่ม (บทเรียน: รายงานวิจัยไม่รู้ข้อจำกัดภายใน ต้องกรองเสมอ)
+3. ✅ **PaddleOCR (Apache-2.0, รัน local, อ่านไทยได้จริง)** ปลดล็อกคำถามนโยบายที่ค้างของ Track AI — ชั้น OCR ไม่ต้องส่งภาพออก cloud
+
+**ข้อค้นพบเชิงลบที่มีค่า:** ไม่มี pipeline "สแกน→polygon" open source ที่โตพอ (centerline-snap ของเราไม่ล้าหลัง) · ไม่มีโมเดลอ่านแบบแปลนที่ใช้กับแบบไทยได้ทันที (CubiCasa5k = แบบฟินแลนด์สะอาด, VLM local อ่อนไทย) → Track AI ขั้นวาด polygon เป็น greenfield จริง ต้อง eval-first · ไม่มีเครื่องมือ Compare-revisions พร้อม registration → ยืนยันว่าแนวทาง (a) เป็นงานประดิษฐ์
+
+**ต้องตรวจก่อนเชื่อ:** `OpenTakeoff` (อ้าง Apache-2.0 browser takeoff 2026) — ยังไม่ได้เปิด repo จริง อย่าวางแผนบนสมมติฐานนี้
+
+**Tests:** ไม่มีการแก้โค้ด — no-test rationale (งานวิจัย+เอกสาร). `TRUTH_CHECK_OK` 6/6 หลังบันทึก.
+
+---
+
 ## 2026-08-10 (ดึก-2) — INFRA-CI: GitHub Actions ทำให้ด่านทั้งหมดรันเอง — SHIPPED (branch: main)
 
 **ทำอะไร:** `9e72502` เพิ่ม `.github/workflows/ci.yml` (repo นี้ไม่เคยมี CI มาก่อน). แรงจูงใจ: จากบทสนทนาเทียบแนวปฏิบัติ Anthropic/OpenAI — ด่าน 6 ตัว + test pyramid ที่โปรเจกต์ลงทุนสร้างมาทั้งหมด "มีอยู่จริงเฉพาะตอนมีคนสั่งรัน" = ช่องว่างอันดับ 1 เทียบมาตรฐานอุตสาหกรรม. โครง 3 job: `truth-gate` (ubuntu, `check_executable_truth --verbose`, `fetch-depth: 0` เพราะ ships-commits ต้อง resolve hash จริง) + `fast-tests` (ubuntu, tier t0 parity/PBT ผ่าน Node + tier t1 server endpoints) ทั้งคู่ยิงทุก push; `full-suite` (windows-latest ให้ตรงกับเครื่อง dev, Playwright เต็มชุด) เฉพาะ manual dispatch + nightly cron 01:00 น. ตั้ง `concurrency.cancel-in-progress` กัน queue ซ้อน.
