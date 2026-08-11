@@ -107,7 +107,7 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 ### findings 2026-08-11 (user field test — escape paths)
 
-- [ ] **BUG-20260811-escape-paths: ทางออกที่ข้ามเกราะ 2 จุด** — `bug-queued` `p-high` — user field report 2026-08-11 ("ในหน้า setup ดับเบิลคลิกที่หน้าใดหน้าหนึ่ง จะเข้าไปหน้านั้นโดยไม่ setup") + orchestrator ตรวจโค้ดพบจุดที่สองด้วย
+- [x] **BUG-20260811-escape-paths: ทางออกที่ข้ามเกราะ 2 จุด** — **✅ FIXED `d06a4db` same day** (guard test `LITE_ESCAPE_PATHS_OK` RED A+C → GREEN 4/4; suite 106/107 fail เดียว pre-existing; test_wiz_followup ปรับตาม contract ใหม่) — user field report 2026-08-11 ("ในหน้า setup ดับเบิลคลิกที่หน้าใดหน้าหนึ่ง จะเข้าไปหน้านั้นโดยไม่ setup") + orchestrator ตรวจโค้ดพบจุดที่สองด้วย
     - **(ก) wizard (F12) — regression ที่ผมทำเอง:** `overview-grid.js:317-322` มียามกัน dblclick หนีอยู่แล้ว (`BUG-20260526-lite-wizard-followup`) แต่มันเช็ค `window.__lwizAutoLockActive` ซึ่ง **WIZ-UNLOCK (`fb9b2af`) ถอด lock ตัวนั้นทิ้งเมื่อคืน** → ยามกลายเป็นโค้ดตาย ดับเบิลคลิกหลุดออกได้ทุกกรณี. บทเรียน: ตอนถอดฟีเจอร์ ไล่เช็คแค่ "ใครเรียกฟังก์ชันที่ลบ" ไม่พอ ต้องไล่ "ใครเช็คตัวแปรสถานะของมัน" ด้วย
     - **(ข) Page Manager (⇧F12) — รูในเกราะที่เพิ่ง ship:** `page-manager-ui.js:382` คลิก tile เรียก `_pmCloseOverlay()` ตรงๆ (ฟังก์ชันที่เขียนกำกับตัวเองว่า "ปิดแบบไม่มีเงื่อนไข") **ข้าม `_pmTryClose()` ที่ PM-GUARD (`c88a379`) สร้างไว้** → ลากย้ายหน้าค้างแล้วเผลอคลิก tile = จอปิดเงียบ ไม่มีคำเตือน (pending ไม่หาย ยังอยู่ใน pageMgr — เสียคือผู้ใช้ไม่รู้ว่ามีของค้าง)
     - **หลักการเดียวที่แก้ทั้งคู่: "ทางออกทุกทางต้องผ่านประตูเดียวกัน และประตูต้องตรวจงานค้าง"**

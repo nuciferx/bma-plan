@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-11 — BUG-20260811-escape-paths: ทางออกทุกทางผ่านประตูเดียว — FIXED same day (branch: main)
+
+**ทำอะไร:** user เริ่มทดสอบมือ 8 ข้อแล้วรายงานทันที: "หน้า setup ดับเบิลคลิกที่หน้าใดหน้าหนึ่ง จะเข้าไปหน้านั้นโดยไม่ setup" → ตรวจโค้ดพบ 2 จุด: (ก) **regression ของผมเอง** — ยามกัน dblclick ใน `overview-grid.js:317` เช็ค `__lwizAutoLockActive` ซึ่ง WIZ-UNLOCK (`fb9b2af`) ทำให้ false ถาวร = ยามตาย; (ข) PM tile-click เรียก `_pmCloseOverlay()` ตรง ข้ามเกราะ `_pmTryClose()` ที่ PM-GUARD เพิ่งสร้าง. User ถาม "ถ้าออกไป layer หรือระบบอื่นจะพังไหม" → วิเคราะห์: ไม่พัง/ข้อมูลไม่หาย (เปลี่ยนหน้าเป็นงานปกติ, pending คงอยู่ใน pageMgr) แต่เสีย selection + active layer เปลี่ยนตามหน้า + ผู้ใช้ไม่รู้ว่ามีของค้าง. User สั่ง "ทำเลย" → file bug ก่อน (`53226d2`) → builder แก้ตามหลัก "ทุกทางออกผ่านประตูเดียวที่ตรวจงานค้าง": PM tile-click เช็ค pending ก่อน (ค้าง=เตือน+ไม่ไป, สะอาด=ไปตามปกติ), wizard dblclick เปลี่ยนเงื่อนไขเป็น `_lovsSelected.size>0` (เลือกค้าง=hint+block, ว่าง=ไปได้) + ลบ flag ตายทิ้ง + อัปเดต `test_wiz_followup.py` ตาม contract ใหม่ (assertion เดิม 4 ตัวคงอยู่ เปลี่ยนแค่ trigger).
+
+**Tests:** guard ใหม่ `test_escape_paths.py` (`LITE_ESCAPE_PATHS_OK`) พิสูจน์ RED ก่อนแก้ (case A+C fail ตรงตามรายงาน, B+D ผ่านตั้งแต่ก่อนแก้ = พฤติกรรมสะอาดไม่ถูกกระทบ) → GREEN 4/4. Baseline 7 ไฟล์เขียวก่อนเริ่ม. Suite เต็ม **106/107** (fail เดียว `test_closing_dup_strip.py` pre-existing). `TRUTH_CHECK_OK` 6/6. wc: page-manager-ui 704, overview-grid 555.
+
+**Commits:** `53226d2` (file bug), `d06a4db` (fix). **บทเรียนที่ file ไว้ในการ์ด:** ตอนถอดฟีเจอร์ ไล่แค่ "ใครเรียกฟังก์ชันที่ลบ" ไม่พอ — ต้องไล่ "ใครเช็คตัวแปรสถานะของมัน" ด้วย.
+
+---
+
 ## 2026-08-11 (ต่อจากคืน 08-10) — OSS landscape survey + พบความเสี่ยง license AGPL — ANALYSIS (branch: main)
 
 **ทำอะไร:** user ถาม "มี open source บ้างไหม / หาแล้วยัง" — ตอบตรงว่ายังไม่เคยสำรวจเป็นระบบ แล้วส่ง `bma-researcher` สำรวจ 6 หมวด (แอปทั้งตัว / PDF engine / raster→geometry / floor-plan AI / CAD-GIS lib / infra) โดยบังคับให้ระบุ **license เป็นตัวตัดสิน** เพราะเป็นเครื่องมือแจกให้ราชการ. บันทึกผล + คำวินิจฉัยของ orchestrator ไว้ที่ `docs/design/OSS_LANDSCAPE_20260810.md`.
