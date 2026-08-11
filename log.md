@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-08-11 (บ่าย) — CURVE-LEN + FREEHAND-LEN: วัดความยาวเส้นโค้ง/freehand ใน lite — SHIPPED (branch: main)
+
+**ทำอะไร:** user ชี้แจงว่า "วัดเส้นไม่ตรง" = ต้องการวิธีวัด**เส้นที่ไม่ตรง** (โค้ง/freehand) ไม่ใช่บั๊ก → ตรวจ: ระบบวัดปกติ (รัน parity/PBT/registration 4 ชุดเขียวหมด) แต่เครื่องมือระยะวัดได้แต่เส้นตรง/polyline. user เตือนว่า "น่าจะมีวิจัยอยู่" → เจอจริง 2 ชิ้น: `arc-polygon` (ship ทั้งสองแอป — arc กับ polygon เท่านั้น) + `freeform-area` INV-2026-05-17-001 (**ship แล้วใน proto** `023b988`, Approach D ที่ user เลือกเอง: Alt-hold sub-mode + RDP) → PRIOR_ART_MATURE ทั้งคู่ = ข้าม invent ตามกฎ, file การ์ด+SCOPE (`a27a10e`) → user GO "ทำให้ใช้ได้ใน lite" → builder ทำ 2 slices (`37aabef`):
+1. **CURVE-LEN** — arc sub-state ของ polygon ขยายไปเครื่องมือ path (⇧D): กด A ระหว่างวาด + คลิกจุดผ่าน = ขอบโค้งจริง; helper ใหม่ `lineLenWithArcs` (ข้าง engine, ไม่แตะ vendored); แสดงครบ label/badge/HUD; `edges` persist additive (project-io); overlay payload flatten arc 18 จุด (I5). ความยาวตรง closed-form เป๊ะ (227.79 == 227.79, err 0%).
+2. **FREEHAND-LEN** — Alt ค้าง+ลาก streaming (bin ≥6px, ข้าม snap/CL ระหว่างลาก), ปล่อย Alt สลับกลับโหมดคลิกผสมได้, จบแล้ว `rdpSimplify` (พอร์ตจาก proto มี attribution) ลดจุดเฉพาะช่วงที่ลาก (86→9); `obj.freeform` additive. ครึ่งวงกลม err 1.3% (<3%).
+
+**Tests:** guard 2 ชุดพิสูจน์ RED ก่อน (arc: "keydown a did not set pending" / freehand: "fhStart is not defined") → GREEN; battery arc/persist/parity เขียว; suite เต็ม **108/109** (fail เดียว pre-existing `test_closing_dup_strip`); `TRUTH_CHECK_OK` 6/6; ui-lite 1119/1200; CL คง poly-only ตามที่ยืนยันกัน.
+
+**Finding → follow-up filed:** XLSX แถวเส้นไม่มีคอลัมน์ความยาว (pre-existing, server writer 6 คอลัมน์ตายตัว) — การ์ด `queued S` ใน PHASE_INDEX.
+
+**Commits:** `a27a10e` (cards+SCOPE), `37aabef` (both slices).
+
+---
+
 ## 2026-08-11 — BUG-20260811-escape-paths: ทางออกทุกทางผ่านประตูเดียว — FIXED same day (branch: main)
 
 **ทำอะไร:** user เริ่มทดสอบมือ 8 ข้อแล้วรายงานทันที: "หน้า setup ดับเบิลคลิกที่หน้าใดหน้าหนึ่ง จะเข้าไปหน้านั้นโดยไม่ setup" → ตรวจโค้ดพบ 2 จุด: (ก) **regression ของผมเอง** — ยามกัน dblclick ใน `overview-grid.js:317` เช็ค `__lwizAutoLockActive` ซึ่ง WIZ-UNLOCK (`fb9b2af`) ทำให้ false ถาวร = ยามตาย; (ข) PM tile-click เรียก `_pmCloseOverlay()` ตรง ข้ามเกราะ `_pmTryClose()` ที่ PM-GUARD เพิ่งสร้าง. User ถาม "ถ้าออกไป layer หรือระบบอื่นจะพังไหม" → วิเคราะห์: ไม่พัง/ข้อมูลไม่หาย (เปลี่ยนหน้าเป็นงานปกติ, pending คงอยู่ใน pageMgr) แต่เสีย selection + active layer เปลี่ยนตามหน้า + ผู้ใช้ไม่รู้ว่ามีของค้าง. User สั่ง "ทำเลย" → file bug ก่อน (`53226d2`) → builder แก้ตามหลัก "ทุกทางออกผ่านประตูเดียวที่ตรวจงานค้าง": PM tile-click เช็ค pending ก่อน (ค้าง=เตือน+ไม่ไป, สะอาด=ไปตามปกติ), wizard dblclick เปลี่ยนเงื่อนไขเป็น `_lovsSelected.size>0` (เลือกค้าง=hint+block, ว่าง=ไปได้) + ลบ flag ตายทิ้ง + อัปเดต `test_wiz_followup.py` ตาม contract ใหม่ (assertion เดิม 4 ตัวคงอยู่ เปลี่ยนแค่ trigger).
