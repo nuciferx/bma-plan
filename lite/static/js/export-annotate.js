@@ -35,6 +35,39 @@ async function dlPost(url,payload,fname){ var res=await fetch(url,{method:"POST"
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; a.click(); }
 function baseName(){ return (pdfName||"export").replace(/\.pdf$/i,""); }
 function exportXlsx(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"?gateNoCaseMsg():"เปิด PDF ก่อน");return;} dlPost("/export-xlsx",buildExportData(),baseName()+".xlsx"); closeMenus(); }
+/* CURVE-LEN (I5): overlay payload = flattened arc points, not raw chord endpoints — export
+   must visually match the screen (which renders the true curve via arcRenderEdge/tracePoly).
+   Picks whichever of the two possible arcs (around the recorded center) passes closer to
+   the saved through-point, by angle — coordinate-system-agnostic (no reliance on canvas
+   ccw semantics, which don't carry over from screen-px space to raw PDF-pt space). Only
+   applies to non-poly (line/path/ref) objects with at least one arc edge; polys/instances/
+   straight lines are returned unchanged (o.pts as-is). Payload-only: o.pts/o.edges on the
+   live object are never mutated. */
+function _flattenArcEdgePts(A,B,edgeRec,segs){
+  segs=segs||16;
+  var cent={x:(A.x+B.x)/2,y:(A.y+B.y)/2};
+  var arc=(typeof computeArcEdge==="function")?computeArcEdge(A,B,edgeRec.arcThrough,cent):null;
+  if(!arc||!arc.center)return null;
+  var C=arc.center, R=Math.hypot(A.x-C.x,A.y-C.y);
+  if(R<1e-6)return null;
+  var aA=Math.atan2(A.y-C.y,A.x-C.x), aB=Math.atan2(B.y-C.y,B.x-C.x), aP=Math.atan2(edgeRec.arcThrough.y-C.y,edgeRec.arcThrough.x-C.x);
+  var TWO_PI=Math.PI*2;
+  var sw=((aB-aA)%TWO_PI+TWO_PI)%TWO_PI, op=((aP-aA)%TWO_PI+TWO_PI)%TWO_PI;
+  var dir=1, span=sw; if(op>sw){ dir=-1; span=TWO_PI-sw; }
+  var out=[];
+  for(var k=1;k<segs;k++){ var a=aA+dir*span*(k/segs); out.push({x:C.x+Math.cos(a)*R,y:C.y+Math.sin(a)*R}); }
+  return out;
+}
+function overlayPts(o){
+  if(!o||o.kind==="poly"||!o.pts||!o.edges)return o?o.pts:[];
+  var hasArc=o.edges.some(function(e){return e&&e.edgeType==="arc";});
+  if(!hasArc)return o.pts;
+  var out=[o.pts[0]];
+  for(var i=0;i<o.pts.length-1;i++){ var A=o.pts[i],B=o.pts[i+1],e=o.edges[i];
+    if(e&&e.edgeType==="arc"&&e.arcThrough&&Math.abs(e.arcSweep||0)>0.001){ var mid=_flattenArcEdgePts(A,B,e,16); if(mid)out=out.concat(mid); }
+    out.push(B); }
+  return out;
+}
 /* S-12 (REVIEW_LITE_LAYER_REPORT_20260704 ledger, slice D/4): overlay labels
    use the layer's Thai display name (catOf(cid).name), with the object's own
    custom name taking priority when set -- mirrors buildReportPayload's
@@ -50,7 +83,7 @@ function exportPdfOverlay(){ if(!caseId){alert(typeof gateNoCaseMsg==="function"
       var mlab=((mm&&mm.name)||(cat?cat.name:"")||"")+(ia==null?"":" "+ia.toFixed(2)+" m2");
       return {kind:"poly",counting:false,pts:rs.pts,color:col,label:mlab}; }
     var label=null; if(o.kind==="poly"&&!o.counting){ var a=polyMetricsAnyShape(o,+k).area; label=(o.name||(cat?cat.name:"")||"")+(a==null?"":" "+a.toFixed(2)+" m2"); }
-    return {kind:o.kind,counting:o.counting,pts:o.pts,color:col,label:label}; }).filter(function(x){return x!==null;});
+    return {kind:o.kind,counting:o.counting,pts:overlayPts(o),color:col,label:label}; }).filter(function(x){return x!==null;});
     var anns=(PS[k].annotations||[]).map(function(a){ var st=annStyle(a); return {type:a.type,pt:a.pt,pts:a.pts,text:a.text,color:st.color,opacity:st.opacity,fontSize:st.fontSize}; });
     if(objs.length||anns.length)pages[k]={objects:objs,annotations:anns,rot:(typeof pageRot!=="undefined"&&pageRot&&pageRot[k])||0}; });
   dlPost("/export-pdf-overlay",{case_id:caseId,pages:pages},baseName()+"-overlay.pdf"); closeMenus(); }
@@ -121,5 +154,5 @@ function openReport(){
 
 /* DOM bindings — safe here because this script loads after the HTML body */
 window.ExportAnnotate = { buildExportData:buildExportData, dlPost:dlPost, baseName:baseName,
-  exportXlsx:exportXlsx, exportPdfOverlay:exportPdfOverlay,
+  exportXlsx:exportXlsx, exportPdfOverlay:exportPdfOverlay, overlayPts:overlayPts,
   reportPageTitle:reportPageTitle, buildReportPayload:buildReportPayload, openReport:openReport };

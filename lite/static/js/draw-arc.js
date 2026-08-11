@@ -191,3 +191,39 @@ function arcHUDText() {
   if (_arcDraft.throughPt) return ' · <b style="color:#ffd60a">Arc: คลิกจุดปลาย arc</b>';
   return ' · <b style="color:#ffd60a">Arc: คลิก through-point</b>';
 }
+
+/**
+ * lineLenWithArcs(o) — CURVE-LEN: total length of an OPEN polyline object
+ * (o.pts, optional o.edges) in PDF-unit space (same units as o.pts, i.e. pt
+ * before /pts_per_m conversion — caller divides by scale like edgeM() does).
+ *
+ * For each segment i (pts[i]->pts[i+1]): if edges[i] is a recorded arc edge
+ * (edgeType:'arc', arcThrough set, |arcSweep|>0.001), the segment length is
+ * the closed-form arc length r*|sweep| where r is recovered from the chord
+ * and sweep (r = (chord/2)/sin(|sweep|/2) — same formula measure-engine's
+ * arcSegmentAreaM2 uses for area). Otherwise the segment is a straight chord.
+ *
+ * Does NOT close the loop (no wraparound) — this is for open line/path/ref
+ * objects, unlike the polygon area routines. Never edits measure-engine.js;
+ * only CALLS its exported math (none needed here — pure trig).
+ */
+function lineLenWithArcs(o) {
+  if (!o || !o.pts || o.pts.length < 2) return 0;
+  var pts = o.pts, edges = o.edges || [], total = 0;
+  for (var i = 0; i < pts.length - 1; i++) {
+    var A = pts[i], B = pts[i + 1];
+    var chord = Math.hypot(B.x - A.x, B.y - A.y);
+    var e = edges[i];
+    if (e && e.edgeType === 'arc' && Math.abs(e.arcSweep || 0) > 0.001) {
+      var half = Math.abs(e.arcSweep) / 2;
+      var sinHalf = Math.sin(half);
+      if (Math.abs(sinHalf) > 1e-9) {
+        var r = (chord / 2) / sinHalf;
+        total += r * Math.abs(e.arcSweep);
+        continue;
+      }
+    }
+    total += chord;
+  }
+  return total;
+}

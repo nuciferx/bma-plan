@@ -61,7 +61,10 @@ function buildPageStore(){ var ps={};
     p.objects.forEach(function(o){ var col=(catOf(o.catId)||{color:"#888"}).color;
       if(o.counting){ st.counts.push({x:o.pts[0].x,y:o.pts[0].y,catId:o.catId,semanticTag:o.semanticTag,liteCatId:o.catId,count:1}); return; }
       if(o.kind==="ref"){ st.refs.push(Object.assign({pts:o.pts,kind:"ref",id:"ref-"+rid(),color:col,opacity:1,semanticTag:"reference_line",useCategory:null,refType:"custom",name:"เส้นอ้างอิง",liteCatId:o.catId},endpts(o))); return; }
-      if(o.kind==="line"){ st.lines.push(Object.assign({pts:o.pts,kind:(o.pts.length>2?"path":"line"),id:"line-"+rid(),color:col,opacity:1,semanticTag:"dimension_line",useCategory:null,liteCatId:o.catId},endpts(o))); return; }
+      if(o.kind==="line"){ var lineObj=Object.assign({pts:o.pts,kind:(o.pts.length>2?"path":"line"),id:"line-"+rid(),color:col,opacity:1,semanticTag:"dimension_line",useCategory:null,liteCatId:o.catId},endpts(o));
+        /* CURVE-LEN/FREEHAND-LEN: additive-only — edges/freeform were previously dropped entirely on save (a lossiness pre-dating this sprint). */
+        if(o.edges)lineObj.edges=o.edges; if(o.freeform)lineObj.freeform=o.freeform;
+        st.lines.push(lineObj); return; }
       var poly={pts:o.pts,closed:true,name:"",areaType:(o.catId==="site"?"land":"room"),id:(o.catId==="ded"?"opening":"area")+"-"+rid(),color:col,opacity:0.18,semanticTag:o.semanticTag,useCategory:null,liteCatId:o.catId};
       if(o.edges)poly.edges=o.edges;
       if(o.catId==="ded")st.openings.push(poly); else st.polys.push(poly); });
@@ -135,7 +138,8 @@ function loadProto(doc){ PS={}; excluded={};
   if(doc.pageStore){ Object.keys(doc.pageStore).forEach(function(k){ var st=doc.pageStore[k]||{}; var objs=[];
     (st.polys||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(SEM_REV[o.semanticTag]||(o.areaType==="land"?"site":"gfa")); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"gross_floor_area",kind:"poly",counting:false,pts:stripClosingDup(polyPts(o),o.edges),dimVisible:true,edges:o.edges}); });
     (st.openings||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"ded"; objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"deduction_opening",kind:"poly",counting:false,pts:stripClosingDup(polyPts(o),o.edges),dimVisible:true,edges:o.edges}); });
-    (st.lines||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; objs.push({id:state._id++,catId:cid,semanticTag:"dimension_line",kind:"line",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
+    (st.lines||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; var lo={id:state._id++,catId:cid,semanticTag:"dimension_line",kind:"line",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true};
+      if(o.edges)lo.edges=o.edges; if(o.freeform)lo.freeform=o.freeform; objs.push(lo); });
     (st.refs||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:"gfa"; objs.push({id:state._id++,catId:cid,semanticTag:"reference_line",kind:"ref",counting:false,pts:o.pts||[{x:o.x0,y:o.y0},{x:o.x1,y:o.y1}],dimVisible:true}); });
     (st.counts||[]).forEach(function(o){ var cid=(o.liteCatId&&layerById(o.liteCatId))?o.liteCatId:(o.catId||"count"); objs.push({id:state._id++,catId:cid,semanticTag:o.semanticTag||"count_marker",kind:"count",counting:true,pts:[{x:o.x,y:o.y}],dimVisible:false}); });
     PS[k]={objects:objs,scale:st.calibScale||null,annotations:(st.annotations||[]).map(annRevFn)}; }); }
