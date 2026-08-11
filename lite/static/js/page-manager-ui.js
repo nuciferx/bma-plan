@@ -374,12 +374,21 @@ function _pmuiWire() {
   thumbs.forEach(function (thumb) {
     var idx = parseInt(thumb.getAttribute('data-pmui-idx'), 10);
 
-    /* Navigate on body click (not on action buttons) */
+    /* Navigate on body click (not on action buttons).
+       BUG-20260811-escape-paths: this used to call _pmCloseOverlay()
+       directly, skipping the pending-mutation guard — the funnel is
+       _pmTryClose(), same door backdrop/Esc/✕ already use. Check pending
+       FIRST: if there is unsaved work, warn and refuse (no navigation,
+       no close); otherwise navigate then close via the guarded funnel. */
     thumb.onclick = function (e) {
       if (e.target.classList.contains('pmui-btn')) return;
+      if (pageMgr && pageMgr.pending && pageMgr.pending.length > 0) {
+        _pmShowPendingWarning();
+        return;
+      }
       var displayPage = idx + 1;
       loadPage(displayPage);
-      _pmCloseOverlay();
+      _pmTryClose('tile-click');
     };
 
     /* Drag source */

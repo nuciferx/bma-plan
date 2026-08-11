@@ -27,7 +27,10 @@
      pageTags, PAGE_TAGS, excluded, pageFloorNum, pageFloorKind, PS,
      pageNames, curPage, pageCount
      liteSetTag(n,val), loadPage(n), closeOverlays(), api(path)
-     window.__lwizAutoLockActive, _lwizShowBlockHint()
+     _lwizShowBlockHint()   — BUG-20260811-escape-paths: dblclick-escape
+       guard now gates on _lovsSelected.size (this file's own state), not
+       window.__lwizAutoLockActive (that lock was removed by WIZ-UNLOCK,
+       fb9b2af — the flag it left behind is permanently false / dead)
 
    Exports (called from overview-setup.js shell):
      _lovsRenderClassify(), _lovsSetTagViaKey(k), _lovsHideCtx()
@@ -314,9 +317,13 @@ function _lovsWireClassify() {
     });
     tile.addEventListener("dblclick", function(e) {
       if (e.target.closest(".ov-floor-input")) return;
-      // BUG-20260526-lite-wizard-followup (A): block dblclick escape during initial setup.
-      // LWIZ lock active means user must finish Page Setup before navigating to any PDF page.
-      if (window.__lwizAutoLockActive) {
+      // BUG-20260811-escape-paths: this used to gate on window.__lwizAutoLockActive
+      // (BUG-20260526-lite-wizard-followup), but WIZ-UNLOCK (fb9b2af) permanently
+      // set that flag false when it removed the hard lock -> the branch went dead
+      // and dblclick could always escape mid-triage. Replaced with a LIVE
+      // work-in-progress check: pages still selected = unfinished triage, block
+      // the escape and show a hint instead of navigating away silently.
+      if (_lovsSelected && _lovsSelected.size > 0) {
         if (typeof _lwizShowBlockHint === "function") _lwizShowBlockHint();
         return;
       }

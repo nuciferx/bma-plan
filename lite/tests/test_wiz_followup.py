@@ -4,10 +4,16 @@ BUG-20260526-lite-wizard-followup regression test.
 Two precise regressions in lite/static/js/overview-setup.js, both already
 patched; this test locks the behaviour so it can't silently regress again.
 
-(A) Step-1 tile dblclick must be gated on the LWIZ setup lock. While
-    window.__lwizAutoLockActive===true the dblclick must NOT navigate
+(A) Step-1 tile dblclick must be gated on unfinished triage work.
+    UPDATED 2026-08-11 (BUG-20260811-escape-paths): originally gated on
+    window.__lwizAutoLockActive, but WIZ-UNLOCK (fb9b2af) permanently set
+    that flag false when the hard lock it belonged to was removed — the
+    branch went dead and dblclick could always escape. The guard now
+    checks LIVE work-in-progress instead: _lovsSelected.size > 0 (pages
+    still selected mid-triage). While selected, dblclick must NOT navigate
     (loadPage/closeOverlays untouched) and must surface the wizard block
-    hint (#lwiz-hint). Once the lock lifts, dblclick navigates normally.
+    hint (#lwiz-hint). Once selection is cleared, dblclick navigates
+    normally — same observable contract as before, new trigger condition.
 
 (B) Done (Step 3) runs _lovsForceFillMissingTags() -> reseedActivePageFolders()
     which creates PF folders + base layers, but the left panel (#catlist) was
@@ -15,8 +21,8 @@ patched; this test locks the behaviour so it can't silently regress again.
     seeded layers become visible immediately.
 
 4 sub-checks:
-  dblclickNoOpWhenLocked     lock active -> dblclick does not navigate + hint shown
-  dblclickWorksAfterUnlock   lock lifted -> dblclick calls loadPage(pn)+closeOverlays
+  dblclickNoOpWhenSelected   pages selected -> dblclick does not navigate + hint shown
+  dblclickWorksWhenClear     selection cleared -> dblclick calls loadPage(pn)+closeOverlays
   doneRefreshesPicker        _lovsForceFillMissingTags() invokes buildPicker()
   layersVisibleAfterDone     emptied #catlist is repopulated after Done -> layers visible
 
@@ -42,23 +48,27 @@ def _free_port(start=8280):
 
 
 # ---------------------------------------------------------------------------
-# Sub-check 1 — dblclickNoOpWhenLocked  (fix A, RED side)
+# Sub-check 1 — dblclickNoOpWhenSelected  (fix A, RED side)
+# UPDATED 2026-08-11 (BUG-20260811-escape-paths): the guard trigger is now
+# live selection state (_lovsSelected.size > 0), not the dead
+# window.__lwizAutoLockActive flag WIZ-UNLOCK left behind.
 # ---------------------------------------------------------------------------
-CHECK_DBLCLICK_NOOP_WHEN_LOCKED = r"""
+CHECK_DBLCLICK_NOOP_WHEN_SELECTED = r"""
 async () => {
   caseId = 'test-mock';
   pageCount = 3;
   pageTags = {1:'site', 2:'floor', 3:'plan'};
-  window.__lwizAutoLockActive = false;
 
   // Open the wizard fresh at Step 1 (renders #grid-classify tiles)
   if (typeof openOv === 'function') openOv();
   await new Promise(r => setTimeout(r, 300));
 
-  // Simulate the initial-setup hard lock
-  window.__lwizAutoLockActive = true;
+  // Simulate unfinished triage: a page is selected (single click selects it)
+  var selTile = document.querySelector('#grid-classify .ov-tile[data-pg="1"]');
+  if (selTile) selTile.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+  var selCount = (typeof _lovsSelected !== 'undefined') ? _lovsSelected.size : 0;
 
-  // Spy navigation — do NOT call originals; a locked dblclick must not fire them
+  // Spy navigation — do NOT call originals; a blocked dblclick must not fire them
   window.__loadPageArg = null;
   window.__closeOverlaysCalled = false;
   loadPage = function(n) { window.__loadPageArg = n; };
@@ -79,12 +89,13 @@ async () => {
 
   return {
     tileFound: tileFound,
+    selCount: selCount,
     openBefore: !!openBefore,
     loadPageNotCalled: window.__loadPageArg === null,
     closeOverlaysNotCalled: window.__closeOverlaysCalled === false,
     hintVisible: hintVisible,
     stillOpen: !!(ov && ov.classList.contains('show')),
-    allOk: tileFound && !!openBefore &&
+    allOk: tileFound && selCount > 0 && !!openBefore &&
            window.__loadPageArg === null &&
            window.__closeOverlaysCalled === false &&
            hintVisible
@@ -93,18 +104,20 @@ async () => {
 """
 
 # ---------------------------------------------------------------------------
-# Sub-check 2 — dblclickWorksAfterUnlock  (fix A, GREEN side)
+# Sub-check 2 — dblclickWorksWhenClear  (fix A, GREEN side)
+# UPDATED 2026-08-11 (BUG-20260811-escape-paths): clears _lovsSelected
+# instead of the retired window.__lwizAutoLockActive flag.
 # ---------------------------------------------------------------------------
-CHECK_DBLCLICK_WORKS_AFTER_UNLOCK = r"""
+CHECK_DBLCLICK_WORKS_WHEN_CLEAR = r"""
 async () => {
   caseId = 'test-mock';
   pageCount = 3;
   pageTags = {1:'site', 2:'floor', 3:'plan'};
 
-  // Re-open + render Step 1 fresh, then lift the lock
+  // Re-open + render Step 1 fresh, with no selection
   if (typeof openOv === 'function') openOv();
   await new Promise(r => setTimeout(r, 300));
-  window.__lwizAutoLockActive = false;
+  if (typeof _lovsSelected !== 'undefined') _lovsSelected.clear();
   if (typeof _lovsRenderClassify === 'function') _lovsRenderClassify();
   await new Promise(r => setTimeout(r, 100));
 
@@ -195,8 +208,8 @@ async () => {
 
 # ---------------------------------------------------------------------------
 CHECKS = [
-    ("dblclickNoOpWhenLocked",   CHECK_DBLCLICK_NOOP_WHEN_LOCKED,   ["allOk"]),
-    ("dblclickWorksAfterUnlock", CHECK_DBLCLICK_WORKS_AFTER_UNLOCK, ["allOk"]),
+    ("dblclickNoOpWhenSelected", CHECK_DBLCLICK_NOOP_WHEN_SELECTED, ["allOk"]),
+    ("dblclickWorksWhenClear",   CHECK_DBLCLICK_WORKS_WHEN_CLEAR,   ["allOk"]),
     ("doneRefreshesPicker",      CHECK_DONE_REFRESHES_PICKER,       ["allOk"]),
     ("layersVisibleAfterDone",   CHECK_LAYERS_VISIBLE_AFTER_DONE,   ["allOk"]),
 ]
