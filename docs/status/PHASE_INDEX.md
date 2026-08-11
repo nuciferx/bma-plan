@@ -105,6 +105,15 @@ Project = **Phase 1** (Raster PDF Measurement). Phase 2+ (legal checker / OCR / 
 
 - [x] **lite-zero-install-packaging** — **✅ SHIPPED 2026-08-10** `fc4a407` (เหลือ user ทดสอบเครื่องสดจริงก่อนแจก) — (**GO — user 2026-08-10**, ship รูปแบบ portable folder (B) + flag `BMA_LITE_NO_BROWSER` additive; E (pywebview) ยังไม่ตัดสิน — พักไว้; เหลือทดสอบเครื่อง Windows สดจริงโดย user) — full doc `docs/invent/lite-zero-install-packaging.md` (2026-08-10, `/lite-invent` 7 เฟสเต็ม). Research verdict PRIOR_ART_PARTIAL (serverless เต็มตัวติด AGPL/pdf-lib-unproven/PDF.js-worker-heap → reshape เป็น zero-install packaging). Diverge 5 ทาง เสมอ 3 ทางที่ 25 (A onefile exe / B portable embed folder / E pywebview) — spike A+B แล้ว **eval ผ่านครบ 3 เคสทั้งคู่** (zero-Python launch / permit 45 หน้าชื่อไทย / double-launch; หลักฐาน `lite/sandbox/invent-lite-packaging/SPIKE_RESULTS.md`): A = exe 77.7MB cold 8-21s · B = folder 112MB cold 6.5s · E side-check WebView2 เปิดได้จริง. คำถามที่ checkpoint: (1) GO รูปแบบไหน (ข้อเสนอ: folder-based B หรือ A `--onedir` + flag `BMA_LITE_NO_BROWSER` additive 1 บรรทัด + ทดสอบเครื่อง Windows สดจริง); (2) human ตัดสิน E ว่านับเป็น Electron ต้องห้ามหรือไม่ (ไม่ bundle browser — ใช้ WebView2 ของ OS); (3) code-signing เป็นงานแยกกระทบทุก option. **HALTED — รอ GO / NOGO / RESHAPE**
 
+### findings 2026-08-11 (user field test — escape paths)
+
+- [ ] **BUG-20260811-escape-paths: ทางออกที่ข้ามเกราะ 2 จุด** — `bug-queued` `p-high` — user field report 2026-08-11 ("ในหน้า setup ดับเบิลคลิกที่หน้าใดหน้าหนึ่ง จะเข้าไปหน้านั้นโดยไม่ setup") + orchestrator ตรวจโค้ดพบจุดที่สองด้วย
+    - **(ก) wizard (F12) — regression ที่ผมทำเอง:** `overview-grid.js:317-322` มียามกัน dblclick หนีอยู่แล้ว (`BUG-20260526-lite-wizard-followup`) แต่มันเช็ค `window.__lwizAutoLockActive` ซึ่ง **WIZ-UNLOCK (`fb9b2af`) ถอด lock ตัวนั้นทิ้งเมื่อคืน** → ยามกลายเป็นโค้ดตาย ดับเบิลคลิกหลุดออกได้ทุกกรณี. บทเรียน: ตอนถอดฟีเจอร์ ไล่เช็คแค่ "ใครเรียกฟังก์ชันที่ลบ" ไม่พอ ต้องไล่ "ใครเช็คตัวแปรสถานะของมัน" ด้วย
+    - **(ข) Page Manager (⇧F12) — รูในเกราะที่เพิ่ง ship:** `page-manager-ui.js:382` คลิก tile เรียก `_pmCloseOverlay()` ตรงๆ (ฟังก์ชันที่เขียนกำกับตัวเองว่า "ปิดแบบไม่มีเงื่อนไข") **ข้าม `_pmTryClose()` ที่ PM-GUARD (`c88a379`) สร้างไว้** → ลากย้ายหน้าค้างแล้วเผลอคลิก tile = จอปิดเงียบ ไม่มีคำเตือน (pending ไม่หาย ยังอยู่ใน pageMgr — เสียคือผู้ใช้ไม่รู้ว่ามีของค้าง)
+    - **หลักการเดียวที่แก้ทั้งคู่: "ทางออกทุกทางต้องผ่านประตูเดียวกัน และประตูต้องตรวจงานค้าง"**
+    - Fix (user GO 2026-08-11, ทาง A ปรับ): PM tile click → route ผ่าน `_pmTryClose()`; wizard dblclick → เปลี่ยนเงื่อนไขจากตัวแปรที่ตายแล้ว เป็น "มีหน้าเลือกค้างอยู่ (`_lovsSelected.size > 0`)" → เตือนแทนหนี, ถ้าไม่มีของค้างก็ไปหน้านั้นได้ตามปกติ; ลบการอ้าง `__lwizAutoLockActive` ที่ตายแล้วทิ้ง
+    - Guard marker: `LITE_ESCAPE_PATHS_OK` (RED ก่อน) | `/bma-lite-dev` | lite / page-manager / wizard
+
 ### license 2026-08-10
 
 - [ ] **LICENSE-AUDIT: PyMuPDF AGPL — ปรับเป็นความเสี่ยงต่ำหลัง user ยืนยันบริบท** — `queued` `p-low` — จาก OSS landscape survey 2026-08-10 (`docs/design/OSS_LANDSCAPE_20260810.md`)
